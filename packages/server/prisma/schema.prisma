@@ -1,0 +1,38 @@
+// Owe Well database schema.
+// Money is never stored here yet; that arrives with expenses in a later phase.
+// All amounts, when they land, will be integer cents.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  // Email is stored already lowercased + trimmed by the app layer; uniqueness is case-sensitive at the DB.
+  email        String    @unique
+  passwordHash String
+  displayName  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Session {
+  // `id` holds the SHA-256 hash of the session token. The raw token lives only in the
+  // user's cookie, never in the database, so a DB leak does not hand out live sessions.
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
