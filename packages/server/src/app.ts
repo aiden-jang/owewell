@@ -5,6 +5,7 @@ import prismaPlugin from './plugins/prisma.js';
 import authPlugin from './plugins/auth.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
+import { groupRoutes } from './modules/groups/groups.routes.js';
 
 function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
   if (env.NODE_ENV === 'test') return false;
@@ -29,6 +30,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(groupRoutes);
 
   return app;
 }
