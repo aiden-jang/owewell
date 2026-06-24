@@ -162,6 +162,17 @@ export async function getBalances(
     }
   }
 
+  // A recorded payment moves the payer toward zero (they settled a debt) and the
+  // recipient toward zero (they were repaid).
+  const settlements = await prisma.settlement.findMany({
+    where: { groupId },
+    select: { fromUserId: true, toUserId: true, amountCents: true },
+  });
+  for (const s of settlements) {
+    net.set(s.fromUserId, (net.get(s.fromUserId) ?? 0) + s.amountCents);
+    net.set(s.toUserId, (net.get(s.toUserId) ?? 0) - s.amountCents);
+  }
+
   return members.map((m) => ({
     userId: m.userId,
     displayName: m.user.displayName,
