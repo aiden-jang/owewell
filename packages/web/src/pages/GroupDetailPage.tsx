@@ -8,6 +8,7 @@ import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
 import { invitesApi } from '../lib/invites';
+import { useGroupRealtime } from '../hooks/useGroupRealtime';
 
 function balanceLabel(netCents: number): { text: string; tone: string } {
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
@@ -84,6 +85,11 @@ export function GroupDetailPage(): ReactNode {
   useEffect(() => {
     void load();
   }, [id]);
+
+  // Live-refresh when anyone else changes this group.
+  useGroupRealtime(id, () => {
+    void refreshLedger();
+  });
 
   async function createInviteLink(): Promise<void> {
     setMemberError(null);

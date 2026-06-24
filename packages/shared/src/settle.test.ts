@@ -59,7 +59,8 @@ describe('simplifyDebts', () => {
           const transfers = simplifyDebts(balances);
           const settled = applyTransfers(balances, transfers);
           for (const value of settled.values()) {
-            expect(value).toBe(0);
+            // Normalize -0 (a zero-sum input can produce it) to 0.
+            expect(value === 0 ? 0 : value).toBe(0);
           }
           expect(transfers.every((t) => t.amountCents > 0)).toBe(true);
           const nonZero = balances.filter((b) => b.netCents !== 0).length;
