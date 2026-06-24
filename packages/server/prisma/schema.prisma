@@ -31,6 +31,7 @@ model User {
   settlementsFrom    Settlement[] @relation("SettlementFrom")
   settlementsTo      Settlement[] @relation("SettlementTo")
   createdSettlements Settlement[] @relation("SettlementCreator")
+  invitesSent        Invite[]     @relation("InviteCreator")
 
   @@map("users")
 }
@@ -57,6 +58,7 @@ model Group {
   members     GroupMember[]
   expenses    Expense[]
   settlements Settlement[]
+  invites     Invite[]
 
   @@index([createdById])
   @@map("groups")
@@ -159,6 +161,24 @@ model Settlement {
 
   @@index([groupId])
   @@map("settlements")
+}
+
+model Invite {
+  id          String    @id @default(cuid())
+  groupId     String
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // The raw token lives in the share link; it is unique and unguessable.
+  token       String    @unique
+  // Optional: who the invite was addressed to (lowercased). Null = anyone with the link.
+  email       String?
+  invitedById String
+  invitedBy   User      @relation("InviteCreator", fields: [invitedById], references: [id])
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  @@index([groupId])
+  @@map("invites")
 }
 
 model Session {
