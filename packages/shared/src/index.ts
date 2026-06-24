@@ -8,3 +8,4 @@ export {
   type SplitShare,
 } from './split.js';
 export { simplifyDebts, SettleError, type NetBalance, type Transfer } from './settle.js';
+export { computeItemizedSplit, type ItemizedInput, type ItemizedItem } from './itemized.js';
