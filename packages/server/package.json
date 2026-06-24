@@ -17,7 +17,9 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
     "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^10.0.0",
     "@fastify/websocket": "^11.0.1",
     "@node-rs/argon2": "^2.0.2",
     "@owe-well/shared": "workspace:*",
