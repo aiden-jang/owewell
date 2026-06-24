@@ -8,6 +8,7 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { groupRoutes } from './modules/groups/groups.routes.js';
 import { expenseRoutes } from './modules/expenses/expenses.routes.js';
 import { settlementRoutes } from './modules/settlements/settlements.routes.js';
+import { inviteRoutes } from './modules/invites/invites.routes.js';
 
 function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
   if (env.NODE_ENV === 'test') return false;
@@ -35,6 +36,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(groupRoutes);
   await app.register(expenseRoutes);
   await app.register(settlementRoutes);
+  await app.register(inviteRoutes);
 
   return app;
 }
