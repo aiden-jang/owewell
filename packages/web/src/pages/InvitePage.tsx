@@ -7,8 +7,10 @@ function Card({ children }: { children: ReactNode }): ReactNode {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-center text-2xl font-bold tracking-tight">Owe Well</h1>
-        <div className="rounded-2xl border border-line bg-card p-6 text-center">{children}</div>
+        <h1 className="mb-6 flex items-center justify-center gap-2 font-display text-3xl font-semibold tracking-tight">
+          <span aria-hidden>🧾</span> Owe Well
+        </h1>
+        <div className="rounded-3xl border border-line bg-card p-7 text-center shadow-sm">{children}</div>
       </div>
     </div>
   );
@@ -79,7 +81,7 @@ export function InvitePage(): ReactNode {
   return (
     <Card>
       <p className="text-sm text-muted">You&apos;re invited to</p>
-      <h2 className="mt-1 text-xl font-semibold">{info.groupName}</h2>
+      <h2 className="mt-1 font-display text-2xl font-semibold">{info.groupName}</h2>
 
       {user ? (
         <>

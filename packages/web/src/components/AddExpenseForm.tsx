@@ -110,7 +110,7 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
   }
 
   const inputClass =
-    'w-full rounded-xl border border-line bg-white px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
+    'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="mt-3 space-y-3 rounded-2xl border border-line bg-card p-4">
@@ -166,7 +166,7 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
                   onChange={(e) => setValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
                   placeholder="0"
                   inputMode="decimal"
-                  className="w-24 rounded-lg border border-line bg-white px-2 py-1.5 text-right outline-none focus:border-accent"
+                  className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                 />
                 <span className="w-12 text-sm text-muted">{VALUE_HINT[method]}</span>
               </div>

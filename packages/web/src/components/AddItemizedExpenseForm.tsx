@@ -132,7 +132,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
   }
 
   const inputClass =
-    'w-full rounded-xl border border-line bg-white px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
+    'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="mt-3 space-y-3 rounded-2xl border border-line bg-card p-4">
@@ -179,7 +179,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
                 onChange={(e) => updateItem(index, { amount: e.target.value })}
                 placeholder="0.00"
                 inputMode="decimal"
-                className="w-28 rounded-xl border border-line bg-white px-3 py-2.5 text-right outline-none focus:border-accent"
+                className="w-28 rounded-xl border border-line bg-field px-3 py-2.5 text-right outline-none focus:border-accent"
                 aria-label={`Item ${index + 1} amount`}
               />
               {items.length > 1 && (

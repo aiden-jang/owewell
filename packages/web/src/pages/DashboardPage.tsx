@@ -60,11 +60,12 @@ export function DashboardPage(): ReactNode {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-3xl animate-rise px-4 py-10">
         {pending && (
-          <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-4 py-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-accent-soft px-4 py-3">
             <span className="text-sm">
-              You have an unsaved split: <span className="font-medium">{pending.description}</span>.
+              You left a split lying around:{' '}
+              <span className="font-medium">{pending.description}</span>.
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -86,19 +87,19 @@ export function DashboardPage(): ReactNode {
           </div>
         )}
 
-        <h1 className="text-2xl font-bold tracking-tight">Your groups</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Your groups</h1>
 
         <form onSubmit={(e) => void onCreate(e)} className="mt-6 flex gap-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="New group name"
-            className="flex-1 rounded-xl border border-line bg-white px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="flex-1 rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
           <button
             type="submit"
             disabled={creating}
-            className="rounded-xl bg-accent px-4 py-2.5 font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
+            className="rounded-full bg-accent px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
           >
             {creating ? 'Adding...' : 'Create'}
           </button>
@@ -119,7 +120,7 @@ export function DashboardPage(): ReactNode {
                 <li key={group.id}>
                   <Link
                     to={`/groups/${group.id}`}
-                    className="flex items-center justify-between rounded-2xl border border-line bg-card p-4 transition hover:border-accent"
+                    className="flex items-center justify-between rounded-2xl border border-line bg-card p-4 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
                   >
                     <span className="font-medium">{group.name}</span>
                     <span className="text-sm text-muted">
