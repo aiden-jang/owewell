@@ -2,6 +2,7 @@ import { simplifyDebts } from '@owe-well/shared';
 import type { PrismaClient } from '@prisma/client';
 import { requireMembership } from '../groups/groups.service.js';
 import { getBalances } from '../expenses/expenses.service.js';
+import { emitGroupChanged } from '../../realtime/bus.js';
 
 export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY';
 
@@ -76,6 +77,7 @@ export async function recordSettlement(
       createdById: userId,
     },
   });
+  emitGroupChanged(groupId);
   return toView(settlement);
 }
 

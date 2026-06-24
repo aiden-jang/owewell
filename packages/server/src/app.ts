@@ -9,6 +9,7 @@ import { groupRoutes } from './modules/groups/groups.routes.js';
 import { expenseRoutes } from './modules/expenses/expenses.routes.js';
 import { settlementRoutes } from './modules/settlements/settlements.routes.js';
 import { inviteRoutes } from './modules/invites/invites.routes.js';
+import realtimePlugin from './realtime/realtime.plugin.js';
 
 function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
   if (env.NODE_ENV === 'test') return false;
@@ -30,6 +31,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(cookie);
   await app.register(prismaPlugin);
   await app.register(authPlugin);
+  await app.register(realtimePlugin);
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
