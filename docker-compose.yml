@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: owe-well-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: owewell
+      POSTGRES_PASSWORD: owewell
+      POSTGRES_DB: owewell
+    # Host port 5544 (not 5432) to avoid colliding with other local Postgres instances.
+    ports:
+      - '5544:5432'
+    volumes:
+      - owe-well-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U owewell -d owewell']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  owe-well-pgdata:
