@@ -1,0 +1,43 @@
+import { api } from './api';
+
+export interface GroupSummary {
+  id: string;
+  name: string;
+  createdAt: string;
+  memberCount: number;
+}
+
+export interface GroupMember {
+  userId: string;
+  displayName: string;
+  email: string;
+  role: 'OWNER' | 'MEMBER';
+  joinedAt: string;
+}
+
+export interface GroupDetail {
+  id: string;
+  name: string;
+  createdById: string;
+  createdAt: string;
+  members: GroupMember[];
+}
+
+export interface Balance {
+  userId: string;
+  displayName: string;
+  netCents: number;
+}
+
+export const groupsApi = {
+  list: (): Promise<GroupSummary[]> =>
+    api.get<{ groups: GroupSummary[] }>('/groups').then((r) => r.groups),
+  create: (name: string): Promise<GroupDetail> =>
+    api.post<{ group: GroupDetail }>('/groups', { name }).then((r) => r.group),
+  get: (id: string): Promise<GroupDetail> =>
+    api.get<{ group: GroupDetail }>(`/groups/${id}`).then((r) => r.group),
+  addMember: (id: string, email: string): Promise<GroupMember> =>
+    api.post<{ member: GroupMember }>(`/groups/${id}/members`, { email }).then((r) => r.member),
+  balances: (id: string): Promise<Balance[]> =>
+    api.get<{ balances: Balance[] }>(`/groups/${id}/balances`).then((r) => r.balances),
+};

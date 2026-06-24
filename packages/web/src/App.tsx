@@ -5,6 +5,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { GroupDetailPage } from './pages/GroupDetailPage';
 
 export function App(): ReactNode {
   const { user, loading } = useAuth();
@@ -21,6 +22,7 @@ export function App(): ReactNode {
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignupPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/groups/:id" element={<GroupDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

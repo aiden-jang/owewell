@@ -6,11 +6,15 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
-    // Proxy API calls to the server in dev so the browser treats them as same-origin
-    // and the session cookie flows without CORS.
+    // Proxy API calls (namespaced under /api) to the server in dev so the browser
+    // treats them as same-origin and the session cookie flows without CORS. The /api
+    // prefix keeps API paths from colliding with client routes like /groups/:id.
     proxy: {
-      '/auth': 'http://localhost:3000',
-      '/health': 'http://localhost:3000',
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
     },
   },
 });
