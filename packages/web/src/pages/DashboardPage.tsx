@@ -110,9 +110,12 @@ export function DashboardPage(): ReactNode {
           {groups === null ? (
             <p className="text-muted">One sec...</p>
           ) : groups.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-card p-10 text-center">
-              <p className="text-lg font-medium">No groups yet. The calm before the tab.</p>
-              <p className="mt-2 text-sm text-muted">Make one above to start splitting.</p>
+            <div className="rounded-2xl border border-dashed border-line p-10 text-center">
+              <div className="text-4xl" aria-hidden>
+                🧾
+              </div>
+              <p className="mt-3 text-lg font-medium">No groups yet. The calm before the tab.</p>
+              <p className="mt-1 text-sm text-muted">Make one above to start splitting.</p>
             </div>
           ) : (
             <ul className="space-y-3">
