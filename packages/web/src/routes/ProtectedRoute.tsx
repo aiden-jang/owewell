@@ -5,7 +5,8 @@ import { useAuth } from '../auth/AuthContext';
 export function ProtectedRoute(): ReactNode {
   const { user } = useAuth();
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // Login is optional: send signed-out visitors to the quick-split calculator.
+    return <Navigate to="/split" replace />;
   }
   return <Outlet />;
 }
