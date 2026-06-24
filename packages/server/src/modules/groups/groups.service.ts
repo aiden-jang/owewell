@@ -70,7 +70,7 @@ function toGroupDetail(group: {
 }
 
 /** Throws NOT_FOUND if the user is not a member, which doubles as "does not exist" to outsiders. */
-async function requireMembership(
+export async function requireMembership(
   prisma: PrismaClient,
   userId: string,
   groupId: string,

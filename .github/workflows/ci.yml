@@ -46,6 +46,11 @@ jobs:
       - name: Apply database migrations
         run: pnpm --filter @owe-well/server exec prisma migrate deploy
 
+      # Build first so workspace packages (e.g. @owe-well/shared) have their
+      # dist output available to the typecheck and test steps that import them.
+      - name: Build
+        run: pnpm -r build
+
       - name: Typecheck
         run: pnpm -r typecheck
 
@@ -54,6 +59,3 @@ jobs:
 
       - name: Test
         run: pnpm -r test
-
-      - name: Build
-        run: pnpm -r build

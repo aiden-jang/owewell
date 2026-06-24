@@ -35,6 +35,9 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.0.2
+      '@owe-well/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@prisma/client':
         specifier: ^5.20.0
         version: 5.22.0(prisma@5.22.0)
