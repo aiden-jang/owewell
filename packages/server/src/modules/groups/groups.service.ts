@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { GroupRole, PrismaClient } from '@prisma/client';
+import { emitGroupChanged } from '../../realtime/bus.js';
 
 export type GroupErrorCode = 'NOT_FOUND' | 'USER_NOT_FOUND' | 'ALREADY_MEMBER';
 
@@ -144,6 +145,7 @@ export async function addMember(
       data: { groupId, userId: user.id, role: 'MEMBER' },
       include: { user: true },
     });
+    emitGroupChanged(groupId);
     return toMemberView(member);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

@@ -1,6 +1,7 @@
 import { computeItemizedSplit, computeSplit, type SplitMethod } from '@owe-well/shared';
 import type { PrismaClient, SplitMethod as DbSplitMethod } from '@prisma/client';
 import { requireMembership } from '../groups/groups.service.js';
+import { emitGroupChanged } from '../../realtime/bus.js';
 
 export type ExpenseErrorCode = 'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT';
 
@@ -115,6 +116,7 @@ export async function createExpense(
     include: { splits: true },
   });
 
+  emitGroupChanged(groupId);
   return toExpenseView(expense);
 }
 
@@ -182,6 +184,7 @@ export async function createItemizedExpense(
     include: { splits: true },
   });
 
+  emitGroupChanged(groupId);
   return toExpenseView(expense);
 }
 

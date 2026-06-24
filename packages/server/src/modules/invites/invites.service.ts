@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import { requireMembership } from '../groups/groups.service.js';
+import { emitGroupChanged } from '../../realtime/bus.js';
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
@@ -86,5 +87,6 @@ export async function acceptInvite(
   });
   await prisma.invite.update({ where: { token }, data: { acceptedAt: new Date() } });
 
+  emitGroupChanged(invite.groupId);
   return { groupId: invite.groupId };
 }
