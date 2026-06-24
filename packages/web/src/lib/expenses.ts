@@ -1,4 +1,25 @@
-import { api } from './api';
+import { api, API_BASE } from './api';
+
+export interface OcrResult {
+  items: { name: string; amountCents: number }[];
+  taxCents: number;
+  tipCents: number;
+}
+
+/** Upload a receipt image and get back extracted line items + tax/tip. */
+export async function ocrReceipt(groupId: string, file: File): Promise<OcrResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/groups/${groupId}/ocr`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error('Could not read that receipt.');
+  }
+  return (await res.json()).receipt as OcrResult;
+}
 
 export type SplitMethod = 'EQUAL' | 'EXACT' | 'PERCENT' | 'SHARES';
 
