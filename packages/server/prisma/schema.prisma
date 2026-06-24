@@ -21,7 +21,89 @@ model User {
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
 
+  createdGroups   Group[]
+  memberships     GroupMember[]
+  paidExpenses    Expense[]      @relation("ExpensePayer")
+  createdExpenses Expense[]      @relation("ExpenseCreator")
+  expenseSplits   ExpenseSplit[]
+
   @@map("users")
+}
+
+enum GroupRole {
+  OWNER
+  MEMBER
+}
+
+enum SplitMethod {
+  EQUAL
+  EXACT
+  PERCENT
+  SHARES
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+  members     GroupMember[]
+  expenses    Expense[]
+
+  @@index([createdById])
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  groupId  String
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+model Expense {
+  id          String         @id @default(cuid())
+  groupId     String
+  group       Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payerId     String
+  payer       User           @relation("ExpensePayer", fields: [payerId], references: [id])
+  createdById String
+  createdBy   User           @relation("ExpenseCreator", fields: [createdById], references: [id])
+  description String
+  // Always integer cents.
+  amountCents Int
+  splitMethod SplitMethod
+  createdAt   DateTime       @default(now())
+  // Soft delete: keeps history and balances auditable.
+  deletedAt   DateTime?
+  splits      ExpenseSplit[]
+
+  @@index([groupId])
+  @@map("expenses")
+}
+
+model ExpenseSplit {
+  id        String  @id @default(cuid())
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  // What this participant owes, in integer cents. Always sums to the expense total.
+  owedCents Int
+  // Raw input that produced owedCents (EXACT: cents, PERCENT: basis points, SHARES: weight; null for EQUAL).
+  inputValue Int?
+
+  @@unique([expenseId, userId])
+  @@index([userId])
+  @@map("expense_splits")
 }
 
 model Session {
