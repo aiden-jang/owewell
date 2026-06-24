@@ -25,9 +25,21 @@ export interface CreateExpensePayload {
   participants: { userId: string; value?: number }[];
 }
 
+export interface CreateItemizedPayload {
+  description: string;
+  payerId: string;
+  taxCents: number;
+  tipCents: number;
+  items: { name: string; amountCents: number; participantIds: string[] }[];
+}
+
 export const expensesApi = {
   list: (groupId: string): Promise<Expense[]> =>
     api.get<{ expenses: Expense[] }>(`/groups/${groupId}/expenses`).then((r) => r.expenses),
   create: (groupId: string, payload: CreateExpensePayload): Promise<Expense> =>
     api.post<{ expense: Expense }>(`/groups/${groupId}/expenses`, payload).then((r) => r.expense),
+  createItemized: (groupId: string, payload: CreateItemizedPayload): Promise<Expense> =>
+    api
+      .post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload)
+      .then((r) => r.expense),
 };
