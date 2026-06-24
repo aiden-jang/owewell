@@ -1,7 +1,10 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import cookie from '@fastify/cookie';
 import type { Env } from './config/env.js';
 import prismaPlugin from './plugins/prisma.js';
+import authPlugin from './plugins/auth.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
 
 function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
   if (env.NODE_ENV === 'test') return false;
@@ -20,8 +23,12 @@ function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env) });
 
+  await app.register(cookie);
   await app.register(prismaPlugin);
+  await app.register(authPlugin);
+
   await app.register(healthRoutes);
+  await app.register(authRoutes);
 
   return app;
 }
