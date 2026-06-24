@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Money } from '@owe-well/shared';
 import { AppHeader } from '../components/AppHeader';
+import { AddExpenseForm } from '../components/AddExpenseForm';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
+import { expensesApi, type Expense } from '../lib/expenses';
 
 function balanceLabel(netCents: number): { text: string; tone: string } {
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
@@ -25,18 +27,30 @@ export function GroupDetailPage(): ReactNode {
   const { id = '' } = useParams();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [balances, setBalances] = useState<Balance[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [email, setEmail] = useState('');
   const [memberError, setMemberError] = useState<string | null>(null);
 
   async function load(): Promise<void> {
     try {
-      const [g, b] = await Promise.all([groupsApi.get(id), groupsApi.balances(id)]);
+      const [g, b, e] = await Promise.all([
+        groupsApi.get(id),
+        groupsApi.balances(id),
+        expensesApi.list(id),
+      ]);
       setGroup(g);
       setBalances(b);
+      setExpenses(e);
     } catch {
       setNotFound(true);
     }
+  }
+
+  async function refreshLedger(): Promise<void> {
+    const [b, e] = await Promise.all([groupsApi.balances(id), expensesApi.list(id)]);
+    setBalances(b);
+    setExpenses(e);
   }
 
   useEffect(() => {
@@ -75,6 +89,8 @@ export function GroupDetailPage(): ReactNode {
     );
   }
 
+  const nameOf = (userId: string): string =>
+    group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
   const balanceByUser = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
 
   return (
@@ -105,6 +121,34 @@ export function GroupDetailPage(): ReactNode {
             );
           })}
         </ul>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Expenses</h2>
+        {expenses.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Nothing yet. Add the first one below.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {expenses.map((expense) => (
+              <li
+                key={expense.id}
+                className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{expense.description}</p>
+                  <p className="text-sm text-muted">paid by {nameOf(expense.payerId)}</p>
+                </div>
+                <span className="font-medium">{Money.fromCents(expense.amountCents).format()}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <AddExpenseForm
+          key={group.members.length}
+          groupId={group.id}
+          members={group.members}
+          onCreated={() => void refreshLedger()}
+        />
       </section>
 
       <section className="mt-8">
