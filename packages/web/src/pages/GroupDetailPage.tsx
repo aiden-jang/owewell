@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Money } from '@owe-well/shared';
+import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
+import { Avatar } from '../components/Avatar';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
@@ -29,6 +31,7 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
 
 export function GroupDetailPage(): ReactNode {
   const { id = '' } = useParams();
+  const { user } = useAuth();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -144,6 +147,26 @@ export function GroupDetailPage(): ReactNode {
       </Link>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">{group.name}</h1>
 
+      {(() => {
+        const myNet = balanceByUser[user?.id ?? ''] ?? 0;
+        const settled = myNet === 0;
+        const owed = myNet > 0;
+        return (
+          <div className="mt-5 rounded-3xl border border-line bg-card p-6 shadow-sm">
+            <p className="text-sm text-muted">
+              {settled ? 'Your standing' : owed ? "You're owed" : 'You owe'}
+            </p>
+            <p
+              className={`font-display text-4xl font-semibold ${
+                settled ? 'text-ink' : owed ? 'text-emerald-600' : 'text-accent'
+              }`}
+            >
+              {settled ? 'All settled' : Money.fromCents(Math.abs(myNet)).format()}
+            </p>
+          </div>
+        );
+      })()}
+
       <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Members</h2>
         <ul className="mt-3 space-y-2">
@@ -154,11 +177,14 @@ export function GroupDetailPage(): ReactNode {
                 key={member.userId}
                 className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
               >
-                <span className="font-medium">
-                  {member.displayName}
-                  {member.role === 'OWNER' && (
-                    <span className="ml-2 rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">owner</span>
-                  )}
+                <span className="flex items-center gap-3 font-medium">
+                  <Avatar name={member.displayName} />
+                  <span>
+                    {member.displayName}
+                    {member.role === 'OWNER' && (
+                      <span className="ml-2 rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">owner</span>
+                    )}
+                  </span>
                 </span>
                 <span className={`text-sm font-medium ${label.tone}`}>{label.text}</span>
               </li>
@@ -178,16 +204,21 @@ export function GroupDetailPage(): ReactNode {
                 key={`${payment.fromUserId}-${payment.toUserId}`}
                 className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
               >
-                <span className="text-sm">
-                  <span className="font-medium">{payment.fromName}</span> pays{' '}
-                  <span className="font-medium">{payment.toName}</span>{' '}
-                  <span className="font-medium">{Money.fromCents(payment.amountCents).format()}</span>
+                <span className="flex items-center gap-2 text-sm">
+                  <Avatar name={payment.fromName} size="sm" />
+                  <span>
+                    <span className="font-medium">{payment.fromName}</span> pays{' '}
+                    <span className="font-medium">{payment.toName}</span>{' '}
+                    <span className="font-medium">
+                      {Money.fromCents(payment.amountCents).format()}
+                    </span>
+                  </span>
                 </span>
                 <button
                   type="button"
                   disabled={settling}
                   onClick={() => void markPaid(payment)}
-                  className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium transition hover:bg-canvas disabled:opacity-60"
+                  className="rounded-full border border-line px-3.5 py-1.5 text-sm font-medium transition hover:bg-canvas active:scale-[0.98] disabled:opacity-60"
                 >
                   Mark paid
                 </button>
@@ -200,7 +231,14 @@ export function GroupDetailPage(): ReactNode {
       <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Expenses</h2>
         {expenses.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Nothing yet. Add the first one below.</p>
+          <div className="mt-3 rounded-2xl border border-dashed border-line p-8 text-center">
+            <div className="text-3xl" aria-hidden>
+              🧮
+            </div>
+            <p className="mt-2 text-sm text-muted">
+              Nothing yet. Add one below and let the math sort itself out.
+            </p>
+          </div>
         ) : (
           <ul className="mt-3 space-y-2">
             {expenses.map((expense) => (
@@ -208,21 +246,24 @@ export function GroupDetailPage(): ReactNode {
                 key={expense.id}
                 className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
               >
-                <div>
-                  <p className="font-medium">{expense.description}</p>
-                  <p className="text-sm text-muted">paid by {nameOf(expense.payerId)}</p>
+                <div className="flex items-center gap-3">
+                  <Avatar name={nameOf(expense.payerId)} size="sm" />
+                  <div>
+                    <p className="font-medium">{expense.description}</p>
+                    <p className="text-sm text-muted">paid by {nameOf(expense.payerId)}</p>
+                  </div>
                 </div>
                 <span className="font-medium">{Money.fromCents(expense.amountCents).format()}</span>
               </li>
             ))}
           </ul>
         )}
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 inline-flex rounded-full border border-line bg-canvas p-1">
           <button
             type="button"
             onClick={() => setExpenseMode('simple')}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              expenseMode === 'simple' ? 'bg-accent text-white' : 'border border-line hover:bg-canvas'
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              expenseMode === 'simple' ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'
             }`}
           >
             Split a total
@@ -230,10 +271,8 @@ export function GroupDetailPage(): ReactNode {
           <button
             type="button"
             onClick={() => setExpenseMode('itemized')}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              expenseMode === 'itemized'
-                ? 'bg-accent text-white'
-                : 'border border-line hover:bg-canvas'
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              expenseMode === 'itemized' ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'
             }`}
           >
             Itemize a receipt
@@ -268,7 +307,7 @@ export function GroupDetailPage(): ReactNode {
           />
           <button
             type="submit"
-            className="rounded-xl bg-accent px-4 py-2.5 font-medium text-white transition hover:bg-accent-hover"
+            className="rounded-full bg-accent px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98]"
           >
             Add
           </button>
