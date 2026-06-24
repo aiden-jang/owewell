@@ -1,7 +1,13 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { GroupError } from '../groups/groups.service.js';
-import { ExpenseError, createExpense, getBalances, listExpenses } from './expenses.service.js';
-import { createExpenseBody } from './expenses.schemas.js';
+import {
+  ExpenseError,
+  createExpense,
+  createItemizedExpense,
+  getBalances,
+  listExpenses,
+} from './expenses.service.js';
+import { createExpenseBody, createItemizedExpenseBody } from './expenses.schemas.js';
 
 function handleError(err: unknown, reply: FastifyReply): { error: string; message: string } {
   if (err instanceof GroupError) {
@@ -35,6 +41,30 @@ export async function expenseRoutes(app: FastifyInstance): Promise<void> {
             p.value === undefined ? { userId: p.userId } : { userId: p.userId, value: p.value },
           ),
         });
+        reply.code(201);
+        return { expense };
+      } catch (err) {
+        return handleError(err, reply);
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/groups/:id/expenses/itemized',
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      const parsed = createItemizedExpenseBody.safeParse(request.body);
+      if (!parsed.success) {
+        reply.code(400);
+        return { error: 'ValidationError', issues: parsed.error.flatten() };
+      }
+      try {
+        const expense = await createItemizedExpense(
+          app.prisma,
+          request.user!.id,
+          request.params.id,
+          parsed.data,
+        );
         reply.code(201);
         return { expense };
       } catch (err) {

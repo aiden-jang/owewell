@@ -1,4 +1,4 @@
-import { computeSplit, type SplitMethod } from '@owe-well/shared';
+import { computeItemizedSplit, computeSplit, type SplitMethod } from '@owe-well/shared';
 import type { PrismaClient, SplitMethod as DbSplitMethod } from '@prisma/client';
 import { requireMembership } from '../groups/groups.service.js';
 
@@ -109,6 +109,73 @@ export async function createExpense(
           userId: s.userId,
           owedCents: s.owedCents,
           inputValue: valueByUser.get(s.userId) ?? null,
+        })),
+      },
+    },
+    include: { splits: true },
+  });
+
+  return toExpenseView(expense);
+}
+
+export interface CreateItemizedExpenseInput {
+  description: string;
+  payerId: string;
+  taxCents: number;
+  tipCents: number;
+  items: { name: string; amountCents: number; participantIds: string[] }[];
+}
+
+export async function createItemizedExpense(
+  prisma: PrismaClient,
+  userId: string,
+  groupId: string,
+  input: CreateItemizedExpenseInput,
+): Promise<ExpenseView> {
+  await requireMembership(prisma, userId, groupId);
+
+  const memberIds = await groupMemberIds(prisma, groupId);
+  if (!memberIds.has(input.payerId)) {
+    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
+  }
+  const everyone = new Set(input.items.flatMap((item) => item.participantIds));
+  if ([...everyone].some((id) => !memberIds.has(id))) {
+    throw new ExpenseError('INVALID_PARTICIPANT', 'Everyone on an item must be a group member.');
+  }
+
+  let shares;
+  try {
+    shares = computeItemizedSplit({
+      items: input.items.map((item) => ({
+        amountCents: item.amountCents,
+        participantIds: item.participantIds,
+      })),
+      taxCents: input.taxCents,
+      tipCents: input.tipCents,
+    });
+  } catch (err) {
+    throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
+  }
+
+  const amountCents =
+    input.items.reduce((sum, item) => sum + item.amountCents, 0) + input.taxCents + input.tipCents;
+
+  const expense = await prisma.expense.create({
+    data: {
+      groupId,
+      payerId: input.payerId,
+      createdById: userId,
+      description: input.description,
+      amountCents,
+      splitMethod: 'ITEMIZED',
+      taxCents: input.taxCents,
+      tipCents: input.tipCents,
+      splits: { create: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) },
+      items: {
+        create: input.items.map((item) => ({
+          name: item.name,
+          amountCents: item.amountCents,
+          shares: { create: item.participantIds.map((uid) => ({ userId: uid })) },
         })),
       },
     },
