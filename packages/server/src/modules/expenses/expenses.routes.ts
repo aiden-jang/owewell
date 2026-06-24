@@ -4,6 +4,7 @@ import {
   ExpenseError,
   createExpense,
   createItemizedExpense,
+  deleteExpense,
   getBalances,
   listExpenses,
 } from './expenses.service.js';
@@ -15,7 +16,7 @@ function handleError(err: unknown, reply: FastifyReply): { error: string; messag
     return { error: err.code, message: err.message };
   }
   if (err instanceof ExpenseError) {
-    reply.code(422);
+    reply.code(err.code === 'NOT_FOUND' ? 404 : 422);
     return { error: err.code, message: err.message };
   }
   throw err;
@@ -79,6 +80,19 @@ export async function expenseRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       try {
         return { expenses: await listExpenses(app.prisma, request.user!.id, request.params.id) };
+      } catch (err) {
+        return handleError(err, reply);
+      }
+    },
+  );
+
+  app.delete<{ Params: { id: string; expenseId: string } }>(
+    '/groups/:id/expenses/:expenseId',
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      try {
+        await deleteExpense(app.prisma, request.user!.id, request.params.id, request.params.expenseId);
+        return { ok: true };
       } catch (err) {
         return handleError(err, reply);
       }

@@ -63,4 +63,6 @@ export const expensesApi = {
     api
       .post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload)
       .then((r) => r.expense),
+  remove: (groupId: string, expenseId: string): Promise<{ ok: boolean }> =>
+    api.del<{ ok: boolean }>(`/groups/${groupId}/expenses/${expenseId}`),
 };

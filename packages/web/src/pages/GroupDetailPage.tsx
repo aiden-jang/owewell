@@ -94,6 +94,12 @@ export function GroupDetailPage(): ReactNode {
     void refreshLedger();
   });
 
+  async function deleteExpense(expenseId: string): Promise<void> {
+    if (!window.confirm('Delete this expense?')) return;
+    await expensesApi.remove(id, expenseId);
+    await refreshLedger();
+  }
+
   async function createInviteLink(): Promise<void> {
     setMemberError(null);
     try {
@@ -253,7 +259,17 @@ export function GroupDetailPage(): ReactNode {
                     <p className="text-sm text-muted">paid by {nameOf(expense.payerId)}</p>
                   </div>
                 </div>
-                <span className="font-medium">{Money.fromCents(expense.amountCents).format()}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{Money.fromCents(expense.amountCents).format()}</span>
+                  <button
+                    type="button"
+                    onClick={() => void deleteExpense(expense.id)}
+                    aria-label={`Delete ${expense.description}`}
+                    className="rounded-full px-2 py-1 text-muted transition hover:bg-canvas hover:text-accent"
+                  >
+                    &times;
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
