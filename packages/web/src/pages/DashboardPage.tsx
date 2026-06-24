@@ -1,13 +1,17 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
 import { groupsApi, type GroupSummary } from '../lib/groups';
+import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 
 export function DashboardPage(): ReactNode {
+  const navigate = useNavigate();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(() => loadPendingSplit());
+  const [savingPending, setSavingPending] = useState(false);
 
   useEffect(() => {
     groupsApi
@@ -15,6 +19,24 @@ export function DashboardPage(): ReactNode {
       .then(setGroups)
       .catch(() => setGroups([]));
   }, []);
+
+  async function savePending(): Promise<void> {
+    if (!pending) return;
+    setSavingPending(true);
+    try {
+      const { groupId } = await quickSplitApi.save(pending);
+      clearPendingSplit();
+      setPending(null);
+      navigate(`/groups/${groupId}`);
+    } catch {
+      setSavingPending(false);
+    }
+  }
+
+  function dismissPending(): void {
+    clearPendingSplit();
+    setPending(null);
+  }
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -39,6 +61,31 @@ export function DashboardPage(): ReactNode {
     <div className="min-h-screen">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-4 py-10">
+        {pending && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/5 px-4 py-3">
+            <span className="text-sm">
+              You have an unsaved split: <span className="font-medium">{pending.description}</span>.
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void savePending()}
+                disabled={savingPending}
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
+              >
+                {savingPending ? 'Saving...' : 'Save it'}
+              </button>
+              <button
+                type="button"
+                onClick={dismissPending}
+                className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium transition hover:bg-canvas"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <h1 className="text-2xl font-bold tracking-tight">Your groups</h1>
 
         <form onSubmit={(e) => void onCreate(e)} className="mt-6 flex gap-2">
