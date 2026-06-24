@@ -49,4 +49,12 @@ export const api = {
     }
     return request<T>(path, init);
   },
+  patch: <T>(path: string, body?: unknown): Promise<T> => {
+    const init: RequestInit = { method: 'PATCH' };
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
+    return request<T>(path, init);
+  },
+  del: <T>(path: string): Promise<T> => request<T>(path, { method: 'DELETE' }),
 };

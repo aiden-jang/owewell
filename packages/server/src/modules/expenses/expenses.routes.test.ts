@@ -162,6 +162,68 @@ describe('expense routes', () => {
     expect(balances.statusCode).toBe(404);
   });
 
+  test('deleting an expense removes it and restores balances', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/expenses`,
+      headers: { cookie: ann.cookie },
+      payload: {
+        description: 'Pizza',
+        amountCents: 800,
+        payerId: ann.id,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: ann.id }, { userId: bob.id }],
+      },
+    });
+    const expenseId = (created.json() as { expense: { id: string } }).expense.id;
+
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/expenses/${expenseId}`,
+      headers: { cookie: ann.cookie },
+    });
+    expect(del.statusCode).toBe(200);
+
+    // It no longer shows up in the list.
+    const list = await app.inject({
+      method: 'GET',
+      url: `/groups/${groupId}/expenses`,
+      headers: { cookie: ann.cookie },
+    });
+    const ids = (list.json() as { expenses: { id: string }[] }).expenses.map((e) => e.id);
+    expect(ids).not.toContain(expenseId);
+
+    // Deleting it again is a 404.
+    const again = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/expenses/${expenseId}`,
+      headers: { cookie: ann.cookie },
+    });
+    expect(again.statusCode).toBe(404);
+  });
+
+  test('a non-member cannot delete an expense', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/expenses`,
+      headers: { cookie: ann.cookie },
+      payload: {
+        description: 'Drinks',
+        amountCents: 600,
+        payerId: ann.id,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: ann.id }, { userId: bob.id }],
+      },
+    });
+    const expenseId = (created.json() as { expense: { id: string } }).expense.id;
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/expenses/${expenseId}`,
+      headers: { cookie: cara.cookie },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
   test('lists live expenses for the group', async () => {
     const res = await app.inject({
       method: 'GET',

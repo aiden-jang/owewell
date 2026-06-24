@@ -3,7 +3,11 @@ import type { PrismaClient, SplitMethod as DbSplitMethod } from '@prisma/client'
 import { requireMembership } from '../groups/groups.service.js';
 import { emitGroupChanged } from '../../realtime/bus.js';
 
-export type ExpenseErrorCode = 'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT';
+export type ExpenseErrorCode =
+  | 'INVALID_PAYER'
+  | 'INVALID_PARTICIPANT'
+  | 'INVALID_SPLIT'
+  | 'NOT_FOUND';
 
 export class ExpenseError extends Error {
   constructor(
@@ -186,6 +190,25 @@ export async function createItemizedExpense(
 
   emitGroupChanged(groupId);
   return toExpenseView(expense);
+}
+
+/** Soft-delete an expense. Any member can remove an expense from the shared ledger. */
+export async function deleteExpense(
+  prisma: PrismaClient,
+  userId: string,
+  groupId: string,
+  expenseId: string,
+): Promise<void> {
+  await requireMembership(prisma, userId, groupId);
+  const expense = await prisma.expense.findFirst({
+    where: { id: expenseId, groupId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!expense) {
+    throw new ExpenseError('NOT_FOUND', 'That expense is already gone.');
+  }
+  await prisma.expense.update({ where: { id: expenseId }, data: { deletedAt: new Date() } });
+  emitGroupChanged(groupId);
 }
 
 export async function listExpenses(
