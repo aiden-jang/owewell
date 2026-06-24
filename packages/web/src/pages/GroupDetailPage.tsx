@@ -5,6 +5,7 @@ import { AppHeader } from '../components/AppHeader';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
+import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
 
 function balanceLabel(netCents: number): { text: string; tone: string } {
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
@@ -28,29 +29,52 @@ export function GroupDetailPage(): ReactNode {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedPayment[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [email, setEmail] = useState('');
   const [memberError, setMemberError] = useState<string | null>(null);
+  const [settling, setSettling] = useState(false);
 
   async function load(): Promise<void> {
     try {
-      const [g, b, e] = await Promise.all([
+      const [g, b, e, s] = await Promise.all([
         groupsApi.get(id),
         groupsApi.balances(id),
         expensesApi.list(id),
+        settlementsApi.suggested(id),
       ]);
       setGroup(g);
       setBalances(b);
       setExpenses(e);
+      setSuggested(s);
     } catch {
       setNotFound(true);
     }
   }
 
   async function refreshLedger(): Promise<void> {
-    const [b, e] = await Promise.all([groupsApi.balances(id), expensesApi.list(id)]);
+    const [b, e, s] = await Promise.all([
+      groupsApi.balances(id),
+      expensesApi.list(id),
+      settlementsApi.suggested(id),
+    ]);
     setBalances(b);
     setExpenses(e);
+    setSuggested(s);
+  }
+
+  async function markPaid(payment: SuggestedPayment): Promise<void> {
+    setSettling(true);
+    try {
+      await settlementsApi.record(id, {
+        fromUserId: payment.fromUserId,
+        toUserId: payment.toUserId,
+        amountCents: payment.amountCents,
+      });
+      await refreshLedger();
+    } finally {
+      setSettling(false);
+    }
   }
 
   useEffect(() => {
@@ -121,6 +145,36 @@ export function GroupDetailPage(): ReactNode {
             );
           })}
         </ul>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Settle up</h2>
+        {suggested.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Everyone&apos;s even. Group hug optional.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {suggested.map((payment) => (
+              <li
+                key={`${payment.fromUserId}-${payment.toUserId}`}
+                className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
+              >
+                <span className="text-sm">
+                  <span className="font-medium">{payment.fromName}</span> pays{' '}
+                  <span className="font-medium">{payment.toName}</span>{' '}
+                  <span className="font-medium">{Money.fromCents(payment.amountCents).format()}</span>
+                </span>
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => void markPaid(payment)}
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium transition hover:bg-canvas disabled:opacity-60"
+                >
+                  Mark paid
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mt-8">
