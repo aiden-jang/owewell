@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Money } from '@owe-well/shared';
 import { AppHeader } from '../components/AppHeader';
 import { AddExpenseForm } from '../components/AddExpenseForm';
+import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
@@ -34,6 +35,7 @@ export function GroupDetailPage(): ReactNode {
   const [email, setEmail] = useState('');
   const [memberError, setMemberError] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
+  const [expenseMode, setExpenseMode] = useState<'simple' | 'itemized'>('simple');
 
   async function load(): Promise<void> {
     try {
@@ -197,12 +199,43 @@ export function GroupDetailPage(): ReactNode {
             ))}
           </ul>
         )}
-        <AddExpenseForm
-          key={group.members.length}
-          groupId={group.id}
-          members={group.members}
-          onCreated={() => void refreshLedger()}
-        />
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setExpenseMode('simple')}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              expenseMode === 'simple' ? 'bg-accent text-white' : 'border border-line hover:bg-canvas'
+            }`}
+          >
+            Split a total
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpenseMode('itemized')}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              expenseMode === 'itemized'
+                ? 'bg-accent text-white'
+                : 'border border-line hover:bg-canvas'
+            }`}
+          >
+            Itemize a receipt
+          </button>
+        </div>
+        {expenseMode === 'simple' ? (
+          <AddExpenseForm
+            key={`simple-${group.members.length}`}
+            groupId={group.id}
+            members={group.members}
+            onCreated={() => void refreshLedger()}
+          />
+        ) : (
+          <AddItemizedExpenseForm
+            key={`itemized-${group.members.length}`}
+            groupId={group.id}
+            members={group.members}
+            onCreated={() => void refreshLedger()}
+          />
+        )}
       </section>
 
       <section className="mt-8">
