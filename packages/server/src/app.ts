@@ -10,6 +10,7 @@ import { expenseRoutes } from './modules/expenses/expenses.routes.js';
 import { settlementRoutes } from './modules/settlements/settlements.routes.js';
 import { inviteRoutes } from './modules/invites/invites.routes.js';
 import realtimePlugin from './realtime/realtime.plugin.js';
+import { ocrRoutes } from './modules/ocr/ocr.routes.js';
 
 function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
   if (env.NODE_ENV === 'test') return false;
@@ -39,6 +40,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(expenseRoutes);
   await app.register(settlementRoutes);
   await app.register(inviteRoutes);
+  await app.register(ocrRoutes);
 
   return app;
 }
