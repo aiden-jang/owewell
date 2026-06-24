@@ -1,5 +1,5 @@
 import { computeSplit, type SplitMethod } from '@owe-well/shared';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, SplitMethod as DbSplitMethod } from '@prisma/client';
 import { requireMembership } from '../groups/groups.service.js';
 
 export type ExpenseErrorCode = 'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT';
@@ -32,7 +32,7 @@ export interface ExpenseView {
   description: string;
   amountCents: number;
   payerId: string;
-  splitMethod: SplitMethod;
+  splitMethod: DbSplitMethod;
   createdAt: Date;
   splits: ExpenseSplitView[];
 }
@@ -49,7 +49,7 @@ interface ExpenseRow {
   description: string;
   amountCents: number;
   payerId: string;
-  splitMethod: SplitMethod;
+  splitMethod: DbSplitMethod;
   createdAt: Date;
   splits: { userId: string; owedCents: number }[];
 }

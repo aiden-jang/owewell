@@ -26,6 +26,7 @@ model User {
   paidExpenses    Expense[]      @relation("ExpensePayer")
   createdExpenses Expense[]      @relation("ExpenseCreator")
   expenseSplits   ExpenseSplit[]
+  itemShares      ExpenseItemShare[]
 
   settlementsFrom    Settlement[] @relation("SettlementFrom")
   settlementsTo      Settlement[] @relation("SettlementTo")
@@ -44,6 +45,7 @@ enum SplitMethod {
   EXACT
   PERCENT
   SHARES
+  ITEMIZED
 }
 
 model Group {
@@ -83,13 +85,17 @@ model Expense {
   createdById String
   createdBy   User           @relation("ExpenseCreator", fields: [createdById], references: [id])
   description String
-  // Always integer cents.
+  // Always integer cents. amountCents is the grand total (items + tax + tip for ITEMIZED).
   amountCents Int
   splitMethod SplitMethod
+  // Only meaningful for ITEMIZED expenses; 0 otherwise.
+  taxCents    Int            @default(0)
+  tipCents    Int            @default(0)
   createdAt   DateTime       @default(now())
   // Soft delete: keeps history and balances auditable.
   deletedAt   DateTime?
   splits      ExpenseSplit[]
+  items       ExpenseItem[]
 
   @@index([groupId])
   @@map("expenses")
@@ -109,6 +115,31 @@ model ExpenseSplit {
   @@unique([expenseId, userId])
   @@index([userId])
   @@map("expense_splits")
+}
+
+model ExpenseItem {
+  id          String             @id @default(cuid())
+  expenseId   String
+  expense     Expense            @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  name        String
+  amountCents Int
+  // The people on this item; it is split equally among them.
+  shares      ExpenseItemShare[]
+
+  @@index([expenseId])
+  @@map("expense_items")
+}
+
+model ExpenseItemShare {
+  id     String      @id @default(cuid())
+  itemId String
+  item   ExpenseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId String
+  user   User        @relation(fields: [userId], references: [id])
+
+  @@unique([itemId, userId])
+  @@index([userId])
+  @@map("expense_item_shares")
 }
 
 model Settlement {
