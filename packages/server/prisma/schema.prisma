@@ -17,6 +17,9 @@ model User {
   email        String    @unique
   passwordHash String
   displayName  String
+  // A placeholder is a name-only person added to a group (no real login). They can
+  // appear in splits/balances like anyone else, and be claimed by a real account later.
+  isPlaceholder Boolean  @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   sessions     Session[]

@@ -1,6 +1,13 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { addMemberBody, createGroupBody } from './groups.schemas.js';
-import { GroupError, addMember, createGroup, getGroup, listGroups } from './groups.service.js';
+import {
+  GroupError,
+  addMember,
+  addPlaceholderMember,
+  createGroup,
+  getGroup,
+  listGroups,
+} from './groups.service.js';
 
 function handleGroupError(err: unknown, reply: FastifyReply): { error: string; message: string } {
   if (err instanceof GroupError) {
@@ -48,12 +55,15 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         return { error: 'ValidationError', issues: parsed.error.flatten() };
       }
       try {
-        const member = await addMember(
-          app.prisma,
-          request.user!.id,
-          request.params.id,
-          parsed.data.email,
-        );
+        const member =
+          'email' in parsed.data
+            ? await addMember(app.prisma, request.user!.id, request.params.id, parsed.data.email)
+            : await addPlaceholderMember(
+                app.prisma,
+                request.user!.id,
+                request.params.id,
+                parsed.data.name,
+              );
         reply.code(201);
         return { member };
       } catch (err) {

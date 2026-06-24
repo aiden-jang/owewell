@@ -42,6 +42,8 @@ describe('group routes', () => {
     const ids = users.map((u) => u.id);
     // Groups restrict deletion of their creator, so remove them first (cascades members).
     await app.prisma.group.deleteMany({ where: { createdById: { in: ids } } });
+    // Placeholder users are left orphaned once their memberships are gone.
+    await app.prisma.user.deleteMany({ where: { isPlaceholder: true, memberships: { none: {} } } });
     await app.prisma.user.deleteMany({ where: { email: { in: [emailA, emailB] } } });
     await app.close();
   });
@@ -121,6 +123,37 @@ describe('group routes', () => {
     });
     expect(unknown.statusCode).toBe(404);
     expect((unknown.json() as { error: string }).error).toBe('USER_NOT_FOUND');
+  });
+
+  test('a member can add a name-only placeholder person', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/groups',
+      headers: { cookie: cookieA },
+      payload: { name: 'Roadtrip' },
+    });
+    const groupId = (created.json() as { group: { id: string } }).group.id;
+
+    const add = await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/members`,
+      headers: { cookie: cookieA },
+      payload: { name: 'Charlie' },
+    });
+    expect(add.statusCode).toBe(201);
+    const member = (
+      add.json() as { member: { displayName: string; email: string | null; isPlaceholder: boolean } }
+    ).member;
+    expect(member.displayName).toBe('Charlie');
+    expect(member.isPlaceholder).toBe(true);
+    expect(member.email).toBeNull();
+
+    const read = await app.inject({
+      method: 'GET',
+      url: `/groups/${groupId}`,
+      headers: { cookie: cookieA },
+    });
+    expect((read.json() as { group: { members: unknown[] } }).group.members).toHaveLength(2);
   });
 
   test('a non-member cannot add members', async () => {
