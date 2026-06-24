@@ -22,7 +22,7 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 py-10">{children}</main>
+      <main className="mx-auto max-w-3xl animate-rise px-4 py-10">{children}</main>
     </div>
   );
 }
@@ -142,7 +142,7 @@ export function GroupDetailPage(): ReactNode {
       <Link to="/" className="text-sm font-medium text-accent">
         &larr; Your groups
       </Link>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight">{group.name}</h1>
+      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">{group.name}</h1>
 
       <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Members</h2>
@@ -264,7 +264,7 @@ export function GroupDetailPage(): ReactNode {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="their@email.com"
-            className="flex-1 rounded-xl border border-line bg-white px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="flex-1 rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
           <button
             type="submit"
@@ -289,7 +289,7 @@ export function GroupDetailPage(): ReactNode {
               value={inviteLink}
               onFocus={(e) => e.target.select()}
               aria-label="Invite link"
-              className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-muted outline-none"
+              className="mt-2 w-full rounded-xl border border-line bg-field px-3 py-2.5 text-sm text-muted outline-none"
             />
           )}
         </div>

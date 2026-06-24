@@ -1,18 +1,52 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-canvas: #faf6f0;
-  --color-card: #ffffff;
-  --color-ink: #1f1d1b;
-  --color-muted: #6f6862;
-  --color-line: #ece4d9;
-  --color-accent: #f4624e;
-  --color-accent-hover: #e2543f;
+  --color-canvas: #f6f1e9;
+  --color-card: #fffdfa;
+  --color-ink: #1c1917;
+  --color-muted: #78716c;
+  --color-line: #e8e1d6;
+  --color-accent: #f0573f;
+  --color-accent-hover: #d94a33;
+  --color-accent-soft: #fdeae6;
+  --color-field: #ffffff;
+
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Automatic dark mode: re-point the theme variables, every utility follows. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #17130f;
+    --color-card: #211c17;
+    --color-ink: #f4efe7;
+    --color-muted: #a39a8d;
+    --color-line: #342c24;
+    --color-accent: #ff6b52;
+    --color-accent-hover: #ff8268;
+    --color-accent-soft: #2a1d18;
+    --color-field: #110e0b;
+  }
 }
 
 body {
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

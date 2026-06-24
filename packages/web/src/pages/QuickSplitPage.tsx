@@ -50,16 +50,19 @@ function serverValue(method: SplitMethod, raw: string): number | undefined {
 
 function PublicHeader(): ReactNode {
   return (
-    <header className="border-b border-line bg-card">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-        <Link to="/split" className="text-lg font-bold tracking-tight">
-          Owe Well
+    <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
+        <Link to="/split" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+          <span aria-hidden>🧾</span> Owe Well
         </Link>
-        <div className="flex items-center gap-3 text-sm font-medium">
-          <Link to="/login" className="text-muted hover:text-ink">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Link to="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:text-ink">
             Log in
           </Link>
-          <Link to="/signup" className="rounded-lg bg-accent px-3 py-1.5 text-white">
+          <Link
+            to="/signup"
+            className="rounded-full bg-accent px-4 py-1.5 text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98]"
+          >
             Sign up
           </Link>
         </div>
@@ -181,16 +184,18 @@ export function QuickSplitPage(): ReactNode {
   }
 
   const inputClass =
-    'w-full rounded-xl border border-line bg-white px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
+    'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
     <div className="min-h-screen">
       {user ? <AppHeader /> : <PublicHeader />}
-      <main className="mx-auto max-w-xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight">Split a bill</h1>
-        <p className="mt-1 text-sm text-muted">No account needed. Save it to keep it around.</p>
+      <main className="mx-auto max-w-xl animate-rise px-4 py-10">
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Split a bill</h1>
+        <p className="mt-2 text-base text-muted">
+          Who owes who, minus the group-chat math. No login required, save it if you get attached.
+        </p>
 
-        <div className="mt-6 space-y-3 rounded-2xl border border-line bg-card p-4">
+        <div className="mt-6 space-y-3 rounded-3xl border border-line bg-card p-5 shadow-sm">
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -238,7 +243,7 @@ export function QuickSplitPage(): ReactNode {
                       onChange={(e) => updatePerson(person.id, { value: e.target.value })}
                       placeholder="0"
                       inputMode="decimal"
-                      className="w-20 rounded-lg border border-line bg-white px-2 py-1.5 text-right outline-none focus:border-accent"
+                      className="w-20 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                       aria-label={`Person ${index + 1} value`}
                     />
                     <span className="w-10 text-xs text-muted">{VALUE_HINT[method]}</span>
@@ -318,7 +323,7 @@ export function QuickSplitPage(): ReactNode {
             </ul>
           ) : (
             <p className="mt-3 text-sm text-muted">
-              Add an amount and at least two people to see the split.
+              Add a total and a couple of names. The math is on us.
             </p>
           )}
         </section>
@@ -328,9 +333,9 @@ export function QuickSplitPage(): ReactNode {
           type="button"
           onClick={() => void onSave()}
           disabled={saving}
-          className="mt-4 w-full rounded-xl bg-accent px-4 py-2.5 font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
+          className="mt-5 w-full rounded-full bg-accent px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-accent-hover hover:shadow-md active:scale-[0.98] disabled:opacity-60"
         >
-          {saving ? 'Saving...' : user ? 'Save to my account' : 'Sign up to save this'}
+          {saving ? 'Saving...' : user ? 'Save to my account' : 'Sign up to keep this'}
         </button>
         {user && (
           <Link to="/" className="mt-3 block text-center text-sm font-medium text-accent">
