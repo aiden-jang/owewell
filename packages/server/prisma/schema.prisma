@@ -27,6 +27,10 @@ model User {
   createdExpenses Expense[]      @relation("ExpenseCreator")
   expenseSplits   ExpenseSplit[]
 
+  settlementsFrom    Settlement[] @relation("SettlementFrom")
+  settlementsTo      Settlement[] @relation("SettlementTo")
+  createdSettlements Settlement[] @relation("SettlementCreator")
+
   @@map("users")
 }
 
@@ -50,6 +54,7 @@ model Group {
   createdAt   DateTime      @default(now())
   members     GroupMember[]
   expenses    Expense[]
+  settlements Settlement[]
 
   @@index([createdById])
   @@map("groups")
@@ -104,6 +109,25 @@ model ExpenseSplit {
   @@unique([expenseId, userId])
   @@index([userId])
   @@map("expense_splits")
+}
+
+model Settlement {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Who paid whom, in integer cents.
+  fromUserId  String
+  fromUser    User     @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  toUserId    String
+  toUser      User     @relation("SettlementTo", fields: [toUserId], references: [id])
+  amountCents Int
+  // Who recorded it (either party may log a payment).
+  createdById String
+  createdBy   User     @relation("SettlementCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([groupId])
+  @@map("settlements")
 }
 
 model Session {
