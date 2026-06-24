@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { GroupRole, PrismaClient } from '@prisma/client';
 import { emitGroupChanged } from '../../realtime/bus.js';
@@ -17,9 +18,10 @@ export class GroupError extends Error {
 export interface GroupMemberView {
   userId: string;
   displayName: string;
-  email: string;
+  email: string | null;
   role: GroupRole;
   joinedAt: Date;
+  isPlaceholder: boolean;
 }
 
 export interface GroupDetail {
@@ -41,16 +43,17 @@ interface MemberWithUser {
   userId: string;
   role: GroupRole;
   joinedAt: Date;
-  user: { displayName: string; email: string };
+  user: { displayName: string; email: string; isPlaceholder: boolean };
 }
 
 function toMemberView(member: MemberWithUser): GroupMemberView {
   return {
     userId: member.userId,
     displayName: member.user.displayName,
-    email: member.user.email,
+    email: member.user.isPlaceholder ? null : member.user.email,
     role: member.role,
     joinedAt: member.joinedAt,
+    isPlaceholder: member.user.isPlaceholder,
   };
 }
 
@@ -153,4 +156,31 @@ export async function addMember(
     }
     throw err;
   }
+}
+
+/** Add a name-only person (no account) to the group. Backed by a placeholder user. */
+export async function addPlaceholderMember(
+  prisma: PrismaClient,
+  actingUserId: string,
+  groupId: string,
+  name: string,
+): Promise<GroupMemberView> {
+  await requireMembership(prisma, actingUserId, groupId);
+  const member = await prisma.groupMember.create({
+    data: {
+      group: { connect: { id: groupId } },
+      role: 'MEMBER',
+      user: {
+        create: {
+          email: `placeholder.${randomUUID()}@owe-well.local`,
+          displayName: name,
+          passwordHash: '!', // not a valid argon2 hash; login can never succeed
+          isPlaceholder: true,
+        },
+      },
+    },
+    include: { user: true },
+  });
+  emitGroupChanged(groupId);
+  return toMemberView(member);
 }
