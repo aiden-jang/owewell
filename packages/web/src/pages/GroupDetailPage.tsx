@@ -7,6 +7,7 @@ import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
+import { invitesApi } from '../lib/invites';
 
 function balanceLabel(netCents: number): { text: string; tone: string } {
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
@@ -36,6 +37,7 @@ export function GroupDetailPage(): ReactNode {
   const [memberError, setMemberError] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
   const [expenseMode, setExpenseMode] = useState<'simple' | 'itemized'>('simple');
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   async function load(): Promise<void> {
     try {
@@ -82,6 +84,16 @@ export function GroupDetailPage(): ReactNode {
   useEffect(() => {
     void load();
   }, [id]);
+
+  async function createInviteLink(): Promise<void> {
+    setMemberError(null);
+    try {
+      const invite = await invitesApi.create(id);
+      setInviteLink(`${window.location.origin}/invite/${invite.token}`);
+    } catch (err) {
+      setMemberError(err instanceof Error ? err.message : 'Could not create a link.');
+    }
+  }
 
   async function onAddMember(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -256,6 +268,25 @@ export function GroupDetailPage(): ReactNode {
           </button>
         </form>
         {memberError && <p className="mt-2 text-sm font-medium text-accent">{memberError}</p>}
+
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => void createInviteLink()}
+            className="text-sm font-medium text-accent transition hover:underline"
+          >
+            Or create an invite link
+          </button>
+          {inviteLink && (
+            <input
+              readOnly
+              value={inviteLink}
+              onFocus={(e) => e.target.select()}
+              aria-label="Invite link"
+              className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-muted outline-none"
+            />
+          )}
+        </div>
       </section>
     </Shell>
   );

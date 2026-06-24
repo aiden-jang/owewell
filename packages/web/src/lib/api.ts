@@ -12,10 +12,17 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  // Only declare a JSON body when there actually is one; an empty body with this
+  // content-type makes the server's JSON parser reject the request.
+  if (options.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
     ...options,
+    headers,
   });
 
   const isJson = res.headers.get('content-type')?.includes('application/json') ?? false;
