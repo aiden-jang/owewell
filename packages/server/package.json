@@ -17,6 +17,8 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@node-rs/argon2": "^2.0.2",
     "@prisma/client": "^5.20.0",
     "dotenv": "^16.4.5",
     "fastify": "^5.0.0",
