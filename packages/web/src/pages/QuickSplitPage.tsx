@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Money, computeSplit, dollarsToCents, type SplitMethod } from '@owe-well/shared';
+import { Money, computeSplit, dollarsToCents, type SplitMethod } from '@aidenjang/shared';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { BrandMark } from '../components/BrandMark';

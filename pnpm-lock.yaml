@@ -38,7 +38,7 @@ importers:
 
   packages/web:
     dependencies:
-      '@owe-well/shared':
+      '@aidenjang/shared':
         specifier: workspace:*
         version: link:../shared
       react:
