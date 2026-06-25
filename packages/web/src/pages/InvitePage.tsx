@@ -10,7 +10,7 @@ function Card({ children }: { children: ReactNode }): ReactNode {
         <h1 className="mb-6 flex items-center justify-center gap-2 font-display text-3xl font-semibold tracking-tight">
           <span aria-hidden>🧾</span> Owe Well
         </h1>
-        <div className="rounded-3xl border border-line bg-card p-7 text-center shadow-sm">{children}</div>
+        <div className="rounded-3xl glass p-7 text-center shadow-sm">{children}</div>
       </div>
     </div>
   );
@@ -89,7 +89,7 @@ export function InvitePage(): ReactNode {
             type="button"
             disabled={joining}
             onClick={() => void join()}
-            className="mt-5 w-full rounded-xl bg-accent px-4 py-2.5 font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
+            className="mt-5 w-full rounded-xl btn-gradient px-4 py-2.5 font-medium transition disabled:opacity-60"
           >
             {joining ? 'Joining...' : 'Join the group'}
           </button>
