@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import cookie from '@fastify/cookie';
+import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import type { Env } from './config/env.js';
 import prismaPlugin from './plugins/prisma.js';
@@ -31,6 +32,13 @@ function loggerOptions(env: Env): NonNullable<FastifyServerOptions['logger']> {
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env) });
 
+  // Allow the configured frontends to call the API with credentials (cookies).
+  // Only needed when the web app is served from a different origin; same-origin
+  // deployments leave CORS_ORIGINS unset and skip this entirely.
+  if (env.CORS_ORIGINS.length > 0) {
+    await app.register(cors, { origin: env.CORS_ORIGINS, credentials: true });
+  }
+
   await app.register(cookie);
   await app.register(prismaPlugin);
   await app.register(authPlugin);
@@ -39,8 +47,9 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // Liveness stays at the root for load-balancer health checks.
   await app.register(healthRoutes);
 
-  // Everything else lives under /api so it never collides with client routes
-  // (e.g. the SPA's /groups/:id) when the web app is served from the same origin.
+  // Everything else lives under a configurable prefix (default /api). A shared
+  // multi-app backend gives each app its own prefix (e.g. /owe-well) so routes
+  // never collide; same-origin single-app deploys keep /api.
   await app.register(
     async (api) => {
       await api.register(authRoutes);
@@ -51,7 +60,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
       await api.register(ocrRoutes);
       await api.register(quickSplitRoutes);
     },
-    { prefix: '/api' },
+    { prefix: env.API_PREFIX },
   );
 
   await registerWebApp(app, env);
@@ -69,7 +78,7 @@ async function registerWebApp(app: FastifyInstance, env: Env): Promise<void> {
   app.setNotFoundHandler((request, reply) => {
     if (
       request.method === 'GET' &&
-      !request.url.startsWith('/api') &&
+      !request.url.startsWith(env.API_PREFIX) &&
       !request.url.startsWith('/ws')
     ) {
       return reply.sendFile('index.html');

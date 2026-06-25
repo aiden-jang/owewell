@@ -11,7 +11,6 @@ export interface EmailTransport {
 /** Default transport: logs the email instead of sending. Works with no provider/key. */
 class ConsoleEmailTransport implements EmailTransport {
   async send(message: EmailMessage): Promise<void> {
-    // eslint-disable-next-line no-console
     console.log(
       `\n[email] (no provider configured)\n  to: ${message.to}\n  subject: ${message.subject}\n  ${message.text}\n`,
     );
