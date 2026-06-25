@@ -9,6 +9,7 @@ import { GroupDetailPage } from './pages/GroupDetailPage';
 import { InvitePage } from './pages/InvitePage';
 import { QuickSplitPage } from './pages/QuickSplitPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export function App(): ReactNode {
   const { user, loading } = useAuth();
@@ -28,6 +29,7 @@ export function App(): ReactNode {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/groups/:id" element={<GroupDetailPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { SESSION_COOKIE, baseCookieOptions, invalidateSession } from '../../lib/session.js';
-import { AuthError, loginUser, registerUser } from './auth.service.js';
-import { loginBody, registerBody } from './auth.schemas.js';
+import { AuthError, changePassword, loginUser, registerUser, updateProfile } from './auth.service.js';
+import { changePasswordBody, loginBody, registerBody, updateProfileBody } from './auth.schemas.js';
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/auth/register', async (request, reply) => {
@@ -56,5 +56,38 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/auth/me', { preHandler: app.authenticate }, async (request) => {
     return { user: request.user };
+  });
+
+  app.patch('/auth/me', { preHandler: app.authenticate }, async (request, reply) => {
+    const parsed = updateProfileBody.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'ValidationError', issues: parsed.error.flatten() };
+    }
+    const user = await updateProfile(app.prisma, request.user!.id, parsed.data.displayName);
+    return { user };
+  });
+
+  app.post('/auth/change-password', { preHandler: app.authenticate }, async (request, reply) => {
+    const parsed = changePasswordBody.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'ValidationError', issues: parsed.error.flatten() };
+    }
+    try {
+      await changePassword(
+        app.prisma,
+        request.user!.id,
+        parsed.data.currentPassword,
+        parsed.data.newPassword,
+      );
+      return { ok: true };
+    } catch (err) {
+      if (err instanceof AuthError) {
+        reply.code(400);
+        return { error: err.code, message: err.message };
+      }
+      throw err;
+    }
   });
 }
