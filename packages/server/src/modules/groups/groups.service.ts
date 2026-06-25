@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { GroupRole, PrismaClient } from '@prisma/client';
 import { emitGroupChanged } from '../../realtime/bus.js';
 
-export type GroupErrorCode = 'NOT_FOUND' | 'USER_NOT_FOUND' | 'ALREADY_MEMBER';
+export type GroupErrorCode = 'NOT_FOUND' | 'USER_NOT_FOUND' | 'ALREADY_MEMBER' | 'NOT_OWNER';
 
 export class GroupError extends Error {
   constructor(
@@ -85,6 +85,43 @@ export async function requireMembership(
   if (!membership) {
     throw new GroupError('NOT_FOUND', 'Group not found.');
   }
+}
+
+/** Like requireMembership, but also requires the OWNER role. */
+async function requireOwner(prisma: PrismaClient, userId: string, groupId: string): Promise<void> {
+  const membership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId } },
+  });
+  if (!membership) {
+    throw new GroupError('NOT_FOUND', 'Group not found.');
+  }
+  if (membership.role !== 'OWNER') {
+    throw new GroupError('NOT_OWNER', 'Only the group owner can do that.');
+  }
+}
+
+export async function renameGroup(
+  prisma: PrismaClient,
+  userId: string,
+  groupId: string,
+  name: string,
+): Promise<GroupDetail> {
+  await requireOwner(prisma, userId, groupId);
+  await prisma.group.update({ where: { id: groupId }, data: { name } });
+  emitGroupChanged(groupId);
+  return getGroup(prisma, userId, groupId);
+}
+
+export async function deleteGroup(
+  prisma: PrismaClient,
+  userId: string,
+  groupId: string,
+): Promise<void> {
+  await requireOwner(prisma, userId, groupId);
+  // Cascades members, expenses, splits, settlements, and invites.
+  await prisma.group.delete({ where: { id: groupId } });
+  // Placeholder users left with no memberships are now junk.
+  await prisma.user.deleteMany({ where: { isPlaceholder: true, memberships: { none: {} } } });
 }
 
 export async function createGroup(
