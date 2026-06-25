@@ -17,7 +17,7 @@ interface Registered {
 async function register(app: FastifyInstance, email: string, name: string): Promise<Registered> {
   const res = await app.inject({
     method: 'POST',
-    url: '/auth/register',
+    url: '/api/auth/register',
     payload: { email, password, displayName: name },
   });
   const cookie = res.cookies.find((c) => c.name === 'owe_well_session');
@@ -40,7 +40,7 @@ describe('invite routes', () => {
 
     const created = await app.inject({
       method: 'POST',
-      url: '/groups',
+      url: '/api/groups',
       headers: { cookie: ann.cookie },
       payload: { name: 'Trip' },
     });
@@ -61,7 +61,7 @@ describe('invite routes', () => {
   async function createInvite(): Promise<string> {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/invites`,
+      url: `/api/groups/${groupId}/invites`,
       headers: { cookie: ann.cookie },
       payload: {},
     });
@@ -73,7 +73,7 @@ describe('invite routes', () => {
     const token = await createInvite();
 
     // Public lookup, no auth.
-    const info = await app.inject({ method: 'GET', url: `/invites/${token}` });
+    const info = await app.inject({ method: 'GET', url: `/api/invites/${token}` });
     expect(info.statusCode).toBe(200);
     const body = info.json() as { invite: { groupName: string; status: string } };
     expect(body.invite.groupName).toBe('Trip');
@@ -82,7 +82,7 @@ describe('invite routes', () => {
     // Bob accepts and becomes a member.
     const accept = await app.inject({
       method: 'POST',
-      url: `/invites/${token}/accept`,
+      url: `/api/invites/${token}/accept`,
       headers: { cookie: bob.cookie },
     });
     expect(accept.statusCode).toBe(200);
@@ -90,7 +90,7 @@ describe('invite routes', () => {
 
     const group = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}`,
+      url: `/api/groups/${groupId}`,
       headers: { cookie: bob.cookie },
     });
     expect(group.statusCode).toBe(200);
@@ -99,7 +99,7 @@ describe('invite routes', () => {
     // The invite is single-use.
     const reuse = await app.inject({
       method: 'POST',
-      url: `/invites/${token}/accept`,
+      url: `/api/invites/${token}/accept`,
       headers: { cookie: cara.cookie },
     });
     expect(reuse.statusCode).toBe(409);
@@ -108,12 +108,12 @@ describe('invite routes', () => {
 
   test('accepting requires sign-in', async () => {
     const token = await createInvite();
-    const res = await app.inject({ method: 'POST', url: `/invites/${token}/accept` });
+    const res = await app.inject({ method: 'POST', url: `/api/invites/${token}/accept` });
     expect(res.statusCode).toBe(401);
   });
 
   test('an unknown token is a 404', async () => {
-    const res = await app.inject({ method: 'GET', url: '/invites/not-a-real-token' });
+    const res = await app.inject({ method: 'GET', url: '/api/invites/not-a-real-token' });
     expect(res.statusCode).toBe(404);
   });
 
@@ -125,7 +125,7 @@ describe('invite routes', () => {
     });
     const res = await app.inject({
       method: 'POST',
-      url: `/invites/${token}/accept`,
+      url: `/api/invites/${token}/accept`,
       headers: { cookie: bob.cookie },
     });
     expect(res.statusCode).toBe(410);
@@ -135,7 +135,7 @@ describe('invite routes', () => {
   test('a non-member cannot create an invite', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/invites`,
+      url: `/api/groups/${groupId}/invites`,
       headers: { cookie: cara.cookie },
       payload: {},
     });

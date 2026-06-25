@@ -16,7 +16,7 @@ describe('quick-split save', () => {
     app = await buildApp(loadEnv({ ...process.env, NODE_ENV: 'test' }));
     const res = await app.inject({
       method: 'POST',
-      url: '/auth/register',
+      url: '/api/auth/register',
       payload: { email, password, displayName: 'Ann' },
     });
     const c = res.cookies.find((x) => x.name === 'owe_well_session');
@@ -37,7 +37,7 @@ describe('quick-split save', () => {
   test('saves a guest split as a group with placeholder members and correct balances', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/quick-splits',
+      url: '/api/quick-splits',
       headers: { cookie },
       payload: {
         description: 'Dinner',
@@ -53,7 +53,7 @@ describe('quick-split save', () => {
     expect(res.statusCode).toBe(201);
     const groupId = (res.json() as { groupId: string }).groupId;
 
-    const group = await app.inject({ method: 'GET', url: `/groups/${groupId}`, headers: { cookie } });
+    const group = await app.inject({ method: 'GET', url: `/api/groups/${groupId}`, headers: { cookie } });
     const members = (
       group.json() as { group: { members: { displayName: string; isPlaceholder: boolean }[] } }
     ).group.members;
@@ -62,7 +62,7 @@ describe('quick-split save', () => {
 
     const balances = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/balances`,
+      url: `/api/groups/${groupId}/balances`,
       headers: { cookie },
     });
     const list = (balances.json() as { balances: { userId: string; netCents: number }[] }).balances;
@@ -74,7 +74,7 @@ describe('quick-split save', () => {
   test('rejects a split with no payer', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/quick-splits',
+      url: '/api/quick-splits',
       headers: { cookie },
       payload: {
         description: 'No payer',
@@ -90,7 +90,7 @@ describe('quick-split save', () => {
   test('rejects an invalid split (percentages must total 100)', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/quick-splits',
+      url: '/api/quick-splits',
       headers: { cookie },
       payload: {
         description: 'Bad percent',
@@ -109,7 +109,7 @@ describe('quick-split save', () => {
   test('requires sign-in', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/quick-splits',
+      url: '/api/quick-splits',
       payload: {
         amountCents: 1000,
         splitMethod: 'EQUAL',

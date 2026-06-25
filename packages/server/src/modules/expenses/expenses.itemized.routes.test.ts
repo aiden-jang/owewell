@@ -17,7 +17,7 @@ interface Registered {
 async function register(app: FastifyInstance, email: string, name: string): Promise<Registered> {
   const res = await app.inject({
     method: 'POST',
-    url: '/auth/register',
+    url: '/api/auth/register',
     payload: { email, password, displayName: name },
   });
   const cookie = res.cookies.find((c) => c.name === 'owe_well_session');
@@ -40,14 +40,14 @@ describe('itemized expense route', () => {
 
     const created = await app.inject({
       method: 'POST',
-      url: '/groups',
+      url: '/api/groups',
       headers: { cookie: ann.cookie },
       payload: { name: 'Dinner' },
     });
     groupId = (created.json() as { group: { id: string } }).group.id;
     await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/members`,
+      url: `/api/groups/${groupId}/members`,
       headers: { cookie: ann.cookie },
       payload: { email: emailB },
     });
@@ -67,7 +67,7 @@ describe('itemized expense route', () => {
   test('creates an itemized expense with proportional tax and correct balances', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses/itemized`,
+      url: `/api/groups/${groupId}/expenses/itemized`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Restaurant',
@@ -96,7 +96,7 @@ describe('itemized expense route', () => {
 
     const balances = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/balances`,
+      url: `/api/groups/${groupId}/balances`,
       headers: { cookie: ann.cookie },
     });
     const net = Object.fromEntries(
@@ -112,7 +112,7 @@ describe('itemized expense route', () => {
   test('rejects an item assigned to a non-member', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses/itemized`,
+      url: `/api/groups/${groupId}/expenses/itemized`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Sneaky',
@@ -127,7 +127,7 @@ describe('itemized expense route', () => {
   test('rejects an empty item list', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses/itemized`,
+      url: `/api/groups/${groupId}/expenses/itemized`,
       headers: { cookie: ann.cookie },
       payload: { description: 'Nothing', payerId: ann.id, items: [] },
     });
