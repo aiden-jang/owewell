@@ -17,7 +17,7 @@ interface Registered {
 async function register(app: FastifyInstance, email: string, name: string): Promise<Registered> {
   const res = await app.inject({
     method: 'POST',
-    url: '/auth/register',
+    url: '/api/auth/register',
     payload: { email, password, displayName: name },
   });
   const cookie = res.cookies.find((c) => c.name === 'owe_well_session');
@@ -40,21 +40,21 @@ describe('settlement routes', () => {
 
     const created = await app.inject({
       method: 'POST',
-      url: '/groups',
+      url: '/api/groups',
       headers: { cookie: ann.cookie },
       payload: { name: 'Trip' },
     });
     groupId = (created.json() as { group: { id: string } }).group.id;
     await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/members`,
+      url: `/api/groups/${groupId}/members`,
       headers: { cookie: ann.cookie },
       payload: { email: emailB },
     });
     // Ann pays 1000 split equally -> Bob owes Ann 500.
     await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Hotel',
@@ -80,7 +80,7 @@ describe('settlement routes', () => {
   test('suggests Bob pays Ann, then a recorded payment clears the balance', async () => {
     const before = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/suggested-payments`,
+      url: `/api/groups/${groupId}/suggested-payments`,
       headers: { cookie: ann.cookie },
     });
     const suggested = (before.json() as { payments: { fromUserId: string; toUserId: string; amountCents: number }[] })
@@ -91,7 +91,7 @@ describe('settlement routes', () => {
 
     const settle = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/settlements`,
+      url: `/api/groups/${groupId}/settlements`,
       headers: { cookie: bob.cookie },
       payload: { fromUserId: bob.id, toUserId: ann.id, amountCents: 500 },
     });
@@ -99,7 +99,7 @@ describe('settlement routes', () => {
 
     const balances = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/balances`,
+      url: `/api/groups/${groupId}/balances`,
       headers: { cookie: ann.cookie },
     });
     const net = Object.fromEntries(
@@ -113,14 +113,14 @@ describe('settlement routes', () => {
 
     const after = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/suggested-payments`,
+      url: `/api/groups/${groupId}/suggested-payments`,
       headers: { cookie: ann.cookie },
     });
     expect((after.json() as { payments: unknown[] }).payments).toEqual([]);
 
     const list = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/settlements`,
+      url: `/api/groups/${groupId}/settlements`,
       headers: { cookie: ann.cookie },
     });
     expect((list.json() as { settlements: unknown[] }).settlements).toHaveLength(1);
@@ -129,7 +129,7 @@ describe('settlement routes', () => {
   test('rejects a payment to yourself', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/settlements`,
+      url: `/api/groups/${groupId}/settlements`,
       headers: { cookie: ann.cookie },
       payload: { fromUserId: ann.id, toUserId: ann.id, amountCents: 100 },
     });
@@ -140,7 +140,7 @@ describe('settlement routes', () => {
   test('rejects a payment involving a non-member', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/settlements`,
+      url: `/api/groups/${groupId}/settlements`,
       headers: { cookie: ann.cookie },
       payload: { fromUserId: ann.id, toUserId: cara.id, amountCents: 100 },
     });
@@ -151,7 +151,7 @@ describe('settlement routes', () => {
   test('a non-member cannot see suggested payments', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/suggested-payments`,
+      url: `/api/groups/${groupId}/suggested-payments`,
       headers: { cookie: cara.cookie },
     });
     expect(res.statusCode).toBe(404);

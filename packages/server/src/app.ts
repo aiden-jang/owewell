@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import cookie from '@fastify/cookie';
+import fastifyStatic from '@fastify/static';
 import type { Env } from './config/env.js';
 import prismaPlugin from './plugins/prisma.js';
 import authPlugin from './plugins/auth.js';
@@ -35,14 +36,44 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(authPlugin);
   await app.register(realtimePlugin);
 
+  // Liveness stays at the root for load-balancer health checks.
   await app.register(healthRoutes);
-  await app.register(authRoutes);
-  await app.register(groupRoutes);
-  await app.register(expenseRoutes);
-  await app.register(settlementRoutes);
-  await app.register(inviteRoutes);
-  await app.register(ocrRoutes);
-  await app.register(quickSplitRoutes);
+
+  // Everything else lives under /api so it never collides with client routes
+  // (e.g. the SPA's /groups/:id) when the web app is served from the same origin.
+  await app.register(
+    async (api) => {
+      await api.register(authRoutes);
+      await api.register(groupRoutes);
+      await api.register(expenseRoutes);
+      await api.register(settlementRoutes);
+      await api.register(inviteRoutes);
+      await api.register(ocrRoutes);
+      await api.register(quickSplitRoutes);
+    },
+    { prefix: '/api' },
+  );
+
+  await registerWebApp(app, env);
 
   return app;
+}
+
+/**
+ * In production, serve the built web app from the same origin and fall back to
+ * index.html for client-side routes. Skipped entirely when WEB_DIR is unset (dev/test).
+ */
+async function registerWebApp(app: FastifyInstance, env: Env): Promise<void> {
+  if (!env.WEB_DIR) return;
+  await app.register(fastifyStatic, { root: env.WEB_DIR });
+  app.setNotFoundHandler((request, reply) => {
+    if (
+      request.method === 'GET' &&
+      !request.url.startsWith('/api') &&
+      !request.url.startsWith('/ws')
+    ) {
+      return reply.sendFile('index.html');
+    }
+    return reply.code(404).send({ error: 'NotFound' });
+  });
 }

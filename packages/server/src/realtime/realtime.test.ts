@@ -17,7 +17,7 @@ interface Registered {
 async function register(app: FastifyInstance, email: string, name: string): Promise<Registered> {
   const res = await app.inject({
     method: 'POST',
-    url: '/auth/register',
+    url: '/api/auth/register',
     payload: { email, password, displayName: name },
   });
   const cookie = res.cookies.find((c) => c.name === 'owe_well_session');
@@ -65,14 +65,14 @@ describe('realtime group updates', () => {
     bob = await register(app, emailB, 'Bob');
     const created = await app.inject({
       method: 'POST',
-      url: '/groups',
+      url: '/api/groups',
       headers: { cookie: ann.cookie },
       payload: { name: 'Live' },
     });
     groupId = (created.json() as { group: { id: string } }).group.id;
     await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/members`,
+      url: `/api/groups/${groupId}/members`,
       headers: { cookie: ann.cookie },
       payload: { email: emailB },
     });
@@ -100,7 +100,7 @@ describe('realtime group updates', () => {
       // Ann adds an expense over HTTP; Bob's socket should hear about it.
       await app.inject({
         method: 'POST',
-        url: `/groups/${groupId}/expenses`,
+        url: `/api/groups/${groupId}/expenses`,
         headers: { cookie: ann.cookie },
         payload: {
           description: 'Cab',
