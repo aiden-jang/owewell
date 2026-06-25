@@ -18,7 +18,12 @@ export function App(): ReactNode {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-muted">One sec...</div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-muted">
+        <span className="animate-pulse font-display text-3xl" aria-hidden>
+          🧾
+        </span>
+        <span className="text-sm">Counting the receipts...</span>
+      </div>
     );
   }
 

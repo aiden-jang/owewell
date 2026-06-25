@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
+import { Avatar } from '../components/Avatar';
+import { SkeletonList } from '../components/Skeleton';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 
@@ -108,7 +110,7 @@ export function DashboardPage(): ReactNode {
 
         <div className="mt-8">
           {groups === null ? (
-            <p className="text-muted">One sec...</p>
+            <SkeletonList rows={3} />
           ) : groups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line p-10 text-center">
               <div className="text-4xl" aria-hidden>
@@ -123,11 +125,20 @@ export function DashboardPage(): ReactNode {
                 <li key={group.id}>
                   <Link
                     to={`/groups/${group.id}`}
-                    className="flex items-center justify-between rounded-2xl border border-line bg-card p-4 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+                    className="group flex items-center gap-4 rounded-2xl border border-line bg-card p-4 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
                   >
-                    <span className="font-medium">{group.name}</span>
-                    <span className="text-sm text-muted">
-                      {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
+                    <Avatar name={group.name} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{group.name}</span>
+                      <span className="block text-sm text-muted">
+                        {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden
+                      className="text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
+                    >
+                      &rarr;
                     </span>
                   </Link>
                 </li>

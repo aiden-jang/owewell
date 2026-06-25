@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { Avatar } from './Avatar';
 
 export function AppHeader(): ReactNode {
   const { user, logout } = useAuth();
@@ -13,9 +14,11 @@ export function AppHeader(): ReactNode {
         <div className="flex items-center gap-3">
           <Link
             to="/settings"
-            className="hidden text-sm font-medium text-muted transition hover:text-ink sm:inline"
+            className="flex items-center gap-2 text-sm font-medium text-muted transition hover:text-ink"
+            aria-label="Settings"
           >
-            {user?.displayName}
+            {user && <Avatar name={user.displayName} size="sm" />}
+            <span className="hidden sm:inline">{user?.displayName}</span>
           </Link>
           <button
             type="button"
