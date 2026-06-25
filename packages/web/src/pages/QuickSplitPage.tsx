@@ -342,6 +342,24 @@ export function QuickSplitPage(): ReactNode {
             Back to your groups
           </Link>
         )}
+
+        {!user && (
+          <section className="mt-12 grid gap-4 sm:grid-cols-3">
+            {[
+              { icon: '🧮', title: 'Split any way', body: 'Evenly, by shares, percent, or exact amounts.' },
+              { icon: '🤝', title: 'Settle simply', body: 'We boil tangled debts down to the fewest payments.' },
+              { icon: '🧾', title: 'Itemize receipts', body: 'Snap a photo, assign items, skip the squinting.' },
+            ].map((f) => (
+              <div key={f.title} className="rounded-2xl border border-line bg-card p-4 shadow-sm">
+                <span className="text-2xl" aria-hidden>
+                  {f.icon}
+                </span>
+                <h3 className="mt-2 font-display text-lg font-semibold tracking-tight">{f.title}</h3>
+                <p className="mt-1 text-sm text-muted">{f.body}</p>
+              </div>
+            ))}
+          </section>
+        )}
       </main>
     </div>
   );

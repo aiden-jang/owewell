@@ -6,6 +6,7 @@ import { AppHeader } from '../components/AppHeader';
 import { Avatar } from '../components/Avatar';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
+import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
@@ -165,7 +166,13 @@ export function GroupDetailPage(): ReactNode {
   if (!group) {
     return (
       <Shell>
-        <p className="text-muted">One sec...</p>
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="mt-3 h-9 w-48" />
+        <Skeleton className="mt-5 h-28 w-full rounded-3xl" />
+        <Skeleton className="mt-8 h-4 w-20" />
+        <div className="mt-3">
+          <SkeletonList rows={3} />
+        </div>
       </Shell>
     );
   }
