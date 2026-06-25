@@ -90,6 +90,7 @@ export function DashboardPage(): ReactNode {
         )}
 
         <h1 className="font-display text-3xl font-semibold tracking-tight">Your groups</h1>
+        <p className="mt-1 text-sm text-muted">Every tab you're keeping, in one place.</p>
 
         <form onSubmit={(e) => void onCreate(e)} className="mt-6 flex gap-2">
           <input

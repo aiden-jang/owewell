@@ -291,7 +291,7 @@ export function GroupDetailPage(): ReactNode {
               {settled ? 'Your standing' : owed ? "You're owed" : 'You owe'}
             </p>
             <p
-              className={`mt-1 font-display text-6xl font-extrabold tracking-tight ${
+              className={`mt-1 font-display text-6xl font-extrabold tracking-tight tabular-nums ${
                 settled ? 'text-ink' : owed ? 'text-gradient' : 'text-rose-400'
               }`}
             >
@@ -324,7 +324,7 @@ export function GroupDetailPage(): ReactNode {
                   </span>
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className={`text-sm font-medium ${label.tone}`}>{label.text}</span>
+                  <span className={`text-sm font-medium tabular-nums ${label.tone}`}>{label.text}</span>
                   {canLeave && (
                     <button
                       type="button"
@@ -412,7 +412,9 @@ export function GroupDetailPage(): ReactNode {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{Money.fromCents(expense.amountCents).format()}</span>
+                  <span className="font-medium tabular-nums">
+                    {Money.fromCents(expense.amountCents).format()}
+                  </span>
                   <button
                     type="button"
                     onClick={() => void deleteExpense(expense.id)}
