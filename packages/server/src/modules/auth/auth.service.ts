@@ -4,7 +4,7 @@ import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { createSession } from '../../lib/session.js';
 import type { LoginBody, RegisterBody } from './auth.schemas.js';
 
-export type AuthErrorCode = 'EMAIL_TAKEN' | 'INVALID_CREDENTIALS';
+export type AuthErrorCode = 'EMAIL_TAKEN' | 'INVALID_CREDENTIALS' | 'WRONG_PASSWORD';
 
 export class AuthError extends Error {
   constructor(
@@ -72,4 +72,30 @@ export async function loginUser(prisma: PrismaClient, input: LoginBody): Promise
 
   const { token, expiresAt } = await createSession(prisma, user.id);
   return { user: toPublicUser(user), token, expiresAt };
+}
+
+export async function updateProfile(
+  prisma: PrismaClient,
+  userId: string,
+  displayName: string,
+): Promise<PublicUser> {
+  const user = await prisma.user.update({ where: { id: userId }, data: { displayName } });
+  return toPublicUser(user);
+}
+
+export async function changePassword(
+  prisma: PrismaClient,
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const ok = await verifyPassword(user.passwordHash, currentPassword);
+  if (!ok) {
+    throw new AuthError('WRONG_PASSWORD', 'Your current password is incorrect.');
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await hashPassword(newPassword) },
+  });
 }
