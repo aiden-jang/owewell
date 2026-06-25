@@ -61,9 +61,10 @@ subdomain for this to hold.
 
 ## Notes
 
-- **Cold starts**: `min_machines_running = 0` lets it sleep when idle (free). The first
-  request after a quiet spell takes a few seconds, and any open real-time WebSocket
-  reconnects on wake. Set `min_machines_running = 1` for always-on.
+- **Always-on**: `min_machines_running = 1` with `auto_stop_machines = 'off'` keeps one
+  machine warm so there are no idle cold starts (~$3-4/mo for one shared-cpu-1x). To trade
+  that for near-zero cost at the price of a few-second wake, set `min_machines_running = 0`
+  and `auto_stop_machines = 'stop'`.
 - **Receipt OCR** stays on the mock until you `fly secrets set ANTHROPIC_API_KEY=...`
   (uses Claude Haiku vision; cheap at hobby volume).
 - **Scaling past one instance** would need the realtime bus moved from in-memory to
