@@ -7,6 +7,7 @@ import { Avatar } from '../components/Avatar';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
+import { useToast } from '../components/Toast';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
@@ -34,6 +35,7 @@ export function GroupDetailPage(): ReactNode {
   const { id = '' } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState('');
@@ -84,6 +86,9 @@ export function GroupDetailPage(): ReactNode {
         amountCents: payment.amountCents,
       });
       await refreshLedger();
+      toast.success(`Marked ${payment.fromName}'s payment as settled.`);
+    } catch {
+      toast.error('Could not record that payment.');
     } finally {
       setSettling(false);
     }
@@ -100,8 +105,13 @@ export function GroupDetailPage(): ReactNode {
 
   async function deleteExpense(expenseId: string): Promise<void> {
     if (!window.confirm('Delete this expense?')) return;
-    await expensesApi.remove(id, expenseId);
-    await refreshLedger();
+    try {
+      await expensesApi.remove(id, expenseId);
+      await refreshLedger();
+      toast.success('Expense deleted.');
+    } catch {
+      toast.error('Could not delete that expense.');
+    }
   }
 
   async function saveRename(): Promise<void> {
@@ -110,6 +120,7 @@ export function GroupDetailPage(): ReactNode {
     const updated = await groupsApi.rename(id, trimmed);
     setGroup(updated);
     setRenaming(false);
+    toast.success('Group renamed.');
   }
 
   async function deleteGroup(): Promise<void> {
@@ -123,9 +134,12 @@ export function GroupDetailPage(): ReactNode {
     try {
       await groupsApi.removeMember(id, targetUserId);
       if (isSelf) navigate('/');
-      else await load();
+      else {
+        await load();
+        toast.success('Removed them from the group.');
+      }
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Could not remove them.');
+      toast.error(err instanceof Error ? err.message : 'Could not remove them.');
     }
   }
 
@@ -133,7 +147,14 @@ export function GroupDetailPage(): ReactNode {
     setMemberError(null);
     try {
       const invite = await invitesApi.create(id);
-      setInviteLink(`${window.location.origin}/invite/${invite.token}`);
+      const link = `${window.location.origin}/invite/${invite.token}`;
+      setInviteLink(link);
+      try {
+        await navigator.clipboard.writeText(link);
+        toast.success('Invite link copied to your clipboard.');
+      } catch {
+        toast.success('Invite link ready below.');
+      }
     } catch (err) {
       setMemberError(err instanceof Error ? err.message : 'Could not create a link.');
     }
@@ -147,6 +168,7 @@ export function GroupDetailPage(): ReactNode {
       await groupsApi.addMember(id, email.trim());
       setEmail('');
       await load();
+      toast.success('Added them to the group.');
     } catch (err) {
       setMemberError(err instanceof Error ? err.message : 'Could not add them.');
     }
