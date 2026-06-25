@@ -3,7 +3,13 @@ import { Prisma } from '@prisma/client';
 import type { GroupRole, PrismaClient } from '@prisma/client';
 import { emitGroupChanged } from '../../realtime/bus.js';
 
-export type GroupErrorCode = 'NOT_FOUND' | 'USER_NOT_FOUND' | 'ALREADY_MEMBER' | 'NOT_OWNER';
+export type GroupErrorCode =
+  | 'NOT_FOUND'
+  | 'USER_NOT_FOUND'
+  | 'ALREADY_MEMBER'
+  | 'NOT_OWNER'
+  | 'CANNOT_REMOVE_OWNER'
+  | 'HAS_ACTIVITY';
 
 export class GroupError extends Error {
   constructor(
@@ -122,6 +128,57 @@ export async function deleteGroup(
   await prisma.group.delete({ where: { id: groupId } });
   // Placeholder users left with no memberships are now junk.
   await prisma.user.deleteMany({ where: { isPlaceholder: true, memberships: { none: {} } } });
+}
+
+/**
+ * Remove a member (or leave). Owners can remove others; anyone can leave. The owner
+ * can't be removed (delete the group instead), and nobody with ledger activity can be
+ * removed (it would orphan their splits and break balances) until those are cleared.
+ */
+export async function removeMember(
+  prisma: PrismaClient,
+  actingUserId: string,
+  groupId: string,
+  targetUserId: string,
+): Promise<void> {
+  await requireMembership(prisma, actingUserId, groupId);
+
+  const target = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId: targetUserId } },
+  });
+  if (!target) {
+    throw new GroupError('NOT_FOUND', 'They are not in this group.');
+  }
+  if (target.role === 'OWNER') {
+    throw new GroupError('CANNOT_REMOVE_OWNER', 'The owner cannot be removed; delete the group instead.');
+  }
+  if (targetUserId !== actingUserId) {
+    const acting = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: actingUserId } },
+    });
+    if (acting?.role !== 'OWNER') {
+      throw new GroupError('NOT_OWNER', 'Only the owner can remove other people.');
+    }
+  }
+
+  const [asPayer, asSplit, asItemShare, asSettlement] = await Promise.all([
+    prisma.expense.count({ where: { groupId, payerId: targetUserId } }),
+    prisma.expenseSplit.count({ where: { userId: targetUserId, expense: { groupId } } }),
+    prisma.expenseItemShare.count({ where: { userId: targetUserId, item: { expense: { groupId } } } }),
+    prisma.settlement.count({
+      where: { groupId, OR: [{ fromUserId: targetUserId }, { toUserId: targetUserId }] },
+    }),
+  ]);
+  if (asPayer || asSplit || asItemShare || asSettlement) {
+    throw new GroupError('HAS_ACTIVITY', "They're already in expenses here. Settle and clear those first.");
+  }
+
+  await prisma.groupMember.delete({ where: { groupId_userId: { groupId, userId: targetUserId } } });
+  // Clean up a placeholder that this removal just orphaned.
+  await prisma.user.deleteMany({
+    where: { id: targetUserId, isPlaceholder: true, memberships: { none: {} } },
+  });
+  emitGroupChanged(groupId);
 }
 
 export async function createGroup(
