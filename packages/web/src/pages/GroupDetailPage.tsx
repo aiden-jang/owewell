@@ -8,6 +8,7 @@ import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
+import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupDetail } from '../lib/groups';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
@@ -36,6 +37,7 @@ export function GroupDetailPage(): ReactNode {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const confirm = useConfirm();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState('');
@@ -104,7 +106,13 @@ export function GroupDetailPage(): ReactNode {
   });
 
   async function deleteExpense(expenseId: string): Promise<void> {
-    if (!window.confirm('Delete this expense?')) return;
+    const ok = await confirm({
+      title: 'Delete this expense?',
+      body: 'It comes off the ledger and everyone’s balances recalculate.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await expensesApi.remove(id, expenseId);
       await refreshLedger();
@@ -124,13 +132,27 @@ export function GroupDetailPage(): ReactNode {
   }
 
   async function deleteGroup(): Promise<void> {
-    if (!window.confirm('Delete this whole group? This cannot be undone.')) return;
+    const ok = await confirm({
+      title: 'Delete this whole group?',
+      body: 'Every expense and balance goes with it. This cannot be undone.',
+      confirmLabel: 'Delete group',
+      tone: 'danger',
+    });
+    if (!ok) return;
     await groupsApi.remove(id);
     navigate('/');
   }
 
   async function removeFromGroup(targetUserId: string, isSelf: boolean): Promise<void> {
-    if (!window.confirm(isSelf ? 'Leave this group?' : 'Remove this person?')) return;
+    const ok = await confirm({
+      title: isSelf ? 'Leave this group?' : 'Remove this person?',
+      body: isSelf
+        ? 'You can be added back later if you change your mind.'
+        : 'They lose access to this group. You can add them back later.',
+      confirmLabel: isSelf ? 'Leave' : 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await groupsApi.removeMember(id, targetUserId);
       if (isSelf) navigate('/');
