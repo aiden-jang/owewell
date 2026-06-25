@@ -1,17 +1,20 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import { addMemberBody, createGroupBody } from './groups.schemas.js';
+import { addMemberBody, createGroupBody, renameGroupBody } from './groups.schemas.js';
 import {
   GroupError,
   addMember,
   addPlaceholderMember,
   createGroup,
+  deleteGroup,
   getGroup,
   listGroups,
+  renameGroup,
 } from './groups.service.js';
 
 function handleGroupError(err: unknown, reply: FastifyReply): { error: string; message: string } {
   if (err instanceof GroupError) {
-    reply.code(err.code === 'ALREADY_MEMBER' ? 409 : 404);
+    const status = err.code === 'ALREADY_MEMBER' ? 409 : err.code === 'NOT_OWNER' ? 403 : 404;
+    reply.code(status);
     return { error: err.code, message: err.message };
   }
   throw err;
@@ -39,6 +42,36 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       try {
         return { group: await getGroup(app.prisma, request.user!.id, request.params.id) };
+      } catch (err) {
+        return handleGroupError(err, reply);
+      }
+    },
+  );
+
+  app.patch<{ Params: { id: string } }>(
+    '/groups/:id',
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      const parsed = renameGroupBody.safeParse(request.body);
+      if (!parsed.success) {
+        reply.code(400);
+        return { error: 'ValidationError', issues: parsed.error.flatten() };
+      }
+      try {
+        return { group: await renameGroup(app.prisma, request.user!.id, request.params.id, parsed.data.name) };
+      } catch (err) {
+        return handleGroupError(err, reply);
+      }
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    '/groups/:id',
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      try {
+        await deleteGroup(app.prisma, request.user!.id, request.params.id);
+        return { ok: true };
       } catch (err) {
         return handleGroupError(err, reply);
       }

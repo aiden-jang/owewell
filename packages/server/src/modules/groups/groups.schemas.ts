@@ -17,5 +17,10 @@ export const addMemberBody = z.union([
   }),
 ]);
 
+export const renameGroupBody = z.object({
+  name: z.string().trim().min(1, 'Give the group a name').max(80),
+});
+
 export type CreateGroupBody = z.infer<typeof createGroupBody>;
 export type AddMemberBody = z.infer<typeof addMemberBody>;
+export type RenameGroupBody = z.infer<typeof renameGroupBody>;
