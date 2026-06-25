@@ -67,6 +67,11 @@ export function LoginPage(): ReactNode {
         <Button type="submit" disabled={submitting}>
           {submitting ? 'Logging in...' : 'Log in'}
         </Button>
+        <p className="text-center text-sm">
+          <Link className="font-medium text-muted transition hover:text-ink" to="/forgot">
+            Forgot password?
+          </Link>
+        </p>
       </form>
     </AuthLayout>
   );

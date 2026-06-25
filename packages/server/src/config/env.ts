@@ -8,6 +8,8 @@ const EnvSchema = z.object({
   // Absolute path to the built web app (packages/web/dist). Set in production to
   // serve the SPA from the same origin as the API; unset in dev/test.
   WEB_DIR: z.string().optional(),
+  // Public base URL, used to build links in emails (e.g. password reset).
+  APP_URL: z.string().url().default('http://localhost:5173'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
