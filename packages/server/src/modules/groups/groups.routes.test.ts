@@ -156,6 +156,58 @@ describe('group routes', () => {
     expect((read.json() as { group: { members: unknown[] } }).group.members).toHaveLength(2);
   });
 
+  test('owner can rename and delete a group; non-owners cannot', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/groups',
+      headers: { cookie: cookieA },
+      payload: { name: 'Cabin' },
+    });
+    const groupId = (created.json() as { group: { id: string } }).group.id;
+    await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/members`,
+      headers: { cookie: cookieA },
+      payload: { email: emailB },
+    });
+
+    const bobRename = await app.inject({
+      method: 'PATCH',
+      url: `/groups/${groupId}`,
+      headers: { cookie: cookieB },
+      payload: { name: 'Hacked' },
+    });
+    expect(bobRename.statusCode).toBe(403);
+    const bobDelete = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}`,
+      headers: { cookie: cookieB },
+    });
+    expect(bobDelete.statusCode).toBe(403);
+
+    const rename = await app.inject({
+      method: 'PATCH',
+      url: `/groups/${groupId}`,
+      headers: { cookie: cookieA },
+      payload: { name: 'Lake Cabin' },
+    });
+    expect(rename.statusCode).toBe(200);
+    expect((rename.json() as { group: { name: string } }).group.name).toBe('Lake Cabin');
+
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}`,
+      headers: { cookie: cookieA },
+    });
+    expect(del.statusCode).toBe(200);
+    const read = await app.inject({
+      method: 'GET',
+      url: `/groups/${groupId}`,
+      headers: { cookie: cookieA },
+    });
+    expect(read.statusCode).toBe(404);
+  });
+
   test('a non-member cannot add members', async () => {
     const created = await app.inject({
       method: 'POST',

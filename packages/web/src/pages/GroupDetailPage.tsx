@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Money } from '@owe-well/shared';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
@@ -32,7 +32,10 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
 export function GroupDetailPage(): ReactNode {
   const { id = '' } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [group, setGroup] = useState<GroupDetail | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState('');
   const [balances, setBalances] = useState<Balance[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [suggested, setSuggested] = useState<SuggestedPayment[]>([]);
@@ -100,6 +103,20 @@ export function GroupDetailPage(): ReactNode {
     await refreshLedger();
   }
 
+  async function saveRename(): Promise<void> {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const updated = await groupsApi.rename(id, trimmed);
+    setGroup(updated);
+    setRenaming(false);
+  }
+
+  async function deleteGroup(): Promise<void> {
+    if (!window.confirm('Delete this whole group? This cannot be undone.')) return;
+    await groupsApi.remove(id);
+    navigate('/');
+  }
+
   async function createInviteLink(): Promise<void> {
     setMemberError(null);
     try {
@@ -145,13 +162,62 @@ export function GroupDetailPage(): ReactNode {
   const nameOf = (userId: string): string =>
     group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
   const balanceByUser = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
+  const isOwner = group.members.find((m) => m.userId === user?.id)?.role === 'OWNER';
 
   return (
     <Shell>
       <Link to="/" className="text-sm font-medium text-accent">
         &larr; Your groups
       </Link>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">{group.name}</h1>
+      {renaming ? (
+        <div className="mt-2 flex gap-2">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            aria-label="Group name"
+            className="flex-1 rounded-xl border border-line bg-field px-3 py-2 font-display text-2xl outline-none focus:border-accent"
+          />
+          <button
+            type="button"
+            onClick={() => void saveRename()}
+            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => setRenaming(false)}
+            className="rounded-full border border-line px-4 py-2 text-sm font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <h1 className="font-display text-3xl font-semibold tracking-tight">{group.name}</h1>
+          {isOwner && (
+            <div className="flex shrink-0 items-center gap-3 text-sm font-medium">
+              <button
+                type="button"
+                onClick={() => {
+                  setNewName(group.name);
+                  setRenaming(true);
+                }}
+                className="text-muted transition hover:text-ink"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteGroup()}
+                className="text-muted transition hover:text-accent"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {(() => {
         const myNet = balanceByUser[user?.id ?? ''] ?? 0;

@@ -40,4 +40,7 @@ export const groupsApi = {
     api.post<{ member: GroupMember }>(`/groups/${id}/members`, { email }).then((r) => r.member),
   balances: (id: string): Promise<Balance[]> =>
     api.get<{ balances: Balance[] }>(`/groups/${id}/balances`).then((r) => r.balances),
+  rename: (id: string, name: string): Promise<GroupDetail> =>
+    api.patch<{ group: GroupDetail }>(`/groups/${id}`, { name }).then((r) => r.group),
+  remove: (id: string): Promise<void> => api.del(`/groups/${id}`).then(() => undefined),
 };
