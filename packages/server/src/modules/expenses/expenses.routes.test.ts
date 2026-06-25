@@ -21,7 +21,7 @@ async function register(
 ): Promise<Registered> {
   const res = await app.inject({
     method: 'POST',
-    url: '/auth/register',
+    url: '/api/auth/register',
     payload: { email, password, displayName },
   });
   const cookie = res.cookies.find((c) => c.name === 'owe_well_session');
@@ -45,14 +45,14 @@ describe('expense routes', () => {
 
     const created = await app.inject({
       method: 'POST',
-      url: '/groups',
+      url: '/api/groups',
       headers: { cookie: ann.cookie },
       payload: { name: 'Trip' },
     });
     groupId = (created.json() as { group: { id: string } }).group.id;
     await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/members`,
+      url: `/api/groups/${groupId}/members`,
       headers: { cookie: ann.cookie },
       payload: { email: emailB },
     });
@@ -72,7 +72,7 @@ describe('expense routes', () => {
   test('equal split creates correct shares and balances sum to zero', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Hotel',
@@ -91,7 +91,7 @@ describe('expense routes', () => {
 
     const balances = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/balances`,
+      url: `/api/groups/${groupId}/balances`,
       headers: { cookie: ann.cookie },
     });
     const list = (balances.json() as { balances: { userId: string; netCents: number }[] }).balances;
@@ -105,7 +105,7 @@ describe('expense routes', () => {
   test('rejects a split that does not add up', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Bad exact',
@@ -125,7 +125,7 @@ describe('expense routes', () => {
   test('rejects a participant who is not in the group', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Outsider',
@@ -142,7 +142,7 @@ describe('expense routes', () => {
   test('a non-member cannot post expenses or read balances', async () => {
     const post = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: cara.cookie },
       payload: {
         description: 'Sneaky',
@@ -156,7 +156,7 @@ describe('expense routes', () => {
 
     const balances = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/balances`,
+      url: `/api/groups/${groupId}/balances`,
       headers: { cookie: cara.cookie },
     });
     expect(balances.statusCode).toBe(404);
@@ -165,7 +165,7 @@ describe('expense routes', () => {
   test('deleting an expense removes it and restores balances', async () => {
     const created = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Pizza',
@@ -179,7 +179,7 @@ describe('expense routes', () => {
 
     const del = await app.inject({
       method: 'DELETE',
-      url: `/groups/${groupId}/expenses/${expenseId}`,
+      url: `/api/groups/${groupId}/expenses/${expenseId}`,
       headers: { cookie: ann.cookie },
     });
     expect(del.statusCode).toBe(200);
@@ -187,7 +187,7 @@ describe('expense routes', () => {
     // It no longer shows up in the list.
     const list = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
     });
     const ids = (list.json() as { expenses: { id: string }[] }).expenses.map((e) => e.id);
@@ -196,7 +196,7 @@ describe('expense routes', () => {
     // Deleting it again is a 404.
     const again = await app.inject({
       method: 'DELETE',
-      url: `/groups/${groupId}/expenses/${expenseId}`,
+      url: `/api/groups/${groupId}/expenses/${expenseId}`,
       headers: { cookie: ann.cookie },
     });
     expect(again.statusCode).toBe(404);
@@ -205,7 +205,7 @@ describe('expense routes', () => {
   test('a non-member cannot delete an expense', async () => {
     const created = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: ann.cookie },
       payload: {
         description: 'Drinks',
@@ -218,7 +218,7 @@ describe('expense routes', () => {
     const expenseId = (created.json() as { expense: { id: string } }).expense.id;
     const res = await app.inject({
       method: 'DELETE',
-      url: `/groups/${groupId}/expenses/${expenseId}`,
+      url: `/api/groups/${groupId}/expenses/${expenseId}`,
       headers: { cookie: cara.cookie },
     });
     expect(res.statusCode).toBe(404);
@@ -227,7 +227,7 @@ describe('expense routes', () => {
   test('lists live expenses for the group', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/groups/${groupId}/expenses`,
+      url: `/api/groups/${groupId}/expenses`,
       headers: { cookie: bob.cookie },
     });
     expect(res.statusCode).toBe(200);

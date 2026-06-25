@@ -16,7 +16,7 @@ interface Registered {
 async function register(app: FastifyInstance, email: string, name: string): Promise<Registered> {
   const res = await app.inject({
     method: 'POST',
-    url: '/auth/register',
+    url: '/api/auth/register',
     payload: { email, password, displayName: name },
   });
   const cookie = res.cookies.find((c) => c.name === 'owe_well_session');
@@ -52,7 +52,7 @@ describe('ocr route (mock extractor)', () => {
     bob = await register(app, emailB, 'Bob');
     const created = await app.inject({
       method: 'POST',
-      url: '/groups',
+      url: '/api/groups',
       headers: { cookie: ann.cookie },
       payload: { name: 'Dinner' },
     });
@@ -74,7 +74,7 @@ describe('ocr route (mock extractor)', () => {
     const { body, contentType } = multipartBody(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/ocr`,
+      url: `/api/groups/${groupId}/ocr`,
       headers: { cookie: ann.cookie, 'content-type': contentType },
       payload: body,
     });
@@ -90,7 +90,7 @@ describe('ocr route (mock extractor)', () => {
     const { body, contentType } = multipartBody(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     const res = await app.inject({
       method: 'POST',
-      url: `/groups/${groupId}/ocr`,
+      url: `/api/groups/${groupId}/ocr`,
       headers: { cookie: bob.cookie, 'content-type': contentType },
       payload: body,
     });
