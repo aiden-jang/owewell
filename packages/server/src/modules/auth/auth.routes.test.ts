@@ -100,4 +100,56 @@ describe('auth routes', () => {
     expect(res.statusCode).toBe(400);
     expect((res.json() as { error: string }).error).toBe('ValidationError');
   });
+
+  test('a user can rename themselves and change their password', async () => {
+    const e = `settings-${randomUUID()}@example.com`;
+    const reg = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { email: e, password: 'correct horse battery', displayName: 'Settings User' },
+    });
+    const c = reg.cookies.find((x) => x.name === 'owe_well_session');
+    const cookie = `${c?.name}=${c?.value}`;
+
+    const rename = await app.inject({
+      method: 'PATCH',
+      url: '/api/auth/me',
+      headers: { cookie },
+      payload: { displayName: 'Renamed' },
+    });
+    expect(rename.statusCode).toBe(200);
+    expect((rename.json() as { user: { displayName: string } }).user.displayName).toBe('Renamed');
+
+    const wrong = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { cookie },
+      payload: { currentPassword: 'nope', newPassword: 'brand new password' },
+    });
+    expect(wrong.statusCode).toBe(400);
+    expect((wrong.json() as { error: string }).error).toBe('WRONG_PASSWORD');
+
+    const change = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { cookie },
+      payload: { currentPassword: 'correct horse battery', newPassword: 'brand new password' },
+    });
+    expect(change.statusCode).toBe(200);
+
+    const oldLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: e, password: 'correct horse battery' },
+    });
+    expect(oldLogin.statusCode).toBe(401);
+    const newLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: e, password: 'brand new password' },
+    });
+    expect(newLogin.statusCode).toBe(200);
+
+    await app.prisma.user.deleteMany({ where: { email: e } });
+  });
 });

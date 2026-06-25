@@ -11,7 +11,12 @@ export function AppHeader(): ReactNode {
           <span aria-hidden>🧾</span> Owe Well
         </Link>
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-muted sm:inline">{user?.displayName}</span>
+          <Link
+            to="/settings"
+            className="hidden text-sm font-medium text-muted transition hover:text-ink sm:inline"
+          >
+            {user?.displayName}
+          </Link>
           <button
             type="button"
             onClick={() => void logout()}
