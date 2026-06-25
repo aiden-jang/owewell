@@ -1,5 +1,5 @@
 /**
- * Money handling for Owe Well.
+ * Money handling (integer cents).
  *
  * Everything is integer cents. Floating-point dollars (0.1 + 0.2 !== 0.3) have no
  * place in a money app, so {@link Money} never stores a fractional amount, and the

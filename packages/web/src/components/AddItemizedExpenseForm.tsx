@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents } from '@owe-well/shared';
+import { dollarsToCents } from '@aidenjang/shared';
 import { expensesApi, ocrReceipt } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 
