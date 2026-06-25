@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Money, computeSplit, dollarsToCents, type SplitMethod } from '@owe-well/shared';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
+import { BrandMark } from '../components/BrandMark';
 import {
   clearPendingSplit,
   quickSplitApi,
@@ -53,7 +54,7 @@ function PublicHeader(): ReactNode {
     <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
         <Link to="/split" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-          <span aria-hidden>🧾</span> Owe Well
+          <BrandMark /> Owe Well
         </Link>
         <div className="flex items-center gap-2 text-sm font-medium">
           <Link to="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:text-ink">
@@ -315,7 +316,7 @@ export function QuickSplitPage(): ReactNode {
                     <span>
                       <span className="font-medium">{p.name.trim()}</span> owes {payerName}
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium tabular-nums">
                       {Money.fromCents(owed[p.id] ?? 0).format()}
                     </span>
                   </li>
