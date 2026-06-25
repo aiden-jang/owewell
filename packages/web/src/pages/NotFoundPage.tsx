@@ -11,7 +11,7 @@ export function NotFoundPage(): ReactNode {
       <p className="mt-2 text-sm text-muted">That page isn&apos;t here.</p>
       <Link
         to="/"
-        className="mt-6 rounded-full bg-accent px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98]"
+        className="mt-6 rounded-full btn-gradient px-5 py-2.5 font-medium shadow-sm transition active:scale-[0.98]"
       >
         Take me home
       </Link>

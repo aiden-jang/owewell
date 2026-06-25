@@ -6,7 +6,7 @@ import { AppHeader } from '../components/AppHeader';
 const inputClass =
   'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 const buttonClass =
-  'rounded-full bg-accent px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60';
+  'rounded-full btn-gradient px-5 py-2.5 font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-60';
 
 export function SettingsPage(): ReactNode {
   const { user, updateDisplayName, changePassword } = useAuth();
@@ -62,7 +62,7 @@ export function SettingsPage(): ReactNode {
 
         <form
           onSubmit={(e) => void onSaveName(e)}
-          className="mt-6 space-y-3 rounded-3xl border border-line bg-card p-5 shadow-sm"
+          className="mt-6 glass space-y-3 rounded-3xl p-5"
         >
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Display name</h2>
           <input
@@ -81,7 +81,7 @@ export function SettingsPage(): ReactNode {
 
         <form
           onSubmit={(e) => void onChangePassword(e)}
-          className="mt-4 space-y-3 rounded-3xl border border-line bg-card p-5 shadow-sm"
+          className="mt-4 glass space-y-3 rounded-3xl p-5"
         >
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Change password</h2>
           <input
@@ -110,7 +110,7 @@ export function SettingsPage(): ReactNode {
               {savingPw ? 'Updating...' : 'Update password'}
             </button>
             {pwMsg && (
-              <span className={`text-sm ${pwMsg.ok ? 'text-emerald-600' : 'text-accent'}`}>
+              <span className={`text-sm ${pwMsg.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {pwMsg.text}
               </span>
             )}

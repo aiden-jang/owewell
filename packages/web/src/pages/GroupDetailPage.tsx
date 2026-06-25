@@ -19,8 +19,8 @@ function balanceLabel(netCents: number): { text: string; tone: string } {
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
   const amount = Money.fromCents(Math.abs(netCents)).format();
   return netCents > 0
-    ? { text: `is owed ${amount}`, tone: 'text-emerald-600' }
-    : { text: `owes ${amount}`, tone: 'text-accent' };
+    ? { text: `is owed ${amount}`, tone: 'text-emerald-400' }
+    : { text: `owes ${amount}`, tone: 'text-rose-400' };
 }
 
 function Shell({ children }: { children: ReactNode }): ReactNode {
@@ -242,7 +242,7 @@ export function GroupDetailPage(): ReactNode {
           <button
             type="button"
             onClick={() => void saveRename()}
-            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white"
+            className="btn-gradient rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
           >
             Save
           </button>
@@ -286,13 +286,13 @@ export function GroupDetailPage(): ReactNode {
         const settled = myNet === 0;
         const owed = myNet > 0;
         return (
-          <div className="mt-5 rounded-3xl border border-line bg-card p-6 shadow-sm">
-            <p className="text-sm text-muted">
+          <div className="glass mt-5 rounded-3xl p-7">
+            <p className="text-sm font-medium text-muted">
               {settled ? 'Your standing' : owed ? "You're owed" : 'You owe'}
             </p>
             <p
-              className={`font-display text-4xl font-semibold ${
-                settled ? 'text-ink' : owed ? 'text-emerald-600' : 'text-accent'
+              className={`mt-1 font-display text-6xl font-extrabold tracking-tight ${
+                settled ? 'text-ink' : owed ? 'text-gradient' : 'text-rose-400'
               }`}
             >
               {settled ? 'All settled' : Money.fromCents(Math.abs(myNet)).format()}
@@ -312,7 +312,7 @@ export function GroupDetailPage(): ReactNode {
             return (
               <li
                 key={member.userId}
-                className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
+                className="flex items-center justify-between rounded-xl glass px-4 py-3"
               >
                 <span className="flex items-center gap-3 font-medium">
                   <Avatar name={member.displayName} />
@@ -360,7 +360,7 @@ export function GroupDetailPage(): ReactNode {
             {suggested.map((payment) => (
               <li
                 key={`${payment.fromUserId}-${payment.toUserId}`}
-                className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
+                className="flex items-center justify-between rounded-xl glass px-4 py-3"
               >
                 <span className="flex items-center gap-2 text-sm">
                   <Avatar name={payment.fromName} size="sm" />
@@ -402,7 +402,7 @@ export function GroupDetailPage(): ReactNode {
             {expenses.map((expense) => (
               <li
                 key={expense.id}
-                className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3"
+                className="flex items-center justify-between rounded-xl glass px-4 py-3"
               >
                 <div className="flex items-center gap-3">
                   <Avatar name={nameOf(expense.payerId)} size="sm" />
@@ -426,12 +426,12 @@ export function GroupDetailPage(): ReactNode {
             ))}
           </ul>
         )}
-        <div className="mt-4 inline-flex rounded-full border border-line bg-canvas p-1">
+        <div className="mt-4 inline-flex rounded-full border border-line bg-field p-1">
           <button
             type="button"
             onClick={() => setExpenseMode('simple')}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              expenseMode === 'simple' ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'
+              expenseMode === 'simple' ? 'btn-gradient' : 'text-muted hover:text-ink'
             }`}
           >
             Split a total
@@ -440,7 +440,7 @@ export function GroupDetailPage(): ReactNode {
             type="button"
             onClick={() => setExpenseMode('itemized')}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              expenseMode === 'itemized' ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'
+              expenseMode === 'itemized' ? 'btn-gradient' : 'text-muted hover:text-ink'
             }`}
           >
             Itemize a receipt
@@ -475,7 +475,7 @@ export function GroupDetailPage(): ReactNode {
           />
           <button
             type="submit"
-            className="rounded-full bg-accent px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98]"
+            className="btn-gradient rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98]"
           >
             Add
           </button>
