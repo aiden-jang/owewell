@@ -8,12 +8,18 @@ import {
   deleteGroup,
   getGroup,
   listGroups,
+  removeMember,
   renameGroup,
 } from './groups.service.js';
 
 function handleGroupError(err: unknown, reply: FastifyReply): { error: string; message: string } {
   if (err instanceof GroupError) {
-    const status = err.code === 'ALREADY_MEMBER' ? 409 : err.code === 'NOT_OWNER' ? 403 : 404;
+    const status =
+      err.code === 'ALREADY_MEMBER' || err.code === 'HAS_ACTIVITY'
+        ? 409
+        : err.code === 'NOT_OWNER' || err.code === 'CANNOT_REMOVE_OWNER'
+          ? 403
+          : 404;
     reply.code(status);
     return { error: err.code, message: err.message };
   }
@@ -71,6 +77,19 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       try {
         await deleteGroup(app.prisma, request.user!.id, request.params.id);
+        return { ok: true };
+      } catch (err) {
+        return handleGroupError(err, reply);
+      }
+    },
+  );
+
+  app.delete<{ Params: { id: string; userId: string } }>(
+    '/groups/:id/members/:userId',
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      try {
+        await removeMember(app.prisma, request.user!.id, request.params.id, request.params.userId);
         return { ok: true };
       } catch (err) {
         return handleGroupError(err, reply);
