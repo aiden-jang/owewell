@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
 import { InvitePage } from './pages/InvitePage';
 import { QuickSplitPage } from './pages/QuickSplitPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 export function App(): ReactNode {
   const { user, loading } = useAuth();
@@ -28,7 +29,7 @@ export function App(): ReactNode {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/groups/:id" element={<GroupDetailPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
