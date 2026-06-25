@@ -208,6 +208,100 @@ describe('group routes', () => {
     expect(read.statusCode).toBe(404);
   });
 
+  test('member removal: owner-only, owner-protected, activity-guarded, self-leave', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/groups',
+      headers: { cookie: cookieA },
+      payload: { name: 'Squad' },
+    });
+    const detail = created.json() as { group: { id: string; members: { userId: string; role: string }[] } };
+    const groupId = detail.group.id;
+    const annId = detail.group.members[0]!.userId;
+    const addBob = await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/members`,
+      headers: { cookie: cookieA },
+      payload: { email: emailB },
+    });
+    const bobId = (addBob.json() as { member: { userId: string } }).member.userId;
+    const addCharlie = await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/members`,
+      headers: { cookie: cookieA },
+      payload: { name: 'Charlie' },
+    });
+    const charlieId = (addCharlie.json() as { member: { userId: string } }).member.userId;
+
+    // Bob (non-owner) cannot remove Charlie.
+    const bobRemoves = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/members/${charlieId}`,
+      headers: { cookie: cookieB },
+    });
+    expect(bobRemoves.statusCode).toBe(403);
+    expect((bobRemoves.json() as { error: string }).error).toBe('NOT_OWNER');
+
+    // The owner cannot be removed.
+    const removeOwner = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/members/${annId}`,
+      headers: { cookie: cookieA },
+    });
+    expect(removeOwner.statusCode).toBe(403);
+    expect((removeOwner.json() as { error: string }).error).toBe('CANNOT_REMOVE_OWNER');
+
+    // Owner removes Charlie (no activity) — fine.
+    const removeCharlie = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/members/${charlieId}`,
+      headers: { cookie: cookieA },
+    });
+    expect(removeCharlie.statusCode).toBe(200);
+
+    // Bob joins an expense, then can't be removed until it's cleared.
+    await app.inject({
+      method: 'POST',
+      url: `/groups/${groupId}/expenses`,
+      headers: { cookie: cookieA },
+      payload: {
+        description: 'Gas',
+        amountCents: 1000,
+        payerId: annId,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: annId }, { userId: bobId }],
+      },
+    });
+    const removeBob = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${groupId}/members/${bobId}`,
+      headers: { cookie: cookieA },
+    });
+    expect(removeBob.statusCode).toBe(409);
+    expect((removeBob.json() as { error: string }).error).toBe('HAS_ACTIVITY');
+
+    // A clean group: Bob can leave on his own.
+    const g2 = await app.inject({
+      method: 'POST',
+      url: '/groups',
+      headers: { cookie: cookieA },
+      payload: { name: 'Empty' },
+    });
+    const g2Id = (g2.json() as { group: { id: string } }).group.id;
+    await app.inject({
+      method: 'POST',
+      url: `/groups/${g2Id}/members`,
+      headers: { cookie: cookieA },
+      payload: { email: emailB },
+    });
+    const leave = await app.inject({
+      method: 'DELETE',
+      url: `/groups/${g2Id}/members/${bobId}`,
+      headers: { cookie: cookieB },
+    });
+    expect(leave.statusCode).toBe(200);
+  });
+
   test('a non-member cannot add members', async () => {
     const created = await app.inject({
       method: 'POST',

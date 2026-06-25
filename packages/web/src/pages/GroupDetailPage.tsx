@@ -117,6 +117,17 @@ export function GroupDetailPage(): ReactNode {
     navigate('/');
   }
 
+  async function removeFromGroup(targetUserId: string, isSelf: boolean): Promise<void> {
+    if (!window.confirm(isSelf ? 'Leave this group?' : 'Remove this person?')) return;
+    try {
+      await groupsApi.removeMember(id, targetUserId);
+      if (isSelf) navigate('/');
+      else await load();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Could not remove them.');
+    }
+  }
+
   async function createInviteLink(): Promise<void> {
     setMemberError(null);
     try {
@@ -244,6 +255,9 @@ export function GroupDetailPage(): ReactNode {
         <ul className="mt-3 space-y-2">
           {group.members.map((member) => {
             const label = balanceLabel(balanceByUser[member.userId] ?? 0);
+            const isSelf = member.userId === user?.id;
+            const canLeave = isSelf && member.role !== 'OWNER';
+            const canRemove = isOwner && !isSelf && member.role !== 'OWNER';
             return (
               <li
                 key={member.userId}
@@ -258,7 +272,28 @@ export function GroupDetailPage(): ReactNode {
                     )}
                   </span>
                 </span>
-                <span className={`text-sm font-medium ${label.tone}`}>{label.text}</span>
+                <span className="flex items-center gap-3">
+                  <span className={`text-sm font-medium ${label.tone}`}>{label.text}</span>
+                  {canLeave && (
+                    <button
+                      type="button"
+                      onClick={() => void removeFromGroup(member.userId, true)}
+                      className="rounded-full border border-line px-2.5 py-1 text-xs font-medium text-muted transition hover:bg-canvas"
+                    >
+                      Leave
+                    </button>
+                  )}
+                  {canRemove && (
+                    <button
+                      type="button"
+                      onClick={() => void removeFromGroup(member.userId, false)}
+                      aria-label={`Remove ${member.displayName}`}
+                      className="rounded-full px-2 py-1 text-muted transition hover:bg-canvas hover:text-accent"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </span>
               </li>
             );
           })}

@@ -43,4 +43,6 @@ export const groupsApi = {
   rename: (id: string, name: string): Promise<GroupDetail> =>
     api.patch<{ group: GroupDetail }>(`/groups/${id}`, { name }).then((r) => r.group),
   remove: (id: string): Promise<void> => api.del(`/groups/${id}`).then(() => undefined),
+  removeMember: (id: string, userId: string): Promise<void> =>
+    api.del(`/groups/${id}/members/${userId}`).then(() => undefined),
 };
