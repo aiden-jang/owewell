@@ -113,7 +113,7 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
     'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="mt-3 space-y-3 rounded-2xl border border-line bg-card p-4">
+    <form onSubmit={(e) => void onSubmit(e)} className="mt-3 space-y-3 rounded-2xl glass p-4">
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -183,7 +183,7 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-xl bg-accent px-4 py-2.5 font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
+        className="rounded-xl btn-gradient px-4 py-2.5 font-medium transition disabled:opacity-60"
       >
         {submitting ? 'Adding...' : 'Add expense'}
       </button>

@@ -61,7 +61,7 @@ function PublicHeader(): ReactNode {
           </Link>
           <Link
             to="/signup"
-            className="rounded-full bg-accent px-4 py-1.5 text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98]"
+            className="btn-gradient rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98]"
           >
             Sign up
           </Link>
@@ -195,7 +195,7 @@ export function QuickSplitPage(): ReactNode {
           Who owes who, minus the group-chat math. No login required, save it if you get attached.
         </p>
 
-        <div className="mt-6 space-y-3 rounded-3xl border border-line bg-card p-5 shadow-sm">
+        <div className="glass mt-6 space-y-3 rounded-3xl p-5">
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -310,7 +310,7 @@ export function QuickSplitPage(): ReactNode {
                 .map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3 text-sm"
+                    className="flex items-center justify-between rounded-xl glass px-4 py-3 text-sm"
                   >
                     <span>
                       <span className="font-medium">{p.name.trim()}</span> owes {payerName}
@@ -333,7 +333,7 @@ export function QuickSplitPage(): ReactNode {
           type="button"
           onClick={() => void onSave()}
           disabled={saving}
-          className="mt-5 w-full rounded-full bg-accent px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-accent-hover hover:shadow-md active:scale-[0.98] disabled:opacity-60"
+          className="btn-gradient mt-5 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
         >
           {saving ? 'Saving...' : user ? 'Save to my account' : 'Sign up to keep this'}
         </button>
@@ -350,7 +350,7 @@ export function QuickSplitPage(): ReactNode {
               { icon: '🤝', title: 'Settle simply', body: 'We boil tangled debts down to the fewest payments.' },
               { icon: '🧾', title: 'Itemize receipts', body: 'Snap a photo, assign items, skip the squinting.' },
             ].map((f) => (
-              <div key={f.title} className="rounded-2xl border border-line bg-card p-4 shadow-sm">
+              <div key={f.title} className="glass rounded-2xl p-4">
                 <span className="text-2xl" aria-hidden>
                   {f.icon}
                 </span>

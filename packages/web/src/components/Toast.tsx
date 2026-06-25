@@ -62,10 +62,8 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
             key={toast.id}
             type="button"
             onClick={() => dismiss(toast.id)}
-            className={`pointer-events-auto max-w-sm animate-rise rounded-full px-4 py-2.5 text-sm font-medium shadow-md transition active:scale-[0.98] ${
-              toast.tone === 'error'
-                ? 'bg-accent text-white'
-                : 'border border-line bg-card text-ink'
+            className={`glass pointer-events-auto max-w-sm animate-rise rounded-full px-4 py-2.5 text-sm font-medium shadow-md transition active:scale-[0.98] ${
+              toast.tone === 'error' ? 'text-rose-300' : 'text-ink'
             }`}
           >
             {toast.message}

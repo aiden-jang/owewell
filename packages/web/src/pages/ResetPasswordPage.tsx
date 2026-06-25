@@ -56,7 +56,7 @@ export function ResetPasswordPage(): ReactNode {
       }
     >
       {done ? (
-        <p className="text-sm text-emerald-600">Password updated. Taking you to log in...</p>
+        <p className="text-sm text-emerald-400">Password updated. Taking you to log in...</p>
       ) : (
         <form className="space-y-4" onSubmit={(e) => void onSubmit(e)}>
           <TextField

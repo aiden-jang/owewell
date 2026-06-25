@@ -74,7 +74,7 @@ export function DashboardPage(): ReactNode {
                 type="button"
                 onClick={() => void savePending()}
                 disabled={savingPending}
-                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
+                className="btn-gradient rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60"
               >
                 {savingPending ? 'Saving...' : 'Save it'}
               </button>
@@ -101,7 +101,7 @@ export function DashboardPage(): ReactNode {
           <button
             type="submit"
             disabled={creating}
-            className="rounded-full bg-accent px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
+            className="btn-gradient rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
           >
             {creating ? 'Adding...' : 'Create'}
           </button>
@@ -125,7 +125,7 @@ export function DashboardPage(): ReactNode {
                 <li key={group.id}>
                   <Link
                     to={`/groups/${group.id}`}
-                    className="group flex items-center gap-4 rounded-2xl border border-line bg-card p-4 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+                    className="group flex items-center gap-4 rounded-2xl glass p-4 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
                   >
                     <Avatar name={group.name} />
                     <span className="min-w-0 flex-1">

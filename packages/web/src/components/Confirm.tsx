@@ -67,7 +67,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
           onClick={() => settle(false)}
         >
           <div
-            className="w-full max-w-sm animate-rise rounded-3xl border border-line bg-card p-6 shadow-md"
+            className="w-full max-w-sm animate-rise rounded-3xl glass p-6 shadow-md"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-xl font-semibold tracking-tight">{pending.title}</h2>
@@ -105,9 +105,11 @@ function ConfirmButton({
   useEffect(() => {
     ref.current?.focus();
   }, []);
-  const base =
-    'rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]';
-  const color = tone === 'danger' ? 'bg-accent hover:bg-accent-hover' : 'bg-ink hover:opacity-90';
+  const base = 'rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition active:scale-[0.98]';
+  const color =
+    tone === 'danger'
+      ? 'bg-rose-500 text-white hover:bg-rose-600'
+      : 'btn-gradient hover:opacity-90';
   return (
     <button ref={ref} type="button" onClick={onClick} className={`${base} ${color}`}>
       {children}
