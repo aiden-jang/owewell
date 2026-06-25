@@ -10,8 +10,12 @@ export function baseCookieOptions(): CookieSerializeOptions {
   return {
     path: '/',
     httpOnly: true,
+    // 'lax' is safe across subdomains of one registrable domain (same site), so it
+    // works for owewell.aidenjang.com -> api.aidenjang.com without needing 'none'.
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    // Share the cookie across subdomains when a parent domain is configured.
+    ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   };
 }
 

@@ -10,6 +10,26 @@ const EnvSchema = z.object({
   WEB_DIR: z.string().optional(),
   // Public base URL, used to build links in emails (e.g. password reset).
   APP_URL: z.string().url().default('http://localhost:5173'),
+  // Mount prefix for this app's API routes. Lets one backend host several apps
+  // side by side (e.g. /owe-well, /wherever) without their routes colliding.
+  API_PREFIX: z.string().default('/api'),
+  // When the frontend is served from a different origin (e.g. owewell.aidenjang.com
+  // calling api.aidenjang.com), set this to the shared parent so the session cookie
+  // is sent across subdomains. Example: ".aidenjang.com". Unset for same-origin.
+  COOKIE_DOMAIN: z.string().optional(),
+  // Comma-separated browser origins allowed to call the API with credentials.
+  // Required only in the split-origin deployment; unset means same-origin (no CORS).
+  CORS_ORIGINS: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value
+        ? value
+            .split(',')
+            .map((origin) => origin.trim())
+            .filter(Boolean)
+        : [],
+    ),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
