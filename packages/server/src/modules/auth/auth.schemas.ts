@@ -30,7 +30,21 @@ export const changePasswordBody = z.object({
   newPassword: z.string().min(8, 'Use at least 8 characters').max(128),
 });
 
+export const forgotPasswordBody = z.object({
+  email: z
+    .string()
+    .email()
+    .transform((value) => value.trim().toLowerCase()),
+});
+
+export const resetPasswordBody = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(8, 'Use at least 8 characters').max(128),
+});
+
 export type RegisterBody = z.infer<typeof registerBody>;
 export type LoginBody = z.infer<typeof loginBody>;
 export type UpdateProfileBody = z.infer<typeof updateProfileBody>;
 export type ChangePasswordBody = z.infer<typeof changePasswordBody>;
+export type ForgotPasswordBody = z.infer<typeof forgotPasswordBody>;
+export type ResetPasswordBody = z.infer<typeof resetPasswordBody>;

@@ -31,10 +31,11 @@ model User {
   expenseSplits   ExpenseSplit[]
   itemShares      ExpenseItemShare[]
 
-  settlementsFrom    Settlement[] @relation("SettlementFrom")
-  settlementsTo      Settlement[] @relation("SettlementTo")
-  createdSettlements Settlement[] @relation("SettlementCreator")
-  invitesSent        Invite[]     @relation("InviteCreator")
+  settlementsFrom    Settlement[]         @relation("SettlementFrom")
+  settlementsTo      Settlement[]         @relation("SettlementTo")
+  createdSettlements Settlement[]         @relation("SettlementCreator")
+  invitesSent        Invite[]             @relation("InviteCreator")
+  passwordResets     PasswordResetToken[]
 
   @@map("users")
 }
@@ -182,6 +183,19 @@ model Invite {
 
   @@index([groupId])
   @@map("invites")
+}
+
+model PasswordResetToken {
+  // `id` is the SHA-256 hash of the reset token; the raw token only goes in the email link.
+  id        String    @id
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Session {
