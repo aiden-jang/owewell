@@ -10,6 +10,8 @@ import { InvitePage } from './pages/InvitePage';
 import { QuickSplitPage } from './pages/QuickSplitPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 export function App(): ReactNode {
   const { user, loading } = useAuth();
@@ -24,6 +26,8 @@ export function App(): ReactNode {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignupPage />} />
+      <Route path="/forgot" element={user ? <Navigate to="/" replace /> : <ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/invite/:token" element={<InvitePage />} />
       <Route path="/split" element={<QuickSplitPage />} />
       <Route element={<ProtectedRoute />}>
