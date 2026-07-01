@@ -1,20 +1,29 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-canvas: #0a0a12;
-  --color-card: #15131f;
-  --color-ink: #eceaf5;
-  --color-muted: #8b88a3;
-  --color-line: #272338;
+  /* Refined-dark palette. Layered surfaces over a near-black canvas. */
+  --color-canvas: #09090f;
+  --color-card: #14121e;
+  --color-surface2: #1c1930;
+  --color-ink: #efedf7;
+  --color-muted: #918da8;
+  --color-faint: #625d79;
+  --color-line: #241f36;
+  --color-line-strong: #332d49;
   --color-accent: #8b7bff;
   --color-accent-hover: #a594ff;
-  --color-accent-soft: #1b1730;
+  --color-accent-soft: #17142b;
   --color-field: #100e1a;
+  /* Semantic money tones. */
+  --color-pos: #34d399;
+  --color-neg: #fb7185;
 
   --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-sheet: sheet-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-fade: fade-in 0.2s ease-out;
 }
 
 @keyframes rise {
@@ -28,43 +37,103 @@
   }
 }
 
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 html {
-  background-color: #0a0a12;
+  background-color: #09090f;
 }
 
 body {
   min-height: 100vh;
   background:
-    radial-gradient(120% 80% at 50% -10%, #1d1838 0%, #0d0b16 52%, #0a0a12 100%) no-repeat;
+    radial-gradient(115% 70% at 50% -8%, #1a1633 0%, #0c0a16 46%, #09090f 100%) no-repeat;
   background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
   letter-spacing: -0.011em;
+  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* The signature violet-to-cyan accent, used for headline numbers and primary CTAs. */
+/* Money and figures always align on the decimal. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* The signature violet-to-cyan accent, reserved for the primary balance number. */
 .text-gradient {
-  background: linear-gradient(120deg, #a78bfa, #22d3ee);
+  background: linear-gradient(115deg, #a78bfa, #22d3ee);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .btn-gradient {
-  background: linear-gradient(120deg, #a78bfa 0%, #6ee7f0 100%);
-  color: #0a0a12;
-  box-shadow: 0 8px 30px -6px rgba(124, 92, 255, 0.5);
+  background: linear-gradient(115deg, #a78bfa 0%, #6ee7f0 100%);
+  color: #09090f;
+  box-shadow: 0 8px 26px -8px rgba(124, 92, 255, 0.55);
 }
 .btn-gradient:hover {
-  box-shadow: 0 10px 36px -6px rgba(124, 92, 255, 0.65);
+  box-shadow: 0 10px 32px -8px rgba(124, 92, 255, 0.7);
 }
 
-/* Frosted translucent surface for elevated cards. */
+/* Solid elevated surface. */
+.surface {
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+}
+
+/* Frosted translucent surface for the hero and floating chrome. */
 .glass {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Interactive rows: a gentle lift and accent hairline on hover. */
+.row-interactive {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+.row-interactive:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-line-strong);
+}
+
+.animate-sheet {
+  animation: var(--animate-sheet);
+}
+.animate-fade {
+  animation: var(--animate-fade);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-sheet,
+  .animate-fade {
+    animation: none;
+  }
 }

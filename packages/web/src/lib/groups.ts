@@ -5,6 +5,8 @@ export interface GroupSummary {
   name: string;
   createdAt: string;
   memberCount: number;
+  /** The current user's net in this group. Positive: they're owed. Negative: they owe. */
+  netCents: number;
 }
 
 export interface GroupMember {
