@@ -30,7 +30,7 @@ export function SignupPage(): ReactNode {
 
   return (
     <AuthLayout
-      title="Join Owe Well"
+      title="Join owewell"
       subtitle="Split bills, keep friends. Mostly."
       footer={
         <>
