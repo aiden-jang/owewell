@@ -3,19 +3,23 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from './Avatar';
 import { BrandMark } from './BrandMark';
+import { Icon } from './Icon';
 
 export function AppHeader(): ReactNode {
   const { user, logout } = useAuth();
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
-        <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+    <header className="sticky top-0 z-30 border-b border-line bg-canvas/70 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-display text-lg font-semibold tracking-tight"
+        >
           <BrandMark /> owewell
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
           <Link
             to="/settings"
-            className="flex items-center gap-2 text-sm font-medium text-muted transition hover:text-ink"
+            className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
             aria-label="Settings"
           >
             {user && <Avatar name={user.displayName} size="sm" />}
@@ -24,9 +28,10 @@ export function AppHeader(): ReactNode {
           <button
             type="button"
             onClick={() => void logout()}
-            className="rounded-full border border-line px-3.5 py-1.5 text-sm font-medium transition hover:bg-canvas active:scale-[0.98]"
+            aria-label="Log out"
+            className="grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
           >
-            Log out
+            <Icon name="logout" size={18} />
           </button>
         </div>
       </div>
