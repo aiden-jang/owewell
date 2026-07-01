@@ -12,15 +12,16 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { BrandMark } from './components/BrandMark';
 
 export function App(): ReactNode {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-muted">
-        <span className="animate-pulse font-display text-3xl" aria-hidden>
-          🧾
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-muted">
+        <span className="animate-pulse">
+          <BrandMark size={40} />
         </span>
         <span className="text-sm">Counting the receipts...</span>
       </div>
