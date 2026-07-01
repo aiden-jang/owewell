@@ -54,7 +54,7 @@ function PublicHeader(): ReactNode {
     <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
         <Link to="/split" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-          <BrandMark /> Owe Well
+          <BrandMark /> owewell
         </Link>
         <div className="flex items-center gap-2 text-sm font-medium">
           <Link to="/login" className="rounded-full px-3 py-1.5 text-muted transition hover:text-ink">

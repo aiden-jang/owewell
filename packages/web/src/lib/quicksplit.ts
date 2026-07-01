@@ -15,7 +15,7 @@ export interface PendingSplit {
   participants: PendingParticipant[];
 }
 
-const KEY = 'owe-well:pending-split';
+const KEY = 'owewell:pending-split';
 
 export function stashPendingSplit(split: PendingSplit): void {
   try {

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Owe Well: a bill-splitting app.",
+  "description": "owewell: a bill-splitting app.",
   "engines": {
     "node": ">=20"
   },
