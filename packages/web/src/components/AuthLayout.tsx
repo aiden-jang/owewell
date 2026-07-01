@@ -13,7 +13,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm animate-rise">
         <h1 className="mb-6 flex items-center justify-center gap-2 font-display text-3xl font-semibold tracking-tight">
-          <BrandMark size={32} /> Owe Well
+          <BrandMark size={32} /> owewell
         </h1>
         <div className="rounded-3xl glass p-7 shadow-sm">
           <h2 className="font-display text-2xl font-semibold">{title}</h2>
