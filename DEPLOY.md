@@ -1,16 +1,17 @@
 # Deploying owewell → owewell.aidenjang.com
 
-**Status: not yet deployed** (first deploy is step 2.11). One Cloudflare Worker (`owewell-api`)
-serves both the API (`/owewell/*`, `/health`) and the web SPA (static assets) on one origin,
-`owewell.aidenjang.com`. Its own D1 (`owewell`) holds groups/expenses/settlements/invites and
-the local `people` registry. Free tier; you pay only for DNS.
+**Status: live** at `owewell.aidenjang.com` (D1 provisioned, custom domain attached). For a new
+version use the **Routine redeploy** section below; the first-deploy steps are kept for reference.
+One Cloudflare Worker (`owewell-api`) serves both the API (`/owewell/*`, `/health`) and the web SPA
+(static assets) on one origin, `owewell.aidenjang.com`. Its own D1 (`owewell`) holds
+groups/expenses/settlements and the local `people` registry. Free tier; you pay only for DNS.
 
 owewell depends on the shared **auth service** (`accounts.aidenjang.com`) already being live:
 it validates sessions by forwarding the `platform_session` cookie to `/auth/me` server-side,
 and redirects to `accounts.aidenjang.com/login` for sign-in. The cookie is scoped to
 `.aidenjang.com`, so it reaches `owewell.aidenjang.com` automatically.
 
-All commands run from `apps/owewell/api`.
+All commands run from `packages/api`.
 
 ## First deploy (do these once, in order)
 
@@ -81,9 +82,11 @@ balances + the live activity feed.
 
 ```bash
 # auth service (:34100) + owewell API (:34200) + owewell web (:30001)
-cd apps/auth/api    && pnpm exec wrangler dev --port 34100 --inspector-port 9229 --local
-cd apps/owewell/api && pnpm exec wrangler dev --port 34200 --inspector-port 9230 --local --var AUTH_URL:http://localhost:34100
-cd apps/owewell/web && pnpm dev
+# auth now lives in its own repo — run it from there:
+cd ../auth/packages/api && pnpm exec wrangler dev --port 34100 --inspector-port 9229 --local
+# owewell (this repo):
+cd packages/api && pnpm exec wrangler dev --port 34200 --inspector-port 9230 --local --var AUTH_URL:http://localhost:34100
+cd packages/web && pnpm dev
 ```
 
 The `--var AUTH_URL:...` overrides the committed prod value; the web dev server proxies
