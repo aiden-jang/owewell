@@ -22,12 +22,22 @@ export type IconName =
   | 'link'
   | 'pencil'
   | 'sparkles'
+  | 'archive'
+  | 'undo'
+  | 'share'
   | 'arrow-up-right';
 
 const PATHS: Record<IconName, ReactNode> = {
   'arrow-left': <path d="M19 12H5m0 0 7 7m-7-7 7-7" />,
   'arrow-right': <path d="M5 12h14m0 0-7-7m7 7-7 7" />,
   'arrow-up-right': <path d="M7 17 17 7m0 0H8m9 0v9" />,
+  share: (
+    <>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <path d="M16 6l-4-4-4 4" />
+      <path d="M12 2v13" />
+    </>
+  ),
   'chevron-right': <path d="m9 6 6 6-6 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   more: (
@@ -103,6 +113,14 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   pencil: <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />,
+  archive: (
+    <>
+      <rect x="3" y="3" width="18" height="4" rx="1" />
+      <path d="M5 7v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7" />
+      <path d="M10 12h4" />
+    </>
+  ),
+  undo: <path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" />,
   sparkles: (
     <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 3v4M21 5h-4M5 17v3M6.5 18.5h-3" />
   ),

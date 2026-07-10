@@ -1,6 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents, type SplitMethod } from '@aidenjang/shared';
-import { expensesApi } from '../lib/expenses';
+import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
+import { CategoryPicker } from './CategoryPicker';
+import { Money, dollarsToCents, type SplitMethod } from '@owewell/shared';
+import { expensesApi, type Expense } from '../lib/expenses';
+import { normalizeAmountInput } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 
 const METHODS: { value: SplitMethod; label: string }[] = [
@@ -17,19 +20,49 @@ const VALUE_HINT: Record<SplitMethod, string> = {
   EXACT: '$',
 };
 
+/** Today as YYYY-MM-DD in the user's local timezone (for the date input default). */
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 interface Props {
   groupId: string;
   members: GroupMember[];
   onCreated: () => void;
+  /** When set, the form edits this expense in place instead of creating a new one. */
+  editing?: Expense;
 }
 
-export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNode {
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [payerId, setPayerId] = useState(members[0]?.userId ?? '');
-  const [method, setMethod] = useState<SplitMethod>('EQUAL');
-  const [selected, setSelected] = useState<Set<string>>(new Set(members.map((m) => m.userId)));
-  const [values, setValues] = useState<Record<string, string>>({});
+/** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
+function initialValues(editing: Expense | undefined): Record<string, string> {
+  if (!editing || editing.splitMethod === 'ITEMIZED' || editing.splitMethod === 'EQUAL') return {};
+  const method = editing.splitMethod;
+  const out: Record<string, string> = {};
+  for (const s of editing.splits) {
+    if (s.inputValue == null) continue;
+    if (method === 'EXACT') out[s.userId] = (s.inputValue / 100).toFixed(2);
+    else if (method === 'PERCENT') out[s.userId] = String(s.inputValue / 100);
+    else out[s.userId] = String(s.inputValue); // SHARES
+  }
+  return out;
+}
+
+export function AddExpenseForm({ groupId, members, onCreated, editing }: Props): ReactNode {
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [amount, setAmount] = useState(editing ? (editing.amountCents / 100).toFixed(2) : '');
+  const [payerId, setPayerId] = useState(editing?.payerId ?? members[0]?.userId ?? '');
+  const [method, setMethod] = useState<SplitMethod>(
+    editing && editing.splitMethod !== 'ITEMIZED' ? editing.splitMethod : 'EQUAL',
+  );
+  const [selected, setSelected] = useState<Set<string>>(
+    editing ? new Set(editing.splits.map((s) => s.userId)) : new Set(members.map((m) => m.userId)),
+  );
+  const [values, setValues] = useState<Record<string, string>>(() => initialValues(editing));
+  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
+  const [category, setCategory] = useState<ExpenseCategory>(
+    editing?.category ?? DEFAULT_EXPENSE_CATEGORY,
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,24 +121,68 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
       return;
     }
 
+    const payload = { description: description.trim(), amountCents, payerId, splitMethod: method, participants, category, date };
     setSubmitting(true);
     try {
-      await expensesApi.create(groupId, {
-        description: description.trim(),
-        amountCents,
-        payerId,
-        splitMethod: method,
-        participants,
-      });
-      setDescription('');
-      setAmount('');
-      setValues({});
-      setMethod('EQUAL');
+      if (editing) {
+        await expensesApi.update(groupId, editing.id, payload);
+      } else {
+        await expensesApi.create(groupId, payload);
+        setDescription('');
+        setAmount('');
+        setValues({});
+        setMethod('EQUAL');
+      }
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add the expense.');
+      setError(err instanceof Error ? err.message : 'Could not save the expense.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Live running total for the non-equal methods, so the user sees whether their per-person
+  // values add up before hitting submit.
+  let splitHint: { text: string; tone: string } | null = null;
+  if (method !== 'EQUAL') {
+    const chosen = members.filter((m) => selected.has(m.userId));
+    const raws = chosen.map((m) => (values[m.userId] ?? '').trim()).filter(Boolean);
+    if (method === 'EXACT') {
+      let sum = 0;
+      let ok = true;
+      for (const raw of raws) {
+        try {
+          sum += dollarsToCents(raw);
+        } catch {
+          ok = false;
+        }
+      }
+      let target = 0;
+      try {
+        target = amount.trim() ? dollarsToCents(amount) : 0;
+      } catch {
+        target = 0;
+      }
+      const tone = !ok ? 'text-neg' : target > 0 && sum === target ? 'text-pos' : sum > target ? 'text-neg' : 'text-muted';
+      splitHint = { text: `${Money.fromCents(sum).format()} of ${Money.fromCents(target).format()} assigned`, tone };
+    } else if (method === 'PERCENT') {
+      let sum = 0;
+      let ok = true;
+      for (const raw of raws) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) sum += n;
+        else ok = false;
+      }
+      const rounded = Math.round(sum * 100) / 100;
+      const tone = !ok ? 'text-neg' : rounded === 100 ? 'text-pos' : rounded > 100 ? 'text-neg' : 'text-muted';
+      splitHint = { text: `${rounded}% of 100%`, tone };
+    } else {
+      let sum = 0;
+      for (const raw of raws) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) sum += n;
+      }
+      splitHint = { text: `${sum} share${sum === 1 ? '' : 's'} total`, tone: 'text-muted' };
     }
   }
 
@@ -125,6 +202,7 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
         <input
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
+          onBlur={() => setAmount(normalizeAmountInput(amount))}
           placeholder="0.00"
           inputMode="decimal"
           required
@@ -138,6 +216,16 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
           ))}
         </select>
       </div>
+
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Date"
+        className={inputClass}
+      />
+
+      <CategoryPicker value={category} onChange={setCategory} />
 
       <select
         value={method}
@@ -175,6 +263,12 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
         ))}
       </div>
 
+      {splitHint && (
+        <p className={`text-right text-sm tabular-nums ${splitHint.tone}`} aria-live="polite">
+          {splitHint.text}
+        </p>
+      )}
+
       {error && (
         <p className="text-sm font-medium text-neg" role="alert">
           {error}
@@ -185,7 +279,7 @@ export function AddExpenseForm({ groupId, members, onCreated }: Props): ReactNod
         disabled={submitting}
         className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
       >
-        {submitting ? 'Adding...' : 'Add expense'}
+        {submitting ? 'Saving...' : editing ? 'Save changes' : 'Add expense'}
       </button>
     </form>
   );

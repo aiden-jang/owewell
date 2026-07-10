@@ -1,31 +1,18 @@
+import type { RecordSettlementPayload, Settlement, SuggestedPayment } from '@owewell/core';
 import { api } from './api';
 
-export interface SuggestedPayment {
-  fromUserId: string;
-  fromName: string;
-  toUserId: string;
-  toName: string;
-  amountCents: number;
-}
-
-export interface Settlement {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  amountCents: number;
-  createdAt: string;
-}
+// Re-export the shared contract so components can keep importing settlement types from here.
+export type { RecordSettlementPayload, Settlement, SuggestedPayment } from '@owewell/core';
 
 export const settlementsApi = {
   suggested: (groupId: string): Promise<SuggestedPayment[]> =>
     api
-      .get<{ payments: SuggestedPayment[] }>(`/groups/${groupId}/suggested-payments`)
-      .then((r) => r.payments),
+      .get<{ suggested: SuggestedPayment[] }>(`/groups/${groupId}/settlements/suggested`)
+      .then((r) => r.suggested),
   list: (groupId: string): Promise<Settlement[]> =>
     api.get<{ settlements: Settlement[] }>(`/groups/${groupId}/settlements`).then((r) => r.settlements),
-  record: (
-    groupId: string,
-    body: { fromUserId: string; toUserId: string; amountCents: number },
-  ): Promise<Settlement> =>
+  record: (groupId: string, body: RecordSettlementPayload): Promise<Settlement> =>
     api.post<{ settlement: Settlement }>(`/groups/${groupId}/settlements`, body).then((r) => r.settlement),
+  remove: (groupId: string, settlementId: string): Promise<void> =>
+    api.del(`/groups/${groupId}/settlements/${settlementId}`).then(() => undefined),
 };

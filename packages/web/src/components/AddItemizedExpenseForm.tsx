@@ -1,63 +1,61 @@
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents } from '@aidenjang/shared';
-import { expensesApi, ocrReceipt } from '../lib/expenses';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { dollarsToCents } from '@owewell/shared';
+import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
+import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
+import { normalizeAmountInput } from '../lib/format';
+import { CategoryPicker } from './CategoryPicker';
 import { Icon } from './Icon';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** Today as YYYY-MM-DD in the user's local timezone (for the date input default). */
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 interface ItemDraft {
   name: string;
   amount: string;
   participantIds: Set<string>;
+  /** Who paid for this item. Defaults to the expense payer. */
+  payerId: string;
 }
 
 interface Props {
   groupId: string;
   members: GroupMember[];
   onCreated: () => void;
+  /** When set (an ITEMIZED expense), the form edits that receipt in place. */
+  editing?: Expense;
 }
 
-export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): ReactNode {
+export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }: Props): ReactNode {
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
-  const [description, setDescription] = useState('');
-  const [payerId, setPayerId] = useState(members[0]?.userId ?? '');
-  const [tax, setTax] = useState('');
-  const [tip, setTip] = useState('');
-  const [items, setItems] = useState<ItemDraft[]>([
-    { name: '', amount: '', participantIds: allMemberIds() },
-  ]);
+  const defaultPayer = editing?.payerId ?? members[0]?.userId ?? '';
+  const initialItems = (): ItemDraft[] =>
+    editing?.items && editing.items.length > 0
+      ? editing.items.map((it) => ({
+          name: it.name,
+          amount: centsToInput(it.amountCents),
+          participantIds: new Set(it.participantIds),
+          payerId: it.payerId ?? defaultPayer,
+        }))
+      : [{ name: '', amount: '', participantIds: allMemberIds(), payerId: defaultPayer }];
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [payerId, setPayerId] = useState(defaultPayer);
+  const [tax, setTax] = useState(editing?.taxCents ? centsToInput(editing.taxCents) : '');
+  const [tip, setTip] = useState(editing?.tipCents ? centsToInput(editing.tipCents) : '');
+  const [items, setItems] = useState<ItemDraft[]>(initialItems);
+  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
+  const [category, setCategory] = useState<ExpenseCategory>(
+    editing?.category ?? DEFAULT_EXPENSE_CATEGORY,
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [scanning, setScanning] = useState(false);
-
-  async function onScan(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    setScanning(true);
-    setError(null);
-    try {
-      const receipt = await ocrReceipt(groupId, file);
-      if (receipt.items.length > 0) {
-        setItems(
-          receipt.items.map((item) => ({
-            name: item.name,
-            amount: centsToInput(item.amountCents),
-            participantIds: allMemberIds(),
-          })),
-        );
-      }
-      setTax(receipt.taxCents ? centsToInput(receipt.taxCents) : '');
-      setTip(receipt.tipCents ? centsToInput(receipt.tipCents) : '');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read that receipt.');
-    } finally {
-      setScanning(false);
-    }
-  }
 
   function updateItem(index: number, patch: Partial<ItemDraft>): void {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -76,7 +74,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
   }
 
   function addItem(): void {
-    setItems((prev) => [...prev, { name: '', amount: '', participantIds: allMemberIds() }]);
+    setItems((prev) => [...prev, { name: '', amount: '', participantIds: allMemberIds(), payerId }]);
   }
 
   function removeItem(index: number): void {
@@ -87,14 +85,19 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
     event.preventDefault();
     setError(null);
 
-    let payloadItems: { name: string; amountCents: number; participantIds: string[] }[];
+    let payloadItems: { name: string; amountCents: number; participantIds: string[]; payerId?: string }[];
     try {
       payloadItems = items.map((item) => {
         const amountCents = dollarsToCents(item.amount);
         if (amountCents <= 0 || !item.name.trim() || item.participantIds.size === 0) {
           throw new Error('invalid item');
         }
-        return { name: item.name.trim(), amountCents, participantIds: [...item.participantIds] };
+        return {
+          name: item.name.trim(),
+          amountCents,
+          participantIds: [...item.participantIds],
+          ...(item.payerId ? { payerId: item.payerId } : {}),
+        };
       });
     } catch {
       setError('Each item needs a name, an amount, and at least one person.');
@@ -111,22 +114,21 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
       return;
     }
 
+    const payload = { description: description.trim(), payerId, taxCents, tipCents, items: payloadItems, category, date };
     setSubmitting(true);
     try {
-      await expensesApi.createItemized(groupId, {
-        description: description.trim(),
-        payerId,
-        taxCents,
-        tipCents,
-        items: payloadItems,
-      });
-      setDescription('');
-      setTax('');
-      setTip('');
-      setItems([{ name: '', amount: '', participantIds: allMemberIds() }]);
+      if (editing) {
+        await expensesApi.updateItemized(groupId, editing.id, payload);
+      } else {
+        await expensesApi.createItemized(groupId, payload);
+        setDescription('');
+        setTax('');
+        setTip('');
+        setItems([{ name: '', amount: '', participantIds: allMemberIds(), payerId }]);
+      }
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add the receipt.');
+      setError(err instanceof Error ? err.message : 'Could not save the receipt.');
     } finally {
       setSubmitting(false);
     }
@@ -137,18 +139,15 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
-      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong px-3 py-3 text-sm font-medium text-accent transition hover:bg-surface2">
+      <div
+        className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-line px-3 py-3 text-sm font-medium text-faint"
+        aria-disabled="true"
+        title="Receipt scanning is coming soon"
+      >
         <Icon name="scan" size={18} />
-        {scanning ? 'Reading the receipt...' : 'Scan a receipt photo'}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          disabled={scanning}
-          onChange={(e) => void onScan(e)}
-          aria-label="Scan a receipt photo"
-        />
-      </label>
+        Scan a receipt photo
+        <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs text-muted">coming soon</span>
+      </div>
 
       <input
         value={description}
@@ -165,6 +164,16 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
         ))}
       </select>
 
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Date"
+        className={inputClass}
+      />
+
+      <CategoryPicker value={category} onChange={setCategory} />
+
       <div className="space-y-3">
         {items.map((item, index) => (
           <div key={index} className="rounded-xl border border-line p-3">
@@ -179,6 +188,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
               <input
                 value={item.amount}
                 onChange={(e) => updateItem(index, { amount: e.target.value })}
+                onBlur={() => updateItem(index, { amount: normalizeAmountInput(item.amount) })}
                 placeholder="0.00"
                 inputMode="decimal"
                 className="w-28 rounded-xl border border-line bg-field px-3 py-2.5 text-right outline-none focus:border-accent"
@@ -207,14 +217,29 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
                 </label>
               ))}
             </div>
+            <div className="mt-2 flex items-center gap-2 text-sm text-muted">
+              <span>paid by</span>
+              <select
+                value={item.payerId}
+                onChange={(e) => updateItem(index, { payerId: e.target.value })}
+                aria-label={`Item ${index + 1} paid by`}
+                className="rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink outline-none focus:border-accent"
+              >
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         ))}
         <button
           type="button"
           onClick={addItem}
-          className="text-sm font-medium text-accent transition hover:underline"
+          className="w-full rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-accent transition hover:bg-surface2"
         >
-          + Add item
+          + Add another item
         </button>
       </div>
 
@@ -222,6 +247,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
         <input
           value={tax}
           onChange={(e) => setTax(e.target.value)}
+          onBlur={() => setTax(normalizeAmountInput(tax))}
           placeholder="Tax (optional)"
           inputMode="decimal"
           className={inputClass}
@@ -230,6 +256,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
         <input
           value={tip}
           onChange={(e) => setTip(e.target.value)}
+          onBlur={() => setTip(normalizeAmountInput(tip))}
           placeholder="Tip (optional)"
           inputMode="decimal"
           className={inputClass}
@@ -247,7 +274,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated }: Props): 
         disabled={submitting}
         className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
       >
-        {submitting ? 'Adding...' : 'Add receipt'}
+        {submitting ? 'Saving...' : editing ? 'Save changes' : 'Add receipt'}
       </button>
     </form>
   );
