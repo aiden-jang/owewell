@@ -53,7 +53,7 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 p-4"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 px-4 pt-4 pb-4 max-sm:pb-[calc(6rem+env(safe-area-inset-bottom))]"
         role="status"
         aria-live="polite"
       >

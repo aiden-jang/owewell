@@ -6,7 +6,7 @@ import { BrandMark } from './BrandMark';
 import { Icon } from './Icon';
 
 export function AppHeader(): ReactNode {
-  const { user, logout } = useAuth();
+  const { user, logout, accountUrl } = useAuth();
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
@@ -17,14 +17,14 @@ export function AppHeader(): ReactNode {
           <BrandMark /> owewell
         </Link>
         <div className="flex items-center gap-1.5">
-          <Link
-            to="/settings"
+          <a
+            href={accountUrl}
             className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
-            aria-label="Settings"
+            aria-label="Account"
           >
             {user && <Avatar name={user.displayName} size="sm" />}
             <span className="hidden sm:inline">{user?.displayName}</span>
-          </Link>
+          </a>
           <button
             type="button"
             onClick={() => void logout()}

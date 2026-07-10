@@ -1,0 +1,57 @@
+name = "owewell-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+# Served only on the custom domain (owewell.aidenjang.com), not a *.workers.dev route.
+workers_dev = false
+
+# Local dev port — matches the owewell-web Vite proxy target (apps/owewell/web/vite.config.ts).
+[dev]
+port = 34200
+
+# Base URL of the shared auth service, used server-side to validate sessions. Local dev
+# overrides this with `--var AUTH_URL:http://localhost:34100`.
+[vars]
+AUTH_URL = "https://accounts.aidenjang.com"
+
+# owewell's own data (groups, expenses, splits, settlements, invites, and the local
+# `people` registry). Identity accounts live in the separate auth service's D1.
+# database_id is filled in at deploy (step 2.11) from `wrangler d1 create owewell`.
+[[d1_databases]]
+binding = "DB"
+database_name = "owewell"
+database_id = "1f212b63-ba43-42a4-8b5c-38d7f5c76efb"
+migrations_dir = "migrations"
+
+# Per-group realtime fan-out. One GroupRoom instance per group, addressed by group id.
+[[durable_objects.bindings]]
+name = "REALTIME"
+class_name = "GroupRoom"
+
+# GroupRoom uses the hibernation API and holds no persisted state, but the free plan requires
+# all Durable Objects to be SQLite-backed, so it's registered as a new_sqlite_classes migration.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GroupRoom"]
+
+# Serve the built web SPA (apps/owewell/web) from this same Worker, so the UI and the
+# /owewell/* API share the owewell.aidenjang.com origin (no CORS, one deploy).
+# run_worker_first = true → the Worker routes everything; /health + /owewell/* are the API,
+# the app.all('*') catch-all serves assets (real files + SPA fallback to index.html).
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# Custom domain. Requires the aidenjang.com zone on this Cloudflare account; provisioned on
+# `wrangler deploy`. Ignored by local `wrangler dev`.
+[[routes]]
+pattern = "owewell.aidenjang.com"
+custom_domain = true
+
+# Workers Logs — native, free-tier error/log observability. Tail live with `wrangler tail`;
+# browse + query in the dashboard (Workers & Pages → the worker → Logs).
+[observability]
+enabled = true
+head_sampling_rate = 1

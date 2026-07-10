@@ -1,0 +1,31 @@
+{
+  "name": "@owewell/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "owewell API on Cloudflare Workers (Hono + D1 + Durable Object realtime).",
+  "scripts": {
+    "dev": "wrangler dev --var AUTH_URL:http://localhost:34100",
+    "deploy": "pnpm --filter @owewell/web build && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply owewell --local"
+  },
+  "dependencies": {
+    "@aidenjang/auth-client": "^0.1.0",
+    "@owewell/shared": "workspace:*",
+    "@owewell/core": "workspace:*",
+    "drizzle-orm": "^0.38.3",
+    "hono": "^4.6.14",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.24",
+    "@cloudflare/workers-types": "^4.20241230.0",
+    "drizzle-kit": "^0.30.1",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.99.0"
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import fc from 'fast-check';
-import { computeItemizedSplit } from './itemized.js';
+import { computeItemizedSplit, computeItemizedPayers } from './itemized.js';
 import { SplitError } from './split.js';
 
 describe('computeItemizedSplit', () => {
@@ -54,6 +54,55 @@ describe('computeItemizedSplit', () => {
           const itemsTotal = items.reduce((sum, item) => sum + item.amountCents, 0);
           const owedTotal = shares.reduce((sum, s) => sum + s.owedCents, 0);
           expect(owedTotal).toBe(itemsTotal + taxCents + tipCents);
+        },
+      ),
+    );
+  });
+});
+
+describe('computeItemizedPayers', () => {
+  test('sums each payer’s items', () => {
+    const paid = computeItemizedPayers({
+      items: [
+        { amountCents: 1000, payerId: 'a' },
+        { amountCents: 2000, payerId: 'b' },
+        { amountCents: 500, payerId: 'a' },
+      ],
+    });
+    const byPayer = Object.fromEntries(paid.map((p) => [p.userId, p.paidCents]));
+    expect(byPayer).toEqual({ a: 1500, b: 2000 });
+  });
+
+  test('spreads tax and tip across payers in proportion to what they paid', () => {
+    const paid = computeItemizedPayers({
+      items: [
+        { amountCents: 1000, payerId: 'a' },
+        { amountCents: 3000, payerId: 'b' },
+      ],
+      taxCents: 400,
+    });
+    const byPayer = Object.fromEntries(paid.map((p) => [p.userId, p.paidCents]));
+    // 400 split 1000:3000 -> 100 / 300.
+    expect(byPayer).toEqual({ a: 1100, b: 3300 });
+  });
+
+  test('property: payer totals always sum to items + tax + tip', () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            amountCents: fc.nat(500_000),
+            payerId: fc.integer({ min: 0, max: 6 }).map((n) => `u${n}`),
+          }),
+          { minLength: 1, maxLength: 10 },
+        ),
+        fc.nat(50_000),
+        fc.nat(50_000),
+        (items, taxCents, tipCents) => {
+          const paid = computeItemizedPayers({ items, taxCents, tipCents });
+          const itemsTotal = items.reduce((sum, item) => sum + item.amountCents, 0);
+          const paidTotal = paid.reduce((sum, p) => sum + p.paidCents, 0);
+          expect(paidTotal).toBe(itemsTotal + taxCents + tipCents);
         },
       ),
     );

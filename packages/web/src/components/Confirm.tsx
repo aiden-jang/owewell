@@ -60,14 +60,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
       {children}
       {pending && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-label={pending.title}
           onClick={() => settle(false)}
         >
           <div
-            className="w-full max-w-sm animate-rise rounded-3xl glass p-6 shadow-md"
+            className="surface w-full max-w-sm animate-rise rounded-3xl p-6 shadow-xl shadow-black/40"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-xl font-semibold tracking-tight">{pending.title}</h2>

@@ -1,34 +1,29 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
-import { api } from '../lib/api';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { loginUrl, logoutUrl, signupUrl } from '@aidenjang/auth-client';
+import { api, AUTH_ORIGIN } from '../lib/api';
 
 export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
-  createdAt: string;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
-  logout: () => Promise<void>;
-  updateDisplayName: (displayName: string) => Promise<void>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  /** Send the visitor to the shared sign-in page, returning them here afterward. */
+  login: (returnTo?: string) => void;
+  /** Send the visitor to the shared sign-up page, returning them here afterward. */
+  signup: (returnTo?: string) => void;
+  /** Sign out at the shared auth service, then return here. */
+  logout: (returnTo?: string) => void;
+  /** The shared account page (name, email, password all live there now). */
+  accountUrl: string;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+const here = (): string => window.location.href;
 
 export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -36,74 +31,31 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
 
   useEffect(() => {
     api
-      .get<{ user: AuthUser }>('/auth/me')
-      .then((res) => setUser(res.user))
+      .get<{ user: AuthUser | null; personId?: string }>('/me')
+      // The client compares against owewell person ids everywhere (group members,
+      // balances, payers), so expose the person id as `user.id` rather than the
+      // auth-service user id — otherwise isOwner, balances, and "you" never match.
+      .then((res) => setUser(res.user ? { ...res.user, id: res.personId ?? res.user.id } : null))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<{ user: AuthUser }>('/auth/login', { email, password });
-    setUser(res.user);
-  }, []);
-
-  const register = useCallback(
-    async (email: string, password: string, displayName: string) => {
-      const res = await api.post<{ user: AuthUser }>('/auth/register', {
-        email,
-        password,
-        displayName,
-      });
-      setUser(res.user);
-    },
-    [],
-  );
-
-  const logout = useCallback(async () => {
-    await api.post('/auth/logout');
-    setUser(null);
-  }, []);
-
-  const updateDisplayName = useCallback(async (displayName: string) => {
-    const res = await api.patch<{ user: AuthUser }>('/auth/me', { displayName });
-    setUser(res.user);
-  }, []);
-
-  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    await api.post('/auth/change-password', { currentPassword, newPassword });
-  }, []);
-
-  const forgotPassword = useCallback(async (email: string) => {
-    await api.post('/auth/forgot-password', { email });
-  }, []);
-
-  const resetPassword = useCallback(async (token: string, newPassword: string) => {
-    await api.post('/auth/reset-password', { token, newPassword });
-  }, []);
-
-  const value = useMemo(
+  const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
-      login,
-      register,
-      logout,
-      updateDisplayName,
-      changePassword,
-      forgotPassword,
-      resetPassword,
+      login: (returnTo?: string) => {
+        window.location.assign(loginUrl(AUTH_ORIGIN, returnTo ?? here()));
+      },
+      signup: (returnTo?: string) => {
+        window.location.assign(signupUrl(AUTH_ORIGIN, returnTo ?? here()));
+      },
+      logout: (returnTo?: string) => {
+        window.location.assign(logoutUrl(AUTH_ORIGIN, returnTo ?? window.location.origin));
+      },
+      accountUrl: new URL('/account', AUTH_ORIGIN).toString(),
     }),
-    [
-      user,
-      loading,
-      login,
-      register,
-      logout,
-      updateDisplayName,
-      changePassword,
-      forgotPassword,
-      resetPassword,
-    ],
+    [user, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

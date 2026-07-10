@@ -1,0 +1,27 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Social share card. Served directly as og:image; the rendering surface
+       supplies the sans-serif fallback for the wordmark. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa" />
+      <stop offset="1" stop-color="#22d3ee" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0b0a12" />
+
+  <!-- brand mark -->
+  <g transform="translate(100, 150)">
+    <rect width="150" height="150" rx="40" fill="url(#g)" />
+    <g transform="translate(44, 30) scale(0.25)">
+      <path d="M150 96 h212 v300 l-30 -20 -30 20 -30 -20 -30 20 -30 -20 -32 20 z" fill="#0a0a12" fill-opacity="0.92" />
+      <g stroke="#a78bfa" stroke-width="26" stroke-linecap="round">
+        <line x1="196" y1="178" x2="316" y2="178" />
+        <line x1="196" y1="238" x2="316" y2="238" />
+        <line x1="196" y1="298" x2="282" y2="298" />
+      </g>
+    </g>
+  </g>
+
+  <text x="100" y="430" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="132" font-weight="800" fill="#f4f4f5" letter-spacing="-5">owewell</text>
+  <text x="106" y="500" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="40" font-weight="500" fill="#a1a1aa">split bills, keep friends. mostly.</text>
+</svg>
