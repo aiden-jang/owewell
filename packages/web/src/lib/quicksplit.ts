@@ -1,18 +1,26 @@
 import { api } from './api';
 import type { SplitMethod } from './expenses';
 
-export interface PendingParticipant {
+export interface PendingPerson {
   name: string;
-  value?: number;
   isPayer: boolean;
   isYou: boolean;
 }
 
-export interface PendingSplit {
+export interface PendingItem {
   description: string;
   amountCents: number;
   splitMethod: SplitMethod;
-  participants: PendingParticipant[];
+  /** Per-person values aligned to the `people` array order; null for EQUAL / no value. */
+  values?: (number | null)[];
+  /** Index into the `people` array of who paid for this item. Omit to use the default payer. */
+  payerIndex?: number;
+}
+
+/** A quick split is now a set of shared people plus one or more expenses (items). */
+export interface PendingSplit {
+  people: PendingPerson[];
+  items: PendingItem[];
 }
 
 const KEY = 'owewell:pending-split';
@@ -28,7 +36,11 @@ export function stashPendingSplit(split: PendingSplit): void {
 export function loadPendingSplit(): PendingSplit | null {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as PendingSplit) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingSplit;
+    // Guard against a stale pre-multi-item split lingering in localStorage.
+    if (!Array.isArray(parsed.people) || !Array.isArray(parsed.items)) return null;
+    return parsed;
   } catch {
     return null;
   }

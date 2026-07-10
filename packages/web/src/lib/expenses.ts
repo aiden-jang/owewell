@@ -1,13 +1,24 @@
+import type {
+  CreateExpensePayload,
+  CreateItemizedPayload,
+  Expense,
+  ExtractedReceipt,
+} from '@owewell/core';
 import { api, API_BASE } from './api';
 
-export interface OcrResult {
-  items: { name: string; amountCents: number }[];
-  taxCents: number;
-  tipCents: number;
-}
+// Re-export the shared contract so components can keep importing expense types from here.
+export type {
+  CreateExpensePayload,
+  CreateItemizedPayload,
+  Expense,
+  ExpenseSplit,
+  ExpenseSplitMethod,
+  ExtractedReceipt,
+  SplitMethod,
+} from '@owewell/core';
 
 /** Upload a receipt image and get back extracted line items + tax/tip. */
-export async function ocrReceipt(groupId: string, file: File): Promise<OcrResult> {
+export async function ocrReceipt(groupId: string, file: File): Promise<ExtractedReceipt> {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${API_BASE}/groups/${groupId}/ocr`, {
@@ -18,40 +29,7 @@ export async function ocrReceipt(groupId: string, file: File): Promise<OcrResult
   if (!res.ok) {
     throw new Error('Could not read that receipt.');
   }
-  return (await res.json()).receipt as OcrResult;
-}
-
-export type SplitMethod = 'EQUAL' | 'EXACT' | 'PERCENT' | 'SHARES';
-
-export interface ExpenseSplit {
-  userId: string;
-  owedCents: number;
-}
-
-export interface Expense {
-  id: string;
-  description: string;
-  amountCents: number;
-  payerId: string;
-  splitMethod: SplitMethod;
-  createdAt: string;
-  splits: ExpenseSplit[];
-}
-
-export interface CreateExpensePayload {
-  description: string;
-  amountCents: number;
-  payerId: string;
-  splitMethod: SplitMethod;
-  participants: { userId: string; value?: number }[];
-}
-
-export interface CreateItemizedPayload {
-  description: string;
-  payerId: string;
-  taxCents: number;
-  tipCents: number;
-  items: { name: string; amountCents: number; participantIds: string[] }[];
+  return (await res.json()).receipt as ExtractedReceipt;
 }
 
 export const expensesApi = {
@@ -59,9 +37,15 @@ export const expensesApi = {
     api.get<{ expenses: Expense[] }>(`/groups/${groupId}/expenses`).then((r) => r.expenses),
   create: (groupId: string, payload: CreateExpensePayload): Promise<Expense> =>
     api.post<{ expense: Expense }>(`/groups/${groupId}/expenses`, payload).then((r) => r.expense),
+  update: (groupId: string, expenseId: string, payload: CreateExpensePayload): Promise<Expense> =>
+    api.put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((r) => r.expense),
   createItemized: (groupId: string, payload: CreateItemizedPayload): Promise<Expense> =>
     api
       .post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload)
+      .then((r) => r.expense),
+  updateItemized: (groupId: string, expenseId: string, payload: CreateItemizedPayload): Promise<Expense> =>
+    api
+      .put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/itemized`, payload)
       .then((r) => r.expense),
   remove: (groupId: string, expenseId: string): Promise<{ ok: boolean }> =>
     api.del<{ ok: boolean }>(`/groups/${groupId}/expenses/${expenseId}`),

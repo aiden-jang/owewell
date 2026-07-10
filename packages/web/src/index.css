@@ -74,6 +74,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Tint native radios + checkboxes to the brand accent so they read on the dark
+   theme instead of the browser's default blue, and give them a touch-friendly
+   size. Keeps them fully native (no custom control to reinvent). */
+input[type='radio'],
+input[type='checkbox'] {
+  accent-color: var(--color-accent);
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+}
+
 /* Money and figures always align on the decimal. */
 .tnum {
   font-variant-numeric: tabular-nums;
@@ -92,9 +103,14 @@ body {
   background: linear-gradient(115deg, #a78bfa 0%, #6ee7f0 100%);
   color: #09090f;
   box-shadow: 0 8px 26px -8px rgba(124, 92, 255, 0.55);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
+/* Lift on hover; press is handled by the inline active:scale utility. */
 .btn-gradient:hover {
-  box-shadow: 0 10px 32px -8px rgba(124, 92, 255, 0.7);
+  box-shadow: 0 12px 34px -8px rgba(124, 92, 255, 0.72);
+  transform: translateY(-1px);
 }
 
 /* Solid elevated surface. */
@@ -109,6 +125,8 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.075);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  /* Soft ambient depth so the frosted cards sit above the page rather than flat on it. */
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.7);
 }
 
 /* Interactive rows: a gentle lift and accent hairline on hover. */
@@ -122,6 +140,9 @@ body {
   transform: translateY(-1px);
   border-color: var(--color-line-strong);
 }
+.row-interactive:active {
+  transform: scale(0.99);
+}
 
 .animate-sheet {
   animation: var(--animate-sheet);
@@ -129,11 +150,35 @@ body {
 .animate-fade {
   animation: var(--animate-fade);
 }
+.animate-rise {
+  animation: var(--animate-rise);
+  animation-fill-mode: backwards;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .animate-rise,
   .animate-sheet,
   .animate-fade {
     animation: none;
+  }
+}
+
+@layer base {
+  /* Native <button> defaults to the arrow cursor (only links get a pointer). Give every
+     interactive control a pointer, while disabled buttons keep the not-allowed cue. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+  /* A subtle shared press. Sits in the base layer, so buttons that set their own
+     active/transform utility (or the .btn-gradient hover-lift) still win. */
+  button:not(:disabled):active,
+  [role='button']:not(:disabled):active {
+    transform: scale(0.97);
   }
 }

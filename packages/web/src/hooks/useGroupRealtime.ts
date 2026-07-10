@@ -1,20 +1,21 @@
 import { useEffect, useRef } from 'react';
+import { API_BASE } from '../lib/api';
 
 /**
- * Where to open the realtime socket. When the API is on another origin (split
- * deployment) set VITE_WS_URL, e.g. wss://api.aidenjang.com/ws. Otherwise we
- * derive it from the current page so the dev proxy and single-origin both work.
+ * WebSocket URL for a group's realtime room. Each group has its own endpoint under the API
+ * prefix (`/owewell/groups/:id/ws`), backed by a per-group Durable Object. In dev this is
+ * proxied by Vite; in prod it's same-origin, so we just swap http(s) for ws(s).
  */
-function realtimeUrl(): string {
-  const configured = import.meta.env.VITE_WS_URL;
-  if (configured) return configured;
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.host}/ws`;
+function realtimeUrl(groupId: string): string {
+  const base = new URL(`${API_BASE}/groups/${groupId}/ws`, window.location.origin);
+  base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+  return base.toString();
 }
 
 /**
- * Subscribe to live updates for a group over WebSocket and run `onChange`
- * whenever the server reports that group changed. Reconnects if the socket drops.
+ * Subscribe to live updates for a group and run `onChange` whenever the server reports that
+ * group changed. Membership is enforced server-side on connect, and the room subscribes the
+ * socket automatically, so the client only listens. Reconnects if the socket drops.
  */
 export function useGroupRealtime(groupId: string, onChange: () => void): void {
   const onChangeRef = useRef(onChange);
@@ -28,11 +29,7 @@ export function useGroupRealtime(groupId: string, onChange: () => void): void {
     let retry: ReturnType<typeof setTimeout> | undefined;
 
     function connect(): void {
-      socket = new WebSocket(realtimeUrl());
-
-      socket.onopen = () => {
-        socket?.send(JSON.stringify({ type: 'subscribe', groupId }));
-      };
+      socket = new WebSocket(realtimeUrl(groupId));
 
       socket.onmessage = (event) => {
         try {

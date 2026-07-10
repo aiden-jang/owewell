@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- owewell mark: a minimal receipt on the purple→cyan gradient. Font-free
+       (pure shapes) so it rasterizes cleanly to the PWA PNG sizes. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa" />
+      <stop offset="1" stop-color="#22d3ee" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#g)" />
+  <path
+    d="M150 96 h212 v300 l-30 -20 -30 20 -30 -20 -30 20 -30 -20 -32 20 z"
+    fill="#0a0a12"
+    fill-opacity="0.92"
+  />
+  <g stroke="#a78bfa" stroke-width="26" stroke-linecap="round">
+    <line x1="196" y1="178" x2="316" y2="178" />
+    <line x1="196" y1="238" x2="316" y2="238" />
+    <line x1="196" y1="298" x2="282" y2="298" />
+  </g>
+</svg>

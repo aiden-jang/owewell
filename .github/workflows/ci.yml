@@ -6,56 +6,19 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  check:
     runs-on: ubuntu-latest
-
-    env:
-      DATABASE_URL: postgresql://owewell:owewell@localhost:5432/owewell?schema=public
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: owewell
-          POSTGRES_PASSWORD: owewell
-          POSTGRES_DB: owewell
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U owewell -d owewell"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
+        with:
+          version: 9.15.0
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version: 22
           cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: pnpm --filter @owe-well/server exec prisma generate
-
-      - name: Apply database migrations
-        run: pnpm --filter @owe-well/server exec prisma migrate deploy
-
-      # Build first so workspace packages (e.g. @owe-well/shared) have their
-      # dist output available to the typecheck and test steps that import them.
-      - name: Build
-        run: pnpm -r build
-
-      - name: Typecheck
-        run: pnpm -r typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Test
-        run: pnpm -r test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build

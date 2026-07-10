@@ -43,7 +43,7 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
         onMouseDown={(e) => e.stopPropagation()}
-        className="animate-sheet surface flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border-b-0 sm:mx-4 sm:max-w-lg sm:rounded-3xl sm:border-b"
+        className="animate-sheet surface flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-b-0 sm:mx-4 sm:max-w-lg sm:rounded-3xl sm:border-b"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
@@ -56,7 +56,7 @@ export function Sheet({
             <Icon name="x" size={18} />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-5">{children}</div>
+        <div className="overflow-y-auto px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">{children}</div>
       </div>
     </div>
   );

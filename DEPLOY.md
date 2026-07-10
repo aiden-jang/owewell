@@ -1,0 +1,90 @@
+# Deploying owewell → owewell.aidenjang.com
+
+**Status: not yet deployed** (first deploy is step 2.11). One Cloudflare Worker (`owewell-api`)
+serves both the API (`/owewell/*`, `/health`) and the web SPA (static assets) on one origin,
+`owewell.aidenjang.com`. Its own D1 (`owewell`) holds groups/expenses/settlements/invites and
+the local `people` registry. Free tier; you pay only for DNS.
+
+owewell depends on the shared **auth service** (`accounts.aidenjang.com`) already being live:
+it validates sessions by forwarding the `platform_session` cookie to `/auth/me` server-side,
+and redirects to `accounts.aidenjang.com/login` for sign-in. The cookie is scoped to
+`.aidenjang.com`, so it reaches `owewell.aidenjang.com` automatically.
+
+All commands run from `apps/owewell/api`.
+
+## First deploy (do these once, in order)
+
+```bash
+# 1. Create the production D1 and paste the printed database_id into wrangler.toml,
+#    replacing "local-dev-placeholder".
+pnpm exec wrangler d1 create owewell
+
+# 2. Apply migrations to the remote D1.
+pnpm exec wrangler d1 migrations apply owewell --remote
+
+# 3. Custom-domain two-step: a Worker needs a deployment before a custom domain attaches.
+#    - Comment out the [[routes]] custom_domain block in wrangler.toml.
+pnpm run deploy            # builds owewell-web, then wrangler deploy (creates first deployment)
+#    - Uncomment the [[routes]] block.
+pnpm run deploy            # redeploy to attach owewell.aidenjang.com
+```
+
+- `AUTH_URL` is committed in `wrangler.toml` `[vars]` (`https://accounts.aidenjang.com`), so
+  there is no auth secret to set.
+- The account already has a `workers.dev` subdomain (registered for the auth deploy), so the
+  `error 10063` from that step won't recur. `workers_dev = false` keeps owewell custom-domain-only.
+
+## Routine redeploy (the usual case)
+
+```bash
+pnpm run deploy            # builds the SPA + deploys (use this whenever web/ changed)
+# API/config-only change (reuse the last-built SPA):
+pnpm exec wrangler deploy
+```
+
+- No re-login needed: `wrangler login` credentials persist across sessions.
+- It's `pnpm exec wrangler deploy` (workspace binary), **not** `pnpm wrangler deploy`.
+- `pnpm run deploy` (not bare `pnpm deploy`, which is pnpm's own command).
+
+## Optional: receipt OCR with Claude
+
+Without a key, the OCR endpoint returns a mock receipt (zero cost). To use Claude vision:
+
+```bash
+echo "<anthropic-api-key>" | pnpm exec wrangler secret put ANTHROPIC_API_KEY
+```
+
+Uses the cheapest vision model (`claude-haiku-4-5`). Set your own spend cap on the Anthropic
+account; owewell makes one request per uploaded receipt.
+
+## Gotchas (from the auth deploy; expect the same here)
+
+- **`Cannot attach custom domain: Worker has no deployments`** → the two-step in first deploy:
+  deploy once with `[[routes]]` commented, then uncomment and deploy again.
+- **Changing `database_id` orphans the local D1** (miniflare keys local storage by id). After
+  editing it, re-run `pnpm exec wrangler d1 migrations apply owewell --local` for local dev.
+- **`error 10063: need a workers.dev subdomain`** → only if the account subdomain was removed;
+  re-register via Dashboard → Workers & Pages → subdomain.
+
+## Smoke test
+
+```bash
+curl https://owewell.aidenjang.com/health          # {"status":"ok","service":"owewell"}
+curl https://owewell.aidenjang.com/owewell/me       # {"user":null} when signed out
+```
+
+Then open `https://owewell.aidenjang.com`, use the signed-out quick split, click "Log in"
+(redirects to `accounts.aidenjang.com`, then back), create a group, add an expense, and confirm
+balances + the live activity feed.
+
+## Local dev (no Cloudflare needed)
+
+```bash
+# auth service (:34100) + owewell API (:34200) + owewell web (:30001)
+cd apps/auth/api    && pnpm exec wrangler dev --port 34100 --inspector-port 9229 --local
+cd apps/owewell/api && pnpm exec wrangler dev --port 34200 --inspector-port 9230 --local --var AUTH_URL:http://localhost:34100
+cd apps/owewell/web && pnpm dev
+```
+
+The `--var AUTH_URL:...` overrides the committed prod value; the web dev server proxies
+`/owewell` (including the realtime WebSocket) to `:34200`.

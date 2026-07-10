@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Money } from '@aidenjang/shared';
+import { Money } from '@owewell/shared';
 
 const REDUCED =
   typeof window !== 'undefined' &&

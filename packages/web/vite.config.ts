@@ -6,16 +6,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 30001,
-    // Proxy API calls to the server in dev so the browser treats them as same-origin
-    // and the session cookie flows without CORS. The server serves the API under /api
-    // (so it never collides with client routes like /groups/:id), so no path rewrite.
+    // Proxy this app's API to the owewell Worker (wrangler dev) so the browser treats it as
+    // same-origin and the session cookie flows without CORS. Everything (including the
+    // per-group realtime WebSocket at /owewell/groups/:id/ws) lives under the /owewell prefix.
+    // Sign-in/out are full-page redirects to the shared auth service, so no /auth proxy.
     proxy: {
-      // This app's routes live under its prefix (matches prod: /owewell/*).
-      '/owewell': { target: 'http://localhost:30000', changeOrigin: true },
-      // Auth is platform-level and served at the API root (not under the app prefix).
-      '/auth': { target: 'http://localhost:30000', changeOrigin: true },
-      // WebSocket endpoint for realtime group updates.
-      '/ws': { target: 'http://localhost:30000', ws: true },
+      '/owewell': { target: 'http://localhost:34200', changeOrigin: true, ws: true },
     },
   },
 });
