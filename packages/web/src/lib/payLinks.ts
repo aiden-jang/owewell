@@ -1,4 +1,4 @@
-import type { GroupMember } from '@owewell/core';
+import type { GroupMember, PaymentMethod } from '@owewell/core';
 
 export interface PayLink {
   label: string;
@@ -6,6 +6,19 @@ export interface PayLink {
 }
 
 type Payee = Pick<GroupMember, 'venmoHandle' | 'cashappCashtag' | 'paypalHandle'>;
+
+/**
+ * The payment method to default to when settling up with a payee: the app they've set a handle
+ * for, so recording a payment pre-selects how they actually get paid. Null when they have none
+ * (caller falls back to cash). Venmo > Cash App > PayPal when several are set.
+ */
+export function preferredMethod(payee: Payee | null | undefined): PaymentMethod | null {
+  if (!payee) return null;
+  if (payee.venmoHandle) return 'venmo';
+  if (payee.cashappCashtag) return 'cashapp';
+  if (payee.paypalHandle) return 'paypal';
+  return null;
+}
 
 const dollars = (cents: number): string => (cents / 100).toFixed(2);
 

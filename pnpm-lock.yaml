@@ -125,6 +125,9 @@ importers:
       vite:
         specifier: ^5.4.8
         version: 5.4.21(lightningcss@1.32.0)
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(lightningcss@1.32.0)
 
 packages:
 
