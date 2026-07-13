@@ -83,6 +83,7 @@ export function GroupDetailPage(): ReactNode {
   const [menuOpen, setMenuOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingMemberName, setEditingMemberName] = useState('');
   const [payingMemberId, setPayingMemberId] = useState<string | null>(null);
@@ -438,7 +439,8 @@ export function GroupDetailPage(): ReactNode {
     if (!shareLink) return;
     try {
       await navigator.clipboard.writeText(shareLink);
-      toast.success('Link copied.');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
     } catch {
       toast.error('Copy failed. Select the link and copy it manually.');
     }
@@ -641,9 +643,11 @@ export function GroupDetailPage(): ReactNode {
             <button
               type="button"
               onClick={() => void copyShareLink()}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface2 px-4 py-2.5 text-sm font-medium transition hover:bg-surface2/70"
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition ${
+                copied ? 'bg-pos/15 text-pos' : 'bg-surface2 hover:bg-surface2/70'
+              }`}
             >
-              <Icon name="copy" size={15} /> Copy
+              <Icon name={copied ? 'check' : 'copy'} size={15} /> {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
         </div>
