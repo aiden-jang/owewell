@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
-import { expensesApi, type Expense } from '../lib/expenses';
+import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
@@ -56,6 +56,33 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  // Scan a receipt photo: send it to the OCR endpoint and prefill the items + tax/tip from what
+  // it reads. Everything stays editable afterward, since OCR is a starting point, not gospel.
+  async function handleScan(file: File): Promise<void> {
+    setScanning(true);
+    setError(null);
+    try {
+      const receipt = await ocrReceipt(groupId, file);
+      if (receipt.items.length > 0) {
+        setItems(
+          receipt.items.map((it) => ({
+            name: it.name,
+            amount: centsToInput(it.amountCents),
+            participantIds: allMemberIds(),
+            payerId: defaultPayer,
+          })),
+        );
+      }
+      setTax(receipt.taxCents ? centsToInput(receipt.taxCents) : '');
+      setTip(receipt.tipCents ? centsToInput(receipt.tipCents) : '');
+    } catch {
+      setError('Could not read that receipt. Add the items by hand below.');
+    } finally {
+      setScanning(false);
+    }
+  }
 
   function updateItem(index: number, patch: Partial<ItemDraft>): void {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -139,15 +166,28 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
-      <div
-        className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-line px-3 py-3 text-sm font-medium text-faint"
-        aria-disabled="true"
-        title="Receipt scanning is coming soon"
+      <label
+        className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm font-medium transition ${
+          scanning
+            ? 'border-accent/60 text-accent'
+            : 'border-line text-muted hover:border-accent/60 hover:text-ink'
+        }`}
       >
         <Icon name="scan" size={18} />
-        Scan a receipt photo
-        <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs text-muted">coming soon</span>
-      </div>
+        {scanning ? 'Scanning receipt...' : 'Scan a receipt photo'}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          disabled={scanning}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleScan(file);
+            e.target.value = ''; // let the same file be picked again after an edit
+          }}
+        />
+      </label>
 
       <input
         value={description}
