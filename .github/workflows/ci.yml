@@ -22,3 +22,31 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
+
+  # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
+  # Requires a CLOUDFLARE_API_TOKEN repo secret (Workers-scoped). Wrangler infers the
+  # account from the token, so no account_id is needed here.
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-owewell
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Code deploy only. D1 schema changes are applied deliberately by hand, from
+      # packages/api: wrangler d1 migrations apply owewell --remote
+      - name: Deploy to Cloudflare
+        run: pnpm run deploy
+        working-directory: packages/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
