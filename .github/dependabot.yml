@@ -1,0 +1,22 @@
+# Dependabot keeps dependencies patched. One pnpm-aware npm ecosystem entry for the whole
+# workspace (Dependabot reads the root lockfile and updates every package it covers), plus the
+# GitHub Actions used by CI. Weekly, grouped so we get a few PRs to review rather than a flood.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # Non-breaking updates batched into one PR; majors still come through individually so
+      # they get their own review.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
