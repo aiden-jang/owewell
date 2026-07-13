@@ -5,20 +5,7 @@ import { Money, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
-
-const METHODS: { value: SplitMethod; label: string }[] = [
-  { value: 'EQUAL', label: 'Equally' },
-  { value: 'SHARES', label: 'By shares' },
-  { value: 'PERCENT', label: 'By percent' },
-  { value: 'EXACT', label: 'Exact amounts' },
-];
-
-const VALUE_HINT: Record<SplitMethod, string> = {
-  EQUAL: '',
-  SHARES: 'shares',
-  PERCENT: '%',
-  EXACT: '$',
-};
+import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 
 /** Today as YYYY-MM-DD in the user's local timezone (for the date input default). */
 function todayStr(): string {
@@ -233,12 +220,14 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
         className={inputClass}
         aria-label="Split method"
       >
-        {METHODS.map((m) => (
+        {SPLIT_METHODS.map((m) => (
           <option key={m.value} value={m.value}>
             Split {m.label.toLowerCase()}
           </option>
         ))}
       </select>
+
+      {method !== 'EQUAL' && <p className="-mt-1 text-xs text-muted">{splitMethodHint(method)}</p>}
 
       <div className="space-y-2">
         {members.map((m) => (
@@ -256,7 +245,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
                   inputMode="decimal"
                   className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                 />
-                <span className="w-12 text-sm text-muted">{VALUE_HINT[method]}</span>
+                <span className="w-12 text-sm text-muted">{splitMethodUnit(method)}</span>
               </div>
             )}
           </div>
