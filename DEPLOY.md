@@ -49,14 +49,20 @@ pnpm exec wrangler deploy
 
 ## Optional: receipt OCR with Claude
 
-Without a key, the OCR endpoint returns a mock receipt (zero cost). To use Claude vision:
+Receipt scanning needs **both** pieces, set together (like Turnstile/Google elsewhere):
 
 ```bash
+# 1. the API key (server): without it the endpoint returns a mock receipt, zero cost
 echo "<anthropic-api-key>" | pnpm exec wrangler secret put ANTHROPIC_API_KEY
+
+# 2. the build flag (web): reveals the "Scan a receipt" button
+VITE_OCR_ENABLED=true pnpm --filter @owewell/web build && pnpm exec wrangler deploy
 ```
 
-Uses the cheapest vision model (`claude-haiku-4-5`). Set your own spend cap on the Anthropic
-account; owewell makes one request per uploaded receipt.
+The button is gated on `VITE_OCR_ENABLED` on purpose: with the flag on but no key set, every
+scan would return the mock line items (pizza / salad / water) in production. Set the key first, or
+leave the flag off and the button stays hidden. Uses the cheapest vision model
+(`claude-haiku-4-5`); set your own spend cap on the Anthropic account (one request per receipt).
 
 ## Gotchas (from the auth deploy; expect the same here)
 
