@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Money } from '@owewell/shared';
 import { AppHeader } from '../components/AppHeader';
+import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { MoneyText } from '../components/MoneyText';
@@ -24,6 +25,9 @@ export function DashboardPage(): ReactNode {
   const confirm = useConfirm();
   const toast = useToast();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
+  // Distinguish a failed load from a genuinely empty account: null = loading, [] = empty,
+  // loadError = the fetch failed (show a retry, not the cheerful "no groups" state).
+  const [loadError, setLoadError] = useState(false);
   const [name, setName] = useState('');
   const [creatingOpen, setCreatingOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -80,12 +84,21 @@ export function DashboardPage(): ReactNode {
     exitSelect();
   }
 
-  useEffect(() => {
+  const loadGroups = useCallback(() => {
+    setLoadError(false);
+    setGroups(null);
     groupsApi
       .list()
       .then(setGroups)
-      .catch(() => setGroups([]));
-  }, []);
+      .catch(() => {
+        setLoadError(true);
+        toast.error('Could not load your groups.');
+      });
+  }, [toast]);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   // Archived groups drop out of the overall totals and the main list.
   const totals = useMemo(() => {
@@ -105,6 +118,7 @@ export function DashboardPage(): ReactNode {
       navigate(`/groups/${groupId}`);
     } catch {
       setSavingPending(false);
+      toast.error('Could not save that split. Give it another go.');
     }
   }
 
@@ -331,7 +345,18 @@ export function DashboardPage(): ReactNode {
         {error && <p className="mt-2 text-sm font-medium text-neg">{error}</p>}
 
         <div className="mt-4">
-          {groups === null ? (
+          {loadError ? (
+            <div className="rounded-3xl border border-dashed border-line p-10 text-center">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
+                <Icon name="users" size={22} />
+              </div>
+              <p className="mt-4 text-lg font-medium">Couldn&apos;t load your groups.</p>
+              <p className="mt-1 text-sm text-muted">Probably a hiccup on our end, not you.</p>
+              <Button variant="secondary" onClick={loadGroups} className="mt-4">
+                Try again
+              </Button>
+            </div>
+          ) : groups === null ? (
             <SkeletonList rows={3} />
           ) : activeGroups.length === 0 && archivedGroups.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-line p-10 text-center">

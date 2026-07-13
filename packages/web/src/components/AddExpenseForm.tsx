@@ -182,6 +182,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="What was it for?"
+        aria-label="What the expense was for"
         required
         className={inputClass}
       />
@@ -192,6 +193,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
           onBlur={() => setAmount(normalizeAmountInput(amount))}
           placeholder="0.00"
           inputMode="decimal"
+          aria-label="Amount"
           required
           className={inputClass}
         />
