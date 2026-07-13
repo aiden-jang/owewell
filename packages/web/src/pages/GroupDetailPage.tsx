@@ -219,10 +219,14 @@ export function GroupDetailPage(): ReactNode {
   async function saveRename(): Promise<void> {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    const updated = await groupsApi.rename(id, trimmed);
-    setGroup(updated);
-    setRenaming(false);
-    toast.success('Group renamed.');
+    try {
+      const updated = await groupsApi.rename(id, trimmed);
+      setGroup(updated);
+      setRenaming(false);
+      toast.success('Group renamed.');
+    } catch {
+      toast.error('Could not rename the group.');
+    }
   }
 
   async function deleteGroup(): Promise<void> {
@@ -233,8 +237,12 @@ export function GroupDetailPage(): ReactNode {
       tone: 'danger',
     });
     if (!ok) return;
-    await groupsApi.remove(id);
-    navigate('/');
+    try {
+      await groupsApi.remove(id);
+      navigate('/');
+    } catch {
+      toast.error('Could not delete the group.');
+    }
   }
 
   async function removeFromGroup(targetUserId: string, netCents: number): Promise<void> {
