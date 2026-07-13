@@ -41,7 +41,7 @@ dinner when nobody wants to do the math and everybody remembers it differently.
         └────────┼─────────────────────────┼───────────┘
                  │                          │ WebSocket
         ╔════════▼══════════════════════════════════════╗
-        ║   owewell Worker (Hono)  — one origin          ║
+        ║   owewell Worker (Hono)  - one origin          ║
         ║   /owewell/*  API    +   app.all('*') → SPA    ║
         ║      │                                         ║
         ║      ├─ getSessionUser → accounts.aidenjang    ║  (optional; quick split is anonymous)
@@ -55,20 +55,20 @@ dinner when nobody wants to do the math and everybody remembers it differently.
 
 ## Decisions worth explaining
 
-**Money is integer cents, everywhere.** Floats and money don't mix — `0.1 + 0.2` alone should end
+**Money is integer cents, everywhere.** Floats and money don't mix: `0.1 + 0.2` alone should end
 the debate. Every amount is an integer number of cents from the API boundary through the database.
 The split math also has to decide who eats the leftover cent when a total doesn't divide evenly;
 doing that on floats would silently lose or invent money.
 
 **The split math is a pure package (`@owewell/core`), tested without any I/O.** All the logic that
-actually matters — even splits, weighted splits, itemized allocation, remainder distribution,
-balance netting, and the minimum-cash-flow settlement suggestion — lives in a dependency-free
+actually matters (even splits, weighted splits, itemized allocation, remainder distribution,
+balance netting, and the minimum-cash-flow settlement suggestion) lives in a dependency-free
 package with unit tests. The Worker is a thin shell that reads D1, calls core, and writes back.
 The rules I most want to be *correct* are the ones furthest from the network.
 
 **D1 for the ledger, a Durable Object for the live feed.** The data is relational (groups have
 members, expenses have splits, settlements reference both), so D1 + Drizzle is the natural home.
-Realtime is a different shape — a short-lived fan-out to whoever's looking at one group — so each
+Realtime is a different shape (a short-lived fan-out to whoever's looking at one group), so each
 group gets a `GroupRoom` Durable Object that holds no durable state and just relays "something
 changed." Using the hibernation WebSocket API means an idle room costs nothing. *Why not push
 everything through the DO?* Because durable relational data in a single-threaded object is the
@@ -86,7 +86,7 @@ stops you from renaming a real account as if it were one.
 ## Trade-offs
 
 - **OCR is best-effort.** A vision model reads most receipts well and mangles the occasional
-  faded one. It's a fast path to itemizing, not a guarantee — you can always edit the lines.
+  faded one. It's a fast path to itemizing, not a guarantee: you can always edit the lines.
 - **Settlement suggests, it doesn't move money.** owewell computes the fewest transfers and tags
   the method; the actual payment happens in Venmo/cash/etc. Integrating a payments API is a
   whole different trust-and-compliance surface I deliberately stayed out of.
@@ -122,7 +122,7 @@ pnpm install
 # local auth service (:34100), so a local login is validated there (not production). Run auth too.
 pnpm --filter @owewell/api dev
 
-# web SPA (proxies /owewell to the Worker) — http://localhost:30001
+# web SPA (proxies /owewell to the Worker) - http://localhost:30001
 pnpm --filter @owewell/web dev
 ```
 
@@ -138,7 +138,7 @@ owewell's data lives in **Cloudflare D1** (SQLite), reached through **Drizzle** 
 it stays in the in-memory `GroupRoom` Durable Object. Identity (users and sessions) is a separate
 D1 owned by the auth service, not this one.
 
-**Local** — `wrangler dev` uses a Miniflare-managed SQLite file under `api/.wrangler/state`, created
+**Local.** `wrangler dev` uses a Miniflare-managed SQLite file under `api/.wrangler/state`, created
 on first run and seeded by the local migrations. Inspect or edit it:
 
 ```bash
@@ -147,7 +147,7 @@ pnpm --filter @owewell/api exec wrangler d1 execute owewell --local \
 pnpm --filter @owewell/api exec wrangler d1 migrations apply owewell --local   # or: db:migrate:local
 ```
 
-**Production** — the real D1. Same command with `--remote` (this is live user data, so keep it
+**Production.** The real D1. Same command with `--remote` (this is live user data, so keep it
 read-only unless you mean it):
 
 ```bash
