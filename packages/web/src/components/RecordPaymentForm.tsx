@@ -68,7 +68,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <select
           value={fromUserId}
           onChange={(e) => setFromUserId(e.target.value)}

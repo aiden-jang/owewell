@@ -36,7 +36,8 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
     (message: string, tone: ToastTone): void => {
       const id = nextId.current++;
       setToasts((prev) => [...prev, { id, message, tone }]);
-      setTimeout(() => dismiss(id), 4000);
+      // Errors linger longer than confirmations — you have to actually read them.
+      setTimeout(() => dismiss(id), tone === 'error' ? 7000 : 4000);
     },
     [dismiss],
   );
@@ -62,10 +63,12 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
             key={toast.id}
             type="button"
             onClick={() => dismiss(toast.id)}
-            className={`glass pointer-events-auto max-w-sm animate-rise rounded-full px-4 py-2.5 text-sm font-medium shadow-md transition active:scale-[0.98] ${
+            className={`glass pointer-events-auto inline-flex max-w-sm items-center gap-2 animate-rise rounded-full px-4 py-2.5 text-sm font-medium shadow-md transition active:scale-[0.98] ${
               toast.tone === 'error' ? 'text-rose-300' : 'text-ink'
             }`}
           >
+            {/* Non-color cue so tone reads without relying on color alone. */}
+            <span aria-hidden="true">{toast.tone === 'error' ? '⚠️' : '✓'}</span>
             {toast.message}
           </button>
         ))}
