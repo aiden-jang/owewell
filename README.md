@@ -171,6 +171,14 @@ pnpm --filter @owewell/core test       # the pure split/settlement math
 The API tests run against a real local D1 (via `@cloudflare/vitest-pool-workers`), so the Drizzle
 queries and migrations are exercised, not mocked.
 
+## Observability
+
+- **Errors + requests:** Workers Logs is enabled (`[observability]` in `wrangler.toml`), so uncaught
+  throws and handled errors (via `app.onError`) are captured. Tail live with
+  `pnpm --filter @owewell/api exec wrangler tail`.
+- **Uptime:** `GET /health` returns `{ status: 'ok' }`, ready for a free external monitor (e.g.
+  UptimeRobot).
+
 ## License
 
 [MIT](LICENSE) © Aiden Jang
