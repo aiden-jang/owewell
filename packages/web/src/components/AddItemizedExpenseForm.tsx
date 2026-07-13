@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
@@ -58,6 +58,16 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
+
+  // Live receipt total (items + tax + tip) so you can check it against the printed total before
+  // saving. Computed in integer cents to avoid float drift; blank/invalid fields count as 0.
+  const grandTotalCents = useMemo(() => {
+    const toCents = (s: string): number => {
+      const n = Number.parseFloat(s);
+      return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    };
+    return items.reduce((sum, it) => sum + toCents(it.amount), 0) + toCents(tax) + toCents(tip);
+  }, [items, tax, tip]);
 
   // Scan a receipt photo: send it to the OCR endpoint and prefill the items + tax/tip from what
   // it reads. Everything stays editable afterward, since OCR is a starting point, not gospel.
@@ -305,6 +315,11 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
           className={inputClass}
           aria-label="Tip"
         />
+      </div>
+
+      <div className="flex items-center justify-between px-1 text-sm">
+        <span className="text-muted">receipt total</span>
+        <span className="font-semibold tabular-nums">${(grandTotalCents / 100).toFixed(2)}</span>
       </div>
 
       {error && (
