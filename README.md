@@ -170,3 +170,7 @@ pnpm --filter @owewell/core test       # the pure split/settlement math
 
 The API tests run against a real local D1 (via `@cloudflare/vitest-pool-workers`), so the Drizzle
 queries and migrations are exercised, not mocked.
+
+## License
+
+[MIT](LICENSE) © Aiden Jang

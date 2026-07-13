@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Split bills, settle up, keep friends.",
+  "license": "MIT",
   "engines": {
     "node": ">=22"
   },
