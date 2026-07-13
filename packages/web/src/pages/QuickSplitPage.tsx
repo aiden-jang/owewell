@@ -12,6 +12,7 @@ import {
   type PendingItem,
   type PendingSplit,
 } from '../lib/quicksplit';
+import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 
 interface Person {
   id: string;
@@ -28,20 +29,6 @@ interface Item {
   /** Person id of who paid for this item. Empty → the default payer. */
   payerId: string;
 }
-
-const METHODS: { value: SplitMethod; label: string }[] = [
-  { value: 'EQUAL', label: 'Equally' },
-  { value: 'SHARES', label: 'By shares' },
-  { value: 'PERCENT', label: 'By percent' },
-  { value: 'EXACT', label: 'Exact amounts' },
-];
-
-const VALUE_HINT: Record<SplitMethod, string> = {
-  EQUAL: '',
-  SHARES: 'shares',
-  PERCENT: '%',
-  EXACT: '$',
-};
 
 function newPerson(name = ''): Person {
   return { id: crypto.randomUUID(), name };
@@ -444,7 +431,7 @@ export function QuickSplitPage(): ReactNode {
                   className={inputClass}
                   aria-label={`Item ${index + 1} split method`}
                 >
-                  {METHODS.map((m) => (
+                  {SPLIT_METHODS.map((m) => (
                     <option key={m.value} value={m.value}>
                       Split {m.label.toLowerCase()}
                     </option>
@@ -470,6 +457,7 @@ export function QuickSplitPage(): ReactNode {
               )}
               {item.method !== 'EQUAL' && named.length > 0 && (
                 <div className="space-y-1.5 border-t border-line pt-2">
+                  <p className="text-xs text-muted">{splitMethodHint(item.method)}</p>
                   {named.map((p) => (
                     <div key={p.id} className="flex items-center gap-2 text-sm">
                       <span className="flex-1 truncate text-muted">{p.name.trim()}</span>
@@ -479,9 +467,9 @@ export function QuickSplitPage(): ReactNode {
                         placeholder="0"
                         inputMode="decimal"
                         className="w-20 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
-                        aria-label={`${p.name.trim()} ${VALUE_HINT[item.method]} for item ${index + 1}`}
+                        aria-label={`${p.name.trim()} ${splitMethodUnit(item.method)} for item ${index + 1}`}
                       />
-                      <span className="w-10 text-xs text-muted">{VALUE_HINT[item.method]}</span>
+                      <span className="w-10 text-xs text-muted">{splitMethodUnit(item.method)}</span>
                     </div>
                   ))}
                   {(() => {
