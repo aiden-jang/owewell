@@ -2,7 +2,9 @@
 // owewell's API and realtime WebSocket both live under /owewell/*, so that
 // traffic always goes to the network and is never cached.
 
-const CACHE = 'owewell-v1';
+// Bump this on any sw.js change: the activate handler deletes every cache that isn't the current
+// one, so a version bump purges stale entries (including dev's unhashed modules) on update.
+const CACHE = 'owewell-v2';
 const SHELL = '/';
 
 self.addEventListener('install', (event) => {
@@ -25,9 +27,18 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/owewell')) return;
   if (request.method !== 'GET') return;
 
-  // Navigations: network first, fall back to the cached shell when offline.
+  // Navigations: network first, and refresh the cached shell on the way through so an offline
+  // return visit gets the most recent shell instead of the one frozen at first install.
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match(SHELL)));
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(SHELL, copy));
+          return res;
+        })
+        .catch(() => caches.match(SHELL)),
+    );
     return;
   }
 
