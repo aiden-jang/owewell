@@ -17,7 +17,7 @@ import type { MiddlewareHandler } from 'hono';
  *    matches the ws/wss upgrade to the same host per CSP3.
  *  - cloudflareinsights: the (optional) Web Analytics beacon.
  * Tighten per app after browser-verifying on deploy; anything cross-origin a specific app needs
- * (e.g. wherever's places API, is-it-a-dog if it ever calls a cross-origin AI host) goes through
+ * (e.g. wherever's places API, iguess if it ever calls a cross-origin AI host) goes through
  * the `csp` override rather than loosening this default for everyone.
  */
 export const DEFAULT_CSP = [
