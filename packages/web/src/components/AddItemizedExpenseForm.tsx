@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
+import { ocrEnabled } from '../lib/api';
 import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
@@ -166,28 +167,30 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
-      <label
-        className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm font-medium transition ${
-          scanning
-            ? 'border-accent/60 text-accent'
-            : 'border-line text-muted hover:border-accent/60 hover:text-ink'
-        }`}
-      >
-        <Icon name="scan" size={18} />
-        {scanning ? 'Scanning receipt...' : 'Scan a receipt photo'}
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          disabled={scanning}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleScan(file);
-            e.target.value = ''; // let the same file be picked again after an edit
-          }}
-        />
-      </label>
+      {ocrEnabled && (
+        <label
+          className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm font-medium transition ${
+            scanning
+              ? 'border-accent/60 text-accent'
+              : 'border-line text-muted hover:border-accent/60 hover:text-ink'
+          }`}
+        >
+          <Icon name="scan" size={18} />
+          {scanning ? 'Scanning receipt...' : 'Scan a receipt photo'}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={scanning}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleScan(file);
+              e.target.value = ''; // let the same file be picked again after an edit
+            }}
+          />
+        </label>
+      )}
 
       <input
         value={description}

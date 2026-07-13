@@ -10,6 +10,12 @@ export const AUTH_ORIGIN =
   import.meta.env.VITE_AUTH_URL ??
   (import.meta.env.DEV ? 'http://localhost:34100' : 'https://accounts.aidenjang.com');
 
+// Receipt scanning shows only when the build opts in (the API also needs ANTHROPIC_API_KEY, else
+// it returns a mock). On in dev so the mock flow is testable; in prod, set VITE_OCR_ENABLED=true
+// only once the key is configured, so real receipts aren't answered with mock line items.
+export const ocrEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_OCR_ENABLED === 'true';
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
