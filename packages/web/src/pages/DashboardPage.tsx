@@ -12,8 +12,10 @@ import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 
-function perGroupLabel(netCents: number): { text: string; className: string } {
-  if (netCents === 0) return { text: 'settled', className: 'text-muted' };
+function perGroupLabel(netCents: number, hasExpenses: boolean): { text: string; className: string } {
+  // No expenses yet isn't "settled" — there's just nothing owed. Show a neutral "no expenses".
+  if (!hasExpenses) return { text: 'no expenses', className: 'text-faint' };
+  if (netCents === 0) return { text: 'settled up', className: 'text-muted' };
   const amount = Money.fromCents(Math.abs(netCents)).format();
   return netCents > 0
     ? { text: `+${amount}`, className: 'text-pos' }
@@ -143,6 +145,7 @@ export function DashboardPage(): ReactNode {
           memberCount: group.members.length,
           netCents: 0,
           totalUnsettledCents: 0,
+          totalSpentCents: 0,
           isOwner: true,
         },
         ...(prev ?? []),
@@ -160,12 +163,15 @@ export function DashboardPage(): ReactNode {
   const owed = totals.net > 0;
   const activeGroups = (groups ?? []).filter((g) => !g.archived);
   const archivedGroups = (groups ?? []).filter((g) => g.archived);
+  // "All settled" only makes sense once there's been spending somewhere; a set of brand-new,
+  // expense-free groups nets to zero but isn't "settled".
+  const hasAnySpend = activeGroups.some((g) => g.totalSpentCents > 0);
   const selectedGroups = (groups ?? []).filter((g) => selected.has(g.id));
   const allOwned = selectedGroups.length > 0 && selectedGroups.every((g) => g.isOwner);
 
   // `selectable` rows become tap-to-select in select mode; archived rows stay plain links.
   const groupRow = (group: GroupSummary, selectable = true): ReactNode => {
-    const label = perGroupLabel(group.netCents);
+    const label = perGroupLabel(group.netCents, group.totalSpentCents > 0);
     const isSel = selected.has(group.id);
     const selecting = selectMode && selectable;
     const inner = (
@@ -264,7 +270,7 @@ export function DashboardPage(): ReactNode {
               settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
             }`}
           >
-            {settled && (groups?.length ?? 0) > 0 ? (
+            {settled && hasAnySpend ? (
               'All settled'
             ) : (
               <MoneyText cents={Math.abs(totals.net)} />

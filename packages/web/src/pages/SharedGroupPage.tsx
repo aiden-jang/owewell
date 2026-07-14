@@ -13,7 +13,7 @@ import { useToast } from '../components/Toast';
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // With no expenses yet, nobody is settled OR owing — there's just nothing to settle.
   if (!hasActivity) return { text: '', tone: 'text-muted' };
-  if (netCents === 0) return { text: 'settled', tone: 'text-muted' };
+  if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
   const amount = Money.fromCents(Math.abs(netCents)).format();
   return netCents > 0
     ? { text: `is owed ${amount}`, tone: 'text-pos' }

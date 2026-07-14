@@ -64,6 +64,8 @@ export interface GroupSummary {
   memberCount: number;
   netCents: number;
   totalUnsettledCents: number;
+  /** Total spent on expenses in this group. 0 means no expenses yet (distinct from settled). */
+  totalSpentCents: number;
   isOwner: boolean;
 }
 
@@ -356,6 +358,11 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
     .all();
   const groupOfExpense = new Map(exps.map((e) => [e.id, e.groupId]));
 
+  // Total spent per group — lets the dashboard tell a brand-new group (nothing spent) apart from a
+  // fully-paid-off one (both net to zero), so it doesn't label an empty group "settled".
+  const spentByGroup = new Map<string, number>();
+  for (const e of exps) spentByGroup.set(e.groupId, (spentByGroup.get(e.groupId) ?? 0) + e.amountCents);
+
   // Credit side: per-item payers for itemized expenses, else the single payer.
   const itemizedIds = exps.filter((e) => e.splitMethod === 'ITEMIZED').map((e) => e.id);
   const itemsByExpense = new Map<string, { amountCents: number; payerId: string | null }[]>();
@@ -426,6 +433,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       memberCount: countMap.get(g.id) ?? 0,
       netCents: members?.get(personId) ?? 0,
       totalUnsettledCents,
+      totalSpentCents: spentByGroup.get(g.id) ?? 0,
       isOwner: g.role === 'OWNER',
     };
   });
