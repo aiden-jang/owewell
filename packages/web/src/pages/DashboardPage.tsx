@@ -12,10 +12,17 @@ import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 
-function perGroupLabel(netCents: number, hasExpenses: boolean): { text: string; className: string } {
+function perGroupLabel(
+  netCents: number,
+  hasExpenses: boolean,
+  groupHasUnsettled: boolean,
+): { text: string; className: string } {
   // No expenses yet isn't "settled" — there's just nothing owed. Show a neutral "no expenses".
   if (!hasExpenses) return { text: 'no expenses', className: 'text-faint' };
-  if (netCents === 0) return { text: 'settled up', className: 'text-muted' };
+  // Net zero for the viewer doesn't mean the group is done: others may still owe each other.
+  // "settled up" claims the whole group is clear; "you're square" is just the viewer's balance.
+  if (netCents === 0)
+    return { text: groupHasUnsettled ? "you're square" : 'settled up', className: 'text-muted' };
   const amount = Money.fromCents(Math.abs(netCents)).format();
   return netCents > 0
     ? { text: `+${amount}`, className: 'text-pos' }
@@ -181,7 +188,7 @@ export function DashboardPage(): ReactNode {
 
   // `selectable` rows become tap-to-select in select mode; archived rows stay plain links.
   const groupRow = (group: GroupSummary, selectable = true): ReactNode => {
-    const label = perGroupLabel(group.netCents, group.totalSpentCents > 0);
+    const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0);
     const isSel = selected.has(group.id);
     const selecting = selectMode && selectable;
     const inner = (
