@@ -197,19 +197,17 @@ export function DashboardPage(): ReactNode {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{group.name}</span>
           <span className="block text-sm text-muted">
-            <span className="whitespace-nowrap">
-              {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
-              {group.totalUnsettledCents > 0 && ' ·'}
-            </span>
-            {group.totalUnsettledCents > 0 && (
-              <span className="whitespace-nowrap text-faint">
-                {' '}
-                {Money.fromCents(group.totalUnsettledCents).format()} unsettled
-              </span>
-            )}
+            {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
           </span>
         </span>
-        <span className={`tnum text-sm font-semibold ${label.className}`}>{label.text}</span>
+        <span className="flex shrink-0 flex-col items-end leading-tight">
+          <span className={`tnum text-sm font-semibold ${label.className}`}>{label.text}</span>
+          {group.totalUnsettledCents > 0 && (
+            <span className="tnum whitespace-nowrap text-xs text-faint">
+              {Money.fromCents(group.totalUnsettledCents).format()} unsettled
+            </span>
+          )}
+        </span>
         {!selecting && <Icon name="chevron-right" size={18} className="text-faint" />}
       </>
     );
