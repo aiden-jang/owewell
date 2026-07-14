@@ -8,6 +8,11 @@ import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { MoneyText } from '../components/MoneyText';
 import { SpendDonut } from '../components/SpendDonut';
+import {
+  matchesPersonLens,
+  spendByCategory as computeSpendByCategory,
+  lensTotal as computeLensTotal,
+} from '../lib/activityFilters';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
@@ -367,19 +372,12 @@ export function GroupDetailPage(): ReactNode {
   // or payer in this sense, so they drop out while filtering).
   const visibleActivity = useMemo(() => {
     if (!categoryFilter && !personFilter) return activity;
-    return activity.filter((it) => {
-      if (it.kind !== 'expense') return false;
-      const e = it.expense;
-      if (categoryFilter && (e.category ?? 'other') !== categoryFilter) return false;
-      if (personFilter) {
-        // involved = paid or owes a share; owes = a share they didn't pay; paid = they paid it.
-        const hasShare = e.splits.some((s) => s.userId === personFilter && s.owedCents > 0);
-        if (relationFilter === 'paid' && e.payerId !== personFilter) return false;
-        if (relationFilter === 'owes' && !(hasShare && e.payerId !== personFilter)) return false;
-        if (relationFilter === 'involved' && !(e.payerId === personFilter || hasShare)) return false;
-      }
-      return true;
-    });
+    return activity.filter(
+      (it) =>
+        it.kind === 'expense' &&
+        (!categoryFilter || (it.expense.category ?? 'other') === categoryFilter) &&
+        matchesPersonLens(it.expense, personFilter, relationFilter),
+    );
   }, [activity, categoryFilter, personFilter, relationFilter]);
 
   if (loadFailed) {
@@ -479,32 +477,11 @@ export function GroupDetailPage(): ReactNode {
   const hasActivity = expenses.length > 0 || settlements.length > 0;
 
   // The person lens (personFilter + relationFilter) scopes both the breakdown and the feed; the
-  // category filter is a drill-down from the chart into the feed only, so it isn't part of the lens.
-  const shareOf = (e: Expense, pid: string): number => e.splits.find((s) => s.userId === pid)?.owedCents ?? 0;
-  const inLens = (e: Expense): boolean => {
-    if (!personFilter) return true;
-    const hasShare = shareOf(e, personFilter) > 0;
-    if (relationFilter === 'paid') return e.payerId === personFilter;
-    if (relationFilter === 'owes') return hasShare && e.payerId !== personFilter;
-    return e.payerId === personFilter || hasShare; // 'involved'
-  };
+  // category filter is a drill-down from the chart into the feed only. The lens logic is pure and
+  // unit-tested in lib/activityFilters.
   const lensActive = personFilter !== null;
-  const lensExpenses = expenses.filter(inLens);
-  // "Owes" measures the selected person's share of each bill; every other lens measures the full bill.
-  const amountFor = (e: Expense): number =>
-    personFilter && relationFilter === 'owes' ? shareOf(e, personFilter) : e.amountCents;
-  const lensTotal = lensExpenses.reduce((sum, e) => sum + amountFor(e), 0);
-  // Spend grouped by category under the current lens, biggest first, for the breakdown.
-  const spendByCategory = (() => {
-    const totals = new Map<string, number>();
-    for (const e of lensExpenses) {
-      const key = e.category ?? 'other';
-      totals.set(key, (totals.get(key) ?? 0) + amountFor(e));
-    }
-    return [...totals.entries()]
-      .map(([key, cents]) => ({ meta: categoryMeta(key), cents }))
-      .sort((a, b) => b.cents - a.cents);
-  })();
+  const spendByCategory = computeSpendByCategory(expenses, personFilter, relationFilter);
+  const lensTotal = computeLensTotal(expenses, personFilter, relationFilter);
 
   async function onShare(): Promise<void> {
     if (!group) return;
