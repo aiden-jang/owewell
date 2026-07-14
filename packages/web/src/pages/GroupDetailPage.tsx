@@ -490,6 +490,9 @@ export function GroupDetailPage(): ReactNode {
     return true;
   };
   const lensActive = payerFilter !== null || mineFilter !== 'all';
+  // Only offer "Paid by" for people who actually paid something; the rest would just yield nothing.
+  const payerIds = new Set(expenses.map((e) => e.payerId));
+  const payers = group.members.filter((m) => payerIds.has(m.userId));
   const lensExpenses = expenses.filter(inLens);
   // "What I owe" measures the viewer's share of each bill; every other lens measures the full bill.
   const amountFor = (e: Expense): number => (mineFilter === 'owe' ? myShareOf(e) : e.amountCents);
@@ -836,7 +839,7 @@ export function GroupDetailPage(): ReactNode {
             }`}
           >
             <option value="">Paid by anyone</option>
-            {group.members.map((m) => (
+            {payers.map((m) => (
               <option key={m.userId} value={m.userId}>
                 Paid by {m.displayName}
               </option>
