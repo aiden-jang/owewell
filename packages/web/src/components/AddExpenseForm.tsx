@@ -274,6 +274,13 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
                   onChange={(e) => setValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
                   placeholder="0"
                   inputMode="decimal"
+                  aria-label={
+                    method === 'EXACT'
+                      ? `Amount for ${m.displayName}`
+                      : method === 'PERCENT'
+                        ? `Percent for ${m.displayName}`
+                        : `Shares for ${m.displayName}`
+                  }
                   className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                 />
                 <span className="w-12 text-sm text-muted">{splitMethodUnit(method)}</span>
