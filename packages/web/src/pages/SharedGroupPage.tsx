@@ -52,7 +52,7 @@ export function SharedGroupPage(): ReactNode {
     } catch (err) {
       // Surfaces the server's reason, e.g. "You're already in this group." for a member, or a
       // taken/invalid seat.
-      toast.error(err instanceof Error ? err.message : 'Could not claim that seat.');
+      toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
       setClaiming(null);
     }
   }
@@ -266,7 +266,7 @@ export function SharedGroupPage(): ReactNode {
             ) : hasOpenSeats ? (
               <p className="mt-8 text-sm text-muted">
                 See your name above? Tap <span className="font-medium text-accent">This is me</span> to claim
-                your seat and edit{user ? '.' : ' (you’ll sign in first).'}
+                your spot and edit{user ? '.' : ' (you’ll sign in first).'}
               </p>
             ) : (
               <p className="mt-8 text-sm text-muted">
