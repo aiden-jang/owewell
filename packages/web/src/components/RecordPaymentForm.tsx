@@ -87,6 +87,9 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
+      <p className="text-sm text-muted">
+        Already paid someone back? Log it here so balances update. owewell doesn&rsquo;t move money.
+      </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <select
           value={fromUserId}
@@ -150,7 +153,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
         disabled={submitting}
         className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
       >
-        {submitting ? 'Recording...' : 'Record payment'}
+        {submitting ? 'Logging...' : 'Log payment'}
       </button>
     </form>
   );
