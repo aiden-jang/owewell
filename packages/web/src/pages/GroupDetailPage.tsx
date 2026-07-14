@@ -89,6 +89,8 @@ export function GroupDetailPage(): ReactNode {
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  // Tap a "Where it went" category to filter the activity feed to just that spend. Null = show all.
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -354,6 +356,16 @@ export function GroupDetailPage(): ReactNode {
     ];
     return items.sort((a, b) => b.ts - a.ts);
   }, [expenses, settlements]);
+
+  // When a category filter is active, the feed narrows to expenses in that category (settlements
+  // have no category, so they drop out while filtering).
+  const visibleActivity = useMemo(
+    () =>
+      categoryFilter
+        ? activity.filter((it) => it.kind === 'expense' && (it.expense.category ?? 'other') === categoryFilter)
+        : activity,
+    [activity, categoryFilter],
+  );
 
   if (loadFailed) {
     return (
@@ -789,27 +801,41 @@ export function GroupDetailPage(): ReactNode {
 
       {totalSpent > 0 && spendByCategory.length > 1 && (
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
-          <ul className="mt-3 space-y-2.5">
-            {spendByCategory.map(({ meta, cents }) => (
-              <li key={meta.key} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 truncate text-sm">
-                  <span aria-hidden className="mr-1.5">
-                    {meta.emoji}
-                  </span>
-                  {meta.label}
-                </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
-                  <span
-                    className="block h-full rounded-full bg-accent"
-                    style={{ width: `${Math.max(3, Math.round((cents / totalSpent) * 100))}%` }}
-                  />
-                </span>
-                <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
-                  {Money.fromCents(cents).format()}
-                </span>
-              </li>
-            ))}
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
+            {!categoryFilter && <span className="text-xs text-faint">tap to filter</span>}
+          </div>
+          <ul className="mt-3 space-y-1">
+            {spendByCategory.map(({ meta, cents }) => {
+              const active = categoryFilter === meta.key;
+              return (
+                <li key={meta.key}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter((prev) => (prev === meta.key ? null : meta.key))}
+                    aria-pressed={active}
+                    aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
+                    className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
+                  >
+                    <span className={`w-28 shrink-0 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
+                      <span aria-hidden className="mr-1.5">
+                        {meta.emoji}
+                      </span>
+                      {meta.label}
+                    </span>
+                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
+                      <span
+                        className="block h-full rounded-full bg-accent"
+                        style={{ width: `${Math.max(3, Math.round((cents / totalSpent) * 100))}%` }}
+                      />
+                    </span>
+                    <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
+                      {Money.fromCents(cents).format()}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -826,6 +852,25 @@ export function GroupDetailPage(): ReactNode {
             </span>
           )}
         </div>
+        {categoryFilter && (
+          <div className="mt-2 flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent">
+              <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
+              {categoryMeta(categoryFilter).label}
+              <span className="text-accent/70">
+                {' '}
+                · {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter(null)}
+              className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         {settlements.length > 0 && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-faint">
             <Icon name="undo" size={13} />
@@ -849,9 +894,20 @@ export function GroupDetailPage(): ReactNode {
               <Icon name="plus" size={15} /> Add expense
             </button>
           </div>
+        ) : visibleActivity.length === 0 ? (
+          <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
+            Nothing in this category.{' '}
+            <button
+              type="button"
+              onClick={() => setCategoryFilter(null)}
+              className="font-medium text-accent hover:underline"
+            >
+              Clear filter
+            </button>
+          </div>
         ) : (
           <ul className="mt-3 space-y-2">
-            {activity.map((item, i) =>
+            {visibleActivity.map((item, i) =>
               item.kind === 'expense' ? (
                 <li
                   key={`e-${item.expense.id}`}
