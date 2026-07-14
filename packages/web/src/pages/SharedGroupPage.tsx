@@ -8,6 +8,7 @@ import { groupsApi } from '../lib/groups';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
+import { SpendDonut } from '../components/SpendDonut';
 import { useToast } from '../components/Toast';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
@@ -34,6 +35,7 @@ export function SharedGroupPage(): ReactNode {
   const [status, setStatus] = useState<'loading' | 'ready' | 'notfound' | 'failed'>('loading');
   const [summary, setSummary] = useState<SharedGroupSummary | null>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
+  const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   const autoClaimed = useRef(false);
 
   // Claim a seat. Signed out → sign in and come back with ?claim=<seat> so we finish
@@ -224,7 +226,32 @@ export function SharedGroupPage(): ReactNode {
 
             {summary.breakdown.length > 1 && (
               <section className="mt-8">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
+                  <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
+                    {(['bars', 'donut'] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setBreakdownView(v)}
+                        aria-pressed={breakdownView === v}
+                        className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
+                          breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {breakdownView === 'donut' ? (
+                  <SpendDonut
+                    data={[...summary.breakdown]
+                      .sort((a, b) => b.cents - a.cents)
+                      .map(({ category, cents }) => ({ meta: categoryMeta(category), cents }))}
+                    total={summary.totalSpentCents}
+                  />
+                ) : (
                 <ul className="mt-3 space-y-2.5">
                   {summary.breakdown.map(({ category, cents }) => {
                     const meta = categoryMeta(category);
@@ -251,6 +278,7 @@ export function SharedGroupPage(): ReactNode {
                     );
                   })}
                 </ul>
+                )}
               </section>
             )}
 
