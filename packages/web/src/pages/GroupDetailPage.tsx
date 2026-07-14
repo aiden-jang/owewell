@@ -477,12 +477,29 @@ export function GroupDetailPage(): ReactNode {
   const perPersonCents = group.members.length ? Math.round(totalSpent / group.members.length) : 0;
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
-  // Spend grouped by category, biggest first, for the "where it went" breakdown.
+
+  // The person filters (payer + mine) act as a LENS over both the breakdown and the feed; the
+  // category filter is a drill-down from the chart into the feed only, so it isn't part of the lens.
+  const uid = user?.id;
+  const myShareOf = (e: Expense): number => e.splits.find((s) => s.userId === uid)?.owedCents ?? 0;
+  const inLens = (e: Expense): boolean => {
+    if (payerFilter && e.payerId !== payerFilter) return false;
+    const hasShare = myShareOf(e) > 0;
+    if (mineFilter === 'involving' && !(e.payerId === uid || hasShare)) return false;
+    if (mineFilter === 'owe' && !(hasShare && e.payerId !== uid)) return false;
+    return true;
+  };
+  const lensActive = payerFilter !== null || mineFilter !== 'all';
+  const lensExpenses = expenses.filter(inLens);
+  // "What I owe" measures the viewer's share of each bill; every other lens measures the full bill.
+  const amountFor = (e: Expense): number => (mineFilter === 'owe' ? myShareOf(e) : e.amountCents);
+  const lensTotal = lensExpenses.reduce((sum, e) => sum + amountFor(e), 0);
+  // Spend grouped by category under the current lens, biggest first, for the breakdown.
   const spendByCategory = (() => {
     const totals = new Map<string, number>();
-    for (const e of expenses) {
+    for (const e of lensExpenses) {
       const key = e.category ?? 'other';
-      totals.set(key, (totals.get(key) ?? 0) + e.amountCents);
+      totals.set(key, (totals.get(key) ?? 0) + amountFor(e));
     }
     return [...totals.entries()]
       .map(([key, cents]) => ({ meta: categoryMeta(key), cents }))
@@ -808,8 +825,70 @@ export function GroupDetailPage(): ReactNode {
         </section>
       )}
 
-      {totalSpent > 0 && spendByCategory.length > 1 && (
-        <section className="mt-8">
+      {activity.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+          <select
+            value={payerFilter ?? ''}
+            onChange={(e) => setPayerFilter(e.target.value || null)}
+            aria-label="Filter by who paid"
+            className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
+              payerFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
+            }`}
+          >
+            <option value="">Paid by anyone</option>
+            {group.members.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                Paid by {m.displayName}
+              </option>
+            ))}
+          </select>
+          <select
+            value={mineFilter}
+            onChange={(e) => setMineFilter(e.target.value as typeof mineFilter)}
+            aria-label="Filter by your involvement"
+            className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
+              mineFilter === 'all' ? 'border-line bg-field text-muted' : 'border-accent bg-accent-soft text-accent'
+            }`}
+          >
+            <option value="all">All expenses</option>
+            <option value="involving">Involving me</option>
+            <option value="owe">What I owe</option>
+          </select>
+          {categoryFilter && (
+            <button
+              type="button"
+              onClick={() => setCategoryFilter(null)}
+              aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
+              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
+            >
+              <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
+              {categoryMeta(categoryFilter).label}
+              <Icon name="x" size={12} />
+            </button>
+          )}
+          {(categoryFilter || payerFilter || mineFilter !== 'all') && (
+            <>
+              <span className="text-faint">
+                {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoryFilter(null);
+                  setPayerFilter(null);
+                  setMineFilter('all');
+                }}
+                className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
+              >
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {lensTotal > 0 && spendByCategory.length > 1 && (
+        <section className="mt-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
             <div className="flex items-center gap-2">
@@ -834,7 +913,7 @@ export function GroupDetailPage(): ReactNode {
           {breakdownView === 'donut' ? (
             <SpendDonut
               data={spendByCategory}
-              total={totalSpent}
+              total={lensTotal}
               activeKey={categoryFilter}
               onSelect={(key) => setCategoryFilter((prev) => (prev === key ? null : key))}
             />
@@ -860,7 +939,7 @@ export function GroupDetailPage(): ReactNode {
                     <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
                       <span
                         className="block h-full rounded-full bg-accent"
-                        style={{ width: `${Math.max(3, Math.round((cents / totalSpent) * 100))}%` }}
+                        style={{ width: `${Math.max(3, Math.round((cents / lensTotal) * 100))}%` }}
                       />
                     </span>
                     <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
@@ -878,74 +957,16 @@ export function GroupDetailPage(): ReactNode {
       <section className="mt-8">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Activity</h2>
-          {totalSpent > 0 && (
+          {(lensActive ? lensTotal : totalSpent) > 0 && (
             <span className="tnum text-sm text-muted">
-              {Money.fromCents(totalSpent).format()} spent
-              {perPersonCents > 0 && (
+              {Money.fromCents(lensActive ? lensTotal : totalSpent).format()}{' '}
+              {mineFilter === 'owe' ? 'your share' : 'spent'}
+              {!lensActive && perPersonCents > 0 && (
                 <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} avg/person</span>
               )}
             </span>
           )}
         </div>
-        {activity.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <select
-              value={payerFilter ?? ''}
-              onChange={(e) => setPayerFilter(e.target.value || null)}
-              aria-label="Filter activity by who paid"
-              className="rounded-full border border-line bg-field px-3 py-1.5 font-medium text-muted outline-none transition focus:border-accent"
-            >
-              <option value="">Paid by anyone</option>
-              {group.members.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  Paid by {m.displayName}
-                </option>
-              ))}
-            </select>
-            <select
-              value={mineFilter}
-              onChange={(e) => setMineFilter(e.target.value as typeof mineFilter)}
-              aria-label="Filter by your involvement"
-              className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
-                mineFilter === 'all' ? 'border-line bg-field text-muted' : 'border-accent bg-accent-soft text-accent'
-              }`}
-            >
-              <option value="all">All expenses</option>
-              <option value="involving">Involving me</option>
-              <option value="owe">What I owe</option>
-            </select>
-            {categoryFilter && (
-              <button
-                type="button"
-                onClick={() => setCategoryFilter(null)}
-                aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
-                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
-              >
-                <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
-                {categoryMeta(categoryFilter).label}
-                <Icon name="x" size={12} />
-              </button>
-            )}
-            {(categoryFilter || payerFilter || mineFilter !== 'all') && (
-              <>
-                <span className="text-faint">
-                  {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCategoryFilter(null);
-                    setPayerFilter(null);
-                    setMineFilter('all');
-                  }}
-                  className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                >
-                  Clear
-                </button>
-              </>
-            )}
-          </div>
-        )}
         {settlements.length > 0 && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-faint">
             <Icon name="undo" size={13} />
