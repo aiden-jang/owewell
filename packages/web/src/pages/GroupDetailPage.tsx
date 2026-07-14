@@ -973,7 +973,7 @@ export function GroupDetailPage(): ReactNode {
                           type="button"
                           onClick={() => setEditingExpense(item.expense)}
                           aria-label={`Edit ${item.expense.description}`}
-                          className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-0 transition hover:bg-surface2 hover:text-ink group-hover:opacity-100"
+                          className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-ink [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
                         >
                           <Icon name="pencil" size={15} />
                         </button>
@@ -981,7 +981,7 @@ export function GroupDetailPage(): ReactNode {
                           type="button"
                           onClick={() => void deleteExpense(item.expense.id)}
                           aria-label={`Delete ${item.expense.description}`}
-                          className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-0 transition hover:bg-surface2 hover:text-neg group-hover:opacity-100"
+                          className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
                         >
                           <Icon name="x" size={16} />
                         </button>
@@ -1019,7 +1019,7 @@ export function GroupDetailPage(): ReactNode {
                       type="button"
                       onClick={() => void undoSettlement(item.settlement.id)}
                       aria-label="Undo payment"
-                      className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-0 transition hover:bg-surface2 hover:text-neg group-hover:opacity-100"
+                      className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
                     >
                       <Icon name="undo" size={15} />
                     </button>
