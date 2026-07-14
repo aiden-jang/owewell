@@ -174,6 +174,14 @@ export function GroupDetailPage(): ReactNode {
     void load();
   }, [id]);
 
+  // A one-person group's only next step is adding people, but that lives in the collapsed Members
+  // section. Auto-expand it on load when the group still needs someone, so the primary action
+  // isn't buried. Keyed on the group id so it fires on load/switch, not on every refresh, and
+  // doesn't fight a manual toggle afterward.
+  useEffect(() => {
+    if (group) setMembersOpen(group.members.length < 2);
+  }, [group?.id]);
+
   useEffect(() => {
     groupsApi
       .list()
@@ -548,10 +556,10 @@ export function GroupDetailPage(): ReactNode {
         </div>
       ) : (
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="flex items-center gap-2 font-display text-3xl font-semibold tracking-tight">
-            {group.name}
+          <h1 className="flex min-w-0 items-center gap-2 font-display text-3xl font-semibold tracking-tight">
+            <span className="truncate">{group.name}</span>
             {group.archived && (
-              <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-muted">
+              <span className="shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-muted">
                 archived
               </span>
             )}
@@ -973,7 +981,7 @@ export function GroupDetailPage(): ReactNode {
                 return (
                   <li
                     key={member.userId}
-                    className="surface flex items-center justify-between rounded-xl px-4 py-3"
+                    className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
                   >
                     {editingMemberId === member.userId ? (
                       <span className="flex w-full items-center gap-2">
@@ -1045,13 +1053,13 @@ export function GroupDetailPage(): ReactNode {
                       </span>
                     ) : (
                       <>
-                        <span className="flex items-center gap-3 font-medium">
+                        <span className="flex min-w-0 items-center gap-3 font-medium">
                           <Avatar name={member.displayName} />
-                          <span className="flex flex-col">
-                            <span className="flex items-center gap-1.5">
-                              {member.displayName}
+                          <span className="flex min-w-0 flex-col">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className="truncate">{member.displayName}</span>
                               {member.role === 'OWNER' && (
-                                <span className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-muted">
+                                <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs text-muted">
                                   owner
                                 </span>
                               )}
@@ -1063,7 +1071,7 @@ export function GroupDetailPage(): ReactNode {
                                     setEditingMemberName(member.displayName);
                                   }}
                                   aria-label={`Rename ${member.displayName}`}
-                                  className="grid h-6 w-6 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
                                 >
                                   <Icon name="pencil" size={13} />
                                 </button>
@@ -1077,7 +1085,7 @@ export function GroupDetailPage(): ReactNode {
                             )}
                           </span>
                         </span>
-                        <span className="flex items-center gap-3">
+                        <span className="flex shrink-0 items-center gap-3">
                           {(isSelf || member.isPlaceholder) && (
                             <button
                               type="button"
