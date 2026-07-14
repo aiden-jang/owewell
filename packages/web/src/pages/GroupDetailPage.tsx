@@ -657,14 +657,14 @@ export function GroupDetailPage(): ReactNode {
         {!hasActivity ? (
           <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
         ) : group.members.length < 2 ? (
-          <p className="mt-4 text-sm text-muted">Add someone else before you can record a payment.</p>
+          <p className="mt-4 text-sm text-muted">Add someone else before you can log a payment.</p>
         ) : (
           <button
             type="button"
             onClick={() => setPaymentOpen(true)}
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition hover:underline"
           >
-            <Icon name="wallet" size={15} /> Record a payment
+            <Icon name="wallet" size={15} /> Log a payment
           </button>
         )}
       </div>
@@ -1192,14 +1192,14 @@ export function GroupDetailPage(): ReactNode {
         )}
       </Sheet>
 
-      <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Record a payment">
+      <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Log a payment">
         <RecordPaymentForm
           groupId={group.id}
           members={group.members}
           defaultFromId={user?.id}
           onRecorded={() => {
             setPaymentOpen(false);
-            toast.success('Payment recorded.');
+            toast.success('Payment logged.');
             void refreshLedger();
           }}
         />
