@@ -1147,14 +1147,18 @@ export function GroupDetailPage(): ReactNode {
         )}
       </section>
 
-      <button
-        type="button"
-        onClick={() => setSheetOpen(true)}
-        aria-label="Add expense"
-        className="btn-gradient fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-40 flex items-center gap-2 rounded-full p-4 font-semibold shadow-xl shadow-black/30 transition active:scale-[0.97] sm:px-6 sm:py-3.5"
-      >
-        <Icon name="plus" size={20} /> <span className="hidden sm:inline">Add expense</span>
-      </button>
+      {/* The floating add button appears only once there's a list to add to; the empty state owns
+          the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons. */}
+      {activity.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          aria-label="Add expense"
+          className="btn-gradient fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-40 flex items-center gap-2 rounded-full p-4 font-semibold shadow-xl shadow-black/30 transition active:scale-[0.97] sm:px-6 sm:py-3.5"
+        >
+          <Icon name="plus" size={20} /> <span className="hidden sm:inline">Add expense</span>
+        </button>
+      )}
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Add to the tab">
         <div className="mb-4 inline-flex w-full rounded-full border border-line bg-field p-1">
