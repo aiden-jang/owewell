@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Money } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, categoryMeta, type PaymentMethod } from '@owewell/core';
@@ -87,6 +87,12 @@ export function GroupDetailPage(): ReactNode {
   const [menuOpen, setMenuOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  // Scroll the revealed link into view: "Invite" can be triggered from the Members section lower on
+  // the page, and the link card renders up near the header, so it could otherwise appear off-screen.
+  const shareCardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (shareLink) shareCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [shareLink]);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingMemberName, setEditingMemberName] = useState('');
@@ -667,7 +673,7 @@ export function GroupDetailPage(): ReactNode {
       </div>
 
       {shareLink && (
-        <div className="mt-4 rounded-2xl border border-accent/25 bg-accent-soft p-4">
+        <div ref={shareCardRef} className="mt-4 rounded-2xl border border-accent/25 bg-accent-soft p-4">
           <p className="text-sm font-medium">Group invite link</p>
           <p className="mt-0.5 text-xs text-muted">
             Anyone with this link can view the group. People you added by name can sign in and
@@ -1115,9 +1121,18 @@ export function GroupDetailPage(): ReactNode {
               </button>
             </form>
             {memberError && <p className="mt-2 text-sm font-medium text-neg">{memberError}</p>}
-            <p className="mt-3 text-xs text-muted">
-              Added someone by name? Share the group link (top right) so they can claim their spot.
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <button
+                type="button"
+                onClick={() => void onShare()}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-accent transition hover:underline"
+              >
+                <Icon name="share" size={15} /> Invite with a link
+              </button>
+              <span className="text-xs text-muted">
+                so people you added by name can claim their spot.
+              </span>
+            </div>
             {isOwner && settlements.length > 0 && (
               <p className="mt-1 text-xs text-faint">
                 Members can&rsquo;t be removed once a payment has been recorded.
