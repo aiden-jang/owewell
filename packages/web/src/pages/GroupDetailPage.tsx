@@ -93,6 +93,8 @@ export function GroupDetailPage(): ReactNode {
   // payer via the "Paid by" select. Null = no constraint on that facet.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [payerFilter, setPayerFilter] = useState<string | null>(null);
+  // "Just mine": expenses the viewer is on (paid for, or owes a share of).
+  const [onlyMine, setOnlyMine] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -362,14 +364,17 @@ export function GroupDetailPage(): ReactNode {
   // With any filter active, the feed narrows to matching expenses (settlements have no category
   // or payer in this sense, so they drop out while filtering).
   const visibleActivity = useMemo(() => {
-    if (!categoryFilter && !payerFilter) return activity;
+    if (!categoryFilter && !payerFilter && !onlyMine) return activity;
     return activity.filter(
       (it) =>
         it.kind === 'expense' &&
         (!categoryFilter || (it.expense.category ?? 'other') === categoryFilter) &&
-        (!payerFilter || it.expense.payerId === payerFilter),
+        (!payerFilter || it.expense.payerId === payerFilter) &&
+        (!onlyMine ||
+          it.expense.payerId === user?.id ||
+          it.expense.splits.some((s) => s.userId === user?.id)),
     );
-  }, [activity, categoryFilter, payerFilter]);
+  }, [activity, categoryFilter, payerFilter, onlyMine, user?.id]);
 
   if (loadFailed) {
     return (
@@ -871,6 +876,18 @@ export function GroupDetailPage(): ReactNode {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => setOnlyMine((v) => !v)}
+              aria-pressed={onlyMine}
+              className={`rounded-full border px-3 py-1.5 font-medium transition ${
+                onlyMine
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-line bg-field text-muted hover:border-accent'
+              }`}
+            >
+              Just mine
+            </button>
             {categoryFilter && (
               <button
                 type="button"
@@ -883,7 +900,7 @@ export function GroupDetailPage(): ReactNode {
                 <Icon name="x" size={12} />
               </button>
             )}
-            {(categoryFilter || payerFilter) && (
+            {(categoryFilter || payerFilter || onlyMine) && (
               <>
                 <span className="text-faint">
                   {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
@@ -893,6 +910,7 @@ export function GroupDetailPage(): ReactNode {
                   onClick={() => {
                     setCategoryFilter(null);
                     setPayerFilter(null);
+                    setOnlyMine(false);
                   }}
                   className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
                 >
@@ -933,6 +951,7 @@ export function GroupDetailPage(): ReactNode {
               onClick={() => {
                 setCategoryFilter(null);
                 setPayerFilter(null);
+                setOnlyMine(false);
               }}
               className="font-medium text-accent hover:underline"
             >
