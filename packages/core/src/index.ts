@@ -218,13 +218,3 @@ export interface SharedGroupSummary {
   suggested: { fromName: string; toName: string; amountCents: number }[];
   breakdown: { category: string; cents: number }[];
 }
-
-// --- Invites ----------------------------------------------------------------
-
-export type InviteStatus = 'pending' | 'accepted' | 'expired';
-
-export interface InviteInfo {
-  groupName: string;
-  email: string | null;
-  status: InviteStatus;
-}
