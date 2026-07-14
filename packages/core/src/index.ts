@@ -53,6 +53,8 @@ export interface GroupSummary {
   netCents: number;
   /** The whole group's outstanding money (sum of every positive balance), not just the viewer's. */
   totalUnsettledCents: number;
+  /** Total spent on expenses in this group. 0 means no expenses yet (distinct from settled). */
+  totalSpentCents: number;
   /** Whether the viewer owns this group (only owners can delete it). */
   isOwner: boolean;
 }
