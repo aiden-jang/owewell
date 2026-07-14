@@ -28,14 +28,16 @@ interface Slice {
 export function SpendDonut({
   data,
   total,
-  activeKey,
+  activeKey = null,
   onSelect,
 }: {
   data: Slice[];
   total: number;
-  activeKey: string | null;
-  onSelect: (key: string) => void;
+  /** Omit both to render read-only (e.g. the public share page has no feed to filter). */
+  activeKey?: string | null;
+  onSelect?: (key: string) => void;
 }): ReactNode {
+  const interactive = typeof onSelect === 'function';
   const size = 168;
   const stroke = 24;
   const r = (size - stroke) / 2;
@@ -82,8 +84,8 @@ export function SpendDonut({
                 strokeWidth={stroke}
                 strokeDasharray={`${a.len} ${circ - a.len}`}
                 strokeDashoffset={a.offset}
-                onClick={() => onSelect(a.meta.key)}
-                className="cursor-pointer transition-opacity"
+                onClick={interactive ? () => onSelect(a.meta.key) : undefined}
+                className={interactive ? 'cursor-pointer transition-opacity' : 'transition-opacity'}
                 style={{ opacity: dim ? 0.25 : 1 }}
               >
                 <title>{`${a.meta.label}: ${Money.fromCents(a.cents).format()} (${a.pct}%)`}</title>
@@ -99,21 +101,30 @@ export function SpendDonut({
       <ul className="w-full flex-1 space-y-1">
         {arcs.map((a) => {
           const active = activeKey === a.meta.key;
+          const inner = (
+            <>
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: a.color }} aria-hidden />
+              <span aria-hidden>{a.meta.emoji}</span>
+              <span className={`truncate ${active ? 'font-medium text-accent' : ''}`}>{a.meta.label}</span>
+              <span className="tnum ml-auto shrink-0 text-faint">{a.pct}%</span>
+              <span className="tnum w-20 shrink-0 text-right text-muted">{Money.fromCents(a.cents).format()}</span>
+            </>
+          );
           return (
             <li key={a.meta.key}>
-              <button
-                type="button"
-                onClick={() => onSelect(a.meta.key)}
-                aria-pressed={active}
-                aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${a.meta.label}`}
-                className={`-mx-2 flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-sm transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
-              >
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: a.color }} aria-hidden />
-                <span aria-hidden>{a.meta.emoji}</span>
-                <span className={`truncate ${active ? 'font-medium text-accent' : ''}`}>{a.meta.label}</span>
-                <span className="tnum ml-auto shrink-0 text-faint">{a.pct}%</span>
-                <span className="tnum w-20 shrink-0 text-right text-muted">{Money.fromCents(a.cents).format()}</span>
-              </button>
+              {interactive ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect(a.meta.key)}
+                  aria-pressed={active}
+                  aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${a.meta.label}`}
+                  className={`-mx-2 flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-sm transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div className="flex w-full items-center gap-2 px-0 py-1 text-sm">{inner}</div>
+              )}
             </li>
           );
         })}
