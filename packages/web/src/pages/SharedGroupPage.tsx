@@ -154,7 +154,7 @@ export function SharedGroupPage(): ReactNode {
                 {Money.fromCents(summary.totalSpentCents).format()}
               </p>
               <p className="mt-2 text-xs text-faint">
-                {Money.fromCents(summary.perPersonCents).format()} each
+                {Money.fromCents(summary.perPersonCents).format()} avg/person
                 {summary.totalSettledCents > 0 &&
                   ` · ${Money.fromCents(summary.totalSettledCents).format()} settled so far`}
               </p>
