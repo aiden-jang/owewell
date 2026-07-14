@@ -173,6 +173,9 @@ export function DashboardPage(): ReactNode {
   // "All settled" only makes sense once there's been spending somewhere; a set of brand-new,
   // expense-free groups nets to zero but isn't "settled".
   const hasAnySpend = activeGroups.some((g) => g.totalSpentCents > 0);
+  // You can net to zero yourself while other members still owe each other. In that case say
+  // "You're square" (your balance), not "All settled" (which claims the whole group is done).
+  const othersStillOwe = activeGroups.some((g) => g.totalUnsettledCents > 0);
   const selectedGroups = (groups ?? []).filter((g) => selected.has(g.id));
   const allOwned = selectedGroups.length > 0 && selectedGroups.every((g) => g.isOwner);
 
@@ -278,7 +281,11 @@ export function DashboardPage(): ReactNode {
             }`}
           >
             {settled && hasAnySpend ? (
-              'All settled'
+              othersStillOwe ? (
+                "You're square"
+              ) : (
+                'All settled'
+              )
             ) : (
               <MoneyText cents={Math.abs(totals.net)} />
             )}
