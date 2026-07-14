@@ -10,7 +10,9 @@ import { Icon } from '../components/Icon';
 import { SiteFooter } from '../components/SiteFooter';
 import { useToast } from '../components/Toast';
 
-function balanceLabel(netCents: number): { text: string; tone: string } {
+function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
+  // With no expenses yet, nobody is settled OR owing — there's just nothing to settle.
+  if (!hasActivity) return { text: '', tone: 'text-muted' };
   if (netCents === 0) return { text: 'settled', tone: 'text-muted' };
   const amount = Money.fromCents(Math.abs(netCents)).format();
   return netCents > 0
@@ -133,7 +135,11 @@ export function SharedGroupPage(): ReactNode {
             <section className="mt-6 rounded-2xl border border-accent/25 bg-accent-soft p-4">
               <h2 className="text-sm font-semibold text-accent">Who owes who</h2>
               {summary.suggested.length === 0 ? (
-                <p className="mt-2 text-sm text-muted">All settled up. Nobody owes anybody.</p>
+                <p className="mt-2 text-sm text-muted">
+                  {summary.totalSpentCents > 0 || summary.totalSettledCents > 0
+                    ? 'All settled up. Nobody owes anybody.'
+                    : 'No expenses yet.'}
+                </p>
               ) : (
                 <ul className="mt-3 space-y-2 text-sm">
                   {summary.suggested.map((p, i) => (
@@ -157,7 +163,10 @@ export function SharedGroupPage(): ReactNode {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Members</h2>
               <ul className="mt-3 space-y-2">
                 {summary.members.map((m, i) => {
-                  const label = balanceLabel(m.netCents);
+                  const label = balanceLabel(
+                    m.netCents,
+                    summary.totalSpentCents > 0 || summary.totalSettledCents > 0,
+                  );
                   const claimable = m.isPlaceholder && !viewerIsMember;
                   return (
                     <li key={i} className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3">
@@ -166,7 +175,9 @@ export function SharedGroupPage(): ReactNode {
                         <span className="truncate">{m.displayName}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-3">
-                        <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
+                        {label.text && (
+                          <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
+                        )}
                         {claimable && (
                           <button
                             type="button"
