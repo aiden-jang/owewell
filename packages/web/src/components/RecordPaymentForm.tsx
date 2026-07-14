@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { settlementsApi } from '../lib/settlements';
@@ -28,6 +28,25 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
   const [methodTouched, setMethodTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Two members can share a display name (e.g. two placeholders both called "Alex"). Paying the
+  // wrong one is a real money mistake, so disambiguate repeated names with a numeric suffix.
+  const labelFor = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const m of members) counts.set(m.displayName, (counts.get(m.displayName) ?? 0) + 1);
+    const seen = new Map<string, number>();
+    const labels = new Map<string, string>();
+    for (const m of members) {
+      if ((counts.get(m.displayName) ?? 0) > 1) {
+        const n = (seen.get(m.displayName) ?? 0) + 1;
+        seen.set(m.displayName, n);
+        labels.set(m.userId, `${m.displayName} (${n})`);
+      } else {
+        labels.set(m.userId, m.displayName);
+      }
+    }
+    return labels;
+  }, [members]);
 
   function chooseRecipient(id: string): void {
     setToUserId(id);
@@ -77,7 +96,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
         >
           {members.map((m) => (
             <option key={m.userId} value={m.userId}>
-              {m.displayName}
+              {labelFor.get(m.userId) ?? m.displayName}
             </option>
           ))}
         </select>
@@ -90,7 +109,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
         >
           {members.map((m) => (
             <option key={m.userId} value={m.userId}>
-              {m.displayName}
+              {labelFor.get(m.userId) ?? m.displayName}
             </option>
           ))}
         </select>
