@@ -93,8 +93,9 @@ export function GroupDetailPage(): ReactNode {
   // payer via the "Paid by" select. Null = no constraint on that facet.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [payerFilter, setPayerFilter] = useState<string | null>(null);
-  // "Just mine": expenses the viewer is on (paid for, or owes a share of).
-  const [onlyMine, setOnlyMine] = useState(false);
+  // The viewer's relationship to an expense: everything, ones involving them (paid or owe a
+  // share), or specifically ones they owe on (a share they didn't pay).
+  const [mineFilter, setMineFilter] = useState<'all' | 'involving' | 'owe'>('all');
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -364,17 +365,20 @@ export function GroupDetailPage(): ReactNode {
   // With any filter active, the feed narrows to matching expenses (settlements have no category
   // or payer in this sense, so they drop out while filtering).
   const visibleActivity = useMemo(() => {
-    if (!categoryFilter && !payerFilter && !onlyMine) return activity;
-    return activity.filter(
-      (it) =>
-        it.kind === 'expense' &&
-        (!categoryFilter || (it.expense.category ?? 'other') === categoryFilter) &&
-        (!payerFilter || it.expense.payerId === payerFilter) &&
-        (!onlyMine ||
-          it.expense.payerId === user?.id ||
-          it.expense.splits.some((s) => s.userId === user?.id)),
-    );
-  }, [activity, categoryFilter, payerFilter, onlyMine, user?.id]);
+    if (!categoryFilter && !payerFilter && mineFilter === 'all') return activity;
+    return activity.filter((it) => {
+      if (it.kind !== 'expense') return false;
+      const e = it.expense;
+      if (categoryFilter && (e.category ?? 'other') !== categoryFilter) return false;
+      if (payerFilter && e.payerId !== payerFilter) return false;
+      // "Involving me" = I paid or I owe a share. "What I owe" = I have a share I didn't pay
+      // (so it feeds my balance); if I'm the payer I'm owed on it, not owing.
+      const iHaveShare = e.splits.some((s) => s.userId === user?.id && s.owedCents > 0);
+      if (mineFilter === 'involving' && !(e.payerId === user?.id || iHaveShare)) return false;
+      if (mineFilter === 'owe' && !(iHaveShare && e.payerId !== user?.id)) return false;
+      return true;
+    });
+  }, [activity, categoryFilter, payerFilter, mineFilter, user?.id]);
 
   if (loadFailed) {
     return (
@@ -876,18 +880,18 @@ export function GroupDetailPage(): ReactNode {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={() => setOnlyMine((v) => !v)}
-              aria-pressed={onlyMine}
-              className={`rounded-full border px-3 py-1.5 font-medium transition ${
-                onlyMine
-                  ? 'border-accent bg-accent-soft text-accent'
-                  : 'border-line bg-field text-muted hover:border-accent'
+            <select
+              value={mineFilter}
+              onChange={(e) => setMineFilter(e.target.value as typeof mineFilter)}
+              aria-label="Filter by your involvement"
+              className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
+                mineFilter === 'all' ? 'border-line bg-field text-muted' : 'border-accent bg-accent-soft text-accent'
               }`}
             >
-              Just mine
-            </button>
+              <option value="all">All expenses</option>
+              <option value="involving">Involving me</option>
+              <option value="owe">What I owe</option>
+            </select>
             {categoryFilter && (
               <button
                 type="button"
@@ -900,7 +904,7 @@ export function GroupDetailPage(): ReactNode {
                 <Icon name="x" size={12} />
               </button>
             )}
-            {(categoryFilter || payerFilter || onlyMine) && (
+            {(categoryFilter || payerFilter || mineFilter !== 'all') && (
               <>
                 <span className="text-faint">
                   {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
@@ -910,7 +914,7 @@ export function GroupDetailPage(): ReactNode {
                   onClick={() => {
                     setCategoryFilter(null);
                     setPayerFilter(null);
-                    setOnlyMine(false);
+                    setMineFilter('all');
                   }}
                   className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
                 >
@@ -951,7 +955,7 @@ export function GroupDetailPage(): ReactNode {
               onClick={() => {
                 setCategoryFilter(null);
                 setPayerFilter(null);
-                setOnlyMine(false);
+                setMineFilter('all');
               }}
               className="font-medium text-accent hover:underline"
             >
