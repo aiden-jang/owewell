@@ -1025,6 +1025,11 @@ export function GroupDetailPage(): ReactNode {
                       </p>
                       <p className="text-sm text-muted">
                         {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
+                        {/* Only flag when it wasn't shared with the whole group; "everyone" is the
+                            default, so printing it on every row would just be noise. */}
+                        {item.expense.splits.length < group.members.length && (
+                          <> · split {item.expense.splits.length} ways</>
+                        )}
                       </p>
                     </div>
                   </div>
