@@ -821,7 +821,7 @@ export function GroupDetailPage(): ReactNode {
             <span className="tnum text-sm text-muted">
               {Money.fromCents(totalSpent).format()} spent
               {perPersonCents > 0 && (
-                <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} each</span>
+                <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} avg/person</span>
               )}
             </span>
           )}
