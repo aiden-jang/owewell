@@ -550,11 +550,10 @@ export function GroupDetailPage(): ReactNode {
             <button
               type="button"
               onClick={() => void onShare()}
-              aria-label="Invite / share link"
-              title="Invite / share link"
-              className="grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
+              aria-label="Invite people to this group"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 text-sm font-medium text-ink transition hover:border-accent hover:text-accent"
             >
-              <Icon name="share" size={17} />
+              <Icon name="share" size={15} /> Invite
             </button>
             <div className="relative">
               <button
