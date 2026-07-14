@@ -89,8 +89,10 @@ export function GroupDetailPage(): ReactNode {
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
-  // Tap a "Where it went" category to filter the activity feed to just that spend. Null = show all.
+  // Activity feed filters (AND together). Category is set by tapping the "Where it went" chart;
+  // payer via the "Paid by" select. Null = no constraint on that facet.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [payerFilter, setPayerFilter] = useState<string | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -357,15 +359,17 @@ export function GroupDetailPage(): ReactNode {
     return items.sort((a, b) => b.ts - a.ts);
   }, [expenses, settlements]);
 
-  // When a category filter is active, the feed narrows to expenses in that category (settlements
-  // have no category, so they drop out while filtering).
-  const visibleActivity = useMemo(
-    () =>
-      categoryFilter
-        ? activity.filter((it) => it.kind === 'expense' && (it.expense.category ?? 'other') === categoryFilter)
-        : activity,
-    [activity, categoryFilter],
-  );
+  // With any filter active, the feed narrows to matching expenses (settlements have no category
+  // or payer in this sense, so they drop out while filtering).
+  const visibleActivity = useMemo(() => {
+    if (!categoryFilter && !payerFilter) return activity;
+    return activity.filter(
+      (it) =>
+        it.kind === 'expense' &&
+        (!categoryFilter || (it.expense.category ?? 'other') === categoryFilter) &&
+        (!payerFilter || it.expense.payerId === payerFilter),
+    );
+  }, [activity, categoryFilter, payerFilter]);
 
   if (loadFailed) {
     return (
@@ -852,23 +856,50 @@ export function GroupDetailPage(): ReactNode {
             </span>
           )}
         </div>
-        {categoryFilter && (
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent">
-              <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
-              {categoryMeta(categoryFilter).label}
-              <span className="text-accent/70">
-                {' '}
-                · {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setCategoryFilter(null)}
-              className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
+        {activity.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <select
+              value={payerFilter ?? ''}
+              onChange={(e) => setPayerFilter(e.target.value || null)}
+              aria-label="Filter activity by who paid"
+              className="rounded-full border border-line bg-field px-3 py-1.5 font-medium text-muted outline-none transition focus:border-accent"
             >
-              Clear
-            </button>
+              <option value="">Paid by anyone</option>
+              {group.members.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  Paid by {m.displayName}
+                </option>
+              ))}
+            </select>
+            {categoryFilter && (
+              <button
+                type="button"
+                onClick={() => setCategoryFilter(null)}
+                aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
+                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
+              >
+                <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
+                {categoryMeta(categoryFilter).label}
+                <Icon name="x" size={12} />
+              </button>
+            )}
+            {(categoryFilter || payerFilter) && (
+              <>
+                <span className="text-faint">
+                  {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFilter(null);
+                    setPayerFilter(null);
+                  }}
+                  className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
+                >
+                  Clear
+                </button>
+              </>
+            )}
           </div>
         )}
         {settlements.length > 0 && (
@@ -896,10 +927,13 @@ export function GroupDetailPage(): ReactNode {
           </div>
         ) : visibleActivity.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
-            Nothing in this category.{' '}
+            No expenses match this filter.{' '}
             <button
               type="button"
-              onClick={() => setCategoryFilter(null)}
+              onClick={() => {
+                setCategoryFilter(null);
+                setPayerFilter(null);
+              }}
               className="font-medium text-accent hover:underline"
             >
               Clear filter
