@@ -131,18 +131,25 @@ export function GroupDetailPage(): ReactNode {
     // Refetch the group too, not just the ledger: if it was archived, renamed, or had a
     // member change in another tab/device, `group.archived` (which drives read-only) and the
     // member list must stay current, otherwise stale gates would keep edit controls live.
-    const [g, b, e, st, s] = await Promise.all([
-      groupsApi.get(id),
-      groupsApi.balances(id),
-      expensesApi.list(id),
-      settlementsApi.list(id),
-      settlementsApi.suggested(id),
-    ]);
-    setGroup(g);
-    setBalances(b);
-    setExpenses(e);
-    setSettlements(st);
-    setSuggested(s);
+    // Callers fire this as `void refreshLedger()`, so a failed refetch would otherwise be a
+    // swallowed rejection that leaves the just-succeeded change showing over stale data. Keep the
+    // current view (it's still valid) but tell the user it may be behind.
+    try {
+      const [g, b, e, st, s] = await Promise.all([
+        groupsApi.get(id),
+        groupsApi.balances(id),
+        expensesApi.list(id),
+        settlementsApi.list(id),
+        settlementsApi.suggested(id),
+      ]);
+      setGroup(g);
+      setBalances(b);
+      setExpenses(e);
+      setSettlements(st);
+      setSuggested(s);
+    } catch {
+      toast.error('Could not load the latest changes. Reload if the numbers look off.');
+    }
   }
 
   async function markPaid(payment: SuggestedPayment): Promise<void> {

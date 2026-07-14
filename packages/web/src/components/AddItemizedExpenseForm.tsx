@@ -123,6 +123,12 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
     event.preventDefault();
     setError(null);
 
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription) {
+      setError('Add a name for this receipt.');
+      return;
+    }
+
     let payloadItems: { name: string; amountCents: number; participantIds: string[]; payerId?: string }[];
     try {
       payloadItems = items.map((item) => {
@@ -152,7 +158,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }:
       return;
     }
 
-    const payload = { description: description.trim(), payerId, taxCents, tipCents, items: payloadItems, category, date };
+    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date };
     setSubmitting(true);
     try {
       if (editing) {

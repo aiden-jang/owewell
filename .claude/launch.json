@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "owewell-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@owewell/web", "dev"],
+      "port": 5173
+    }
+  ]
+}

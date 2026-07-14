@@ -39,6 +39,7 @@ export function DashboardPage(): ReactNode {
   const [showArchived, setShowArchived] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const toggleSelected = (id: string): void =>
     setSelected((prev) => {
@@ -55,13 +56,16 @@ export function DashboardPage(): ReactNode {
 
   async function onBulkArchive(): Promise<void> {
     const ids = [...selected];
-    if (ids.length === 0) return;
+    if (ids.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
     try {
       await Promise.all(ids.map((id) => groupsApi.setArchived(id, true)));
       setGroups((prev) => (prev ?? []).map((g) => (selected.has(g.id) ? { ...g, archived: true } : g)));
       toast.success(`Archived ${ids.length} ${ids.length === 1 ? 'group' : 'groups'}.`);
     } catch {
       toast.error('Could not archive some of those.');
+    } finally {
+      setBulkBusy(false);
     }
     exitSelect();
   }
@@ -75,13 +79,16 @@ export function DashboardPage(): ReactNode {
       confirmLabel: 'Delete',
       tone: 'danger',
     });
-    if (!ok) return;
+    if (!ok || bulkBusy) return;
+    setBulkBusy(true);
     try {
       await Promise.all(ids.map((id) => groupsApi.remove(id)));
       setGroups((prev) => (prev ?? []).filter((g) => !selected.has(g.id)));
       toast.success(`Deleted ${ids.length} ${ids.length === 1 ? 'group' : 'groups'}.`);
     } catch {
       toast.error('Could not delete some of those.');
+    } finally {
+      setBulkBusy(false);
     }
     exitSelect();
   }
@@ -421,14 +428,15 @@ export function DashboardPage(): ReactNode {
               <button
                 type="button"
                 onClick={() => void onBulkArchive()}
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
+                disabled={bulkBusy}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2 text-sm font-medium transition hover:border-accent active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Icon name="archive" size={15} /> Archive
               </button>
               <button
                 type="button"
                 onClick={() => void onBulkDelete()}
-                disabled={!allOwned}
+                disabled={!allOwned || bulkBusy}
                 title={allOwned ? undefined : 'You can only delete groups you own'}
                 className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               >
