@@ -89,13 +89,12 @@ export function GroupDetailPage(): ReactNode {
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
-  // Activity feed filters (AND together). Category is set by tapping the "Where it went" chart;
-  // payer via the "Paid by" select. Null = no constraint on that facet.
+  // A "person lens" over both the breakdown and the feed: pick a person, then how they relate to
+  // an expense — involved (paid or owe a share) / owes (a share they didn't pay) / paid. Null
+  // person = no lens. Category is a separate drill-down from the chart into the feed only.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [payerFilter, setPayerFilter] = useState<string | null>(null);
-  // The viewer's relationship to an expense: everything, ones involving them (paid or owe a
-  // share), or specifically ones they owe on (a share they didn't pay).
-  const [mineFilter, setMineFilter] = useState<'all' | 'involving' | 'owe'>('all');
+  const [personFilter, setPersonFilter] = useState<string | null>(null);
+  const [relationFilter, setRelationFilter] = useState<'involved' | 'owes' | 'paid'>('involved');
   // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -367,20 +366,21 @@ export function GroupDetailPage(): ReactNode {
   // With any filter active, the feed narrows to matching expenses (settlements have no category
   // or payer in this sense, so they drop out while filtering).
   const visibleActivity = useMemo(() => {
-    if (!categoryFilter && !payerFilter && mineFilter === 'all') return activity;
+    if (!categoryFilter && !personFilter) return activity;
     return activity.filter((it) => {
       if (it.kind !== 'expense') return false;
       const e = it.expense;
       if (categoryFilter && (e.category ?? 'other') !== categoryFilter) return false;
-      if (payerFilter && e.payerId !== payerFilter) return false;
-      // "Involving me" = I paid or I owe a share. "What I owe" = I have a share I didn't pay
-      // (so it feeds my balance); if I'm the payer I'm owed on it, not owing.
-      const iHaveShare = e.splits.some((s) => s.userId === user?.id && s.owedCents > 0);
-      if (mineFilter === 'involving' && !(e.payerId === user?.id || iHaveShare)) return false;
-      if (mineFilter === 'owe' && !(iHaveShare && e.payerId !== user?.id)) return false;
+      if (personFilter) {
+        // involved = paid or owes a share; owes = a share they didn't pay; paid = they paid it.
+        const hasShare = e.splits.some((s) => s.userId === personFilter && s.owedCents > 0);
+        if (relationFilter === 'paid' && e.payerId !== personFilter) return false;
+        if (relationFilter === 'owes' && !(hasShare && e.payerId !== personFilter)) return false;
+        if (relationFilter === 'involved' && !(e.payerId === personFilter || hasShare)) return false;
+      }
       return true;
     });
-  }, [activity, categoryFilter, payerFilter, mineFilter, user?.id]);
+  }, [activity, categoryFilter, personFilter, relationFilter]);
 
   if (loadFailed) {
     return (
@@ -478,24 +478,21 @@ export function GroupDetailPage(): ReactNode {
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
 
-  // The person filters (payer + mine) act as a LENS over both the breakdown and the feed; the
+  // The person lens (personFilter + relationFilter) scopes both the breakdown and the feed; the
   // category filter is a drill-down from the chart into the feed only, so it isn't part of the lens.
-  const uid = user?.id;
-  const myShareOf = (e: Expense): number => e.splits.find((s) => s.userId === uid)?.owedCents ?? 0;
+  const shareOf = (e: Expense, pid: string): number => e.splits.find((s) => s.userId === pid)?.owedCents ?? 0;
   const inLens = (e: Expense): boolean => {
-    if (payerFilter && e.payerId !== payerFilter) return false;
-    const hasShare = myShareOf(e) > 0;
-    if (mineFilter === 'involving' && !(e.payerId === uid || hasShare)) return false;
-    if (mineFilter === 'owe' && !(hasShare && e.payerId !== uid)) return false;
-    return true;
+    if (!personFilter) return true;
+    const hasShare = shareOf(e, personFilter) > 0;
+    if (relationFilter === 'paid') return e.payerId === personFilter;
+    if (relationFilter === 'owes') return hasShare && e.payerId !== personFilter;
+    return e.payerId === personFilter || hasShare; // 'involved'
   };
-  const lensActive = payerFilter !== null || mineFilter !== 'all';
-  // Only offer "Paid by" for people who actually paid something; the rest would just yield nothing.
-  const payerIds = new Set(expenses.map((e) => e.payerId));
-  const payers = group.members.filter((m) => payerIds.has(m.userId));
+  const lensActive = personFilter !== null;
   const lensExpenses = expenses.filter(inLens);
-  // "What I owe" measures the viewer's share of each bill; every other lens measures the full bill.
-  const amountFor = (e: Expense): number => (mineFilter === 'owe' ? myShareOf(e) : e.amountCents);
+  // "Owes" measures the selected person's share of each bill; every other lens measures the full bill.
+  const amountFor = (e: Expense): number =>
+    personFilter && relationFilter === 'owes' ? shareOf(e, personFilter) : e.amountCents;
   const lensTotal = lensExpenses.reduce((sum, e) => sum + amountFor(e), 0);
   // Spend grouped by category under the current lens, biggest first, for the breakdown.
   const spendByCategory = (() => {
@@ -831,32 +828,32 @@ export function GroupDetailPage(): ReactNode {
       {activity.length > 0 && (
         <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
           <select
-            value={payerFilter ?? ''}
-            onChange={(e) => setPayerFilter(e.target.value || null)}
-            aria-label="Filter by who paid"
+            value={personFilter ?? ''}
+            onChange={(e) => setPersonFilter(e.target.value || null)}
+            aria-label="Filter by person"
             className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
-              payerFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
+              personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
             }`}
           >
-            <option value="">Paid by anyone</option>
-            {payers.map((m) => (
+            <option value="">Anyone</option>
+            {group.members.map((m) => (
               <option key={m.userId} value={m.userId}>
-                Paid by {m.displayName}
+                {m.userId === user?.id ? 'You' : m.displayName}
               </option>
             ))}
           </select>
-          <select
-            value={mineFilter}
-            onChange={(e) => setMineFilter(e.target.value as typeof mineFilter)}
-            aria-label="Filter by your involvement"
-            className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
-              mineFilter === 'all' ? 'border-line bg-field text-muted' : 'border-accent bg-accent-soft text-accent'
-            }`}
-          >
-            <option value="all">All expenses</option>
-            <option value="involving">Involving me</option>
-            <option value="owe">What I owe</option>
-          </select>
+          {personFilter && (
+            <select
+              value={relationFilter}
+              onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
+              aria-label="Filter by relationship to the expense"
+              className="rounded-full border border-accent bg-accent-soft px-3 py-1.5 font-medium text-accent outline-none transition focus:border-accent"
+            >
+              <option value="involved">involved</option>
+              <option value="owes">owes</option>
+              <option value="paid">paid</option>
+            </select>
+          )}
           {categoryFilter && (
             <button
               type="button"
@@ -869,7 +866,7 @@ export function GroupDetailPage(): ReactNode {
               <Icon name="x" size={12} />
             </button>
           )}
-          {(categoryFilter || payerFilter || mineFilter !== 'all') && (
+          {(categoryFilter || personFilter) && (
             <>
               <span className="text-faint">
                 {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
@@ -878,8 +875,8 @@ export function GroupDetailPage(): ReactNode {
                 type="button"
                 onClick={() => {
                   setCategoryFilter(null);
-                  setPayerFilter(null);
-                  setMineFilter('all');
+                  setPersonFilter(null);
+                  setRelationFilter('involved');
                 }}
                 className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
               >
@@ -963,7 +960,7 @@ export function GroupDetailPage(): ReactNode {
           {(lensActive ? lensTotal : totalSpent) > 0 && (
             <span className="tnum text-sm text-muted">
               {Money.fromCents(lensActive ? lensTotal : totalSpent).format()}{' '}
-              {mineFilter === 'owe' ? 'your share' : 'spent'}
+              {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
               {!lensActive && perPersonCents > 0 && (
                 <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} avg/person</span>
               )}
@@ -1000,8 +997,8 @@ export function GroupDetailPage(): ReactNode {
               type="button"
               onClick={() => {
                 setCategoryFilter(null);
-                setPayerFilter(null);
-                setMineFilter('all');
+                setPersonFilter(null);
+                setRelationFilter('involved');
               }}
               className="font-medium text-accent hover:underline"
             >
