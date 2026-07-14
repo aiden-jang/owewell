@@ -20,7 +20,6 @@ import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
-import { buildGroupSummary } from '../lib/shareSummary';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
@@ -502,19 +501,13 @@ export function GroupDetailPage(): ReactNode {
     }
     // Always reveal the link on screen so it's visible no matter what the browser supports.
     setShareLink(url);
-    // On phones, also offer the native share sheet with a summary preview (a dismissed sheet
-    // is not an error). Desktop just uses the visible link + Copy button below.
+    // On phones, offer the native share sheet (a dismissed sheet is not an error). Desktop just
+    // uses the visible link + Copy button below. Pass only title + url, never a text body: this is
+    // an invite, so the sheet's "Copy" must copy the link itself — a text body makes iOS copy that
+    // instead of the link.
     if (navigator.share) {
-      const text = buildGroupSummary({
-        groupName: group.name,
-        memberCount: group.members.length,
-        totalSpentCents: totalSpent,
-        perPersonCents,
-        totalSettledCents: totalSettled,
-        suggested,
-      });
       try {
-        await navigator.share({ title: `${group.name} on owewell`, text, url });
+        await navigator.share({ title: `Join "${group.name}" on owewell`, url });
       } catch {
         /* dismissed — the link stays visible below */
       }
