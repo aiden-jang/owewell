@@ -380,7 +380,7 @@ export function DashboardPage(): ReactNode {
               <p className="mt-1 text-sm text-muted">
                 Make one to start splitting, or{' '}
                 <Link to="/split" className="font-medium text-accent hover:underline">
-                  do a quick split
+                  split a bill
                 </Link>{' '}
                 without an account.
               </p>

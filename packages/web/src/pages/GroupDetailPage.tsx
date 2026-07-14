@@ -203,7 +203,7 @@ export function GroupDetailPage(): ReactNode {
   async function deleteExpense(expenseId: string): Promise<void> {
     const ok = await confirm({
       title: 'Delete this expense?',
-      body: 'It comes off the ledger and everyone’s balances recalculate.',
+      body: 'It comes off the list and everyone’s balances recalculate.',
       confirmLabel: 'Delete',
       tone: 'danger',
     });
@@ -224,14 +224,14 @@ export function GroupDetailPage(): ReactNode {
       setGroup(updated);
       toast.success(updated.archived ? 'Group archived.' : 'Group restored.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not archive.');
+      toast.error(err instanceof Error ? err.message : 'Could not update the group. Try again.');
     }
   }
 
   async function undoSettlement(settlementId: string): Promise<void> {
     const ok = await confirm({
       title: 'Undo this payment?',
-      body: 'It comes off the ledger and the balances go back to what they were.',
+      body: 'It comes off the list and the balances go back to what they were.',
       confirmLabel: 'Undo',
       tone: 'danger',
     });
@@ -819,7 +819,7 @@ export function GroupDetailPage(): ReactNode {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Activity</h2>
           {totalSpent > 0 && (
             <span className="tnum text-sm text-muted">
-              {Money.fromCents(totalSpent).format()} in bills
+              {Money.fromCents(totalSpent).format()} spent
               {perPersonCents > 0 && (
                 <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} each</span>
               )}
@@ -846,7 +846,7 @@ export function GroupDetailPage(): ReactNode {
               onClick={() => setSheetOpen(true)}
               className="btn-gradient mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
             >
-              <Icon name="plus" size={15} /> Add an expense
+              <Icon name="plus" size={15} /> Add expense
             </button>
           </div>
         ) : (
@@ -1200,7 +1200,7 @@ export function GroupDetailPage(): ReactNode {
             members={group.members}
             onCreated={() => {
               setSheetOpen(false);
-              toast.success('Receipt added.');
+              toast.success('Receipt added to the tab.');
               void refreshLedger();
             }}
           />

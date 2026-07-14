@@ -509,7 +509,7 @@ export function QuickSplitPage(): ReactNode {
           </div>
           {transfers ? (
             transfers.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">All square. Nobody owes anybody.</p>
+              <p className="mt-3 text-sm text-muted">All settled up. Nobody owes anybody.</p>
             ) : (
               <ul className="mt-3 space-y-2">
                 {transfers.map((t) => (
