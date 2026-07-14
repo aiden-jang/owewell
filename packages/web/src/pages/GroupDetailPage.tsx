@@ -1321,7 +1321,7 @@ export function GroupDetailPage(): ReactNode {
       )}
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Add to the tab">
-        <div className="mb-4 inline-flex w-full rounded-full border border-line bg-field p-1">
+        <div className="mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
           <button
             type="button"
             onClick={() => setExpenseMode('simple')}
@@ -1341,6 +1341,11 @@ export function GroupDetailPage(): ReactNode {
             Itemize a receipt
           </button>
         </div>
+        <p className="mb-4 text-xs text-muted">
+          {expenseMode === 'simple'
+            ? 'One amount for the whole group — split evenly, or by custom amounts, shares, or percent.'
+            : 'People ordered different things? Add each line item plus tax and tip, and we work out what everyone owes.'}
+        </p>
         {expenseMode === 'simple' ? (
           <AddExpenseForm
             key={`simple-${group.members.length}`}
