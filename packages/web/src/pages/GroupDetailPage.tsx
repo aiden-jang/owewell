@@ -18,6 +18,7 @@ import { groupsApi, type Balance, type GroupDetail, type GroupMember, type Group
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { payLinks } from '../lib/payLinks';
+import { ApiError } from '../lib/api';
 import { buildGroupSummary } from '../lib/shareSummary';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 
@@ -73,6 +74,9 @@ export function GroupDetailPage(): ReactNode {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [suggested, setSuggested] = useState<SuggestedPayment[]>([]);
   const [notFound, setNotFound] = useState(false);
+  // A transient load failure (network / 5xx) is distinct from a real 404/403: the former gets a
+  // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [memberName, setMemberName] = useState('');
   const [memberError, setMemberError] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
@@ -95,6 +99,8 @@ export function GroupDetailPage(): ReactNode {
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   async function load(): Promise<void> {
+    setNotFound(false);
+    setLoadFailed(false);
     try {
       const [g, b, e, st, s] = await Promise.all([
         groupsApi.get(id),
@@ -108,8 +114,13 @@ export function GroupDetailPage(): ReactNode {
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
-    } catch {
-      setNotFound(true);
+    } catch (err) {
+      // Genuine "not yours / gone" only for 404/403; anything else is a transient failure.
+      if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
+        setNotFound(true);
+      } else {
+        setLoadFailed(true);
+      }
     }
   }
 
@@ -325,6 +336,27 @@ export function GroupDetailPage(): ReactNode {
     ];
     return items.sort((a, b) => b.ts - a.ts);
   }, [expenses, settlements]);
+
+  if (loadFailed) {
+    return (
+      <Shell>
+        <div className="rounded-3xl border border-dashed border-line p-10 text-center">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
+            <Icon name="wallet" size={22} />
+          </div>
+          <p className="mt-4 text-lg font-medium">Couldn&rsquo;t load this group.</p>
+          <p className="mt-1 text-sm text-muted">Probably a hiccup on our end, not you.</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="btn-gradient mt-5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
+          >
+            Try again
+          </button>
+        </div>
+      </Shell>
+    );
+  }
 
   if (notFound) {
     return (
@@ -620,7 +652,11 @@ export function GroupDetailPage(): ReactNode {
             {Money.fromCents(totalSettled).format()} settled so far
           </p>
         )}
-        {hasActivity ? (
+        {!hasActivity ? (
+          <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
+        ) : group.members.length < 2 ? (
+          <p className="mt-4 text-sm text-muted">Add someone else before you can record a payment.</p>
+        ) : (
           <button
             type="button"
             onClick={() => setPaymentOpen(true)}
@@ -628,8 +664,6 @@ export function GroupDetailPage(): ReactNode {
           >
             <Icon name="wallet" size={15} /> Record a payment
           </button>
-        ) : (
-          <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
         )}
       </div>
 
