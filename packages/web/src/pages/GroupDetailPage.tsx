@@ -22,7 +22,10 @@ import { ApiError } from '../lib/api';
 import { buildGroupSummary } from '../lib/shareSummary';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 
-function balanceLabel(netCents: number): { text: string; tone: string } {
+function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
+  // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
+  // a brand-new member "settled up"; that only makes sense once there's been something to settle.
+  if (!hasActivity) return { text: '', tone: 'text-muted' };
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
   const amount = Money.fromCents(Math.abs(netCents)).format();
   return netCents > 0
@@ -958,7 +961,7 @@ export function GroupDetailPage(): ReactNode {
           <div className="mt-3 animate-fade">
             <ul className="space-y-2">
               {group.members.map((member) => {
-                const label = balanceLabel(balanceByUser[member.userId] ?? 0);
+                const label = balanceLabel(balanceByUser[member.userId] ?? 0, hasActivity);
                 const bal = balanceOf[member.userId];
                 const isSelf = member.userId === user?.id;
                 // The owner can remove a non-owner member only before any payment is recorded
@@ -1085,7 +1088,9 @@ export function GroupDetailPage(): ReactNode {
                               <Icon name="wallet" size={14} />
                             </button>
                           )}
-                          <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
+                          {label.text && (
+                            <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
+                          )}
                           {canRemove && (
                             <button
                               type="button"
