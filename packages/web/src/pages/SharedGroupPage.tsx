@@ -8,7 +8,6 @@ import { groupsApi } from '../lib/groups';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
-import { SiteFooter } from '../components/SiteFooter';
 import { useToast } from '../components/Toast';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
@@ -96,7 +95,7 @@ export function SharedGroupPage(): ReactNode {
   }, [status, summary, user, searchParams, viewerIsMember]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
           <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
@@ -276,8 +275,6 @@ export function SharedGroupPage(): ReactNode {
           </>
         )}
       </main>
-
-      <SiteFooter />
     </div>
   );
 }
