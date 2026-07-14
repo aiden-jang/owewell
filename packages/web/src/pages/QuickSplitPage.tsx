@@ -96,9 +96,11 @@ export function QuickSplitPage(): ReactNode {
 
   const named = people.filter((p) => p.name.trim());
 
-  // Default the payer/you to the first person until they choose. Everyone using owewell is in
-  // the split, so "you" always resolves to a named person (falling back to the first).
-  const effectivePayerId = payerId || people[0]?.id || '';
+  // Default the payer/you to the first named person until they choose. Both must resolve to a
+  // person who's actually in the split (has a name), so a blank or since-removed selection can't
+  // make Save fail with "Pick who paid" while a payer radio still looks chosen.
+  const effectivePayerId =
+    payerId && named.some((p) => p.id === payerId) ? payerId : (named[0]?.id ?? '');
   const effectiveYouId =
     youId && named.some((p) => p.id === youId) ? youId : (named[0]?.id ?? people[0]?.id ?? '');
 
@@ -109,7 +111,11 @@ export function QuickSplitPage(): ReactNode {
     setPeople((prev) => [...prev, newPerson('')]);
   }
   function removePerson(id: string): void {
-    setPeople((prev) => (prev.length <= 2 ? prev : prev.filter((p) => p.id !== id)));
+    if (people.length <= 2) return;
+    setPeople((prev) => prev.filter((p) => p.id !== id));
+    // Drop any per-item payer pointing at the removed person so it can't linger as a dangling
+    // reference (which would silently reassign that item's payment on save).
+    setItems((prev) => prev.map((it) => (it.payerId === id ? { ...it, payerId: '' } : it)));
   }
 
   function updateItem(id: string, patch: Partial<Item>): void {
@@ -191,8 +197,11 @@ export function QuickSplitPage(): ReactNode {
         }),
       );
       for (const s of shares) owedAcc[s.userId] = (owedAcc[s.userId] ?? 0) + s.owedCents;
-      const itemPayer = splitPayers ? item.payerId || effectivePayerId : effectivePayerId;
-      if (paidAcc[itemPayer] !== undefined) paidAcc[itemPayer] += amountCents;
+      // A per-item payer who isn't a named participant (blank or since-removed) falls back to the
+      // default payer, exactly as the save path does, so the preview can't diverge from the result.
+      const rawPayer = splitPayers && item.payerId ? item.payerId : effectivePayerId;
+      const itemPayer = paidAcc[rawPayer] !== undefined ? rawPayer : effectivePayerId;
+      paidAcc[itemPayer] = (paidAcc[itemPayer] ?? 0) + amountCents;
       grandTotal += amountCents;
       any = true;
     }

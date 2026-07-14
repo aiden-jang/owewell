@@ -66,10 +66,14 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
     return chosen.map((m) => {
       if (method === 'EQUAL') return { userId: m.userId };
       const raw = (values[m.userId] ?? '').trim();
-      if (method === 'EXACT') return { userId: m.userId, value: dollarsToCents(raw) };
+      if (method === 'EXACT') {
+        const cents = dollarsToCents(raw);
+        if (cents < 0) throw new Error('negative amount');
+        return { userId: m.userId, value: cents };
+      }
       if (method === 'PERCENT') {
         const pct = Number(raw);
-        if (!Number.isFinite(pct)) throw new Error('bad percent');
+        if (!Number.isFinite(pct) || pct < 0) throw new Error('bad percent');
         return { userId: m.userId, value: Math.round(pct * 100) };
       }
       const weight = Number(raw);
@@ -81,6 +85,12 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
   async function onSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     setError(null);
+
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription) {
+      setError('Add a short description.');
+      return;
+    }
 
     let amountCents: number;
     try {
@@ -108,7 +118,26 @@ export function AddExpenseForm({ groupId, members, onCreated, editing }: Props):
       return;
     }
 
-    const payload = { description: description.trim(), amountCents, payerId, splitMethod: method, participants, category, date };
+    // Custom splits have to reconcile before we save, otherwise the group's math is wrong from the
+    // start. The live hint already shows the running total; this stops a submit that doesn't add up.
+    if (method === 'EXACT') {
+      const sum = participants.reduce((acc, p) => acc + (p.value ?? 0), 0);
+      if (sum !== amountCents) {
+        setError(
+          `The amounts need to add up to ${Money.fromCents(amountCents).format()}. Right now they total ${Money.fromCents(sum).format()}.`,
+        );
+        return;
+      }
+    }
+    if (method === 'PERCENT') {
+      const bps = participants.reduce((acc, p) => acc + (p.value ?? 0), 0);
+      if (bps !== 10000) {
+        setError(`The percentages need to add up to 100%. Right now they total ${(bps / 100).toFixed(2)}%.`);
+        return;
+      }
+    }
+
+    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date };
     setSubmitting(true);
     try {
       if (editing) {

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Money } from '@owewell/shared';
 import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
+import { ApiError } from '../lib/api';
 import { groupsApi } from '../lib/groups';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
@@ -31,7 +32,7 @@ export function SharedGroupPage(): ReactNode {
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'ready' | 'notfound'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'notfound' | 'failed'>('loading');
   const [summary, setSummary] = useState<SharedGroupSummary | null>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
   const autoClaimed = useRef(false);
@@ -59,18 +60,28 @@ export function SharedGroupPage(): ReactNode {
   const viewerIsMember = !!user && !!summary && summary.members.some((m) => m.userId === user.id);
   const hasOpenSeats = !!summary && summary.members.some((m) => m.isPlaceholder);
 
-  useEffect(() => {
+  function loadSummary(): void {
     if (!token) {
       setStatus('notfound');
       return;
     }
+    setStatus('loading');
     groupsApi
       .sharedSummary(token)
       .then((s) => {
         setSummary(s);
         setStatus('ready');
       })
-      .catch(() => setStatus('notfound'));
+      .catch((err) => {
+        // A real dead/disabled link is a 404/403; anything else (offline, 5xx) is transient and
+        // shouldn't tell an invited person their invite is gone. Offer a retry instead.
+        if (err instanceof ApiError && (err.status === 404 || err.status === 403)) setStatus('notfound');
+        else setStatus('failed');
+      });
+  }
+
+  useEffect(() => {
+    loadSummary();
   }, [token]);
 
   // Returning from sign-in with ?claim=<seat>: finish the claim now and head to the group.
@@ -105,6 +116,23 @@ export function SharedGroupPage(): ReactNode {
             </div>
             <p className="mt-4 text-lg font-medium">This link isn&rsquo;t valid.</p>
             <p className="mt-1 text-sm text-muted">It may have been turned off, or the group is gone.</p>
+          </div>
+        )}
+
+        {status === 'failed' && (
+          <div className="rounded-3xl border border-dashed border-line p-10 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
+              <Icon name="link" size={22} />
+            </div>
+            <p className="mt-4 text-lg font-medium">Could not load this tab.</p>
+            <p className="mt-1 text-sm text-muted">Check your connection and try again.</p>
+            <button
+              type="button"
+              onClick={loadSummary}
+              className="btn-gradient mt-5 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98]"
+            >
+              <Icon name="arrow-up-right" size={16} /> Try again
+            </button>
           </div>
         )}
 
