@@ -7,6 +7,7 @@ import { AppHeader } from '../components/AppHeader';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { MoneyText } from '../components/MoneyText';
+import { SpendDonut } from '../components/SpendDonut';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
@@ -96,6 +97,8 @@ export function GroupDetailPage(): ReactNode {
   // The viewer's relationship to an expense: everything, ones involving them (paid or owe a
   // share), or specifically ones they owe on (a share they didn't pay).
   const [mineFilter, setMineFilter] = useState<'all' | 'involving' | 'owe'>('all');
+  // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
+  const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -814,10 +817,35 @@ export function GroupDetailPage(): ReactNode {
 
       {totalSpent > 0 && spendByCategory.length > 1 && (
         <section className="mt-8">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
-            {!categoryFilter && <span className="text-xs text-faint">tap to filter</span>}
+            <div className="flex items-center gap-2">
+              {!categoryFilter && <span className="text-xs text-faint">tap to filter</span>}
+              <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
+                {(['bars', 'donut'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setBreakdownView(v)}
+                    aria-pressed={breakdownView === v}
+                    className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
+                      breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+          {breakdownView === 'donut' ? (
+            <SpendDonut
+              data={spendByCategory}
+              total={totalSpent}
+              activeKey={categoryFilter}
+              onSelect={(key) => setCategoryFilter((prev) => (prev === key ? null : key))}
+            />
+          ) : (
           <ul className="mt-3 space-y-1">
             {spendByCategory.map(({ meta, cents }) => {
               const active = categoryFilter === meta.key;
@@ -850,6 +878,7 @@ export function GroupDetailPage(): ReactNode {
               );
             })}
           </ul>
+          )}
         </section>
       )}
 
