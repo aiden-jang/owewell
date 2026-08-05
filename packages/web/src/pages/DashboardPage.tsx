@@ -250,7 +250,14 @@ export function DashboardPage(): ReactNode {
             </span>
           )}
         </span>
-        {!selecting && <Icon name="chevron-right" size={18} className="text-faint" />}
+        {/*
+          The chevron's SLOT is always here, even in select mode. Hiding the icon outright reflowed
+          every row, so entering select mode made all the names and dates jump sideways — the most
+          noticeable thing on the screen on a phone.
+        */}
+        <span className="grid w-[18px] shrink-0 place-items-center">
+          {!selecting && <Icon name="chevron-right" size={18} className="text-faint" />}
+        </span>
       </>
     );
     const cls = `row-interactive surface flex items-center gap-4 rounded-2xl p-4 hover:shadow-lg hover:shadow-black/20 ${
