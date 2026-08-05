@@ -13,6 +13,7 @@ import {
   people,
   settlements,
 } from './db/schema.js';
+import type { BatchItem } from 'drizzle-orm/batch';
 
 export type GroupErrorCode =
   | 'NOT_FOUND'
@@ -274,23 +275,109 @@ export async function claimPlaceholder(
     .get();
   if (already) throw new GroupError('ALREADY_MEMBER', "You're already in this group.");
 
-  // Repoint every reference from the placeholder to the caller, scoped to this group.
+  // ── Repoint every reference from the placeholder to the caller, scoped to this group. ──
+  //
+  // This is an identity merge on a ledger, so it is all-or-nothing. It used to be eight sequential
+  // awaits with the membership row moved FIRST, which meant any later failure left the seat owned by
+  // the caller and the money still attached to the placeholder. Balances then stopped summing to zero
+  // and every balance call in the group 500'd forever. That happened in production.
+  //
+  // The failure was not hypothetical either: expense_splits has a unique index on
+  // (expense_id, person_id), so if the caller already had a split on an expense the placeholder was
+  // also on, a plain repoint collides. Two rows for the same human have to be MERGED, not renamed.
   const expIds = (await db.select({ id: expenses.id }).from(expenses).where(eq(expenses.groupId, groupId)).all()).map((e) => e.id);
-  await db
-    .update(groupMembers)
-    .set({ personId: callerPersonId })
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, placeholderId)));
+
+  const mine = expIds.length
+    ? await db
+        .select({ id: expenseSplits.id, expenseId: expenseSplits.expenseId, owedCents: expenseSplits.owedCents })
+        .from(expenseSplits)
+        .where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, placeholderId)))
+        .all()
+    : [];
+  const theirs = expIds.length
+    ? await db
+        .select({ id: expenseSplits.id, expenseId: expenseSplits.expenseId, owedCents: expenseSplits.owedCents })
+        .from(expenseSplits)
+        .where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, callerPersonId)))
+        .all()
+    : [];
+  const callerSplitByExpense = new Map(theirs.map((t) => [t.expenseId, t]));
+
+  const itemIds = expIds.length
+    ? (await db.select({ id: expenseItems.id }).from(expenseItems).where(inArray(expenseItems.expenseId, expIds)).all()).map((i) => i.id)
+    : [];
+  // expense_item_shares has its own unique (item_id, person_id), and shares carry no amount, so a
+  // collision there is a plain duplicate to drop rather than a sum to merge.
+  const theirsShares = itemIds.length
+    ? await db
+        .select({ id: expenseItemShares.id, itemId: expenseItemShares.itemId })
+        .from(expenseItemShares)
+        .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, callerPersonId)))
+        .all()
+    : [];
+  const dupShareIds = itemIds.length
+    ? (
+        await db
+          .select({ id: expenseItemShares.id, itemId: expenseItemShares.itemId })
+          .from(expenseItemShares)
+          .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)))
+          .all()
+      )
+        .filter((ph) =>
+          theirsShares.some((t) => t.itemId === ph.itemId),
+        )
+        .map((ph) => ph.id)
+    : [];
+
+  // Typed explicitly: TypeScript infers an array's element type from its first entry, so a batch of
+  // updates across different tables fails to typecheck without this.
+  const writes: BatchItem<'sqlite'>[] = [
+    db
+      .update(groupMembers)
+      .set({ personId: callerPersonId })
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, placeholderId))),
+  ];
+
   if (expIds.length) {
-    await db.update(expenses).set({ payerId: callerPersonId }).where(and(eq(expenses.groupId, groupId), eq(expenses.payerId, placeholderId)));
-    await db.update(expenseSplits).set({ personId: callerPersonId }).where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, placeholderId)));
-    await db.update(expenseItems).set({ payerId: callerPersonId }).where(and(inArray(expenseItems.expenseId, expIds), eq(expenseItems.payerId, placeholderId)));
-    const itemIds = (await db.select({ id: expenseItems.id }).from(expenseItems).where(inArray(expenseItems.expenseId, expIds)).all()).map((i) => i.id);
+    writes.push(
+      db.update(expenses).set({ payerId: callerPersonId }).where(and(eq(expenses.groupId, groupId), eq(expenses.payerId, placeholderId))),
+      db.update(expenseItems).set({ payerId: callerPersonId }).where(and(inArray(expenseItems.expenseId, expIds), eq(expenseItems.payerId, placeholderId))),
+    );
+
+    for (const ph of mine) {
+      const collision = callerSplitByExpense.get(ph.expenseId);
+      if (collision) {
+        // Same human, two seats on one bill: add the shares together and drop the placeholder row.
+        writes.push(
+          db.update(expenseSplits).set({ owedCents: collision.owedCents + ph.owedCents }).where(eq(expenseSplits.id, collision.id)),
+          db.delete(expenseSplits).where(eq(expenseSplits.id, ph.id)),
+        );
+      } else {
+        writes.push(db.update(expenseSplits).set({ personId: callerPersonId }).where(eq(expenseSplits.id, ph.id)));
+      }
+    }
+
     if (itemIds.length) {
-      await db.update(expenseItemShares).set({ personId: callerPersonId }).where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)));
+      if (dupShareIds.length) {
+        writes.push(db.delete(expenseItemShares).where(inArray(expenseItemShares.id, dupShareIds)));
+      }
+      writes.push(
+        db
+          .update(expenseItemShares)
+          .set({ personId: callerPersonId })
+          .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId))),
+      );
     }
   }
-  await db.update(settlements).set({ fromPersonId: callerPersonId }).where(and(eq(settlements.groupId, groupId), eq(settlements.fromPersonId, placeholderId)));
-  await db.update(settlements).set({ toPersonId: callerPersonId }).where(and(eq(settlements.groupId, groupId), eq(settlements.toPersonId, placeholderId)));
+
+  writes.push(
+    db.update(settlements).set({ fromPersonId: callerPersonId }).where(and(eq(settlements.groupId, groupId), eq(settlements.fromPersonId, placeholderId))),
+    db.update(settlements).set({ toPersonId: callerPersonId }).where(and(eq(settlements.groupId, groupId), eq(settlements.toPersonId, placeholderId))),
+  );
+
+  // D1 runs a batch as one implicit transaction, so a failure anywhere rolls the whole merge back and
+  // the group is left consistent (seat and money both still on the placeholder) rather than split.
+  await db.batch(writes as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
 
   // The placeholder is now unreferenced; clean it up.
   await pruneOrphanPlaceholders(db);

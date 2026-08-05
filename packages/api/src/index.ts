@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { SettleError } from '@owewell/shared';
 import { z } from 'zod';
 import { getSessionUser } from '@aidenjang/auth-client';
 import { harden } from './harden.js';
@@ -405,6 +406,12 @@ app.onError((err, c) => {
   }
   if (err instanceof QuickSplitError) {
     return c.json({ error: err.code, message: err.message }, 422);
+  }
+  // A broken ledger invariant. Still a 500 (the data is wrong, not the request), but it carries the
+  // message: reporting this as a bare INTERNAL is what turned a one-line diagnosis into an afternoon.
+  if (err instanceof SettleError) {
+    console.error('owewell ledger invariant broken', err);
+    return c.json({ error: 'LEDGER_INVARIANT', message: err.message }, 500);
   }
   console.error('owewell api error', err);
   return c.json({ error: 'INTERNAL' }, 500);

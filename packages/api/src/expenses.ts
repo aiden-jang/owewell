@@ -66,6 +66,8 @@ export interface ExpenseView {
 export interface MemberBalance {
   userId: string;
   displayName: string;
+  /** True when they hold no seat but still have money in the group. See computeBalances. */
+  former?: boolean;
   netCents: number;
   /** What they paid on bills (excludes settlements). */
   paidCents: number;
@@ -448,11 +450,42 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
     bump(s.toPersonId, -s.amountCents);
   }
 
-  return members.map((m) => ({
+  const rows: MemberBalance[] = members.map((m) => ({
     userId: m.personId,
     displayName: m.displayName,
     netCents: net.get(m.personId) ?? 0,
     paidCents: paid.get(m.personId) ?? 0,
     owedCents: owed.get(m.personId) ?? 0,
   }));
+
+  // Anyone `bump` touched who no longer holds a seat.
+  //
+  // These used to be dropped on the floor. The map is keyed by whoever is referenced, but the return
+  // was `members.map(...)`, so a person with splits and no membership row had their balance computed
+  // and then discarded. The remaining balances stopped netting to zero, simplifyDebts refused, and
+  // every balance call in the group returned INTERNAL. It happened in production: a placeholder was
+  // half-merged into a real account, keeping the splits and losing the seat.
+  //
+  // Keeping them is also the honest answer. Someone who still owes money should stay on the ledger
+  // until they are square, whatever happened to their membership.
+  const seated = new Set(members.map((m) => m.personId));
+  const strays = [...net.keys()].filter((id) => !seated.has(id));
+  if (strays.length) {
+    const names = new Map(
+      (await db.select({ id: people.id, displayName: people.displayName }).from(people).where(inArray(people.id, strays)).all())
+        .map((p) => [p.id, p.displayName] as const),
+    );
+    for (const id of strays) {
+      rows.push({
+        userId: id,
+        displayName: names.get(id) ?? 'Someone who left',
+        former: true,
+        netCents: net.get(id) ?? 0,
+        paidCents: paid.get(id) ?? 0,
+        owedCents: owed.get(id) ?? 0,
+      });
+    }
+  }
+
+  return rows;
 }
