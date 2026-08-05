@@ -49,6 +49,12 @@ export function computeSplit(
   method: SplitMethod,
   totalCents: number,
   participants: readonly SplitParticipantInput[],
+  /**
+   * Stable per-expense value that decides who absorbs the odd cent on an uneven split. Pass the
+   * expense id. Without it, the first participant absorbs it every time, which reliably makes the
+   * group owner owe a cent more per uneven bill.
+   */
+  seed?: string,
 ): SplitShare[] {
   if (!Number.isSafeInteger(totalCents) || totalCents < 0) {
     throw new SplitError('Total must be a non-negative integer number of cents');
@@ -63,14 +69,14 @@ export function computeSplit(
 
   switch (method) {
     case 'EQUAL':
-      return attach(participants, allocateCents(totalCents, participants.map(() => 1)));
+      return attach(participants, allocateCents(totalCents, participants.map(() => 1), seed));
 
     case 'SHARES': {
       const weights = participants.map((p) => requireValue(p, 'share'));
       if (weights.some((w) => !Number.isInteger(w) || w <= 0)) {
         throw new SplitError('Each share must be a positive integer');
       }
-      return attach(participants, allocateCents(totalCents, weights));
+      return attach(participants, allocateCents(totalCents, weights, seed));
     }
 
     case 'PERCENT': {
@@ -81,7 +87,7 @@ export function computeSplit(
       if (bips.reduce((sum, b) => sum + b, 0) !== 10000) {
         throw new SplitError('Percentages must add up to 100%');
       }
-      return attach(participants, allocateCents(totalCents, bips));
+      return attach(participants, allocateCents(totalCents, bips, seed));
     }
 
     case 'EXACT': {

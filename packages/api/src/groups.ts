@@ -678,7 +678,7 @@ export async function resplitSharedExpenses(
         await db.select({ personId: expenseSplits.personId }).from(expenseSplits).where(eq(expenseSplits.expenseId, e.id)).all()
       ).map((r) => r.personId);
       if (!sameSet(parts, priorSet)) continue; // subset splits stay as-is
-      await replaceSplits(db, e.id, computeSplit('EQUAL', e.amountCents, everyone.map((userId) => ({ userId }))));
+      await replaceSplits(db, e.id, computeSplit('EQUAL', e.amountCents, everyone.map((userId) => ({ userId })), e.id));
     } else if (e.splitMethod === 'ITEMIZED') {
       const itemRows = await db
         .select({ id: expenseItems.id, amountCents: expenseItems.amountCents })
