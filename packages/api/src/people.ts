@@ -34,13 +34,29 @@ export async function getOrCreatePerson(db: DB, authUser: AuthUser): Promise<Per
     }
     return existing;
   }
-  const person: Person = {
-    id: crypto.randomUUID(),
-    displayName: authUser.displayName,
-    isPlaceholder: false,
-  };
-  await db.insert(people).values({ id: person.id, authUserId: authUser.id, displayName: person.displayName });
-  return person;
+  // Idempotent create.
+  //
+  // This runs in middleware on every /owewell/* request, and auth_user_id is UNIQUE. A first sign-in
+  // usually means several requests arriving at once (the SPA loads groups, the group, and opens the
+  // socket together), so a plain read-then-insert has all of them find nothing and all of them try to
+  // insert. One wins; the rest hit the unique constraint, which was uncaught and surfaced as
+  // {"error":"INTERNAL"} on a brand-new user's very first page load.
+  //
+  // onConflictDoNothing makes the insert safe to lose, then we read back whichever row won.
+  const id = crypto.randomUUID();
+  await db
+    .insert(people)
+    .values({ id, authUserId: authUser.id, displayName: authUser.displayName })
+    .onConflictDoNothing({ target: people.authUserId });
+
+  const row = await db
+    .select({ id: people.id, displayName: people.displayName, isPlaceholder: people.isPlaceholder })
+    .from(people)
+    .where(eq(people.authUserId, authUser.id))
+    .get();
+  // Unreachable in practice: either our insert landed or someone else's did.
+  if (!row) throw new Error(`Could not resolve a person for auth user ${authUser.id}`);
+  return row;
 }
 
 /**
