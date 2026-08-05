@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
+import { InviteLink } from '../components/InviteLink';
 import { MoneyText } from '../components/MoneyText';
 import { SpendDonut } from '../components/SpendDonut';
 import {
@@ -483,6 +484,34 @@ export function GroupDetailPage(): ReactNode {
   const spendByCategory = computeSpendByCategory(expenses, personFilter, relationFilter);
   const lensTotal = computeLensTotal(expenses, personFilter, relationFilter);
 
+  /**
+   * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
+   * top forever — the balance does. But it is the obvious next step while a group has nobody in it yet,
+   * or while people added by name still have not claimed their spot.
+   *
+   * So: promoted above the balances exactly while it is the answer, and back to the header button
+   * afterwards. Same component either way.
+   */
+  const unclaimed = (group?.members ?? []).filter((m) => m.isPlaceholder).length;
+  const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
+
+  // Fetch the token on its own when the group needs people, so the promoted block has something to
+  // show without waiting for a tap. Deliberately gated on needsPeople: createShareLink is a write (it
+  // mints the token if absent), and minting one for every group anyone ever opens would be wrong.
+  useEffect(() => {
+    if (!needsPeople || shareLink || !group) return;
+    let alive = true;
+    void groupsApi
+      .createShareLink(group.id)
+      .then((token) => {
+        if (alive) setShareLink(`${window.location.origin}/s/${token}`);
+      })
+      .catch(() => undefined); // the header Invite button still works
+    return () => {
+      alive = false;
+    };
+  }, [needsPeople, shareLink, group]);
+
   async function onShare(): Promise<void> {
     if (!group) return;
     let url: string;
@@ -584,9 +613,13 @@ export function GroupDetailPage(): ReactNode {
               type="button"
               onClick={() => void onShare()}
               aria-label="Invite people to this group"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 text-sm font-medium text-ink transition hover:border-accent hover:text-accent"
+              className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-surface2 text-sm font-medium text-ink transition hover:border-accent hover:text-accent sm:w-auto sm:px-3.5"
             >
-              <Icon name="share" size={15} /> Invite
+              {/* Icon-only on phones, where the header competes with a long group name for width. The
+                  aria-label above carries the meaning either way, so nothing is lost to a screen
+                  reader. */}
+              <Icon name="share" size={15} />
+              <span className="hidden sm:inline">Invite</span>
             </button>
             <div className="relative">
               <button
@@ -699,32 +732,29 @@ export function GroupDetailPage(): ReactNode {
         )}
       </div>
 
-      {shareLink && (
-        <div className="mt-4 rounded-2xl border border-accent/25 bg-accent-soft p-4">
-          <p className="text-sm font-medium">Group invite link</p>
-          <p className="mt-0.5 text-xs text-muted">
-            Anyone with this link can view the group. People you added by name can sign in and
-            claim their spot to join and edit.
-          </p>
-          <div className="mt-2 flex gap-2">
-            <input
-              readOnly
-              value={shareLink}
-              onFocus={(e) => e.target.select()}
-              aria-label="Share link"
-              className="min-w-0 flex-1 rounded-xl border border-line bg-field px-3 py-2.5 text-sm text-muted outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => void copyShareLink()}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition ${
-                copied ? 'bg-pos/15 text-pos' : 'bg-surface2 hover:bg-surface2/70'
-              }`}
-            >
-              <Icon name={copied ? 'check' : 'copy'} size={15} /> {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-        </div>
+      {/* Promoted while the group still needs people: this is the obvious next thing to do, so it should
+          not require finding the Invite button first. */}
+      {needsPeople && shareLink && (
+        <InviteLink
+          link={shareLink}
+          copied={copied}
+          onCopy={() => void copyShareLink()}
+          headline={
+            unclaimed > 0
+              ? `Send this to ${unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
+              : "Send this to the people you're splitting with"
+          }
+          hint={
+            unclaimed > 0
+              ? `${unclaimed === 1 ? 'One person is' : `${unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
+              : "It's just you in here so far. Anyone with the link can see the group and claim their spot."
+          }
+        />
+      )}
+
+      {/* And tucked back down here once they are in. */}
+      {shareLink && !needsPeople && (
+        <InviteLink link={shareLink} copied={copied} onCopy={() => void copyShareLink()} />
       )}
 
       {suggested.length > 0 && (
