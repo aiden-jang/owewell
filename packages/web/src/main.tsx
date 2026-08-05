@@ -7,6 +7,10 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/Confirm';
 import './index.css';
+import { initTheme } from './lib/theme';
+
+// Before the first paint, or the wrong palette flashes.
+initTheme();
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
