@@ -11,7 +11,7 @@ import type { ThemeName } from './contrast.js';
  */
 
 const KEY = 'owewell:theme';
-export const DEFAULT_THEME: ThemeName = 'dark';
+export const DEFAULT_THEME: ThemeName = 'warm';
 
 export function applyTheme(name: ThemeName): void {
   document.documentElement.dataset.theme = name;
