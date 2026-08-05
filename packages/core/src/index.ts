@@ -55,6 +55,11 @@ export interface GroupSummary {
   totalUnsettledCents: number;
   /** Total spent on expenses in this group. 0 means no expenses yet (distinct from settled). */
   totalSpentCents: number;
+  /**
+   * ISO timestamp of the newest expense or settlement, falling back to when the group was made.
+   * "Created 8 months ago" is trivia; "nothing since March" is what says a group is finished.
+   */
+  lastActivityAt: string;
   /** Whether the viewer owns this group (only owners can delete it). */
   isOwner: boolean;
 }
