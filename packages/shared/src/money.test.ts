@@ -87,3 +87,74 @@ describe('allocateCents (largest-remainder split)', () => {
     );
   });
 });
+
+describe('allocateCents rotation', () => {
+  // Real symptom this fixes: two members on the same five expenses ended up 2 cents apart, because
+  // an equal split gives every entry an identical fractional share, so the tie-break alone decides
+  // who absorbs the leftover — and by plain index that is always whoever is listed first.
+  const equalWeights = [1, 1, 1];
+
+  function winners(total: number, weights: number[], seeds: readonly string[]): number[] {
+    // Which index received an extra cent, for each seed.
+    return seeds.map((seed) => {
+      const base = Math.floor(total / weights.length);
+      return allocateCents(total, weights, seed).findIndex((c) => c > base);
+    });
+  }
+
+  test('still sums exactly to the total, seeded or not', () => {
+    for (const seed of [undefined, 'a', 'b', 'expense-42', '']) {
+      for (const total of [1, 2, 100, 1649, 3850, 999999]) {
+        const parts = allocateCents(total, equalWeights, seed);
+        expect(parts.reduce((a, b) => a + b, 0)).toBe(total);
+        expect(parts.every((c) => Number.isInteger(c) && c >= 0)).toBe(true);
+      }
+    }
+  });
+
+  test('is deterministic: the same seed always gives the same answer', () => {
+    // An expense must never reshuffle who owes the odd cent just because it was recomputed.
+    const once = allocateCents(1000, equalWeights, 'expense-abc');
+    for (let i = 0; i < 20; i++) {
+      expect(allocateCents(1000, equalWeights, 'expense-abc')).toEqual(once);
+    }
+  });
+
+  test('without a seed, keeps the old index-order behaviour', () => {
+    // Callers that do not pass a seed are unchanged, so nothing recomputes differently by accident.
+    expect(allocateCents(100, equalWeights)).toEqual([34, 33, 33]);
+  });
+
+  test('moves the odd cent around as the seed changes', () => {
+    const seeds = ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'e10', 'e11', 'e12'];
+    const got = winners(100, equalWeights, seeds);
+    // The point of the change: index 0 must not win every time.
+    expect(new Set(got).size).toBeGreaterThan(1);
+    // And every participant must be reachable, or the bias has only moved rather than gone.
+    expect(new Set(got)).toEqual(new Set([0, 1, 2]));
+  });
+
+  test('spreads the leftover cent evenly over many expenses', () => {
+    // The end state the user actually noticed: totals should not drift apart with volume.
+    const seeds = Array.from({ length: 300 }, (_, i) => `expense-${i}`);
+    const totals = [0, 0, 0];
+    for (const seed of seeds) {
+      allocateCents(100, equalWeights, seed).forEach((c, i) => {
+        totals[i] = (totals[i] ?? 0) + c;
+      });
+    }
+    const spread = Math.max(...totals) - Math.min(...totals);
+    // Unseeded, index 0 would be exactly 300 cents ahead of the others.
+    expect(spread).toBeLessThan(40);
+  });
+
+  test('leaves weighted splits alone: the largest fraction still wins', () => {
+    // Rotation only breaks TIES. It must never override a genuinely larger fractional share.
+    for (const seed of ['x', 'y', 'z', 'q', 'w']) {
+      // 10 cents on weights 1:1:8 -> ideals 1.25, 1.25, 8.0; the odd cent belongs to a 0.25, not the 8.
+      const parts = allocateCents(10, [1, 1, 8], seed);
+      expect(parts[2]).toBe(8);
+      expect(parts.reduce((a, b) => a + b, 0)).toBe(10);
+    }
+  });
+});
