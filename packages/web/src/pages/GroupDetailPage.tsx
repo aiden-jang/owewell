@@ -867,7 +867,7 @@ export function GroupDetailPage(): ReactNode {
       {lensTotal > 0 && spendByCategory.length > 1 && (
         <section className="mt-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
+            <h2 className="text-sm font-medium text-muted">Where it went</h2>
             <div className="flex items-center gap-2">
               {!categoryFilter && <span className="text-xs text-faint">tap to filter</span>}
               <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
@@ -933,7 +933,7 @@ export function GroupDetailPage(): ReactNode {
 
       <section className="mt-8">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Activity</h2>
+          <h2 className="text-sm font-medium text-muted">Activity</h2>
           {(lensActive ? lensTotal : totalSpent) > 0 && (
             <span className="tnum text-sm text-muted">
               {Money.fromCents(lensActive ? lensTotal : totalSpent).format()}{' '}
@@ -1085,7 +1085,7 @@ export function GroupDetailPage(): ReactNode {
           onClick={() => setMembersOpen((v) => !v)}
           className="flex w-full items-center justify-between"
         >
-          <span className="text-sm font-semibold uppercase tracking-wide text-muted">
+          <span className="text-sm font-medium text-muted">
             Members · {group.members.length}
           </span>
           <span className="flex items-center gap-1 text-sm text-muted">

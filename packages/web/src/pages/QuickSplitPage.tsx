@@ -5,6 +5,7 @@ import { normalizeAmountInput } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { BrandMark } from '../components/BrandMark';
+import { Icon } from '../components/Icon';
 import {
   clearPendingSplit,
   quickSplitApi,
@@ -334,7 +335,7 @@ export function QuickSplitPage(): ReactNode {
 
         {/* People — shared across every item */}
         <div className="glass mt-6 space-y-2 rounded-3xl p-5">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Who's splitting</h2>
+          <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
           {people.map((person, index) => (
             <div key={person.id} className="flex items-center gap-2">
               <input
@@ -393,7 +394,7 @@ export function QuickSplitPage(): ReactNode {
         {/* Items — one expense per row, each split its own way among everyone above */}
         <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">What you spent</h2>
+            <h2 className="text-sm font-medium text-muted">What you spent</h2>
             <label className="flex items-center gap-1.5 text-xs text-muted">
               <input
                 type="checkbox"
@@ -504,7 +505,7 @@ export function QuickSplitPage(): ReactNode {
 
         <section className="mt-6">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Who owes what</h2>
+            <h2 className="text-sm font-medium text-muted">Who owes what</h2>
             {transfers && <span className="text-sm text-muted">total {Money.fromCents(grandTotal).format()}</span>}
           </div>
           {transfers ? (
@@ -551,13 +552,13 @@ export function QuickSplitPage(): ReactNode {
         {!user && (
           <section className="mt-12 grid gap-4 sm:grid-cols-3">
             {[
-              { icon: '🧮', title: 'Split it any way', body: 'Evenly, by shares, by percent, or exact. However the argument shakes out.' },
-              { icon: '🧾', title: 'Itemize the chaos', body: "Separate line items, because you didn't touch the calamari." },
-              { icon: '🤝', title: 'Settle up', body: 'We boil tangled debts down to the fewest Venmos humanly possible.' },
+              { icon: 'users' as const, title: 'Split it any way', body: 'Evenly, by shares, by percent, or exact. However the argument shakes out.' },
+              { icon: 'receipt' as const, title: 'Itemize the chaos', body: "Separate line items, because you didn't touch the calamari." },
+              { icon: 'wallet' as const, title: 'Settle up', body: 'We boil tangled debts down to the fewest Venmos humanly possible.' },
             ].map((f) => (
               <div key={f.title} className="glass rounded-2xl p-4">
-                <span className="text-2xl" aria-hidden>
-                  {f.icon}
+                <span className="inline-grid h-9 w-9 place-items-center rounded-xl bg-accent-soft text-accent">
+                  <Icon name={f.icon} size={18} />
                 </span>
                 <h3 className="mt-2 font-display text-lg font-semibold tracking-tight">{f.title}</h3>
                 <p className="mt-1 text-sm text-muted">{f.body}</p>

@@ -189,7 +189,7 @@ export function SharedGroupPage(): ReactNode {
             </section>
 
             <section className="mt-8">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Members</h2>
+              <h2 className="text-sm font-medium text-muted">Members</h2>
               <ul className="mt-3 space-y-2">
                 {summary.members.map((m, i) => {
                   const label = balanceLabel(
@@ -227,7 +227,7 @@ export function SharedGroupPage(): ReactNode {
             {summary.breakdown.length > 1 && (
               <section className="mt-8">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Where it went</h2>
+                  <h2 className="text-sm font-medium text-muted">Where it went</h2>
                   <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
                     {(['bars', 'donut'] as const).map((v) => (
                       <button
