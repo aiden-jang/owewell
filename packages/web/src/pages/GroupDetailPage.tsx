@@ -381,6 +381,41 @@ export function GroupDetailPage(): ReactNode {
     );
   }, [activity, categoryFilter, personFilter, relationFilter]);
 
+  /**
+   * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
+   * top forever: the balance does. But it is the obvious next step while a group has nobody in it yet,
+   * or while people added by name still have not claimed their spot.
+   *
+   * So: promoted above the balances exactly while it is the answer, and back to the header button
+   * afterwards. Same component either way.
+   *
+   * This has to live ABOVE the early returns below. It used to sit further down, next to the markup it
+   * feeds, which meant the first render (group still null) bailed out before reaching this hook and the
+   * render after it ran one hook more. That is React error #310, "rendered more hooks than during the
+   * previous render", and it took out every group page the instant its data arrived. The `group?.` and
+   * `!!group` guards here are what let it move up safely, and they were always the tell that this block
+   * had been written as if it ran before the group existed.
+   */
+  const unclaimed = (group?.members ?? []).filter((m) => m.isPlaceholder).length;
+  const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
+
+  // Fetch the token on its own when the group needs people, so the promoted block has something to
+  // show without waiting for a tap. Deliberately gated on needsPeople: createShareLink is a write (it
+  // mints the token if absent), and minting one for every group anyone ever opens would be wrong.
+  useEffect(() => {
+    if (!needsPeople || shareLink || !group) return;
+    let alive = true;
+    void groupsApi
+      .createShareLink(group.id)
+      .then((token) => {
+        if (alive) setShareLink(`${window.location.origin}/s/${token}`);
+      })
+      .catch(() => undefined); // the header Invite button still works
+    return () => {
+      alive = false;
+    };
+  }, [needsPeople, shareLink, group]);
+
   if (loadFailed) {
     return (
       <Shell>
@@ -483,34 +518,6 @@ export function GroupDetailPage(): ReactNode {
   const lensActive = personFilter !== null;
   const spendByCategory = computeSpendByCategory(expenses, personFilter, relationFilter);
   const lensTotal = computeLensTotal(expenses, personFilter, relationFilter);
-
-  /**
-   * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
-   * top forever — the balance does. But it is the obvious next step while a group has nobody in it yet,
-   * or while people added by name still have not claimed their spot.
-   *
-   * So: promoted above the balances exactly while it is the answer, and back to the header button
-   * afterwards. Same component either way.
-   */
-  const unclaimed = (group?.members ?? []).filter((m) => m.isPlaceholder).length;
-  const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
-
-  // Fetch the token on its own when the group needs people, so the promoted block has something to
-  // show without waiting for a tap. Deliberately gated on needsPeople: createShareLink is a write (it
-  // mints the token if absent), and minting one for every group anyone ever opens would be wrong.
-  useEffect(() => {
-    if (!needsPeople || shareLink || !group) return;
-    let alive = true;
-    void groupsApi
-      .createShareLink(group.id)
-      .then((token) => {
-        if (alive) setShareLink(`${window.location.origin}/s/${token}`);
-      })
-      .catch(() => undefined); // the header Invite button still works
-    return () => {
-      alive = false;
-    };
-  }, [needsPeople, shareLink, group]);
 
   async function onShare(): Promise<void> {
     if (!group) return;
