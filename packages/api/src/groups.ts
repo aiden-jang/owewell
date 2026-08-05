@@ -67,6 +67,11 @@ export interface GroupSummary {
   totalUnsettledCents: number;
   /** Total spent on expenses in this group. 0 means no expenses yet (distinct from settled). */
   totalSpentCents: number;
+  /**
+   * The last time anything happened here: newest expense or settlement, falling back to when the group
+   * was made. "Created 8 months ago" is trivia; "nothing since March" is what tells you a group is done.
+   */
+  lastActivityAt: Date;
   isOwner: boolean;
 }
 
@@ -439,6 +444,8 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       splitMethod: expenses.splitMethod,
       taxCents: expenses.taxCents,
       tipCents: expenses.tipCents,
+      createdAt: expenses.createdAt,
+      date: expenses.date,
     })
     .from(expenses)
     .where(and(inArray(expenses.groupId, ids), isNull(expenses.deletedAt)))
@@ -499,6 +506,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       fromPersonId: settlements.fromPersonId,
       toPersonId: settlements.toPersonId,
       amountCents: settlements.amountCents,
+      createdAt: settlements.createdAt,
     })
     .from(settlements)
     .where(inArray(settlements.groupId, ids))
@@ -507,6 +515,21 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
     bump(s.groupId, s.fromPersonId, s.amountCents);
     bump(s.groupId, s.toPersonId, -s.amountCents);
   }
+
+  // Newest expense or settlement per group. Expenses are backdatable, so an expense counts as activity
+  // at whichever is later: when it happened, or when it was entered. Otherwise backdating a receipt
+  // from last month would make a group look stale the moment you added to it.
+  const lastActivity = new Map<string, number>();
+  const touch = (groupId: string, at: Date | null | undefined): void => {
+    const ms = at?.getTime();
+    if (ms === undefined) return;
+    if (ms > (lastActivity.get(groupId) ?? 0)) lastActivity.set(groupId, ms);
+  };
+  for (const e of exps) {
+    touch(e.groupId, e.createdAt);
+    touch(e.groupId, e.date);
+  }
+  for (const s of setl) touch(s.groupId, s.createdAt);
 
   return mine.map((g) => {
     const members = net.get(g.id);
@@ -521,6 +544,8 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       netCents: members?.get(personId) ?? 0,
       totalUnsettledCents,
       totalSpentCents: spentByGroup.get(g.id) ?? 0,
+      // Falls back to the group's own creation, so a brand-new empty group still has a sensible date.
+      lastActivityAt: new Date(Math.max(lastActivity.get(g.id) ?? 0, g.createdAt.getTime())),
       isOwner: g.role === 'OWNER',
     };
   });
