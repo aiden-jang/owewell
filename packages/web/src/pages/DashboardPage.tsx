@@ -11,6 +11,7 @@ import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
+import { timeAgo } from '../lib/relativeTime.js';
 
 function perGroupLabel(
   netCents: number,
@@ -47,6 +48,9 @@ export function DashboardPage(): ReactNode {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Set once the name field has been touched, so the "needs a name" hint appears on demand and not
+  // as a scolding the instant the form opens.
+  const [nameTouched, setNameTouched] = useState(false);
 
   const toggleSelected = (id: string): void =>
     setSelected((prev) => {
@@ -59,6 +63,29 @@ export function DashboardPage(): ReactNode {
   const exitSelect = (): void => {
     setSelectMode(false);
     setSelected(new Set());
+  };
+
+  // Select mode and the create form are mutually exclusive. Opening one closes the other: they used to
+  // coexist, which left the name field sitting under the selection UI while the footer bar pushed the
+  // page around, and select mode hides the New button so there was no way back to it.
+  const openCreate = (): void => {
+    setSelectMode(false);
+    setSelected(new Set());
+    setNameTouched(false);
+    setError(null);
+    setCreatingOpen(true);
+  };
+
+  const closeCreate = (): void => {
+    setCreatingOpen(false);
+    setName('');
+    setNameTouched(false);
+    setError(null);
+  };
+
+  const enterSelect = (): void => {
+    closeCreate();
+    setSelectMode(true);
   };
 
   async function onBulkArchive(): Promise<void> {
@@ -145,7 +172,11 @@ export function DashboardPage(): ReactNode {
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (!name.trim()) return;
+    // Used to return silently, so pressing Create with an empty field looked like the app had frozen.
+    if (!name.trim()) {
+      setNameTouched(true);
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
@@ -160,12 +191,12 @@ export function DashboardPage(): ReactNode {
           netCents: 0,
           totalUnsettledCents: 0,
           totalSpentCents: 0,
+          lastActivityAt: group.createdAt,
           isOwner: true,
         },
         ...(prev ?? []),
       ]);
-      setName('');
-      setCreatingOpen(false);
+      closeCreate();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create that group.');
     } finally {
@@ -189,6 +220,9 @@ export function DashboardPage(): ReactNode {
   // `selectable` rows become tap-to-select in select mode; archived rows stay plain links.
   const groupRow = (group: GroupSummary, selectable = true): ReactNode => {
     const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0);
+    // Last activity, not creation date: it answers "is this still going on", which is the only date
+    // question a dashboard row raises. A group with no expenses yet says when it was started.
+    const activity = group.totalSpentCents > 0 ? timeAgo(group.lastActivityAt) : `started ${timeAgo(group.createdAt)}`;
     const isSel = selected.has(group.id);
     const selecting = selectMode && selectable;
     const inner = (
@@ -205,6 +239,7 @@ export function DashboardPage(): ReactNode {
           <span className="block truncate font-medium">{group.name}</span>
           <span className="block text-sm text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
+            {activity && <span className="text-faint"> &middot; {activity}</span>}
           </span>
         </span>
         <span className="flex shrink-0 flex-col items-end leading-tight">
@@ -331,7 +366,7 @@ export function DashboardPage(): ReactNode {
                 {activeGroups.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setSelectMode(true)}
+                    onClick={enterSelect}
                     className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
                   >
                     <Icon name="check" size={16} /> Select
@@ -339,7 +374,7 @@ export function DashboardPage(): ReactNode {
                 )}
                 <button
                   type="button"
-                  onClick={() => setCreatingOpen((v) => !v)}
+                  onClick={() => (creatingOpen ? closeCreate() : openCreate())}
                   className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
                 >
                   <Icon name="plus" size={16} /> New
@@ -350,21 +385,36 @@ export function DashboardPage(): ReactNode {
         </div>
 
         {creatingOpen && (
-          <form onSubmit={(e) => void onCreate(e)} className="mt-3 flex gap-2">
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Tahoe trip, apartment 4B, book club..."
-              className="flex-1 rounded-xl border border-line bg-field px-3.5 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-            />
-            <button
-              type="submit"
-              disabled={creating}
-              className="btn-gradient rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+          <form onSubmit={(e) => void onCreate(e)} className="mt-3">
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => setNameTouched(true)}
+                onKeyDown={(e) => e.key === 'Escape' && closeCreate()}
+                aria-invalid={nameTouched && !name.trim()}
+                aria-describedby="group-name-hint"
+                placeholder="Tahoe trip, apartment 4B, book club..."
+                className={`flex-1 rounded-xl border bg-field px-3.5 py-2.5 outline-none transition focus:ring-2 focus:ring-accent/20 ${
+                  nameTouched && !name.trim() ? 'border-neg' : 'border-line focus:border-accent'
+                }`}
+              />
+              <button
+                type="submit"
+                disabled={creating || !name.trim()}
+                className="btn-gradient rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+              >
+                {creating ? 'Adding...' : 'Create'}
+              </button>
+            </div>
+            <p
+              id="group-name-hint"
+              className={`mt-1.5 text-sm ${nameTouched && !name.trim() ? 'font-medium text-neg' : 'text-faint'}`}
             >
-              {creating ? 'Adding...' : 'Create'}
-            </button>
+              {nameTouched && !name.trim() ? 'Give the group a name to create it.' : 'Name it after the trip, the flat, or the people.'}
+            </p>
           </form>
         )}
         {error && <p className="mt-2 text-sm font-medium text-neg">{error}</p>}
