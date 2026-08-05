@@ -108,15 +108,18 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
     throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
   }
 
+  // Generated before the split, not after: the id seeds which participant absorbs the odd cent on an
+  // uneven bill. Seeded per expense, the leftover moves around instead of always landing on whoever is
+  // listed first (in practice the owner).
+  const id = crypto.randomUUID();
+
   let shares;
   try {
-    shares = computeSplit(input.splitMethod, input.amountCents, input.participants);
+    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, id);
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }
   const valueByPerson = new Map(input.participants.map((p) => [p.userId, p.value]));
-
-  const id = crypto.randomUUID();
   await db.insert(expenses).values({
     id,
     groupId,
@@ -158,7 +161,8 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
 
   let shares;
   try {
-    shares = computeSplit(input.splitMethod, input.amountCents, input.participants);
+    // Same expense, same seed, so an edit never reshuffles who carries the leftover cent.
+    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, expenseId);
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }

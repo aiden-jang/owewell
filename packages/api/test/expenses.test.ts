@@ -501,3 +501,48 @@ describe('expenses — editing', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
+
+describe('the leftover cent', () => {
+  // An equal split of an amount that does not divide evenly has to give someone an extra cent. Which
+  // someone is seeded from the expense id, so it varies between expenses instead of always landing on
+  // whoever is listed first. Two things must hold for that to be safe.
+
+  test('editing an expense never moves it to someone else', async () => {
+    // The seed is the expense id, so a recompute is stable. If it were not, editing the description of
+    // a bill would silently move a cent of debt between two people.
+    const e = await createExpense(db, alice, groupId, {
+      description: 'Coffee',
+      amountCents: 100,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }, { userId: carl }],
+    });
+    const before = owed(e.splits);
+
+    const after = await updateExpense(db, alice, groupId, e.id, {
+      description: 'Coffee and a bun',
+      amountCents: 100,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }, { userId: carl }],
+    });
+    expect(owed(after.splits)).toEqual(before);
+  });
+
+  test('still adds up to the bill exactly', async () => {
+    for (const amountCents of [100, 1649, 3850, 585, 1040]) {
+      const e = await createExpense(db, alice, groupId, {
+        description: `bill ${amountCents}`,
+        amountCents,
+        payerId: alice,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: alice }, { userId: bob }, { userId: carl }],
+      });
+      const total = Object.values(owed(e.splits)).reduce((a, b) => a + b, 0);
+      expect(total).toBe(amountCents);
+      // Nobody is ever more than a cent off anyone else on a single bill.
+      const values = Object.values(owed(e.splits));
+      expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
+    }
+  });
+});
