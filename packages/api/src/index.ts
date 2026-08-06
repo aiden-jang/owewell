@@ -52,6 +52,24 @@ const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 // The GET WebSocket upgrade for realtime is a safe method, so it passes through untouched.
 app.use('*', harden());
 
+/**
+ * Nothing this API returns is cacheable.
+ *
+ * /owewell/me had no Cache-Control, and a GET with no directives is heuristically cacheable, so the
+ * browser is free to keep it. The same bug in accounts produced a visible one: sign out, press back,
+ * the page re-checks the session, the browser answers from its own cache, and you appear signed in
+ * until a refresh. Here it cuts both ways, because a cached `{user: null}` can just as easily keep
+ * telling a freshly signed-in person they are signed out.
+ *
+ * Applied to everything rather than to /me, because every response here is per-user: balances, groups,
+ * expenses. A response whose body depends on who is asking must never be stored.
+ */
+app.use('*', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store, max-age=0');
+  c.header('Pragma', 'no-cache');
+});
+
 app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
 
 // Who is the caller? Same-origin endpoint the web app polls so the browser never has to
