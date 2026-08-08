@@ -182,6 +182,10 @@ export function QuickSplitPage(): ReactNode {
   // until at least one item has a usable amount + valid per-person values.
   let transfers: Transfer[] | null = null;
   let grandTotal = 0;
+  // Your own share, which the transfer list can never show you: it only names people who owe
+  // somebody, so whoever paid is absent from it entirely and the one number they came for
+  // ("what did this actually cost me?") is left to be worked out by hand.
+  let yourShareCents: number | null = null;
   try {
     const owedAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
     const paidAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
@@ -211,8 +215,10 @@ export function QuickSplitPage(): ReactNode {
     transfers = any
       ? simplifyDebts(named.map((p) => ({ userId: p.id, netCents: (paidAcc[p.id] ?? 0) - (owedAcc[p.id] ?? 0) })))
       : null;
+    if (any) yourShareCents = owedAcc[effectiveYouId] ?? null;
   } catch {
     transfers = null;
+    yourShareCents = null;
   }
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
@@ -530,6 +536,14 @@ export function QuickSplitPage(): ReactNode {
           ) : (
             <p className="mt-3 text-sm text-muted">
               Names up top, numbers in the middle. We&rsquo;ll handle the part that ends friendships.
+            </p>
+          )}
+          {yourShareCents !== null && (
+            <p className="mt-3 flex items-center justify-between border-t border-black/5 pt-3 text-sm text-muted">
+              <span>your share of it</span>
+              <span className="font-medium tabular-nums text-ink">
+                {Money.fromCents(yourShareCents).format()}
+              </span>
             </p>
           )}
         </section>
