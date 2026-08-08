@@ -1,6 +1,14 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Money, computeSplit, dollarsToCents, simplifyDebts, type SplitMethod, type Transfer } from '@owewell/shared';
+import {
+  Money,
+  computeSplit,
+  dollarsToCents,
+  quickSplitSeed,
+  simplifyDebts,
+  type SplitMethod,
+  type Transfer,
+} from '@owewell/shared';
 import { normalizeAmountInput } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
@@ -190,9 +198,15 @@ export function QuickSplitPage(): ReactNode {
     const owedAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
     const paidAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
     let any = false;
+    // Counts only the items that will actually be sent, because the save path drops blank ones and
+    // the server seeds by position in what it receives. Using the raw array index here would put the
+    // odd cent somewhere else the moment any item above it was left empty.
+    let sentIndex = 0;
     for (const item of items) {
       const amountCents = item.amount.trim() ? dollarsToCents(item.amount) : 0;
       if (amountCents <= 0 || named.length === 0) continue;
+      const seed = quickSplitSeed(sentIndex);
+      sentIndex += 1;
       const shares = computeSplit(
         item.method,
         amountCents,
@@ -200,6 +214,7 @@ export function QuickSplitPage(): ReactNode {
           const value = serverValue(item.method, item.values[p.id] ?? '');
           return value === undefined ? { userId: p.id } : { userId: p.id, value };
         }),
+        seed,
       );
       for (const s of shares) owedAcc[s.userId] = (owedAcc[s.userId] ?? 0) + s.owedCents;
       // A per-item payer who isn't a named participant (blank or since-removed) falls back to the

@@ -20,6 +20,22 @@ export interface SplitShare {
   owedCents: number;
 }
 
+/**
+ * The odd-cent seed for one item of a quick split.
+ *
+ * Quick split is the one flow that shows exact per-person cents before the expenses exist, so the
+ * browser and the server have to reach the same allocation from the same inputs. Every other caller
+ * seeds from the generated expense id, which the browser cannot know — the preview would show one
+ * number and the saved group another. The item's position is the only value both sides hold, and it
+ * still rotates the leftover across the items in a split, which is what seeding is for.
+ *
+ * Lives here so the two callers cannot drift apart; a seed that only agrees by coincidence is the
+ * bug this exists to prevent.
+ */
+export function quickSplitSeed(itemIndex: number): string {
+  return `qs:${itemIndex}`;
+}
+
 export class SplitError extends Error {
   constructor(message: string) {
     super(message);
