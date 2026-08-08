@@ -164,7 +164,7 @@ Or use the Cloudflare dashboard: **Workers & Pages → D1 → owewell → Consol
 ## Tests
 
 ```bash
-pnpm --filter @owewell/api test        # 41 tests: groups, expenses, settlements, invites, quicksplit
+pnpm --filter @owewell/api test        # 80 tests: groups, expenses, settlements, invites, quicksplit
 pnpm --filter @owewell/core test       # the pure split/settlement math
 ```
 
