@@ -102,6 +102,7 @@ export function QuickSplitPage(): ReactNode {
   const [youId, setYouId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const named = people.filter((p) => p.name.trim());
 
@@ -237,6 +238,44 @@ export function QuickSplitPage(): ReactNode {
   }
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
+
+  /**
+   * The result as plain text, for pasting into the group chat.
+   *
+   * Deliberately joke-free, unlike the button that produces it. This lands in a conversation with
+   * other people in it, and a bill that arrives with a punchline attached reads as the sender being
+   * funny at everyone else's expense. The numbers are the whole payload.
+   */
+  function summaryText(): string {
+    const title = items.find((i) => i.description.trim())?.description.trim() ?? 'Split';
+    const lines = [`${title} · ${Money.fromCents(grandTotal).format()}`, ''];
+    for (const t of transfers ?? []) {
+      lines.push(`${nameById(t.fromUserId)} owes ${nameById(t.toUserId)} ${Money.fromCents(t.amountCents).format()}`);
+    }
+    if (transfers?.length === 0) lines.push('All settled up. Nobody owes anybody.');
+    return lines.join('\n');
+  }
+
+  async function shareSummary(): Promise<void> {
+    const text = summaryText();
+    // The share sheet where there is one (a phone at the table is the whole use case), clipboard
+    // everywhere else. A cancelled share sheet throws AbortError, which is not a failure.
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError('Copy failed. Screenshot it, sorry.');
+    }
+  }
 
   async function onSave(): Promise<void> {
     setError(null);
@@ -564,11 +603,22 @@ export function QuickSplitPage(): ReactNode {
         </section>
 
         {error && <p className="mt-4 text-sm font-medium text-accent">{error}</p>}
+        {/* Above the save button on purpose. Saving needs an account; sending the answer to the
+            people it concerns is what you actually want to do next, and it needs nothing. */}
+        {transfers && (
+          <button
+            type="button"
+            onClick={() => void shareSummary()}
+            className="mt-5 w-full rounded-full border border-black/10 px-5 py-3 font-semibold transition hover:bg-black/[0.03] active:scale-[0.98]"
+          >
+            {copied ? 'Copied. Go ruin their day.' : 'Send it to the group chat'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => void onSave()}
           disabled={saving}
-          className="btn-gradient mt-5 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+          className="btn-gradient mt-3 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
         >
           {saving ? 'Saving...' : user ? 'Save to my account' : "Save it before someone 'forgets'"}
         </button>
