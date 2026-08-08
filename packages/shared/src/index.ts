@@ -1,6 +1,7 @@
 export { Money, MoneyError, allocateCents, dollarsToCents } from './money.js';
 export {
   computeSplit,
+  quickSplitSeed,
   SplitError,
   SPLIT_METHODS,
   type SplitMethod,
