@@ -726,6 +726,7 @@ export async function resplitSharedExpenses(
         items: itemRows.map((i) => ({ amountCents: i.amountCents, participantIds: everyone })),
         taxCents: e.taxCents,
         tipCents: e.tipCents,
+        seed: e.id,
       });
       await replaceSplits(db, e.id, shares);
     }

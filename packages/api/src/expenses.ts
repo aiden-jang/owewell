@@ -216,19 +216,23 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
     throw new ExpenseError('INVALID_PAYER', 'An item payer must be a group member.');
   }
 
+  // Before the split, not after, for the same reason as createExpense: the id seeds who absorbs the
+  // odd cent, and on a receipt that is one leftover per uneven item plus the tax and tip.
+  const id = crypto.randomUUID();
+
   let shares;
   try {
     shares = computeItemizedSplit({
       items: input.items.map((i) => ({ amountCents: i.amountCents, participantIds: i.participantIds })),
       taxCents: input.taxCents,
       tipCents: input.tipCents,
+      seed: id,
     });
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }
 
   const amountCents = input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
-  const id = crypto.randomUUID();
   await db.insert(expenses).values({
     id,
     groupId,
@@ -281,6 +285,7 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
       items: input.items.map((i) => ({ amountCents: i.amountCents, participantIds: i.participantIds })),
       taxCents: input.taxCents,
       tipCents: input.tipCents,
+      seed: expenseId,
     });
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
