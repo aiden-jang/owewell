@@ -136,4 +136,32 @@ describe('odd-cent seeding', () => {
       expect(shares.reduce((sum, s) => sum + s.owedCents, 0)).toBe(3000 + 137 + 211);
     }
   });
+
+  test('seeded, both sides still reconcile to the penny', () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            amountCents: fc.nat(500_000),
+            participantIds: fc
+              .uniqueArray(fc.integer({ min: 0, max: 6 }), { minLength: 1, maxLength: 7 })
+              .map((ns) => ns.map((n) => `u${n}`)),
+            payerId: fc.integer({ min: 0, max: 6 }).map((n) => `u${n}`),
+          }),
+          { minLength: 1, maxLength: 10 },
+        ),
+        fc.nat(50_000),
+        fc.nat(50_000),
+        fc.string({ minLength: 1, maxLength: 24 }),
+        (items, taxCents, tipCents, seed) => {
+          const expected = items.reduce((sum, i) => sum + i.amountCents, 0) + taxCents + tipCents;
+          const owed = computeItemizedSplit({ items, taxCents, tipCents, seed });
+          const paid = computeItemizedPayers({ items, taxCents, tipCents, seed });
+          // The seed decides who carries a leftover cent; it must never create or destroy one.
+          expect(owed.reduce((s, x) => s + x.owedCents, 0)).toBe(expected);
+          expect(paid.reduce((s, x) => s + x.paidCents, 0)).toBe(expected);
+        },
+      ),
+    );
+  });
 });

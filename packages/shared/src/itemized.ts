@@ -100,6 +100,14 @@ export interface ItemizedPaymentInput {
   items: readonly ItemizedPayerItem[];
   taxCents?: number;
   tipCents?: number;
+  /**
+   * Decides which payer is credited the odd cent of tax and tip. Pass the expense id.
+   *
+   * Must be stable: unlike the debit side, these credits are recomputed on every balance read
+   * rather than stored, so a seed that varied per call would make somebody's balance flicker by a
+   * cent between page loads.
+   */
+  seed?: string;
 }
 
 export interface PayerShare {
@@ -115,7 +123,8 @@ export interface PayerShare {
  * items + tax + tip, to the penny.
  */
 export function computeItemizedPayers(input: ItemizedPaymentInput): PayerShare[] {
-  const { items, taxCents = 0, tipCents = 0 } = input;
+  const { items, taxCents = 0, tipCents = 0, seed } = input;
+  const extraSeed = seed === undefined ? undefined : `${seed}:extra`;
 
   if (items.length === 0) {
     throw new SplitError('An itemized split needs at least one item');
@@ -138,11 +147,12 @@ export function computeItemizedPayers(input: ItemizedPaymentInput): PayerShare[]
   if (extra === 0) {
     extraShares = payers.map(() => 0);
   } else if (itemsTotal === 0) {
-    extraShares = allocateCents(extra, payers.map(() => 1));
+    extraShares = allocateCents(extra, payers.map(() => 1), extraSeed);
   } else {
     extraShares = allocateCents(
       extra,
       payers.map((p) => subtotalByPayer.get(p) ?? 0),
+      extraSeed,
     );
   }
 
