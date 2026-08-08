@@ -479,6 +479,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
         items: items.map((it) => ({ amountCents: it.amountCents, payerId: it.payerId ?? e.payerId })),
         taxCents: e.taxCents,
         tipCents: e.tipCents,
+        seed: e.id,
       });
       for (const p of payers) bump(e.groupId, p.userId, p.paidCents);
     } else {
