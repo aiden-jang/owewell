@@ -108,3 +108,32 @@ describe('computeItemizedPayers', () => {
     );
   });
 });
+
+describe('odd-cent seeding', () => {
+  // Three people on a $10.00 item is 333/333/334: somebody has to take the extra cent.
+  const item = { amountCents: 1000, participantIds: ['a', 'b', 'c'] };
+
+  test('unseeded, the first person on an item always absorbs the leftover', () => {
+    const absorbers = new Set<string>();
+    for (let i = 0; i < 8; i++) {
+      const shares = computeItemizedSplit({ items: [item] });
+      absorbers.add(shares.find((s) => s.owedCents === 334)!.userId);
+    }
+    expect([...absorbers]).toEqual(['a']);
+  });
+
+  test('seeded, the leftover moves across the items of one receipt', () => {
+    const shares = computeItemizedSplit({ items: Array.from({ length: 8 }, () => item), seed: 'exp_1' });
+    // Eight identical items, so an unseeded run would hand all eight leftovers to 'a' and leave the
+    // three people 8 cents apart. Seeding per item spreads them.
+    const spread = Math.max(...shares.map((s) => s.owedCents)) - Math.min(...shares.map((s) => s.owedCents));
+    expect(spread).toBeLessThanOrEqual(2);
+  });
+
+  test('still sums to the total, seeded or not', () => {
+    for (const seed of [undefined, 'exp_1', 'exp_2']) {
+      const shares = computeItemizedSplit({ items: [item, item, item], taxCents: 137, tipCents: 211, seed });
+      expect(shares.reduce((sum, s) => sum + s.owedCents, 0)).toBe(3000 + 137 + 211);
+    }
+  });
+});

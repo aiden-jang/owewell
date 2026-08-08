@@ -10,6 +10,15 @@ export interface ItemizedInput {
   items: readonly ItemizedItem[];
   taxCents?: number;
   tipCents?: number;
+  /**
+   * Decides who absorbs the odd cent. Pass the expense id.
+   *
+   * Same reasoning as `computeSplit`'s seed, and it matters more here: a receipt is many small
+   * amounts rather than one, so an unseeded run hands the leftover to the first person on every
+   * uneven item *and* the tax and tip on top. Whoever happens to be listed first quietly pays a few
+   * cents extra on every itemized bill.
+   */
+  seed?: string;
 }
 
 function assertNonNegativeInt(value: number, label: string): void {
@@ -25,7 +34,10 @@ function assertNonNegativeInt(value: number, label: string): void {
  * shares always sum to items + tax + tip, to the penny.
  */
 export function computeItemizedSplit(input: ItemizedInput): SplitShare[] {
-  const { items, taxCents = 0, tipCents = 0 } = input;
+  const { items, taxCents = 0, tipCents = 0, seed } = input;
+  // Per item, not one seed for the whole receipt: a single offset would land the leftover on the
+  // same seat of every item, which is the bias this is here to remove, just rotated once.
+  const itemSeed = (i: number): string | undefined => (seed === undefined ? undefined : `${seed}:${i}`);
 
   if (items.length === 0) {
     throw new SplitError('An itemized split needs at least one item');
@@ -36,7 +48,7 @@ export function computeItemizedSplit(input: ItemizedInput): SplitShare[] {
   const subtotalByUser = new Map<string, number>();
   let itemsTotal = 0;
 
-  for (const item of items) {
+  for (const [itemIndex, item] of items.entries()) {
     assertNonNegativeInt(item.amountCents, 'Item amount');
     if (item.participantIds.length === 0) {
       throw new SplitError('Every item needs at least one person on it');
@@ -49,6 +61,7 @@ export function computeItemizedSplit(input: ItemizedInput): SplitShare[] {
     const shares = allocateCents(
       item.amountCents,
       item.participantIds.map(() => 1),
+      itemSeed(itemIndex),
     );
     item.participantIds.forEach((userId, i) => {
       subtotalByUser.set(userId, (subtotalByUser.get(userId) ?? 0) + (shares[i] ?? 0));
@@ -62,11 +75,12 @@ export function computeItemizedSplit(input: ItemizedInput): SplitShare[] {
   if (extra === 0) {
     extraShares = users.map(() => 0);
   } else if (itemsTotal === 0) {
-    extraShares = allocateCents(extra, users.map(() => 1));
+    extraShares = allocateCents(extra, users.map(() => 1), seed === undefined ? undefined : `${seed}:extra`);
   } else {
     extraShares = allocateCents(
       extra,
       users.map((userId) => subtotalByUser.get(userId) ?? 0),
+      seed === undefined ? undefined : `${seed}:extra`,
     );
   }
 
