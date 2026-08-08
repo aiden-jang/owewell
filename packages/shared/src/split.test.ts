@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import fc from 'fast-check';
-import { computeSplit, SplitError, type SplitMethod } from './split.js';
+import { computeSplit, quickSplitSeed, SplitError, type SplitMethod } from './split.js';
 
 const ids = (n: number): { userId: string }[] =>
   Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
@@ -80,5 +80,28 @@ describe('computeSplit', () => {
         },
       ),
     );
+  });
+});
+
+describe('quickSplitSeed', () => {
+  test('gives the browser and the server the same allocation for the same item', () => {
+    const people = [{ userId: 'you' }, { userId: 'sam' }, { userId: 'max' }];
+    // Whatever the preview computes for item N must be what the save computes for item N.
+    for (let i = 0; i < 5; i++) {
+      const preview = computeSplit('EQUAL', 1000, people, quickSplitSeed(i));
+      const saved = computeSplit('EQUAL', 1000, people, quickSplitSeed(i));
+      expect(saved).toEqual(preview);
+    }
+  });
+
+  test('still moves the odd cent around across the items of one split', () => {
+    const people = [{ userId: 'you' }, { userId: 'sam' }, { userId: 'max' }];
+    const absorbers = new Set<string>();
+    for (let i = 0; i < 6; i++) {
+      const shares = computeSplit('EQUAL', 1000, people, quickSplitSeed(i));
+      absorbers.add(shares.find((s) => s.owedCents === 334)!.userId);
+    }
+    // The whole point of seeding: the leftover cannot always land on whoever is listed first.
+    expect(absorbers.size).toBeGreaterThan(1);
   });
 });

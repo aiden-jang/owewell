@@ -34,6 +34,15 @@ export interface CreateExpenseInput {
   category?: string | undefined;
   /** The date the expense happened (backdatable). Omit to use "now". */
   date?: Date;
+  /**
+   * Overrides the odd-cent tie-break seed, which normally comes from the generated expense id.
+   *
+   * Only for callers that have to show the split before it exists. Quick split previews the exact
+   * per-person cents in the browser and then saves them; the id is a server-side randomUUID, so the
+   * preview cannot predict it, and on an uneven bill the number you were shown was frequently not
+   * the number that got saved. Passing a seed both sides can derive makes them agree.
+   */
+  splitSeed?: string;
 }
 
 export interface CreateItemizedExpenseInput {
@@ -115,7 +124,7 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
 
   let shares;
   try {
-    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, id);
+    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, input.splitSeed ?? id);
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }

@@ -1,4 +1,4 @@
-import { computeSplit, type SplitMethod } from '@owewell/shared';
+import { computeSplit, quickSplitSeed, type SplitMethod } from '@owewell/shared';
 import type { DB } from './db/client.js';
 import { addPlaceholderMember, createGroup } from './groups.js';
 import { createExpense } from './expenses.js';
@@ -93,13 +93,18 @@ export async function createQuickSplit(
   }
   const defaultPayerId = userIds[input.people.findIndex((p) => p.isPayer)]!;
 
-  for (const item of input.items) {
+  // The item's position is the seed, because it is the one value the browser can derive too. The
+  // preview showed exact per-person cents before any of these rows existed; seeding from the
+  // generated expense id would silently move a cent off whoever the user was just shown. Position
+  // still rotates the odd cent across the items in a split, which is the point of seeding at all.
+  for (const [index, item] of input.items.entries()) {
     await createExpense(db, personId, group.id, {
       description: item.description.trim() || 'Quick split',
       amountCents: item.amountCents,
       payerId: item.payerIndex !== undefined ? userIds[item.payerIndex]! : defaultPayerId,
       splitMethod: item.splitMethod,
       participants: itemParticipants(input.people, item, (i) => userIds[i]!),
+      splitSeed: quickSplitSeed(index),
     });
   }
 
