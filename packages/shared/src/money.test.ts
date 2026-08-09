@@ -158,3 +158,24 @@ describe('allocateCents rotation', () => {
     }
   });
 });
+
+describe('dollarsToCents on what people actually type', () => {
+  test('accepts a currency symbol and thousands separators', () => {
+    expect(dollarsToCents('$40')).toBe(4000);
+    expect(dollarsToCents('1,000.00')).toBe(100_000);
+    expect(dollarsToCents('$1,200.50')).toBe(120_050);
+    expect(dollarsToCents('-$40')).toBe(-4000);
+    expect(dollarsToCents('  $ 25 ')).toBe(2500);
+  });
+
+  test('still refuses anything ambiguous, rather than silently changing the number', () => {
+    // More precision than a cent: rounding somebody's money without telling them is worse than
+    // refusing it.
+    expect(() => dollarsToCents('10.005')).toThrow();
+    expect(() => dollarsToCents('1e3')).toThrow();
+    expect(() => dollarsToCents('1$0')).toThrow();
+    expect(() => dollarsToCents('12.3.4')).toThrow();
+    expect(() => dollarsToCents('abc')).toThrow();
+    expect(() => dollarsToCents('')).toThrow();
+  });
+});
