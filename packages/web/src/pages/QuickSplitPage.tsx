@@ -578,11 +578,17 @@ export function QuickSplitPage(): ReactNode {
                     key={`${t.fromUserId}-${t.toUserId}`}
                     className="flex items-center justify-between rounded-xl glass px-4 py-3 text-sm"
                   >
-                    <span>
+                    {/* min-w-0 so this is the item that gives when a name is long: a flex child
+                        will not shrink below its longest word without it, and one long name pushed
+                        the whole page to 659px inside a 375px phone. The amount never shrinks —
+                        it is the number everyone came for. */}
+                    <span className="min-w-0">
                       <span className="font-medium">{nameById(t.fromUserId)}</span> owes{' '}
                       <span className="font-medium">{nameById(t.toUserId)}</span>
                     </span>
-                    <span className="font-medium tabular-nums">{Money.fromCents(t.amountCents).format()}</span>
+                    <span className="shrink-0 pl-3 font-medium tabular-nums">
+                      {Money.fromCents(t.amountCents).format()}
+                    </span>
                   </li>
                 ))}
               </ul>
