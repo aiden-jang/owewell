@@ -121,6 +121,14 @@ html {
 
 body {
   min-height: 100vh;
+  /* Names, group titles and expense descriptions are user-typed and appear on nearly every screen,
+     and any one of them can be a single unbroken token. One long name was widening the page to
+     659px inside a 375px phone, dragging the header and every row sideways with it. break-word
+     break-word, not `anywhere`. `anywhere` also fixes the overflow, but it lets every box shrink to
+     near-nothing, and a four-letter "paid" label in a tight flex column started breaking into
+     "pai/d". The right split is: break-word globally so no word can overflow its own line, and
+     `min-w-0` on the specific flex items that hold user text, so those are the ones that give. */
+  overflow-wrap: break-word;
   /* Flat. The radial purple aurora that used to live here was the single most dated thing on the
      page after the gradient button, and an ambient glow fights a light theme outright. */
   background: var(--page-bg);
