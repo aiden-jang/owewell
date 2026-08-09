@@ -24,6 +24,16 @@ function assertSafeInteger(value: number, label: string): void {
  *
  * Strings are parsed exactly (at most two decimal places). Numbers are rounded,
  * which is safe for trusted/computed values but should not be fed raw user text.
+ *
+ * A leading currency symbol and thousands separators are tolerated, because those are what people
+ * actually type and paste: "$1,200.50" used to throw, and every caller catches that by showing no
+ * total at all, so a perfectly ordinary amount produced a blank result and no explanation.
+ *
+ * Only the string branch is lenient, and only about punctuation that carries no value. The API
+ * never parses strings — it receives integer cents and checks them with assertNonNegativeInt — so
+ * this leniency lives entirely on the path from a keyboard and cannot weaken server-side
+ * validation. Anything genuinely ambiguous still throws: more than two decimals is still an error
+ * rather than a silent round, because quietly changing somebody's money is worse than refusing it.
  */
 export function dollarsToCents(value: number | string): number {
   if (typeof value === 'number') {
@@ -33,7 +43,13 @@ export function dollarsToCents(value: number | string): number {
     return Math.round(value * 100);
   }
 
-  const match = /^(-)?(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  // Commas are only ever separators, so they go anywhere. A currency symbol is only stripped at the
+  // front (after an optional sign), so "1$0" stays an error instead of quietly becoming 10.
+  const cleaned = value
+    .trim()
+    .replace(/,/g, '')
+    .replace(/^(-?)\s*[$£€]\s*/, '$1');
+  const match = /^(-)?(\d+)(?:\.(\d{1,2}))?$/.exec(cleaned);
   if (!match) {
     throw new MoneyError(`Invalid money string: "${value}"`);
   }
