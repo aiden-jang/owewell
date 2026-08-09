@@ -116,7 +116,7 @@ export function SharedGroupPage(): ReactNode {
               <Icon name="link" size={22} />
             </div>
             <p className="mt-4 text-lg font-medium">This link isn&rsquo;t valid.</p>
-            <p className="mt-1 text-sm text-muted">It may have been turned off, or the group is gone.</p>
+            <p className="mt-1 text-sm text-muted">Someone turned it off, or the group&rsquo;s long gone.</p>
           </div>
         )}
 
@@ -125,8 +125,8 @@ export function SharedGroupPage(): ReactNode {
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
               <Icon name="link" size={22} />
             </div>
-            <p className="mt-4 text-lg font-medium">Could not load this tab.</p>
-            <p className="mt-1 text-sm text-muted">Check your connection and try again.</p>
+            <p className="mt-4 text-lg font-medium">Couldn&rsquo;t load this tab.</p>
+            <p className="mt-1 text-sm text-muted">Might be your signal. Might be us.</p>
             <button
               type="button"
               onClick={loadSummary}
