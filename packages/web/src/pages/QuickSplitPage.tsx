@@ -62,6 +62,54 @@ function serverValue(method: SplitMethod, raw: string): number | undefined {
   return weight;
 }
 
+/**
+ * One dry line about the shape of the split, read off the numbers.
+ *
+ * Generated, not decorative: every branch is a fact the app already computed, so the line is only
+ * ever true. That is the whole trick — "someone got the steak" lands because the split really is
+ * lopsided, and a random quip in the same slot would be noise.
+ *
+ * Deliberately absent from the text you send to the group (see summaryText). The app can be funny
+ * at your bill; a joke arriving in everyone else's chat reads as the sender being funny at them.
+ *
+ * Returns null far more often than not. A verdict on every ordinary split would stop being a
+ * remark and become furniture.
+ */
+function splitVerdict(
+  named: Person[],
+  shares: Record<string, number>,
+  transfers: Transfer[],
+  payerId: string,
+): string | null {
+  if (named.length < 2 || transfers.length === 0) return null;
+  const nameOf = (id: string): string => named.find((p) => p.id === id)?.name.trim() || 'Someone';
+  const values = named.map((p) => shares[p.id] ?? 0);
+  if (values.reduce((a, b) => a + b, 0) <= 0) return null;
+
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+
+  // Ordered rarest first. An earlier version led with "one person paid for everything", which is
+  // the default arrangement and therefore fired on nearly every bill — it shadowed both of the
+  // observations below and stopped reading as a remark within about three splits.
+  if (min === 0) {
+    const free = named.find((p) => (shares[p.id] ?? 0) === 0);
+    if (free) return `${free.name.trim()} owes nothing. Must be nice.`;
+  }
+  // Lopsided on purpose, not by a rounding cent: twice the smallest share and at least $5 apart.
+  if (max >= min * 2 && max - min > 500) {
+    const biggest = named.find((p) => (shares[p.id] ?? 0) === max);
+    if (biggest) return `${biggest.name.trim()} got the steak.`;
+  }
+  // One person carrying a genuine crowd. Four is the threshold where it stops being a normal
+  // dinner and starts being a favour.
+  const owedTo = new Set(transfers.map((t) => t.toUserId));
+  if (named.length >= 4 && owedTo.size === 1 && owedTo.has(payerId)) {
+    return `${nameOf(payerId)} fronted for ${named.length - 1} people. A saint, allegedly.`;
+  }
+  return null;
+}
+
 function PublicHeader(): ReactNode {
   const { login, signup } = useAuth();
   return (
@@ -195,6 +243,8 @@ export function QuickSplitPage(): ReactNode {
   // somebody, so whoever paid is absent from it entirely and the one number they came for
   // ("what did this actually cost me?") is left to be worked out by hand.
   let yourShareCents: number | null = null;
+  /** Everyone's share, kept so the verdict below can read the shape of the split. */
+  let sharesByPerson: Record<string, number> | null = null;
   try {
     const owedAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
     const paidAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
@@ -231,13 +281,22 @@ export function QuickSplitPage(): ReactNode {
     transfers = any
       ? simplifyDebts(named.map((p) => ({ userId: p.id, netCents: (paidAcc[p.id] ?? 0) - (owedAcc[p.id] ?? 0) })))
       : null;
-    if (any) yourShareCents = owedAcc[effectiveYouId] ?? null;
+    if (any) {
+      yourShareCents = owedAcc[effectiveYouId] ?? null;
+      sharesByPerson = owedAcc;
+    }
   } catch {
     transfers = null;
     yourShareCents = null;
+    sharesByPerson = null;
   }
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
+
+  const verdict =
+    sharesByPerson && transfers
+      ? splitVerdict(named, sharesByPerson, transfers, effectivePayerId)
+      : null;
 
   /**
    * The result as plain text, for pasting into the group chat.
@@ -606,6 +665,7 @@ export function QuickSplitPage(): ReactNode {
               </span>
             </p>
           )}
+          {verdict && <p className="mt-2 text-sm italic text-muted">{verdict}</p>}
         </section>
 
         {error && <p className="mt-4 text-sm font-medium text-accent">{error}</p>}
