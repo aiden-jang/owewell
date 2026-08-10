@@ -204,7 +204,9 @@ export function GroupDetailPage(): ReactNode {
     const lines = suggested.map(
       (payment) => `${payment.fromName} pays ${payment.toName} ${Money.fromCents(payment.amountCents).format()}`,
     );
-    const text = `${group.name} settle-up\n${lines.join('\n')}`;
+    const total = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
+    const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
+    const text = `${group.name} settle-up · ${Money.fromCents(total).format()} across ${suggested.length} ${transferLabel}\n${lines.join('\n')}`;
     const finish = (status: 'shared' | 'copied'): void => {
       setSettleShareStatus(status);
       window.setTimeout(() => setSettleShareStatus(null), 2200);
