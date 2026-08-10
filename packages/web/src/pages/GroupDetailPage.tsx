@@ -562,6 +562,12 @@ export function GroupDetailPage(): ReactNode {
   const totalSpent = expenses.reduce((sum, e) => sum + e.amountCents, 0);
   // How much has already been paid back, and the even-split average across the members.
   const totalSettled = settlements.reduce((sum, s) => sum + s.amountCents, 0);
+  // Payments and the outstanding balance describe one journey toward zero. Clamp at 100 because
+  // manual payments can intentionally overpay an earlier split, and a progress bar past the end
+  // would make an otherwise valid ledger look broken.
+  const settlementJourney = totalSettled + totalUnsettled;
+  const settlementProgress = settlementJourney > 0 ? Math.min(100, Math.round((totalSettled / settlementJourney) * 100)) : 0;
+  const settlePlanTotal = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
   const perPersonCents = group.members.length ? Math.round(totalSpent / group.members.length) : 0;
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
@@ -778,6 +784,28 @@ export function GroupDetailPage(): ReactNode {
             {Money.fromCents(totalSettled).format()} settled so far
           </p>
         )}
+        {settlementJourney > 0 && (
+          <div className="mt-4 max-w-xs">
+            <div className="mb-1.5 flex items-center justify-between text-xs text-faint">
+              <span>settle-up progress</span>
+              <span className="font-medium text-muted">{settlementProgress}%</span>
+            </div>
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-line"
+              role="progressbar"
+              aria-label="Settle-up progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={settlementProgress}
+              aria-valuetext={`${settlementProgress}% of recorded settle-up payments complete`}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-accent to-pos transition-[width] duration-500"
+                style={{ width: `${settlementProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
         {!hasActivity ? (
           <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
         ) : group.members.length < 2 ? (
@@ -863,6 +891,12 @@ export function GroupDetailPage(): ReactNode {
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Pay in your usual app, then mark it here so the group stays in sync.
           </p>
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-accent/15 bg-surface/60 px-3 py-2 text-xs">
+            <span className="text-muted">
+              {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
+            </span>
+            <span className="tnum font-semibold text-accent">{Money.fromCents(settlePlanTotal).format()} remaining</span>
+          </div>
           <ul className="mt-3 space-y-2">
             {suggested.map((payment) => (
               <li
