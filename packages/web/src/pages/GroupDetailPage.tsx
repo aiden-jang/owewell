@@ -205,11 +205,11 @@ export function GroupDetailPage(): ReactNode {
   async function shareSettlePlan(): Promise<void> {
     if (!group || suggested.length === 0) return;
     const lines = suggested.map(
-      (payment) => `${payment.fromName} pays ${payment.toName} ${Money.fromCents(payment.amountCents).format()}`,
+      (payment) => `• ${payment.fromName} pays ${payment.toName} ${Money.fromCents(payment.amountCents).format()}`,
     );
     const total = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
     const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
-    const text = `${group.name} settle-up · ${Money.fromCents(total).format()} across ${suggested.length} ${transferLabel}\n${lines.join('\n')}`;
+    const text = `${group.name} settle-up\n${Money.fromCents(total).format()} across ${suggested.length} ${transferLabel}\n\n${lines.join('\n')}`;
     const finish = (status: 'shared' | 'copied'): void => {
       setSettleShareStatus(status);
       window.setTimeout(() => setSettleShareStatus(null), 2200);
@@ -861,7 +861,7 @@ export function GroupDetailPage(): ReactNode {
             </div>
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            Pay in your usual app, then mark it here so everyone&rsquo;s balances update.
+            Pay in your usual app, then mark it here so the group stays in sync.
           </p>
           <ul className="mt-3 space-y-2">
             {suggested.map((payment) => (
