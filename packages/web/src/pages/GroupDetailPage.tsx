@@ -27,6 +27,7 @@ import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/s
 import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
+import { play } from '../lib/sound';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -141,7 +142,7 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-  async function refreshLedger(): Promise<void> {
+  async function refreshLedger(): Promise<SuggestedPayment[] | null> {
     // Refetch the group too, not just the ledger: if it was archived, renamed, or had a
     // member change in another tab/device, `group.archived` (which drives read-only) and the
     // member list must stay current, otherwise stale gates would keep edit controls live.
@@ -161,8 +162,10 @@ export function GroupDetailPage(): ReactNode {
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
+      return s;
     } catch {
       toast.error('Could not load the latest changes. Reload if the numbers look off.');
+      return null;
     }
   }
 
@@ -175,7 +178,10 @@ export function GroupDetailPage(): ReactNode {
         amountCents: payment.amountCents,
         method: settleMethod,
       });
-      await refreshLedger();
+      const stillOwed = await refreshLedger();
+      // Clearing the last debt in the group is a different event from clearing one of five, and the
+      // same fetch that redraws the list already knows which just happened.
+      play(stillOwed?.length === 0 ? 'allSettled' : 'settled');
       toast.success(`Squared up ${payment.fromName} to ${payment.toName}.`);
     } catch {
       toast.error('Could not record that payment.');
@@ -211,6 +217,7 @@ export function GroupDetailPage(): ReactNode {
   }, [menuOpen]);
 
   useGroupRealtime(id, () => {
+    play('nudge');
     void refreshLedger();
   });
 
@@ -253,6 +260,7 @@ export function GroupDetailPage(): ReactNode {
     try {
       await settlementsApi.remove(id, settlementId);
       await refreshLedger();
+      play('undo');
       toast.success('Payment undone.');
     } catch {
       toast.error('Could not undo that payment.');
@@ -1369,6 +1377,7 @@ export function GroupDetailPage(): ReactNode {
             members={group.members}
             onCreated={() => {
               setSheetOpen(false);
+              play('add');
               toast.success('Added to the tab.');
               void refreshLedger();
             }}
@@ -1380,6 +1389,7 @@ export function GroupDetailPage(): ReactNode {
             members={group.members}
             onCreated={() => {
               setSheetOpen(false);
+              play('add');
               toast.success('Receipt added to the tab.');
               void refreshLedger();
             }}
@@ -1394,6 +1404,7 @@ export function GroupDetailPage(): ReactNode {
           defaultFromId={user?.id}
           onRecorded={() => {
             setPaymentOpen(false);
+            play('settled');
             toast.success('Payment logged.');
             void refreshLedger();
           }}
@@ -1414,6 +1425,7 @@ export function GroupDetailPage(): ReactNode {
               editing={editingExpense}
               onCreated={() => {
                 setEditingExpense(null);
+                play('tick');
                 toast.success('Receipt updated.');
                 void refreshLedger();
               }}
@@ -1426,6 +1438,7 @@ export function GroupDetailPage(): ReactNode {
               editing={editingExpense}
               onCreated={() => {
                 setEditingExpense(null);
+                play('tick');
                 toast.success('Expense updated.');
                 void refreshLedger();
               }}
