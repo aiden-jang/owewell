@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Avatar } from './Avatar';
 import { BrandMark } from './BrandMark';
 import { Icon } from './Icon';
+import { SoundToggle } from './SoundToggle';
 
 export function AppHeader(): ReactNode {
   const { user, logout, accountUrl } = useAuth();
@@ -17,6 +18,7 @@ export function AppHeader(): ReactNode {
           <BrandMark /> owewell
         </Link>
         <div className="flex items-center gap-1.5">
+          <SoundToggle />
           <a
             href={accountUrl}
             className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
