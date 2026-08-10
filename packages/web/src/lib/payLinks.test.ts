@@ -11,6 +11,7 @@ describe('payLinks', () => {
   it('builds one link per handle, with the amount in dollars', () => {
     const links = payLinks(payee({ venmoHandle: 'alex', cashappCashtag: 'alexc', paypalHandle: 'alexp' }), 2450, 'owewell: Trip');
     expect(links.map((l) => l.label)).toEqual(['Venmo', 'Cash App', 'PayPal']);
+    expect(links.map((l) => l.method)).toEqual(['venmo', 'cashapp', 'paypal']);
 
     const venmo = links.find((l) => l.label === 'Venmo')!;
     expect(venmo.url).toContain('venmo.com/alex');
