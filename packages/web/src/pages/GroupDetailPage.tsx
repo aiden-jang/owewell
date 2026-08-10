@@ -170,6 +170,12 @@ export function GroupDetailPage(): ReactNode {
   }
 
   async function markPaid(payment: SuggestedPayment): Promise<void> {
+    const ok = await confirm({
+      title: `Mark ${payment.fromName}'s payment as paid?`,
+      body: 'This records the payment in owewell and updates everyone’s balances. It does not move money.',
+      confirmLabel: 'Mark paid',
+    });
+    if (!ok) return;
     setSettling(true);
     try {
       await settlementsApi.record(id, {
@@ -794,6 +800,9 @@ export function GroupDetailPage(): ReactNode {
               </select>
             </label>
           </div>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Pay in your usual app, then mark it here to update the group.
+          </p>
           <ul className="mt-3 space-y-2">
             {suggested.map((payment) => (
               <li
