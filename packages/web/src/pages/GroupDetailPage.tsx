@@ -114,7 +114,7 @@ export function GroupDetailPage(): ReactNode {
   const [payPaypal, setPayPaypal] = useState('');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
-  const [settleShareStatus, setSettleShareStatus] = useState<'shared' | 'copied' | null>(null);
+  const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   async function load(): Promise<void> {
@@ -214,19 +214,24 @@ export function GroupDetailPage(): ReactNode {
       setSettleShareStatus(status);
       window.setTimeout(() => setSettleShareStatus(null), 2200);
     };
+    setSettleShareStatus('sharing');
     if (navigator.share) {
       try {
         await navigator.share({ title: `${group.name} settle-up`, text });
         finish('shared');
         return;
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === 'AbortError') {
+          setSettleShareStatus(null);
+          return;
+        }
       }
     }
     try {
       await navigator.clipboard.writeText(text);
       finish('copied');
     } catch {
+      setSettleShareStatus(null);
       toast.error('Could not share the settle-up plan.');
     }
   }
@@ -827,7 +832,7 @@ export function GroupDetailPage(): ReactNode {
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
               >
                 <Icon name="share" size={13} />
-                {settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
+                {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
               </button>
               <label className="flex items-center gap-1.5 text-xs text-muted">
                 paid via
