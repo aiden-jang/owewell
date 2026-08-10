@@ -188,9 +188,12 @@ export function GroupDetailPage(): ReactNode {
       const stillOwed = await refreshLedger();
       // Clearing the last debt in the group is a different event from clearing one of five, and the
       // same fetch that redraws the list already knows which just happened.
-      play(stillOwed?.length === 0 ? 'allSettled' : 'settled');
+      const allSettled = stillOwed?.length === 0;
+      play(allSettled ? 'allSettled' : 'settled');
       toast.success(
-        `Recorded ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
+        allSettled
+          ? 'Everyone is settled up.'
+          : `Recorded ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
       );
     } catch {
       toast.error('Could not record that payment.');
