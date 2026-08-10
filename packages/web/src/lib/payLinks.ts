@@ -3,6 +3,8 @@ import type { GroupMember, PaymentMethod } from '@owewell/core';
 export interface PayLink {
   label: string;
   url: string;
+  /** The ledger label that matches the app this link opens. */
+  method: Extract<PaymentMethod, 'venmo' | 'cashapp' | 'paypal'>;
 }
 
 type Payee = Pick<GroupMember, 'venmoHandle' | 'cashappCashtag' | 'paypalHandle'>;
@@ -42,13 +44,13 @@ export function payLinks(payee: Payee, amountCents: number, note: string): PayLi
     u.searchParams.set('txn', 'pay');
     u.searchParams.set('amount', amt);
     if (note) u.searchParams.set('note', note);
-    links.push({ label: 'Venmo', url: u.toString() });
+    links.push({ label: 'Venmo', url: u.toString(), method: 'venmo' });
   }
   if (payee.cashappCashtag) {
-    links.push({ label: 'Cash App', url: `https://cash.app/$${encodeURIComponent(payee.cashappCashtag)}/${amt}` });
+    links.push({ label: 'Cash App', url: `https://cash.app/$${encodeURIComponent(payee.cashappCashtag)}/${amt}`, method: 'cashapp' });
   }
   if (payee.paypalHandle) {
-    links.push({ label: 'PayPal', url: `https://paypal.me/${encodeURIComponent(payee.paypalHandle)}/${amt}` });
+    links.push({ label: 'PayPal', url: `https://paypal.me/${encodeURIComponent(payee.paypalHandle)}/${amt}`, method: 'paypal' });
   }
   return links;
 }

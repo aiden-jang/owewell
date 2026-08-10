@@ -835,6 +835,7 @@ export function GroupDetailPage(): ReactNode {
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => setSettleMethod(link.method)}
                       title={`Pay ${payment.toName} via ${link.label}`}
                       className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
                     >
