@@ -827,7 +827,7 @@ export function GroupDetailPage(): ReactNode {
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
               >
                 <Icon name="share" size={13} />
-                {settleShareStatus === 'shared' ? 'Shared' : settleShareStatus === 'copied' ? 'Copied' : 'Share plan'}
+                {settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
               </button>
               <label className="flex items-center gap-1.5 text-xs text-muted">
                 paid via
