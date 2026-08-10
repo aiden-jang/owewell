@@ -836,9 +836,10 @@ export function GroupDetailPage(): ReactNode {
                     type="button"
                     disabled={settling}
                     onClick={() => void markPaid(payment)}
+                    title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
                     className="rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98] disabled:opacity-60"
                   >
-                    Settle
+                    Mark paid
                   </button>
                 </div>
               </li>
