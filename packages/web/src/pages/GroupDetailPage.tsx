@@ -818,7 +818,8 @@ export function GroupDetailPage(): ReactNode {
               <button
                 type="button"
                 onClick={() => void shareSettlePlan()}
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline"
+                disabled={settleShareStatus !== null}
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
               >
                 <Icon name="share" size={13} />
                 {settleShareStatus === 'shared' ? 'Shared' : settleShareStatus === 'copied' ? 'Copied' : 'Share plan'}
