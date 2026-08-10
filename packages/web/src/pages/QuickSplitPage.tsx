@@ -151,7 +151,7 @@ export function QuickSplitPage(): ReactNode {
   const [youId, setYouId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
 
   const named = people.filter((p) => p.name.trim());
 
@@ -295,6 +295,11 @@ export function QuickSplitPage(): ReactNode {
   }
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
+  // Surface the one next step that applies to the person holding the phone. The full transfer list
+  // still matters for the group chat, but making everyone scan it to learn their own move is where
+  // a simple split starts feeling like admin.
+  const yourPayment = transfers?.find((transfer) => transfer.fromUserId === effectiveYouId) ?? null;
+  const yourReceive = transfers?.find((transfer) => transfer.toUserId === effectiveYouId) ?? null;
 
   const verdict =
     sharesByPerson && transfers
@@ -319,24 +324,32 @@ export function QuickSplitPage(): ReactNode {
   }
 
   async function shareSummary(): Promise<void> {
+    if (shareStatus) return;
     play('tick');
     const text = summaryText();
     // The share sheet where there is one (a phone at the table is the whole use case), clipboard
     // everywhere else. A cancelled share sheet throws AbortError, which is not a failure.
+    setShareStatus('sharing');
     if (navigator.share) {
       try {
-        await navigator.share({ text });
+        await navigator.share({ title: 'owewell split', text });
+        setShareStatus('shared');
+        window.setTimeout(() => setShareStatus(null), 2200);
         return;
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === 'AbortError') {
+          setShareStatus(null);
+          return;
+        }
       }
     }
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      setShareStatus('copied');
+      window.setTimeout(() => setShareStatus(null), 2200);
     } catch {
-      setError('Copy failed. Screenshot it, sorry.');
+      setShareStatus(null);
+      setError('Couldn’t share the split. Try again in a moment.');
     }
   }
 
@@ -640,7 +653,11 @@ export function QuickSplitPage(): ReactNode {
                 {transfers.map((t) => (
                   <li
                     key={`${t.fromUserId}-${t.toUserId}`}
-                    className="flex items-center justify-between rounded-xl glass px-4 py-3 text-sm"
+                    className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm ${
+                      t.fromUserId === effectiveYouId || t.toUserId === effectiveYouId
+                        ? 'border border-accent/25 bg-accent-soft'
+                        : 'glass'
+                    }`}
                   >
                     {/* min-w-0 so this is the item that gives when a name is long: a flex child
                         will not shrink below its longest word without it, and one long name pushed
@@ -670,6 +687,22 @@ export function QuickSplitPage(): ReactNode {
               </span>
             </p>
           )}
+          {yourPayment && (
+            <p className="mt-3 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-ink">
+              <span className="text-muted">your next step</span>
+              <br />
+              pay <span className="font-medium">{nameById(yourPayment.toUserId)}</span>{' '}
+              <span className="font-medium tabular-nums">{Money.fromCents(yourPayment.amountCents).format()}</span>
+            </p>
+          )}
+          {!yourPayment && yourReceive && (
+            <p className="mt-3 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-ink">
+              <span className="text-muted">your next step</span>
+              <br />
+              <span className="font-medium">{nameById(yourReceive.fromUserId)}</span> pays you{' '}
+              <span className="font-medium tabular-nums">{Money.fromCents(yourReceive.amountCents).format()}</span>
+            </p>
+          )}
           {verdict && <p className="mt-2 text-sm italic text-muted">{verdict}</p>}
         </section>
 
@@ -680,9 +713,17 @@ export function QuickSplitPage(): ReactNode {
           <button
             type="button"
             onClick={() => void shareSummary()}
-            className="mt-5 w-full rounded-full border border-black/10 px-5 py-3 font-semibold transition hover:bg-black/[0.03] active:scale-[0.98]"
+            disabled={shareStatus !== null}
+            aria-live="polite"
+            className="mt-5 w-full rounded-full border border-black/10 px-5 py-3 font-semibold transition hover:bg-black/[0.03] active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
           >
-            {copied ? 'Copied. Go ruin their day.' : 'Send it to the group chat'}
+            {shareStatus === 'sharing'
+              ? 'Opening share…'
+              : shareStatus === 'shared'
+                ? 'Split shared'
+                : shareStatus === 'copied'
+                  ? 'Split copied'
+                  : 'Send it to the group chat'}
           </button>
         )}
         <button
