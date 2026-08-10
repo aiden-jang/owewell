@@ -193,7 +193,7 @@ export function GroupDetailPage(): ReactNode {
       toast.success(
         allSettled
           ? 'Everyone is settled up.'
-          : `Recorded ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
+                    : `Recorded a ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
       );
     } catch {
       toast.error('Could not record that payment.');
@@ -861,7 +861,7 @@ export function GroupDetailPage(): ReactNode {
             </div>
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            Pay in your usual app, then mark it here to update the group.
+            Pay in your usual app, then mark it here so everyone&rsquo;s balances update.
           </p>
           <ul className="mt-3 space-y-2">
             {suggested.map((payment) => (
