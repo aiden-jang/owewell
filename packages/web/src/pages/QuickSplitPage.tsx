@@ -22,6 +22,7 @@ import {
   type PendingSplit,
 } from '../lib/quicksplit';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
+import { play } from '../lib/sound';
 
 interface Person {
   id: string;
@@ -166,6 +167,7 @@ export function QuickSplitPage(): ReactNode {
     setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
   function addPerson(): void {
+    play('tick');
     setPeople((prev) => [...prev, newPerson('')]);
   }
   function removePerson(id: string): void {
@@ -185,6 +187,7 @@ export function QuickSplitPage(): ReactNode {
     );
   }
   function addItem(): void {
+    play('tick');
     setItems((prev) => [...prev, newItem()]);
   }
   function removeItem(id: string): void {
@@ -316,6 +319,7 @@ export function QuickSplitPage(): ReactNode {
   }
 
   async function shareSummary(): Promise<void> {
+    play('tick');
     const text = summaryText();
     // The share sheet where there is one (a phone at the table is the whole use case), clipboard
     // everywhere else. A cancelled share sheet throws AbortError, which is not a failure.
@@ -405,6 +409,7 @@ export function QuickSplitPage(): ReactNode {
     try {
       const { groupId } = await quickSplitApi.save(pending);
       clearPendingSplit();
+      play('verdict');
       navigate(`/groups/${groupId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the split.');
