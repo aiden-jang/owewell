@@ -114,6 +114,7 @@ export function GroupDetailPage(): ReactNode {
   const [payPaypal, setPayPaypal] = useState('');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
+  const [settleShareStatus, setSettleShareStatus] = useState<'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   async function load(): Promise<void> {
@@ -195,6 +196,33 @@ export function GroupDetailPage(): ReactNode {
       toast.error('Could not record that payment.');
     } finally {
       setSettling(false);
+    }
+  }
+
+  async function shareSettlePlan(): Promise<void> {
+    if (!group || suggested.length === 0) return;
+    const lines = suggested.map(
+      (payment) => `${payment.fromName} pays ${payment.toName} ${Money.fromCents(payment.amountCents).format()}`,
+    );
+    const text = `${group.name} settle-up\n${lines.join('\n')}`;
+    const finish = (status: 'shared' | 'copied'): void => {
+      setSettleShareStatus(status);
+      window.setTimeout(() => setSettleShareStatus(null), 2200);
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${group.name} settle-up`, text });
+        finish('shared');
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      finish('copied');
+    } catch {
+      toast.error('Could not share the settle-up plan.');
     }
   }
 
@@ -786,21 +814,31 @@ export function GroupDetailPage(): ReactNode {
             <h2 className="flex items-center gap-2 text-sm font-semibold text-accent">
               <Icon name="wallet" size={16} /> Settle up
             </h2>
-            <label className="flex items-center gap-1.5 text-xs text-muted">
-              paid via
-              <select
-                value={settleMethod}
-                onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
-                aria-label="Payment method"
-                className="rounded-lg border border-line bg-field px-2 py-1 text-xs outline-none focus:border-accent"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void shareSettlePlan()}
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline"
               >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {PAYMENT_METHOD_LABELS[m]}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <Icon name="share" size={13} />
+                {settleShareStatus === 'shared' ? 'Shared' : settleShareStatus === 'copied' ? 'Copied' : 'Share plan'}
+              </button>
+              <label className="flex items-center gap-1.5 text-xs text-muted">
+                paid via
+                <select
+                  value={settleMethod}
+                  onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
+                  aria-label="Payment method"
+                  className="rounded-lg border border-line bg-field px-2 py-1 text-xs outline-none focus:border-accent"
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {PAYMENT_METHOD_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Pay in your usual app, then mark it here to update the group.
