@@ -829,6 +829,15 @@ export function GroupDetailPage(): ReactNode {
                 type="button"
                 onClick={() => void shareSettlePlan()}
                 disabled={settleShareStatus !== null}
+                aria-label={
+                  settleShareStatus === 'sharing'
+                    ? 'Opening settle-up plan sharing'
+                    : settleShareStatus === 'shared'
+                      ? 'Settle-up plan shared'
+                      : settleShareStatus === 'copied'
+                        ? 'Settle-up plan copied'
+                        : 'Share settle-up plan'
+                }
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
               >
                 <Icon name="share" size={13} />
