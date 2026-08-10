@@ -188,7 +188,9 @@ export function GroupDetailPage(): ReactNode {
       // Clearing the last debt in the group is a different event from clearing one of five, and the
       // same fetch that redraws the list already knows which just happened.
       play(stillOwed?.length === 0 ? 'allSettled' : 'settled');
-      toast.success(`Squared up ${payment.fromName} to ${payment.toName}.`);
+      toast.success(
+        `Recorded ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
+      );
     } catch {
       toast.error('Could not record that payment.');
     } finally {
