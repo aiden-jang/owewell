@@ -33,6 +33,7 @@ import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settl
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { FrontingInsight } from '../components/FrontingInsight';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
+import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -142,6 +143,9 @@ export function GroupDetailPage(): ReactNode {
   const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
+  const [paymentNudge, setPaymentNudge] = useState<string | null>(null);
+  const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
+  const [nudgeShareStatus, setNudgeShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
   async function load(): Promise<void> {
@@ -276,6 +280,50 @@ export function GroupDetailPage(): ReactNode {
     } catch {
       setSettleShareStatus(null);
       toast.error('Could not share the settle-up plan.');
+    }
+  }
+
+  async function sharePaymentNudge(payment: SuggestedPayment): Promise<void> {
+    if (!group || nudgeShareStatus) return;
+    const recipient = group.members.find(member => member.userId === payment.toUserId) ?? {
+      venmoHandle: null,
+      cashappCashtag: null,
+      paypalHandle: null,
+    };
+    const payUrl = payLinks(recipient, payment.amountCents, `owewell: ${group.name}`)[0]?.url;
+    const text = paymentNudgeText(
+      {
+        fromName: payment.fromName,
+        toName: payment.toName,
+        amountCents: payment.amountCents,
+        groupName: group.name,
+        payUrl,
+      },
+      nudgeTone,
+    );
+    const finish = (status: 'shared' | 'copied'): void => {
+      setNudgeShareStatus(status);
+      window.setTimeout(() => setNudgeShareStatus(null), 2200);
+    };
+    setNudgeShareStatus('sharing');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${group.name} payment reminder`, text });
+        finish('shared');
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          setNudgeShareStatus(null);
+          return;
+        }
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      finish('copied');
+    } catch {
+      setNudgeShareStatus(null);
+      toast.error('Could not share that reminder.');
     }
   }
 
@@ -1221,10 +1269,24 @@ export function GroupDetailPage(): ReactNode {
                   ))}
                   <button
                     type="button"
+                    aria-expanded={paymentNudge === `${payment.fromUserId}-${payment.toUserId}`}
+                    onClick={() => {
+                      const key = `${payment.fromUserId}-${payment.toUserId}`;
+                      setPaymentNudge(current => current === key ? null : key);
+                      setPaymentPreview(null);
+                      setNudgeShareStatus(null);
+                    }}
+                    className="rounded-full border border-line-strong bg-transparent px-3 py-1.5 text-xs font-medium text-muted transition hover:border-accent hover:text-ink active:scale-[0.98]"
+                  >
+                    {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` ? 'Close nudge' : 'Nudge'}
+                  </button>
+                  <button
+                    type="button"
                     aria-expanded={paymentPreview === `${payment.fromUserId}-${payment.toUserId}`}
                     onClick={() => {
                       const key = `${payment.fromUserId}-${payment.toUserId}`;
                       setPaymentPreview(current => current === key ? null : key);
+                      setPaymentNudge(null);
                     }}
                     className="rounded-full border border-line-strong bg-transparent px-3 py-1.5 text-xs font-medium text-muted transition hover:border-accent hover:text-ink active:scale-[0.98]"
                   >
@@ -1249,6 +1311,69 @@ export function GroupDetailPage(): ReactNode {
                     </span>
                   )}
                 </div>
+                {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` && (
+                  <div className="w-full basis-full rounded-xl border border-accent/15 bg-surface/65 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+                        Make it sound like you
+                      </p>
+                      <div className="flex gap-1" role="group" aria-label="Reminder tone">
+                        {(['gentle', 'direct', 'playful'] as NudgeTone[]).map(tone => (
+                          <button
+                            key={tone}
+                            type="button"
+                            aria-pressed={nudgeTone === tone}
+                            onClick={() => setNudgeTone(tone)}
+                            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize transition ${
+                              nudgeTone === tone
+                                ? 'border-accent bg-accent-soft text-accent'
+                                : 'border-line bg-field text-muted hover:text-ink'
+                            }`}
+                          >
+                            {tone}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="mt-2 whitespace-pre-line rounded-lg border border-line bg-field/70 px-3 py-2.5 text-xs leading-relaxed text-ink">
+                      {paymentNudgeText(
+                        {
+                          fromName: payment.fromName,
+                          toName: payment.toName,
+                          amountCents: payment.amountCents,
+                          groupName: group.name,
+                          payUrl: payLinks(
+                            group.members.find(member => member.userId === payment.toUserId) ?? {
+                              venmoHandle: null,
+                              cashappCashtag: null,
+                              paypalHandle: null,
+                            },
+                            payment.amountCents,
+                            `owewell: ${group.name}`,
+                          )[0]?.url,
+                        },
+                        nudgeTone,
+                      )}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span className="text-[11px] text-muted">Nothing is sent automatically.</span>
+                      <button
+                        type="button"
+                        disabled={nudgeShareStatus !== null}
+                        onClick={() => void sharePaymentNudge(payment)}
+                        className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+                      >
+                        {nudgeShareStatus === 'sharing'
+                          ? 'Opening…'
+                          : nudgeShareStatus === 'shared'
+                            ? 'Reminder shared'
+                            : nudgeShareStatus === 'copied'
+                              ? 'Reminder copied'
+                              : 'Send reminder'}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` && (
                   <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
