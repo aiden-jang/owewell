@@ -55,6 +55,14 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function csvCell(value: string | number): string {
+  // Spreadsheet apps execute leading formula characters even inside imported CSV files. User
+  // controlled descriptions and names must stay text when the export is opened in Excel/Sheets.
+  const raw = String(value);
+  const text = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 type Activity =
   | { kind: 'expense'; ts: number; expense: Expense }
   | { kind: 'settlement'; ts: number; settlement: Settlement };
@@ -116,6 +124,7 @@ export function GroupDetailPage(): ReactNode {
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   async function load(): Promise<void> {
@@ -268,6 +277,38 @@ export function GroupDetailPage(): ReactNode {
     } catch {
       setRecapShareStatus(null);
       toast.error('Could not share the settled recap.');
+    }
+  }
+
+  async function shareMyBalance(): Promise<void> {
+    if (!group || myNet === 0 || balanceShareStatus) return;
+    const amount = Money.fromCents(Math.abs(myNet)).format();
+    const text = myNet > 0
+      ? `${group.name}: I’m owed ${amount}. Let’s get it settled in owewell.`
+      : `${group.name}: I still owe ${amount}. I’ll send it over.`;
+    const finish = (status: 'shared' | 'copied'): void => {
+      setBalanceShareStatus(status);
+      window.setTimeout(() => setBalanceShareStatus(null), 2200);
+    };
+    setBalanceShareStatus('sharing');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${group.name} balance`, text });
+        finish('shared');
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          setBalanceShareStatus(null);
+          return;
+        }
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      finish('copied');
+    } catch {
+      setBalanceShareStatus(null);
+      toast.error('Could not share your balance.');
     }
   }
 
@@ -639,6 +680,55 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
+  function exportActivity(): void {
+    if (!group) return;
+    // An export is intentionally ledger-shaped rather than an attempt to recreate the whole UI in
+    // a spreadsheet. Expenses and payments share one sorted timeline, with names resolved at the
+    // time of export so it remains readable after somebody changes their display name elsewhere.
+    const rows = [
+      ...expenses.map((expense) => ({
+        date: expense.date || expense.createdAt,
+        type: 'Expense',
+        description: expense.description,
+        amount: Money.fromCents(expense.amountCents).format(),
+        details: `${nameOf(expense.payerId)} paid · ${categoryMeta(expense.category).label}`,
+      })),
+      ...settlements.map((settlement) => ({
+        date: settlement.createdAt,
+        type: 'Payment',
+        description: `${nameOf(settlement.fromUserId)} → ${nameOf(settlement.toUserId)}`,
+        amount: Money.fromCents(settlement.amountCents).format(),
+        details: settlement.method ? `via ${PAYMENT_METHOD_LABELS[settlement.method]}` : 'payment recorded',
+      })),
+      ...balances.map((balance) => ({
+        date: '',
+        type: 'Current balance',
+        description: nameOf(balance.userId),
+        amount: Money.fromCents(Math.abs(balance.netCents)).format(),
+        details: balance.netCents > 0 ? 'is owed' : balance.netCents < 0 ? 'owes' : 'settled up',
+      })),
+    ].sort((a, b) => {
+      if (a.type === 'Current balance') return b.type === 'Current balance' ? a.description.localeCompare(b.description) : 1;
+      if (b.type === 'Current balance') return -1;
+      return a.date.localeCompare(b.date);
+    });
+    const csv = [
+      ['Date', 'Type', 'Description', 'Amount', 'Details'],
+      ...rows.map((row) => [
+        new Date(row.date).toLocaleDateString(), row.type, row.description, row.amount, row.details,
+      ]),
+    ].map((row) => row.map(csvCell).join(',')).join('\r\n');
+    // BOM keeps names and descriptions with emoji/non-Latin characters intact in desktop Excel.
+    const href = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = `${group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'owewell'}-activity.csv`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(href), 0);
+    toast.success('Activity exported as a CSV.');
+    setMenuOpen(false);
+  }
+
   async function copyShareLink(): Promise<void> {
     if (!shareLink) return;
     try {
@@ -742,6 +832,14 @@ export function GroupDetailPage(): ReactNode {
                   role="menu"
                   className="surface absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-2xl border border-line py-1 shadow-xl shadow-black/40"
                 >
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={exportActivity}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
+                  >
+                    <Icon name="receipt" size={15} /> Export activity
+                  </button>
                   {isOwner && (
                     <button
                       role="menuitem"
@@ -854,6 +952,17 @@ export function GroupDetailPage(): ReactNode {
               {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Recap shared' : recapShareStatus === 'copied' ? 'Recap copied' : 'Share the recap'}
             </button>
           </div>
+        )}
+        {hasActivity && !settled && (
+          <button
+            type="button"
+            onClick={() => void shareMyBalance()}
+            disabled={balanceShareStatus !== null}
+            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
+          >
+            <Icon name="share" size={13} />
+            {balanceShareStatus === 'sharing' ? 'Opening…' : balanceShareStatus === 'shared' ? 'Balance shared' : balanceShareStatus === 'copied' ? 'Balance copied' : 'Send my balance'}
+          </button>
         )}
         {!hasActivity ? (
           <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
