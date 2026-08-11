@@ -110,6 +110,7 @@ export function GroupDetailPage(): ReactNode {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [relationFilter, setRelationFilter] = useState<'involved' | 'owes' | 'paid'>('involved');
+  const [activityQuery, setActivityQuery] = useState('');
   // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -502,17 +503,37 @@ export function GroupDetailPage(): ReactNode {
     return items.sort((a, b) => b.ts - a.ts);
   }, [expenses, settlements]);
 
-  // With any filter active, the feed narrows to matching expenses (settlements have no category
-  // or payer in this sense, so they drop out while filtering).
+  // Person/category filters are expense-specific. Text search spans the entire ledger, including
+  // payments, and matches the same human labels the rows display rather than internal ids.
   const visibleActivity = useMemo(() => {
-    if (!categoryFilter && !personFilter) return activity;
-    return activity.filter(
-      (it) =>
-        it.kind === 'expense' &&
-        (!categoryFilter || (it.expense.category ?? 'other') === categoryFilter) &&
-        matchesPersonLens(it.expense, personFilter, relationFilter),
-    );
-  }, [activity, categoryFilter, personFilter, relationFilter]);
+    const query = activityQuery.trim().toLocaleLowerCase();
+    const memberName = (userId: string): string =>
+      group?.members.find((member) => member.userId === userId)?.displayName ?? '';
+    return activity.filter((item) => {
+      if (categoryFilter || personFilter) {
+        if (item.kind !== 'expense') return false;
+        if (categoryFilter && (item.expense.category ?? 'other') !== categoryFilter) return false;
+        if (!matchesPersonLens(item.expense, personFilter, relationFilter)) return false;
+      }
+      if (!query) return true;
+      const haystack = item.kind === 'expense'
+        ? [
+            item.expense.description,
+            categoryMeta(item.expense.category).label,
+            memberName(item.expense.payerId),
+            ...item.expense.splits.map((split) => memberName(split.userId)),
+            Money.fromCents(item.expense.amountCents).format(),
+          ]
+        : [
+            memberName(item.settlement.fromUserId),
+            memberName(item.settlement.toUserId),
+            'payment',
+            item.settlement.method ? PAYMENT_METHOD_LABELS[item.settlement.method] : '',
+            Money.fromCents(item.settlement.amountCents).format(),
+          ];
+      return haystack.some((value) => value.toLocaleLowerCase().includes(query));
+    });
+  }, [activity, activityQuery, categoryFilter, group, personFilter, relationFilter]);
 
   /**
    * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
@@ -1132,6 +1153,26 @@ export function GroupDetailPage(): ReactNode {
 
       {activity.length > 0 && (
         <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+          <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
+            <span className="sr-only">Search activity</span>
+            <input
+              type="search"
+              value={activityQuery}
+              onChange={(event) => setActivityQuery(event.target.value)}
+              placeholder="Find dinner, Alex, $24…"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
+            />
+            {activityQuery && (
+              <button
+                type="button"
+                onClick={() => setActivityQuery('')}
+                aria-label="Clear activity search"
+                className="text-muted transition hover:text-ink"
+              >
+                <Icon name="x" size={13} />
+              </button>
+            )}
+          </label>
           <select
             value={personFilter ?? ''}
             onChange={(e) => setPersonFilter(e.target.value || null)}
@@ -1171,14 +1212,15 @@ export function GroupDetailPage(): ReactNode {
               <Icon name="x" size={12} />
             </button>
           )}
-          {(categoryFilter || personFilter) && (
+          {(activityQuery || categoryFilter || personFilter) && (
             <>
               <span className="text-faint">
-                {visibleActivity.length} {visibleActivity.length === 1 ? 'expense' : 'expenses'}
+                {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
               </span>
               <button
                 type="button"
                 onClick={() => {
+                  setActivityQuery('');
                   setCategoryFilter(null);
                   setPersonFilter(null);
                   setRelationFilter('involved');
@@ -1297,17 +1339,18 @@ export function GroupDetailPage(): ReactNode {
           </div>
         ) : visibleActivity.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
-            No expenses match this filter.{' '}
+            Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
             <button
               type="button"
               onClick={() => {
+                setActivityQuery('');
                 setCategoryFilter(null);
                 setPersonFilter(null);
                 setRelationFilter('involved');
               }}
               className="font-medium text-accent hover:underline"
             >
-              Clear filter
+              Clear search and filters
             </button>
           </div>
         ) : (
