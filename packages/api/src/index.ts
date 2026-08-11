@@ -18,6 +18,7 @@ import {
   listGroups,
   removeMember,
   renameGroup,
+  setSettlementDeadline,
   renameMember,
   requireMembership,
   setGroupArchived,
@@ -121,6 +122,18 @@ app.patch('/owewell/groups/:id', async (c) => {
   const parsed = z.object({ name: z.string().trim().min(1).max(80) }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const group = await renameGroup(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.name);
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ group });
+});
+
+app.patch('/owewell/groups/:id/settle-by', async (c) => {
+  const parsed = z.object({ settleBy: z.string().datetime({ offset: true }).nullable() }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
+  const date = parsed.data.settleBy ? new Date(parsed.data.settleBy) : null;
+  if (date && date.getTime() < Date.now() - 60_000) {
+    return c.json({ error: 'ValidationError', message: 'Choose a settle-by time that has not passed.' }, 400);
+  }
+  const group = await setSettlementDeadline(createDb(c.env), c.get('person').id, c.req.param('id'), date);
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ group });
 });

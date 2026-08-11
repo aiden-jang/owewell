@@ -31,6 +31,7 @@ import { play } from '../lib/sound';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
+import { SettlementDeadline } from '../components/SettlementDeadline';
 import { FrontingInsight } from '../components/FrontingInsight';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
@@ -259,7 +260,10 @@ export function GroupDetailPage(): ReactNode {
     );
     const total = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
     const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
-    const text = `${group.name} settle-up\n${Money.fromCents(total).format()} across ${suggested.length} ${transferLabel}\n\n${lines.join('\n')}`;
+    const deadline = group.settleBy
+      ? `\nSettle by ${new Date(group.settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+      : '';
+    const text = `${group.name} settle-up\n${Money.fromCents(total).format()} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`;
     const finish = (status: 'shared' | 'copied'): void => {
       setSettleShareStatus(status);
       window.setTimeout(() => setSettleShareStatus(null), 2200);
@@ -1294,6 +1298,22 @@ export function GroupDetailPage(): ReactNode {
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Pay in your usual app, then mark it here so the group stays in sync.
           </p>
+          <SettlementDeadline
+            groupName={group.name}
+            settleBy={group.settleBy}
+            suggestions={suggested}
+            isOwner={isOwner}
+            onSave={async (settleBy) => {
+              try {
+                const updated = await groupsApi.setSettlementDeadline(group.id, settleBy);
+                setGroup(updated);
+                toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
+                throw error;
+              }
+            }}
+          />
           {bestSettleStep && (
             <div className="mt-3 rounded-xl border border-accent/20 bg-surface/75 px-3 py-3 shadow-sm shadow-accent/5">
               <div className="flex items-center justify-between gap-3">

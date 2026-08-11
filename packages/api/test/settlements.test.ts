@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { addPlaceholderMember, createGroup } from '../src/groups.js';
+import {
+  addPlaceholderMember,
+  createGroup,
+  getGroup,
+  setSettlementDeadline,
+} from '../src/groups.js';
 import { createExpense, getBalances } from '../src/expenses.js';
 import {
   SettlementError,
@@ -29,7 +34,7 @@ async function net(): Promise<Record<string, number>> {
 }
 
 describe('settlements', () => {
-  test('recording a payment moves the balances toward zero', async () => {
+  test('recording the final payment clears the shared settlement deadline', async () => {
     // Alice pays 1000 split evenly: Bob owes Alice 500.
     await createExpense(db, alice, groupId, {
       description: 'Lunch',
@@ -39,6 +44,7 @@ describe('settlements', () => {
       participants: [{ userId: alice }, { userId: bob }],
     });
     expect((await net())[bob]).toBe(-500);
+    await setSettlementDeadline(db, alice, groupId, new Date('2026-08-20T22:00:00Z'));
 
     const s = await recordSettlement(db, alice, groupId, {
       fromUserId: bob,
@@ -50,6 +56,7 @@ describe('settlements', () => {
     const balances = await net();
     expect(balances[alice]).toBe(0);
     expect(balances[bob]).toBe(0);
+    expect((await getGroup(db, alice, groupId)).settleBy).toBeNull();
     expect(await listSettlements(db, alice, groupId)).toHaveLength(1);
   });
 

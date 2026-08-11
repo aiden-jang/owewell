@@ -53,6 +53,7 @@ export interface GroupDetail {
   createdById: string;
   createdAt: Date;
   archived: boolean;
+  settleBy: Date | null;
   viewerId: string; // the caller's person id, so the UI knows which member is "me"
   members: GroupMemberView[];
 }
@@ -144,9 +145,22 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
     createdById: g.createdById,
     createdAt: g.createdAt,
     archived: mine?.archivedAt != null,
+    settleBy: g.settleBy,
     viewerId: personId,
     members: await membersOf(db, groupId),
   };
+}
+
+/** The owner can set or clear one shared finish line for the current tab. */
+export async function setSettlementDeadline(
+  db: DB,
+  personId: string,
+  groupId: string,
+  settleBy: Date | null,
+): Promise<GroupDetail> {
+  await requireOwner(db, personId, groupId);
+  await db.update(groups).set({ settleBy }).where(eq(groups.id, groupId));
+  return getGroup(db, personId, groupId);
 }
 
 /** Archive (or restore) a group in the caller's own view. Any member may do this; it's a
