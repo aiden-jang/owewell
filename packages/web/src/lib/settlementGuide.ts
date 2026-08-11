@@ -1,5 +1,6 @@
 import type { Balance } from './groups';
 import type { SuggestedPayment } from './settlements';
+import { simplifyDebts } from '@owewell/shared';
 
 export interface SettlementStepImpact {
   payment: SuggestedPayment;
@@ -15,6 +16,53 @@ export interface ProjectedBalance {
   beforeCents: number;
   afterCents: number;
   becomesSettled: boolean;
+}
+
+export interface PaymentPlanPreview {
+  touched: ProjectedBalance[];
+  remaining: SuggestedPayment[];
+  outstandingBeforeCents: number;
+  outstandingAfterCents: number;
+  direction: 'helpful' | 'overpay' | 'wrong-way';
+}
+
+/** Re-run the whole settle-up plan in memory after an arbitrary payment. */
+export function previewPaymentPlan(
+  payment: SuggestedPayment,
+  balances: Balance[],
+): PaymentPlanPreview | null {
+  const from = balances.find(balance => balance.userId === payment.fromUserId);
+  const to = balances.find(balance => balance.userId === payment.toUserId);
+  if (!from || !to || from.userId === to.userId || payment.amountCents <= 0) return null;
+
+  const projected = balances.map(balance => ({
+    ...balance,
+    netCents: balance.userId === from.userId
+      ? balance.netCents + payment.amountCents
+      : balance.userId === to.userId
+        ? balance.netCents - payment.amountCents
+        : balance.netCents,
+  }));
+  const names = new Map(balances.map(balance => [balance.userId, balance.displayName]));
+  const remaining = simplifyDebts(projected.map(balance => ({ userId: balance.userId, netCents: balance.netCents })))
+    .map(transfer => ({
+      ...transfer,
+      fromName: names.get(transfer.fromUserId) ?? 'Someone',
+      toName: names.get(transfer.toUserId) ?? 'Someone',
+    }));
+  const usefulLimit = Math.min(Math.max(0, -from.netCents), Math.max(0, to.netCents));
+
+  return {
+    touched: projectBalancesAfterPayment(payment, balances),
+    remaining,
+    outstandingBeforeCents: balances.reduce((sum, balance) => sum + Math.max(0, balance.netCents), 0),
+    outstandingAfterCents: projected.reduce((sum, balance) => sum + Math.max(0, balance.netCents), 0),
+    direction: usefulLimit === 0
+      ? 'wrong-way'
+      : payment.amountCents > usefulLimit
+        ? 'overpay'
+        : 'helpful',
+  };
 }
 
 /** Preview only the two balances a payment touches; no ledger state is mutated. */

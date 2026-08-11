@@ -2096,6 +2096,7 @@ export function GroupDetailPage(): ReactNode {
         <RecordPaymentForm
           groupId={group.id}
           members={group.members}
+          balances={balances}
           defaultFromId={user?.id}
           suggestions={suggested}
           onRecorded={(settlement) => {
