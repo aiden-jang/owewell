@@ -34,6 +34,7 @@ import { SettlementReceipt } from '../components/SettlementReceipt';
 import { FrontingInsight } from '../components/FrontingInsight';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
+import { buildGroupRecap } from '../lib/groupRecap';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -332,9 +333,14 @@ export function GroupDetailPage(): ReactNode {
   // group chat without exposing the individual balance history again.
   async function shareSettledRecap(): Promise<void> {
     if (!group || recapShareStatus) return;
-    const spent = expenses.reduce((sum, expense) => sum + expense.amountCents, 0);
+    const recap = buildGroupRecap(expenses, settlements);
     const paymentLabel = settlements.length === 1 ? 'payment' : 'payments';
-    const text = `${group.name} is all settled ✓\n${Money.fromCents(spent).format()} split across ${group.members.length} people\n${settlements.length} ${paymentLabel} recorded`;
+    const highlights = [
+      recap.topCategory ? `Top category: ${recap.topCategory.emoji} ${recap.topCategory.label} (${Money.fromCents(recap.topCategory.amountCents).format()})` : null,
+      recap.largest ? `Biggest expense: ${recap.largest.description} (${Money.fromCents(recap.largest.amountCents).format()})` : null,
+      recap.daysOpen ? `Tab open for ${recap.daysOpen} ${recap.daysOpen === 1 ? 'day' : 'days'}` : null,
+    ].filter(Boolean).join('\n');
+    const text = `${group.name} is all settled ✓\n${Money.fromCents(recap.totalCents).format()} split across ${group.members.length} people\n${settlements.length} ${paymentLabel} recorded${highlights ? `\n\n${highlights}` : ''}`;
     const finish = (status: 'shared' | 'copied'): void => {
       setRecapShareStatus(status);
       window.setTimeout(() => setRecapShareStatus(null), 2200);
@@ -762,6 +768,9 @@ export function GroupDetailPage(): ReactNode {
   const perPersonCents = group.members.length ? Math.round(totalSpent / group.members.length) : 0;
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
+  const groupRecap = groupSettled && expenses.length > 0
+    ? buildGroupRecap(expenses, settlements)
+    : null;
 
   // The person lens (personFilter + relationFilter) scopes both the breakdown and the feed; the
   // category filter is a drill-down from the chart into the feed only. The lens logic is pure and
@@ -1068,15 +1077,6 @@ export function GroupDetailPage(): ReactNode {
         {hasActivity && groupSettled && (
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
             <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'} · {settlements.length} {settlements.length === 1 ? 'payment' : 'payments'} recorded</span>
-            <button
-              type="button"
-              onClick={() => void shareSettledRecap()}
-              disabled={recapShareStatus !== null}
-              className="inline-flex items-center gap-1 font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
-            >
-              <Icon name="share" size={13} />
-              {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Recap shared' : recapShareStatus === 'copied' ? 'Recap copied' : 'Share the recap'}
-            </button>
           </div>
         )}
         {hasActivity && !settled && (
@@ -1107,6 +1107,62 @@ export function GroupDetailPage(): ReactNode {
           </button>
         ) : null}
       </div>
+
+      {groupRecap && (
+        <section className="mt-4 overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">The tab, wrapped</p>
+              <h2 className="mt-1 font-display text-xl font-bold text-ink">{group.name} in four numbers</h2>
+              <p className="mt-1 text-sm text-muted">Nothing left to chase. Just the story of the tab.</p>
+            </div>
+            <span aria-hidden className="text-2xl text-accent">✦</span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
+              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Total spent</span>
+              <strong className="mt-1 block font-display text-lg text-ink">
+                {Money.fromCents(groupRecap.totalCents).format()}
+              </strong>
+            </div>
+            <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
+              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Biggest moment</span>
+              <strong className="mt-1 block truncate text-sm text-ink" title={groupRecap.largest?.description}>
+                {groupRecap.largest?.description ?? '—'}
+              </strong>
+              {groupRecap.largest && (
+                <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.largest.amountCents).format()}</span>
+              )}
+            </div>
+            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
+              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Top category</span>
+              <strong className="mt-1 block text-sm text-ink">
+                {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : '—'}
+              </strong>
+              {groupRecap.topCategory && (
+                <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.topCategory.amountCents).format()}</span>
+              )}
+            </div>
+            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
+              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Tab lifetime</span>
+              <strong className="mt-1 block font-display text-lg text-ink">
+                {groupRecap.daysOpen} {groupRecap.daysOpen === 1 ? 'day' : 'days'}
+              </strong>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void shareSettledRecap()}
+            disabled={recapShareStatus !== null}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent-soft px-3.5 py-2 text-sm font-semibold text-accent transition hover:border-accent/35 hover:bg-accent/10 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+          >
+            <Icon name="share" size={14} />
+            {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Wrapped shared' : recapShareStatus === 'copied' ? 'Wrapped copied' : 'Share the wrapped tab'}
+          </button>
+        </section>
+      )}
 
       {expenses.length > 0 && group.members.length > 1 && (
         <FrontingInsight balances={balances} expenseCount={expenses.length} />
