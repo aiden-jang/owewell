@@ -19,6 +19,8 @@ interface Props {
   onCreated: () => void;
   /** When set, the form edits this expense in place instead of creating a new one. */
   editing?: Expense;
+  /** Prefill a new expense from an old one while keeping today as the date. */
+  template?: Expense;
 }
 
 /** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
@@ -35,20 +37,26 @@ function initialValues(editing: Expense | undefined): Record<string, string> {
   return out;
 }
 
-export function AddExpenseForm({ groupId, members, onCreated, editing }: Props): ReactNode {
-  const [description, setDescription] = useState(editing?.description ?? '');
-  const [amount, setAmount] = useState(editing ? (editing.amountCents / 100).toFixed(2) : '');
-  const [payerId, setPayerId] = useState(editing?.payerId ?? members[0]?.userId ?? '');
+export function AddExpenseForm({ groupId, members, onCreated, editing, template }: Props): ReactNode {
+  const source = editing ?? template;
+  const sourcePayer = source && members.some((member) => member.userId === source.payerId)
+    ? source.payerId
+    : members[0]?.userId ?? '';
+  const [description, setDescription] = useState(source?.description ?? '');
+  const [amount, setAmount] = useState(source ? (source.amountCents / 100).toFixed(2) : '');
+  const [payerId, setPayerId] = useState(sourcePayer);
   const [method, setMethod] = useState<SplitMethod>(
-    editing && editing.splitMethod !== 'ITEMIZED' ? editing.splitMethod : 'EQUAL',
+    source && source.splitMethod !== 'ITEMIZED' ? source.splitMethod : 'EQUAL',
   );
   const [selected, setSelected] = useState<Set<string>>(
-    editing ? new Set(editing.splits.map((s) => s.userId)) : new Set(members.map((m) => m.userId)),
+    source
+      ? new Set(source.splits.map((s) => s.userId).filter((id) => members.some((member) => member.userId === id)))
+      : new Set(members.map((m) => m.userId)),
   );
-  const [values, setValues] = useState<Record<string, string>>(() => initialValues(editing));
+  const [values, setValues] = useState<Record<string, string>>(() => initialValues(source));
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
   const [category, setCategory] = useState<ExpenseCategory>(
-    editing?.category ?? DEFAULT_EXPENSE_CATEGORY,
+    source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

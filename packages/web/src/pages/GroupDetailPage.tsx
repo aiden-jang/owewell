@@ -121,6 +121,7 @@ export function GroupDetailPage(): ReactNode {
   const [payCashapp, setPayCashapp] = useState('');
   const [payPaypal, setPayPaypal] = useState('');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [repeatingExpense, setRepeatingExpense] = useState<Expense | null>(null);
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
@@ -1322,6 +1323,16 @@ export function GroupDetailPage(): ReactNode {
                     <span className="tnum font-semibold">
                       {Money.fromCents(item.expense.amountCents).format()}
                     </span>
+                    {!group.archived && (
+                      <button
+                        type="button"
+                        onClick={() => setRepeatingExpense(item.expense)}
+                        aria-label={`Repeat ${item.expense.description}`}
+                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-accent [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                      >
+                        <Icon name="copy" size={14} />
+                      </button>
+                    )}
                     {/* Once a payment is recorded the ledger locks: no editing or deleting. */}
                     {settlements.length === 0 && (
                       <>
@@ -1707,6 +1718,47 @@ export function GroupDetailPage(): ReactNode {
               }}
             />
           ))}
+      </Sheet>
+
+      <Sheet
+        open={!!repeatingExpense}
+        onClose={() => setRepeatingExpense(null)}
+        title={repeatingExpense?.splitMethod === 'ITEMIZED' ? 'Repeat this receipt' : 'Repeat this expense'}
+      >
+        {repeatingExpense && (
+          <>
+            <p className="mb-4 text-sm text-muted">
+              Everything is copied over with today&rsquo;s date. Change anything that was different this time.
+            </p>
+            {repeatingExpense.splitMethod === 'ITEMIZED' ? (
+              <AddItemizedExpenseForm
+                key={`repeat-${repeatingExpense.id}`}
+                groupId={group.id}
+                members={group.members}
+                template={repeatingExpense}
+                onCreated={() => {
+                  setRepeatingExpense(null);
+                  play('add');
+                  toast.success('Repeated the receipt.');
+                  void refreshLedger();
+                }}
+              />
+            ) : (
+              <AddExpenseForm
+                key={`repeat-${repeatingExpense.id}`}
+                groupId={group.id}
+                members={group.members}
+                template={repeatingExpense}
+                onCreated={() => {
+                  setRepeatingExpense(null);
+                  play('add');
+                  toast.success('Repeated the expense.');
+                  void refreshLedger();
+                }}
+              />
+            )}
+          </>
+        )}
       </Sheet>
     </Shell>
   );
