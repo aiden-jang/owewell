@@ -1,0 +1,27 @@
+import { describe, expect, it } from 'vitest';
+import { paymentNudgeText } from './paymentNudge';
+
+const details = {
+  fromName: 'Alex',
+  toName: 'Blair',
+  amountCents: 2450,
+  groupName: 'Beach weekend',
+};
+
+describe('paymentNudgeText', () => {
+  it('keeps the gentle version human and low pressure', () => {
+    expect(paymentNudgeText(details, 'gentle')).toBe(
+      'Hey Alex — a gentle owewell nudge for $24.50 to Blair in Beach weekend. No rush, just keeping the group square.',
+    );
+  });
+
+  it('offers direct and playful versions without changing the facts', () => {
+    expect(paymentNudgeText(details, 'direct')).toContain('you still owe Blair $24.50');
+    expect(paymentNudgeText(details, 'playful')).toContain('Alex → Blair: $24.50');
+  });
+
+  it('adds a payment deep link when the recipient has one configured', () => {
+    expect(paymentNudgeText({ ...details, payUrl: 'https://pay.example/blair' }, 'gentle'))
+      .toContain('\nPay here: https://pay.example/blair');
+  });
+});
