@@ -154,6 +154,7 @@ export function QuickSplitPage(): ReactNode {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [shareStatus, setShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const [customTip, setCustomTip] = useState('');
 
   const named = people.filter((p) => p.name.trim());
 
@@ -193,6 +194,10 @@ export function QuickSplitPage(): ReactNode {
     setItems((prev) => [...prev, newItem()]);
   }
   function addTip(percent: number): void {
+    if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+      setError('Enter a tip percentage from 1 to 100.');
+      return;
+    }
     const tipItems: Item[] = [];
     for (const item of items) {
       if (item.generatedTip || /\btip\b/i.test(item.description) || !item.amount.trim()) continue;
@@ -226,6 +231,11 @@ export function QuickSplitPage(): ReactNode {
     // A preset is a choice, not an additive action. Switching 18 → 20 replaces the generated tip
     // rows instead of quietly charging both percentages.
     setItems((current) => [...current.filter((item) => !item.generatedTip), ...tipItems]);
+    play('tick');
+  }
+  function clearGeneratedTip(): void {
+    setItems((current) => current.filter((item) => !item.generatedTip));
+    setCustomTip('');
     play('tick');
   }
   function removeItem(id: string): void {
@@ -705,6 +715,39 @@ export function QuickSplitPage(): ReactNode {
                   {percent}%
                 </button>
               ))}
+              <label className="flex items-center rounded-full border border-line bg-field pl-2.5 text-xs text-muted focus-within:border-accent">
+                <span className="sr-only">Custom tip percentage</span>
+                <input
+                  value={customTip}
+                  onChange={(event) => setCustomTip(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      addTip(Number(customTip));
+                    }
+                  }}
+                  placeholder="other"
+                  inputMode="decimal"
+                  className="w-12 bg-transparent py-1 outline-none placeholder:text-muted/70"
+                />
+                <button
+                  type="button"
+                  onClick={() => addTip(Number(customTip))}
+                  className="px-2 py-1 font-semibold text-accent"
+                  aria-label="Apply custom tip"
+                >
+                  %
+                </button>
+              </label>
+              {activeTip !== null && (
+                <button
+                  type="button"
+                  onClick={clearGeneratedTip}
+                  className="text-xs text-muted transition hover:text-ink hover:underline"
+                >
+                  remove
+                </button>
+              )}
             </div>
           </div>
         </div>
