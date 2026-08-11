@@ -28,6 +28,8 @@ import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
+import { recurringApi, type RecurringRule } from '../lib/recurring';
+import { RecurringDue, RecurringList } from '../components/RecurringDue';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
@@ -106,6 +108,7 @@ export function GroupDetailPage(): ReactNode {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [suggested, setSuggested] = useState<SuggestedPayment[]>([]);
+  const [recurring, setRecurring] = useState<RecurringRule[]>([]);
   const [notFound, setNotFound] = useState(false);
   // A transient load failure (network / 5xx) is distinct from a real 404/403: the former gets a
   // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
@@ -156,18 +159,20 @@ export function GroupDetailPage(): ReactNode {
     setNotFound(false);
     setLoadFailed(false);
     try {
-      const [g, b, e, st, s] = await Promise.all([
+      const [g, b, e, st, s, rr] = await Promise.all([
         groupsApi.get(id),
         groupsApi.balances(id),
         expensesApi.list(id),
         settlementsApi.list(id),
         settlementsApi.suggested(id),
+        recurringApi.list(id),
       ]);
       setGroup(g);
       setBalances(b);
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
+      setRecurring(rr);
     } catch (err) {
       // Genuine "not yours / gone" only for 404/403; anything else is a transient failure.
       if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
@@ -186,22 +191,89 @@ export function GroupDetailPage(): ReactNode {
     // swallowed rejection that leaves the just-succeeded change showing over stale data. Keep the
     // current view (it's still valid) but tell the user it may be behind.
     try {
-      const [g, b, e, st, s] = await Promise.all([
+      const [g, b, e, st, s, rr] = await Promise.all([
         groupsApi.get(id),
         groupsApi.balances(id),
         expensesApi.list(id),
         settlementsApi.list(id),
         settlementsApi.suggested(id),
+        recurringApi.list(id),
       ]);
       setGroup(g);
       setBalances(b);
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
+      setRecurring(rr);
       return { balances: b, suggested: s };
     } catch {
       toast.error('Could not load the latest changes. Reload if the numbers look off.');
       return null;
+    }
+  }
+
+  /*
+   * Dealing with a due occurrence.
+   *
+   * The response carries the updated rule, so the card can drop the line it just handled without
+   * waiting for the ledger refetch. The refetch still runs, because adding one creates a real expense
+   * and every balance on the page has just moved.
+   */
+  async function acceptRecurring(ruleId: string, on: string): Promise<void> {
+    try {
+      const updated = await recurringApi.accept(id, ruleId, on);
+      setRecurring((rules) => rules.map((r) => (r.id === updated.id ? updated : r)));
+      await refreshLedger();
+      toast.success(`${updated.description} added to the tab.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add that one.');
+    }
+  }
+
+  async function skipRecurring(ruleId: string, on: string): Promise<void> {
+    try {
+      const updated = await recurringApi.skip(id, ruleId, on);
+      setRecurring((rules) => rules.map((r) => (r.id === updated.id ? updated : r)));
+      toast.success('Skipped. It will come round again next time.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not skip that one.');
+    }
+  }
+
+  async function setRecurringActive(ruleId: string, active: boolean): Promise<void> {
+    try {
+      const updated = await recurringApi.setActive(id, ruleId, active);
+      setRecurring((rules) => rules.map((r) => (r.id === updated.id ? updated : r)));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change that.');
+    }
+  }
+
+  /**
+   * Turn an expense that already exists into something that repeats.
+   *
+   * The lowest-friction way to make a rule: the amount, payer and split are all sitting there, and
+   * `handledThrough` is the expense's own date so the bill somebody just entered is not immediately
+   * proposed straight back at them.
+   */
+  async function repeatExpense(expense: Expense, cadence: 'weekly' | 'monthly'): Promise<void> {
+    const startsOn = expense.date.slice(0, 10);
+    try {
+      const rule = await recurringApi.create(id, {
+        description: expense.description,
+        amountCents: expense.amountCents,
+        payerId: expense.payerId,
+        category: expense.category,
+        cadence,
+        startsOn,
+        participantIds: expense.splits.map((split) => split.userId),
+        handledThrough: startsOn,
+      });
+      setRecurring((rules) => [...rules, rule]);
+      play('add');
+      toast.success(`${rule.description} now repeats ${rule.cadenceLabel}.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not set that to repeat.');
     }
   }
 
@@ -1244,6 +1316,24 @@ export function GroupDetailPage(): ReactNode {
         <InviteLink link={shareLink} copied={copied} onCopy={() => void copyShareLink()} />
       )}
 
+      {/*
+        * Above settle-up on purpose.
+        *
+        * A due bill changes what everyone owes, so deciding it first means the settle-up numbers below
+        * are the ones you act on. Answering "who pays who" and then adding this month's rent underneath
+        * it is how somebody sends the wrong amount.
+        */}
+      {group && (
+        <div className="mt-6">
+          <RecurringDue
+            rules={recurring}
+            members={group.members}
+            onAccept={acceptRecurring}
+            onSkip={skipRecurring}
+          />
+        </div>
+      )}
+
       {suggested.length > 0 && (
         <section className="mt-6 rounded-2xl border border-accent/25 bg-accent-soft p-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
@@ -1775,6 +1865,25 @@ export function GroupDetailPage(): ReactNode {
                       </button>
                     )}
                     {/* Once a payment is recorded the ledger locks: no editing or deleting. */}
+                    {/*
+                      * Shown whether or not the ledger is locked, unlike edit and delete.
+                      *
+                      * Making a bill repeat says nothing about the expense it came from; it writes a
+                      * separate rule. A group that has recorded a payment can still decide that rent
+                      * happens every month, and having to unlock the ledger to say so would be a rule
+                      * about editing history applied to a thing that does not touch history.
+                      */}
+                    {!recurring.some((r) => r.description === item.expense.description && r.active) && (
+                      <button
+                        type="button"
+                        onClick={() => void repeatExpense(item.expense, 'monthly')}
+                        aria-label={`Repeat ${item.expense.description} every month`}
+                        title="Repeat every month"
+                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-ink [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                      >
+                        <Icon name="undo" size={15} />
+                      </button>
+                    )}
                     {settlements.length === 0 && (
                       <>
                         <button
@@ -1838,6 +1947,12 @@ export function GroupDetailPage(): ReactNode {
           </ul>
         )}
       </section>
+
+      {group && recurring.length > 0 && (
+        <div className="mt-8">
+          <RecurringList rules={recurring} members={group.members} onSetActive={setRecurringActive} />
+        </div>
+      )}
 
       <section className="mt-8">
         <button

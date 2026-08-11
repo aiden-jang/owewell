@@ -42,6 +42,15 @@ import {
   listSettlements,
   recordSettlement,
 } from './settlements.js';
+import {
+  acceptOccurrence,
+  createRecurringRule,
+  listRecurringRules,
+  RecurringRuleError,
+  setRecurringActive,
+  skipOccurrence,
+} from './recurring.js';
+import { CADENCES } from '@owewell/shared';
 import { extractReceipt } from './ocr.js';
 import { QuickSplitError, createQuickSplit } from './quicksplit.js';
 import { notifyGroupChanged } from './realtime.js';
@@ -337,6 +346,103 @@ app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
   return c.json({ ok: true });
 });
 
+/*
+ * Bills that come round again.
+ *
+ * "Today" arrives from the client rather than being read off the server clock. The whole schedule is
+ * calendar dates, and a Worker runs in UTC: at 8pm in California the server's date is already
+ * tomorrow, so a rent rule anchored on the 1st would come due on the evening of the 31st for anybody
+ * west of UTC. The client knows which day it is where the person actually is.
+ *
+ * It is validated as a real date and used only for comparisons, never trusted for anything else. The
+ * worst a forged value can do is propose or hide the asker's own occurrences, and accepting one still
+ * has to pass the same due-date check.
+ */
+const todayParam = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+
+function today(raw: string | undefined): string {
+  const parsed = todayParam.safeParse(raw);
+  if (parsed.success) return parsed.data;
+  // No usable date from the client: fall back to the server's, which is right for most of the day and
+  // only ever off by one, rather than refusing to render the group at all.
+  return new Date().toISOString().slice(0, 10);
+}
+
+app.get('/owewell/groups/:id/recurring', async (c) => {
+  const rules = await listRecurringRules(createDb(c.env), c.get('person').id, c.req.param('id'), today(c.req.query('today')));
+  return c.json({ rules });
+});
+
+const recurringBody = z.object({
+  description: z.string().trim().min(1).max(120),
+  amountCents: z.number().int().positive(),
+  payerId: z.string().min(1),
+  category: z.string().min(1).max(40).nullish(),
+  cadence: z.enum(CADENCES as unknown as [string, ...string[]]),
+  startsOn: todayParam,
+  participantIds: z.array(z.string().min(1)).min(1).max(50),
+  handledThrough: todayParam.nullish(),
+});
+app.post('/owewell/groups/:id/recurring', async (c) => {
+  const parsed = recurringBody.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
+  const rule = await createRecurringRule(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    { ...parsed.data, category: parsed.data.category ?? null, handledThrough: parsed.data.handledThrough ?? null },
+    today(c.req.query('today')),
+  );
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ rule }, 201);
+});
+
+const occurrenceBody = z.object({ on: todayParam });
+app.post('/owewell/groups/:id/recurring/:ruleId/accept', async (c) => {
+  const parsed = occurrenceBody.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
+  const rule = await acceptOccurrence(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('ruleId'),
+    parsed.data.on,
+    today(c.req.query('today')),
+  );
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ rule });
+});
+
+app.post('/owewell/groups/:id/recurring/:ruleId/skip', async (c) => {
+  const parsed = occurrenceBody.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
+  const rule = await skipOccurrence(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('ruleId'),
+    parsed.data.on,
+    today(c.req.query('today')),
+  );
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ rule });
+});
+
+app.patch('/owewell/groups/:id/recurring/:ruleId', async (c) => {
+  const parsed = z.object({ active: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
+  const rule = await setRecurringActive(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('ruleId'),
+    parsed.data.active,
+    today(c.req.query('today')),
+  );
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ rule });
+});
+
 app.post('/owewell/groups/:id/ocr', async (c) => {
   await requireMembership(createDb(c.env), c.get('person').id, c.req.param('id'));
   const form = await c.req.formData();
@@ -433,6 +539,9 @@ app.onError((err, c) => {
     return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
   }
   if (err instanceof SettlementError) {
+    return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
+  }
+  if (err instanceof RecurringRuleError) {
     return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
   }
   if (err instanceof QuickSplitError) {
