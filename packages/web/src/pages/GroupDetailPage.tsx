@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Money } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, categoryMeta, type PaymentMethod } from '@owewell/core';
@@ -29,6 +29,8 @@ import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
+import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
+import { SettlementReceipt } from '../components/SettlementReceipt';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -129,7 +131,9 @@ export function GroupDetailPage(): ReactNode {
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
+  const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
   async function load(): Promise<void> {
     setNotFound(false);
@@ -157,7 +161,7 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-  async function refreshLedger(): Promise<SuggestedPayment[] | null> {
+  async function refreshLedger(): Promise<{ balances: Balance[]; suggested: SuggestedPayment[] } | null> {
     // Refetch the group too, not just the ledger: if it was archived, renamed, or had a
     // member change in another tab/device, `group.archived` (which drives read-only) and the
     // member list must stay current, otherwise stale gates would keep edit controls live.
@@ -177,7 +181,7 @@ export function GroupDetailPage(): ReactNode {
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
-      return s;
+      return { balances: b, suggested: s };
     } catch {
       toast.error('Could not load the latest changes. Reload if the numbers look off.');
       return null;
@@ -193,16 +197,20 @@ export function GroupDetailPage(): ReactNode {
     if (!ok) return;
     setSettling(true);
     try {
-      await settlementsApi.record(id, {
+      const beforeBalances = balances;
+      const settlement = await settlementsApi.record(id, {
         fromUserId: payment.fromUserId,
         toUserId: payment.toUserId,
         amountCents: payment.amountCents,
         method: settleMethod,
       });
-      const stillOwed = await refreshLedger();
+      const latest = await refreshLedger();
+      if (latest) {
+        setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
+      }
       // Clearing the last debt in the group is a different event from clearing one of five, and the
       // same fetch that redraws the list already knows which just happened.
-      const allSettled = stillOwed?.length === 0;
+      const allSettled = latest?.suggested.length === 0;
       play(allSettled ? 'allSettled' : 'settled');
       toast.success(
         allSettled
@@ -215,6 +223,17 @@ export function GroupDetailPage(): ReactNode {
     } finally {
       setSettling(false);
     }
+  }
+
+  async function finishManualPayment(settlement: Settlement, beforeBalances: Balance[]): Promise<void> {
+    setPaymentOpen(false);
+    const latest = await refreshLedger();
+    if (latest) {
+      setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
+    }
+    const allSettled = latest?.suggested.length === 0;
+    play(allSettled ? 'allSettled' : 'settled');
+    toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
   }
 
   async function shareSettlePlan(): Promise<void> {
@@ -1008,13 +1027,20 @@ export function GroupDetailPage(): ReactNode {
         ) : !groupSettled ? (
           <button
             type="button"
-            onClick={() => setPaymentOpen(true)}
+            onClick={() => {
+              paymentBeforeRef.current = balances;
+              setPaymentOpen(true);
+            }}
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition hover:underline"
           >
             <Icon name="wallet" size={15} /> Log a payment
           </button>
         ) : null}
       </div>
+
+      {paymentReceipt && (
+        <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
+      )}
 
       {/* Promoted while the group still needs people: this is the obvious next thing to do, so it should
           not require finding the Invite button first. */}
@@ -1752,11 +1778,10 @@ export function GroupDetailPage(): ReactNode {
           members={group.members}
           defaultFromId={user?.id}
           suggestions={suggested}
-          onRecorded={() => {
-            setPaymentOpen(false);
-            play('settled');
-            toast.success('Payment logged.');
-            void refreshLedger();
+          onRecorded={(settlement) => {
+            const beforeBalances = paymentBeforeRef.current ?? balances;
+            paymentBeforeRef.current = null;
+            void finishManualPayment(settlement, beforeBalances);
           }}
         />
       </Sheet>
