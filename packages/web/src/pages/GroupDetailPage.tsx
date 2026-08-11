@@ -1695,6 +1695,7 @@ export function GroupDetailPage(): ReactNode {
           groupId={group.id}
           members={group.members}
           defaultFromId={user?.id}
+          suggestions={suggested}
           onRecorded={() => {
             setPaymentOpen(false);
             play('settled');

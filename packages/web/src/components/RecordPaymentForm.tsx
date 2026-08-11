@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
-import { settlementsApi } from '../lib/settlements';
+import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
 
@@ -10,12 +10,14 @@ interface Props {
   members: GroupMember[];
   /** Who to default as the payer (usually the signed-in viewer). */
   defaultFromId?: string | undefined;
+  /** Current settle-up suggestions, offered as one-tap form presets. */
+  suggestions?: SuggestedPayment[] | undefined;
   onRecorded: () => void;
 }
 
 /** Record an arbitrary payment between two members — any amount (incl. partial), any method.
  *  Complements the one-tap "Settle" buttons, which only clear the full suggested amount. */
-export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded }: Props): ReactNode {
+export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], onRecorded }: Props): ReactNode {
   const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
   const firstFrom = defaultFromId ?? members[0]?.userId ?? '';
   const firstTo = members.find((m) => m.userId !== firstFrom)?.userId ?? '';
@@ -51,6 +53,14 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
   function chooseRecipient(id: string): void {
     setToUserId(id);
     if (!methodTouched) setMethod(preferredMethod(memberOf(id)) ?? 'cash');
+  }
+
+  function useSuggestion(suggestion: SuggestedPayment): void {
+    setFromUserId(suggestion.fromUserId);
+    setToUserId(suggestion.toUserId);
+    setAmount((suggestion.amountCents / 100).toFixed(2));
+    if (!methodTouched) setMethod(preferredMethod(memberOf(suggestion.toUserId)) ?? 'cash');
+    setError(null);
   }
 
   async function onSubmit(event: FormEvent): Promise<void> {
@@ -90,6 +100,38 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, onRecorded 
       <p className="text-sm text-muted">
         Already paid someone back? Log it here so balances update. owewell doesn&rsquo;t move money.
       </p>
+      {suggestions.length > 0 && (
+        <fieldset>
+          <legend className="mb-2 text-xs font-medium text-muted">Use a suggested transfer</legend>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((suggestion) => {
+              const suggestionAmount = (suggestion.amountCents / 100).toFixed(2);
+              const selected =
+                fromUserId === suggestion.fromUserId &&
+                toUserId === suggestion.toUserId &&
+                amount === suggestionAmount;
+              return (
+                <button
+                  key={`${suggestion.fromUserId}-${suggestion.toUserId}`}
+                  type="button"
+                  onClick={() => useSuggestion(suggestion)}
+                  aria-pressed={selected}
+                  className={`rounded-xl border px-3 py-2 text-left text-xs transition active:scale-[0.98] ${
+                    selected
+                      ? 'border-accent bg-accent-soft text-accent'
+                      : 'border-line bg-field text-muted hover:border-accent hover:text-ink'
+                  }`}
+                >
+                  <span className="block font-medium text-ink">
+                    {suggestion.fromName} &rarr; {suggestion.toName}
+                  </span>
+                  <span className="tnum">{(suggestion.amountCents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</span>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <select
           value={fromUserId}
