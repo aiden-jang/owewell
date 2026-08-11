@@ -9,6 +9,35 @@ export interface SettlementStepImpact {
   percentOfOutstanding: number;
 }
 
+export interface ProjectedBalance {
+  userId: string;
+  displayName: string;
+  beforeCents: number;
+  afterCents: number;
+  becomesSettled: boolean;
+}
+
+/** Preview only the two balances a payment touches; no ledger state is mutated. */
+export function projectBalancesAfterPayment(
+  payment: SuggestedPayment,
+  balances: Balance[],
+): ProjectedBalance[] {
+  return balances
+    .filter(balance => balance.userId === payment.fromUserId || balance.userId === payment.toUserId)
+    .map(balance => {
+      const afterCents = balance.userId === payment.fromUserId
+        ? balance.netCents + payment.amountCents
+        : balance.netCents - payment.amountCents;
+      return {
+        userId: balance.userId,
+        displayName: balance.displayName,
+        beforeCents: balance.netCents,
+        afterCents,
+        becomesSettled: balance.netCents !== 0 && afterCents === 0,
+      };
+    });
+}
+
 /** Explain what recording one of the generated transfers would do to the current ledger. */
 export function settlementStepImpact(
   payment: SuggestedPayment,

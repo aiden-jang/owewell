@@ -32,7 +32,7 @@ import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { FrontingInsight } from '../components/FrontingInsight';
-import { bestSettlementStep } from '../lib/settlementGuide';
+import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -43,6 +43,12 @@ function balanceLabel(netCents: number, hasActivity: boolean): { text: string; t
   return netCents > 0
     ? { text: `is owed ${amount}`, tone: 'text-pos' }
     : { text: `owes ${amount}`, tone: 'text-neg' };
+}
+
+function balanceStateLabel(netCents: number): string {
+  if (netCents === 0) return 'square';
+  const amount = Money.fromCents(Math.abs(netCents)).format();
+  return netCents > 0 ? `is owed ${amount}` : `owes ${amount}`;
 }
 
 function timeAgo(iso: string): string {
@@ -135,6 +141,7 @@ export function GroupDetailPage(): ReactNode {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
+  const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
   async function load(): Promise<void> {
@@ -1164,7 +1171,7 @@ export function GroupDetailPage(): ReactNode {
             {orderedSuggestions.map((payment) => (
               <li
                 key={`${payment.fromUserId}-${payment.toUserId}`}
-                className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:items-center sm:justify-between ${
+                className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${
                   paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
                     ? 'border border-accent/20 bg-accent-soft'
                     : `${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey
@@ -1214,6 +1221,17 @@ export function GroupDetailPage(): ReactNode {
                   ))}
                   <button
                     type="button"
+                    aria-expanded={paymentPreview === `${payment.fromUserId}-${payment.toUserId}`}
+                    onClick={() => {
+                      const key = `${payment.fromUserId}-${payment.toUserId}`;
+                      setPaymentPreview(current => current === key ? null : key);
+                    }}
+                    className="rounded-full border border-line-strong bg-transparent px-3 py-1.5 text-xs font-medium text-muted transition hover:border-accent hover:text-ink active:scale-[0.98]"
+                  >
+                    {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` ? 'Hide preview' : 'Preview'}
+                  </button>
+                  <button
+                    type="button"
                     disabled={settling}
                     onClick={() => void markPaid(payment)}
                     title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
@@ -1231,6 +1249,28 @@ export function GroupDetailPage(): ReactNode {
                     </span>
                   )}
                 </div>
+                {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` && (
+                  <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+                      After this payment
+                    </p>
+                    <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
+                      {projectBalancesAfterPayment(payment, balances).map(projected => (
+                        <p key={projected.userId} className="text-xs text-muted">
+                          <span className="font-medium text-ink">{projected.displayName}</span>{' '}
+                          <span className="tnum">{balanceStateLabel(projected.beforeCents)}</span>
+                          <span aria-hidden> → </span>
+                          <span className={`tnum font-medium ${projected.becomesSettled ? 'text-accent' : 'text-ink'}`}>
+                            {balanceStateLabel(projected.afterCents)}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-muted">
+                      Preview only. Nothing changes until you mark it paid.
+                    </p>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
