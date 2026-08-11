@@ -127,6 +127,7 @@ export function GroupDetailPage(): ReactNode {
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
 
   async function load(): Promise<void> {
     setNotFound(false);
@@ -206,6 +207,7 @@ export function GroupDetailPage(): ReactNode {
           ? 'Everyone is settled up.'
                     : `Recorded a ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
       );
+      setPaymentInFlight(null);
     } catch {
       toast.error('Could not record that payment.');
     } finally {
@@ -1060,7 +1062,11 @@ export function GroupDetailPage(): ReactNode {
             {suggested.map((payment) => (
               <li
                 key={`${payment.fromUserId}-${payment.toUserId}`}
-                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:items-center sm:justify-between ${
+                  paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
+                    ? 'border border-accent/20 bg-accent-soft'
+                    : 'border border-transparent'
+                }`}
               >
                 <span className="flex items-center gap-2 text-sm">
                   <Avatar name={payment.fromName} size="sm" />
@@ -1088,7 +1094,11 @@ export function GroupDetailPage(): ReactNode {
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={() => setSettleMethod(link.method)}
+                      onClick={() => {
+                        setSettleMethod(link.method);
+                        setPaymentInFlight(`${payment.fromUserId}-${payment.toUserId}`);
+                        play('tick');
+                      }}
                       title={`Pay ${payment.toName} via ${link.label}`}
                       className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
                     >
@@ -1100,10 +1110,19 @@ export function GroupDetailPage(): ReactNode {
                     disabled={settling}
                     onClick={() => void markPaid(payment)}
                     title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                    className="rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98] disabled:opacity-60"
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-60 ${
+                      paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
+                        ? 'border-accent bg-accent text-white shadow-sm shadow-accent/20'
+                        : 'border-line-strong bg-surface2 hover:border-accent'
+                    }`}
                   >
-                    Mark paid
+                    {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it — mark paid' : 'Mark paid'}
                   </button>
+                  {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` && (
+                    <span className="basis-full text-right text-[11px] text-muted" role="status">
+                      Payment app opened. Record it here once it&rsquo;s sent.
+                    </span>
+                  )}
                 </div>
               </li>
             ))}
