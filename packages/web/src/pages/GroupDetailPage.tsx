@@ -28,6 +28,7 @@ import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
+import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -660,6 +661,7 @@ export function GroupDetailPage(): ReactNode {
   const totalUnsettled = balances.reduce((sum, b) => sum + Math.max(0, b.netCents), 0);
   // Total money spent on bills in this group (settlements aren't spending, so expenses only).
   const totalSpent = expenses.reduce((sum, e) => sum + e.amountCents, 0);
+  const monthlyPulse = spendingPulse(expenses);
   // How much has already been paid back, and the even-split average across the members.
   const totalSettled = settlements.reduce((sum, s) => sum + s.amountCents, 0);
   // Payments and the outstanding balance describe one journey toward zero. Clamp at 100 because
@@ -940,6 +942,17 @@ export function GroupDetailPage(): ReactNode {
           <p className="mt-1 text-xs text-faint">
             {Money.fromCents(totalSettled).format()} settled so far
           </p>
+        )}
+        {monthlyPulse && (
+          <div className="mt-4 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-sm">
+            <span>
+              <span className="block text-xs text-faint">This month</span>
+              <span className="tnum font-semibold text-ink">{Money.fromCents(monthlyPulse.currentCents).format()}</span>
+            </span>
+            <span className={`text-right text-xs font-medium ${monthlyPulse.change === 'up' ? 'text-neg' : monthlyPulse.change === 'down' ? 'text-pos' : 'text-muted'}`}>
+              {pulseLabel(monthlyPulse)}
+            </span>
+          </div>
         )}
         {settlementJourney > 0 && (
           <div className="mt-4 max-w-xs">
