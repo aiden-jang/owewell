@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
-import { settlementsApi, type SuggestedPayment } from '../lib/settlements';
+import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
 
@@ -12,7 +12,7 @@ interface Props {
   defaultFromId?: string | undefined;
   /** Current settle-up suggestions, offered as one-tap form presets. */
   suggestions?: SuggestedPayment[] | undefined;
-  onRecorded: () => void;
+  onRecorded: (settlement: Settlement) => void;
 }
 
 /** Record an arbitrary payment between two members — any amount (incl. partial), any method.
@@ -83,8 +83,8 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
     }
     setSubmitting(true);
     try {
-      await settlementsApi.record(groupId, { fromUserId, toUserId, amountCents, method });
-      onRecorded();
+      const settlement = await settlementsApi.record(groupId, { fromUserId, toUserId, amountCents, method });
+      onRecorded(settlement);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not record that payment.');
     } finally {
