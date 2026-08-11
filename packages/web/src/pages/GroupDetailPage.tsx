@@ -32,6 +32,7 @@ import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { FrontingInsight } from '../components/FrontingInsight';
+import { bestSettlementStep } from '../lib/settlementGuide';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -690,6 +691,19 @@ export function GroupDetailPage(): ReactNode {
   const settlementJourney = totalSettled + totalUnsettled;
   const settlementProgress = settlementJourney > 0 ? Math.min(100, Math.round((totalSettled / settlementJourney) * 100)) : 0;
   const settlePlanTotal = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
+  const bestSettleStep = bestSettlementStep(balances, suggested);
+  const recommendedPaymentKey = bestSettleStep
+    ? `${bestSettleStep.payment.fromUserId}-${bestSettleStep.payment.toUserId}`
+    : null;
+  const orderedSuggestions = recommendedPaymentKey
+    ? [...suggested].sort((a, b) =>
+        `${a.fromUserId}-${a.toUserId}` === recommendedPaymentKey
+          ? -1
+          : `${b.fromUserId}-${b.toUserId}` === recommendedPaymentKey
+            ? 1
+            : 0,
+      )
+    : suggested;
   const perPersonCents = group.members.length ? Math.round(totalSpent / group.members.length) : 0;
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
@@ -1117,6 +1131,29 @@ export function GroupDetailPage(): ReactNode {
           <p className="mt-1 text-xs leading-relaxed text-muted">
             Pay in your usual app, then mark it here so the group stays in sync.
           </p>
+          {bestSettleStep && (
+            <div className="mt-3 rounded-xl border border-accent/20 bg-surface/75 px-3 py-3 shadow-sm shadow-accent/5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Best next move</p>
+                  <p className="mt-0.5 text-sm font-semibold text-ink">
+                    {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
+                    <span className="tnum text-accent">{Money.fromCents(bestSettleStep.payment.amountCents).format()}</span>
+                  </p>
+                </div>
+                <span className="tnum shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
+                  −{bestSettleStep.percentOfOutstanding}%
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {bestSettleStep.remainingTransfers === 0
+                  ? 'One payment settles the whole group.'
+                  : bestSettleStep.clearedNames.length > 0
+                    ? `Clears ${bestSettleStep.clearedNames.join(' and ')} from the list, with ${bestSettleStep.remainingTransfers} ${bestSettleStep.remainingTransfers === 1 ? 'transfer' : 'transfers'} left.`
+                    : `${Money.fromCents(bestSettleStep.remainingCents).format()} would remain after this.`}
+              </p>
+            </div>
+          )}
           <div className="mt-3 flex items-center justify-between rounded-xl border border-accent/15 bg-surface/60 px-3 py-2 text-xs">
             <span className="text-muted">
               {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
@@ -1124,18 +1161,23 @@ export function GroupDetailPage(): ReactNode {
             <span className="tnum font-semibold text-accent">{Money.fromCents(settlePlanTotal).format()} remaining</span>
           </div>
           <ul className="mt-3 space-y-2">
-            {suggested.map((payment) => (
+            {orderedSuggestions.map((payment) => (
               <li
                 key={`${payment.fromUserId}-${payment.toUserId}`}
                 className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:items-center sm:justify-between ${
                   paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
                     ? 'border border-accent/20 bg-accent-soft'
-                    : 'border border-transparent'
+                    : `${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey
+                      ? 'border border-accent/15 bg-surface/45'
+                      : 'border border-transparent'
                 }`}
               >
                 <span className="flex items-center gap-2 text-sm">
                   <Avatar name={payment.fromName} size="sm" />
                   <span>
+                    {`${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey && suggested.length > 1 && (
+                      <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">Start here</span>
+                    )}
                     <span className="font-medium">{payment.fromName}</span>
                     <span className="text-muted"> pays </span>
                     <span className="font-medium">{payment.toName}</span>{' '}
