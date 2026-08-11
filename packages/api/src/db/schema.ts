@@ -156,3 +156,49 @@ export const settlements = sqliteTable(
   },
   (t) => ({ byGroup: index('settle_group').on(t.groupId) }),
 );
+
+/*
+ * Bills that come round again: rent, the internet, the cleaner.
+ *
+ * A rule is a template plus a schedule, and deliberately NOT a ledger entry. Nothing here affects a
+ * balance until somebody accepts a proposal and a real row lands in `expenses`, which is what keeps
+ * "I never agreed to that" off the table in an app about money between friends.
+ *
+ * Dates are stored as plain YYYY-MM-DD text rather than timestamps. "The 1st of the month" is a
+ * calendar fact, and storing it as an instant means it is the 30th for whoever is west of you.
+ */
+export const recurringRules = sqliteTable('recurring_rules', {
+  id: text('id').primaryKey(),
+  groupId: text('group_id')
+    .notNull()
+    .references(() => groups.id, { onDelete: 'cascade' }),
+  createdById: text('created_by_id')
+    .notNull()
+    .references(() => people.id),
+  description: text('description').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  payerId: text('payer_id')
+    .notNull()
+    .references(() => people.id),
+  category: text('category'),
+  /** 'weekly' | 'monthly'. Validated in the app layer against @owewell/shared CADENCES. */
+  cadence: text('cadence').notNull(),
+  /** The anchor. Every later occurrence is measured from here, never from the previous one. */
+  startsOn: text('starts_on').notNull(),
+  /** Latest occurrence added OR skipped. Skipping must advance it or the proposal never goes away. */
+  lastHandledOn: text('last_handled_on'),
+  /*
+   * Who it splits between, as a JSON array of person ids, always evenly.
+   *
+   * Recurring bills are equal splits in practice, and an EXACT or ITEMIZED template would be actively
+   * misleading: the amount that made those percentages correct is the one thing about a bill that
+   * changes. Anyone needing an uneven recurring split is better served editing the expense once it
+   * exists, which is a thing they can already do.
+   */
+  participantIds: text('participant_ids').notNull(),
+  /** Stopped rules are kept, not deleted, so the expenses they created keep their explanation. */
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});

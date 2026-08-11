@@ -88,7 +88,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
     if (!methodTouched) setMethod(preferredMethod(memberOf(id)) ?? 'cash');
   }
 
-  function useSuggestion(suggestion: SuggestedPayment): void {
+  function applySuggestion(suggestion: SuggestedPayment): void {
     setFromUserId(suggestion.fromUserId);
     setToUserId(suggestion.toUserId);
     setAmount((suggestion.amountCents / 100).toFixed(2));
@@ -147,7 +147,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
                 <button
                   key={`${suggestion.fromUserId}-${suggestion.toUserId}`}
                   type="button"
-                  onClick={() => useSuggestion(suggestion)}
+                  onClick={() => applySuggestion(suggestion)}
                   aria-pressed={selected}
                   className={`rounded-xl border px-3 py-2 text-left text-xs transition active:scale-[0.98] ${
                     selected
