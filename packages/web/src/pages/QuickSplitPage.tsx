@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Money,
@@ -40,6 +40,72 @@ interface Item {
   payerId: string;
   /** Present only on tip rows created by a preset, so choosing another preset can replace them. */
   generatedTip?: number;
+}
+
+interface QuickSplitDraft {
+  version: 1;
+  savedAt: number;
+  people: Person[];
+  items: Item[];
+  payerId: string;
+  splitPayers: boolean;
+  youId: string;
+}
+
+const DRAFT_KEY = 'owewell:quick-split-draft';
+const DRAFT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const SPLIT_METHOD_SET = new Set<SplitMethod>(['EQUAL', 'SHARES', 'PERCENT', 'EXACT']);
+
+function readQuickSplitDraft(): QuickSplitDraft | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? 'null') as Partial<QuickSplitDraft> | null;
+    if (
+      !parsed ||
+      parsed.version !== 1 ||
+      typeof parsed.savedAt !== 'number' ||
+      Date.now() - parsed.savedAt > DRAFT_MAX_AGE ||
+      !Array.isArray(parsed.people) ||
+      !Array.isArray(parsed.items)
+    ) return null;
+    const people = parsed.people.filter(
+      (person): person is Person =>
+        !!person && typeof person.id === 'string' && typeof person.name === 'string',
+    );
+    const items = parsed.items.filter(
+      (item): item is Item =>
+        !!item &&
+        typeof item.id === 'string' &&
+        typeof item.description === 'string' &&
+        typeof item.amount === 'string' &&
+        SPLIT_METHOD_SET.has(item.method) &&
+        typeof item.values === 'object' &&
+        item.values !== null &&
+        Object.values(item.values).every((value) => typeof value === 'string') &&
+        typeof item.payerId === 'string' &&
+        (item.generatedTip === undefined || typeof item.generatedTip === 'number'),
+    );
+    if (people.length < 2 || items.length < 1) return null;
+    return {
+      version: 1,
+      savedAt: parsed.savedAt,
+      people,
+      items,
+      payerId: typeof parsed.payerId === 'string' ? parsed.payerId : '',
+      splitPayers: parsed.splitPayers === true,
+      youId: typeof parsed.youId === 'string' ? parsed.youId : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearQuickSplitDraft(): void {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Draft recovery is a convenience; storage permissions never block splitting a bill.
+  }
 }
 
 function newPerson(name = ''): Person {
@@ -145,16 +211,61 @@ function PublicHeader(): ReactNode {
 export function QuickSplitPage(): ReactNode {
   const { user, signup } = useAuth();
   const navigate = useNavigate();
-  const [people, setPeople] = useState<Person[]>([newPerson('You'), newPerson('')]);
-  const [items, setItems] = useState<Item[]>([newItem()]);
-  const [payerId, setPayerId] = useState<string>('');
+  const [initialDraft] = useState(readQuickSplitDraft);
+  const [people, setPeople] = useState<Person[]>(initialDraft?.people ?? [newPerson('You'), newPerson('')]);
+  const [items, setItems] = useState<Item[]>(initialDraft?.items ?? [newItem()]);
+  const [payerId, setPayerId] = useState<string>(initialDraft?.payerId ?? '');
   // Off by default: one payer for the whole bill. On: a per-item "paid by" for split tabs.
-  const [splitPayers, setSplitPayers] = useState(false);
-  const [youId, setYouId] = useState<string>('');
+  const [splitPayers, setSplitPayers] = useState(initialDraft?.splitPayers ?? false);
+  const [youId, setYouId] = useState<string>(initialDraft?.youId ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [shareStatus, setShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [customTip, setCustomTip] = useState('');
+  const [draftRestored, setDraftRestored] = useState(initialDraft !== null);
+
+  // A bill can take a while to enter on a phone. Keep a short-lived, on-device working copy so a
+  // refresh, browser eviction, or accidental back gesture does not erase the table's progress.
+  useEffect(() => {
+    const meaningful =
+      people.length > 2 ||
+      people.some((person, index) => person.name.trim() && !(index === 0 && person.name.trim() === 'You')) ||
+      items.some((item) => item.description.trim() || item.amount.trim());
+    if (!meaningful) {
+      clearQuickSplitDraft();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const draft: QuickSplitDraft = {
+        version: 1,
+        savedAt: Date.now(),
+        people,
+        items,
+        payerId,
+        splitPayers,
+        youId,
+      };
+      try {
+        window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        // The form continues normally when private browsing or storage policy blocks persistence.
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [people, items, payerId, splitPayers, youId]);
+
+  function startFresh(): void {
+    clearQuickSplitDraft();
+    setPeople([newPerson('You'), newPerson('')]);
+    setItems([newItem()]);
+    setPayerId('');
+    setSplitPayers(false);
+    setYouId('');
+    setCustomTip('');
+    setError(null);
+    setDraftRestored(false);
+    play('tick');
+  }
 
   const named = people.filter((p) => p.name.trim());
 
@@ -471,6 +582,7 @@ export function QuickSplitPage(): ReactNode {
     if (!user) {
       // Stash it, send them to sign up on the shared auth service, and land back on the dashboard,
       // which offers to save the pending split once they're signed in.
+      clearQuickSplitDraft();
       signup(window.location.origin);
       return;
     }
@@ -479,6 +591,7 @@ export function QuickSplitPage(): ReactNode {
     try {
       const { groupId } = await quickSplitApi.save(pending);
       clearPendingSplit();
+      clearQuickSplitDraft();
       play('verdict');
       navigate(`/groups/${groupId}`);
     } catch (err) {
@@ -525,6 +638,22 @@ export function QuickSplitPage(): ReactNode {
             </div>
             <p className="mt-6 text-sm font-medium text-muted">Try it right here, no sign-up:</p>
           </section>
+        )}
+
+        {draftRestored && (
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm">
+            <span>
+              <span className="font-semibold text-ink">Your split is back.</span>{' '}
+              <span className="text-muted">We kept this draft on this device.</span>
+            </span>
+            <button
+              type="button"
+              onClick={startFresh}
+              className="shrink-0 font-medium text-accent transition hover:underline"
+            >
+              Start fresh
+            </button>
+          </div>
         )}
 
         {/* People — shared across every item */}
