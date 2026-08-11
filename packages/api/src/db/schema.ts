@@ -30,6 +30,8 @@ export const groups = sqliteTable('groups', {
     .default(sql`(unixepoch())`),
   // Unguessable token for the public, read-only share page. Null until a member creates a link.
   shareToken: text('share_token').unique(),
+  // Optional owner-set deadline for the current settle-up plan. Shared by every group member.
+  settleBy: integer('settle_by', { mode: 'timestamp' }),
 });
 
 export const groupMembers = sqliteTable(
