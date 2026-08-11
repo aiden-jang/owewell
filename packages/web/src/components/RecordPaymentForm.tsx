@@ -1,9 +1,11 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents } from '@owewell/shared';
+import { dollarsToCents, Money } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
+import type { Balance } from '../lib/groups';
+import { previewPaymentPlan } from '../lib/settlementGuide';
 
 interface Props {
   groupId: string;
@@ -12,12 +14,19 @@ interface Props {
   defaultFromId?: string | undefined;
   /** Current settle-up suggestions, offered as one-tap form presets. */
   suggestions?: SuggestedPayment[] | undefined;
+  /** Live balances used only for the local what-if preview. */
+  balances: Balance[];
   onRecorded: (settlement: Settlement) => void;
+}
+
+function balanceCopy(cents: number): string {
+  if (cents === 0) return 'square';
+  return cents > 0 ? `gets back ${Money.fromCents(cents).format()}` : `owes ${Money.fromCents(-cents).format()}`;
 }
 
 /** Record an arbitrary payment between two members — any amount (incl. partial), any method.
  *  Complements the one-tap "Settle" buttons, which only clear the full suggested amount. */
-export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], onRecorded }: Props): ReactNode {
+export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], balances, onRecorded }: Props): ReactNode {
   const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
   const firstFrom = defaultFromId ?? members[0]?.userId ?? '';
   const firstTo = members.find((m) => m.userId !== firstFrom)?.userId ?? '';
@@ -49,6 +58,30 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
     }
     return labels;
   }, [members]);
+
+  const amountCents = useMemo(() => {
+    try {
+      return amount.trim() ? dollarsToCents(amount) : 0;
+    } catch {
+      return 0;
+    }
+  }, [amount]);
+  const fromBalance = balances.find(balance => balance.userId === fromUserId);
+  const toBalance = balances.find(balance => balance.userId === toUserId);
+  const usefulLimit = fromBalance && toBalance
+    ? Math.min(Math.max(0, -fromBalance.netCents), Math.max(0, toBalance.netCents))
+    : 0;
+  const quickAmounts = [...new Set([0.25, 0.5, 0.75, 1].map(ratio => Math.max(1, Math.round(usefulLimit * ratio))))];
+  const preview = useMemo(() => {
+    if (!fromBalance || !toBalance || amountCents <= 0 || fromUserId === toUserId) return null;
+    return previewPaymentPlan({
+      fromUserId,
+      fromName: fromBalance.displayName,
+      toUserId,
+      toName: toBalance.displayName,
+      amountCents,
+    }, balances);
+  }, [amountCents, balances, fromBalance, fromUserId, toBalance, toUserId]);
 
   function chooseRecipient(id: string): void {
     setToUserId(id);
@@ -185,6 +218,89 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
           ))}
         </select>
       </div>
+      {usefulLimit > 0 && (
+        <fieldset>
+          <legend className="mb-2 text-xs font-medium text-muted">Try a partial payment</legend>
+          <div className="grid grid-cols-4 gap-1.5">
+            {quickAmounts.map((cents, index) => (
+              <button
+                key={cents}
+                type="button"
+                aria-pressed={amountCents === cents}
+                onClick={() => setAmount((cents / 100).toFixed(2))}
+                className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition ${
+                  amountCents === cents
+                    ? 'border-accent bg-accent-soft text-accent'
+                    : 'border-line bg-field text-muted hover:border-accent hover:text-ink'
+                }`}
+              >
+                {index === quickAmounts.length - 1 ? 'Full' : `${Math.round((cents / usefulLimit) * 100)}%`}
+                <span className="tnum mt-0.5 block font-normal">{Money.fromCents(cents).format()}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      {preview && (
+        <section
+          aria-live="polite"
+          aria-label="Payment preview"
+          className={`overflow-hidden rounded-2xl border ${
+            preview.direction === 'helpful'
+              ? 'border-accent/25 bg-accent-soft/45'
+              : 'border-neg/30 bg-neg/5'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-line/70 px-3.5 py-2.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">What if?</span>
+            <span className="tnum text-xs font-semibold text-ink">
+              {Money.fromCents(preview.outstandingAfterCents).format()} left
+            </span>
+          </div>
+          <div className="p-3.5">
+            {preview.direction !== 'helpful' && (
+              <p className="mb-3 rounded-lg bg-neg/10 px-3 py-2 text-xs font-medium leading-relaxed text-neg">
+                {preview.direction === 'overpay'
+                  ? 'That is more than this pair currently owes. It would create a new debt in the other direction.'
+                  : 'These balances currently point the other way. Double-check who paid whom.'}
+              </p>
+            )}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {preview.touched.map(person => (
+                <div key={person.userId} className="rounded-xl border border-line bg-surface/70 p-2.5">
+                  <strong className="block text-xs text-ink">{person.displayName}</strong>
+                  <span className="mt-1 block text-[11px] text-muted">
+                    <span className="tnum line-through">{balanceCopy(person.beforeCents)}</span>
+                    <span aria-hidden> → </span>
+                    <span className={`tnum font-semibold ${person.becomesSettled ? 'text-pos' : 'text-ink'}`}>
+                      {balanceCopy(person.afterCents)}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+              <span className="text-muted">Next settle-up plan</span>
+              <strong className="text-ink">
+                {preview.remaining.length === 0
+                  ? 'Everyone square'
+                  : `${preview.remaining.length} ${preview.remaining.length === 1 ? 'transfer' : 'transfers'}`}
+              </strong>
+            </div>
+            {preview.remaining.length > 0 && (
+              <ul className="mt-2 space-y-1 rounded-xl border border-line bg-field/70 p-2.5">
+                {preview.remaining.map(transfer => (
+                  <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="flex items-center justify-between gap-3 text-[11px] text-muted">
+                    <span><strong className="text-ink">{transfer.fromName}</strong> → {transfer.toName}</span>
+                    <span className="tnum shrink-0 font-semibold text-ink">{Money.fromCents(transfer.amountCents).format()}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[10px] text-muted">Preview only. Nothing changes until you log the payment.</p>
+          </div>
+        </section>
+      )}
       {error && (
         <p className="text-sm font-medium text-neg" role="alert">
           {error}
