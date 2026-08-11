@@ -115,6 +115,7 @@ export function GroupDetailPage(): ReactNode {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   async function load(): Promise<void> {
@@ -233,6 +234,40 @@ export function GroupDetailPage(): ReactNode {
     } catch {
       setSettleShareStatus(null);
       toast.error('Could not share the settle-up plan.');
+    }
+  }
+
+  // The final payment is a natural handoff point: someone usually wants to tell the group that
+  // nothing is hanging over them anymore. Keep the recap factual and compact so it is useful in a
+  // group chat without exposing the individual balance history again.
+  async function shareSettledRecap(): Promise<void> {
+    if (!group || recapShareStatus) return;
+    const spent = expenses.reduce((sum, expense) => sum + expense.amountCents, 0);
+    const paymentLabel = settlements.length === 1 ? 'payment' : 'payments';
+    const text = `${group.name} is all settled ✓\n${Money.fromCents(spent).format()} split across ${group.members.length} people\n${settlements.length} ${paymentLabel} recorded`;
+    const finish = (status: 'shared' | 'copied'): void => {
+      setRecapShareStatus(status);
+      window.setTimeout(() => setRecapShareStatus(null), 2200);
+    };
+    setRecapShareStatus('sharing');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${group.name} is settled`, text });
+        finish('shared');
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          setRecapShareStatus(null);
+          return;
+        }
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      finish('copied');
+    } catch {
+      setRecapShareStatus(null);
+      toast.error('Could not share the settled recap.');
     }
   }
 
@@ -806,11 +841,25 @@ export function GroupDetailPage(): ReactNode {
             </div>
           </div>
         )}
+        {hasActivity && groupSettled && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+            <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'} · {settlements.length} {settlements.length === 1 ? 'payment' : 'payments'} recorded</span>
+            <button
+              type="button"
+              onClick={() => void shareSettledRecap()}
+              disabled={recapShareStatus !== null}
+              className="inline-flex items-center gap-1 font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
+            >
+              <Icon name="share" size={13} />
+              {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Recap shared' : recapShareStatus === 'copied' ? 'Recap copied' : 'Share the recap'}
+            </button>
+          </div>
+        )}
         {!hasActivity ? (
           <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
         ) : group.members.length < 2 ? (
           <p className="mt-4 text-sm text-muted">Add someone else before you can log a payment.</p>
-        ) : (
+        ) : !groupSettled ? (
           <button
             type="button"
             onClick={() => setPaymentOpen(true)}
@@ -818,7 +867,7 @@ export function GroupDetailPage(): ReactNode {
           >
             <Icon name="wallet" size={15} /> Log a payment
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Promoted while the group still needs people: this is the obvious next thing to do, so it should
