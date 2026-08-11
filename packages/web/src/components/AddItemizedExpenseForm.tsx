@@ -32,28 +32,33 @@ interface Props {
   onCreated: () => void;
   /** When set (an ITEMIZED expense), the form edits that receipt in place. */
   editing?: Expense;
+  /** Prefill a new receipt from an old one while keeping today as the date. */
+  template?: Expense;
 }
 
-export function AddItemizedExpenseForm({ groupId, members, onCreated, editing }: Props): ReactNode {
+export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, template }: Props): ReactNode {
+  const source = editing ?? template;
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
-  const defaultPayer = editing?.payerId ?? members[0]?.userId ?? '';
+  const defaultPayer = source && members.some((member) => member.userId === source.payerId)
+    ? source.payerId
+    : members[0]?.userId ?? '';
   const initialItems = (): ItemDraft[] =>
-    editing?.items && editing.items.length > 0
-      ? editing.items.map((it) => ({
+    source?.items && source.items.length > 0
+      ? source.items.map((it) => ({
           name: it.name,
           amount: centsToInput(it.amountCents),
-          participantIds: new Set(it.participantIds),
-          payerId: it.payerId ?? defaultPayer,
+          participantIds: new Set(it.participantIds.filter((id) => members.some((member) => member.userId === id))),
+          payerId: it.payerId && members.some((member) => member.userId === it.payerId) ? it.payerId : defaultPayer,
         }))
       : [{ name: '', amount: '', participantIds: allMemberIds(), payerId: defaultPayer }];
-  const [description, setDescription] = useState(editing?.description ?? '');
+  const [description, setDescription] = useState(source?.description ?? '');
   const [payerId, setPayerId] = useState(defaultPayer);
-  const [tax, setTax] = useState(editing?.taxCents ? centsToInput(editing.taxCents) : '');
-  const [tip, setTip] = useState(editing?.tipCents ? centsToInput(editing.tipCents) : '');
+  const [tax, setTax] = useState(source?.taxCents ? centsToInput(source.taxCents) : '');
+  const [tip, setTip] = useState(source?.tipCents ? centsToInput(source.tipCents) : '');
   const [items, setItems] = useState<ItemDraft[]>(initialItems);
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
   const [category, setCategory] = useState<ExpenseCategory>(
-    editing?.category ?? DEFAULT_EXPENSE_CATEGORY,
+    source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
