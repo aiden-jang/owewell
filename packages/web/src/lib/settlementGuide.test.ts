@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Balance } from './groups';
 import type { SuggestedPayment } from './settlements';
-import { bestSettlementStep, settlementStepImpact } from './settlementGuide';
+import { bestSettlementStep, projectBalancesAfterPayment, settlementStepImpact } from './settlementGuide';
 
 const balance = (userId: string, displayName: string, netCents: number): Balance => ({
   userId,
@@ -63,5 +63,38 @@ describe('bestSettlementStep', () => {
     const suggestions = [payment('b', 'Blair', 'd', 'Dev', 4000), payment('a', 'Alex', 'c', 'Casey', 6000)];
     expect(bestSettlementStep(balances, suggestions)?.payment.amountCents).toBe(6000);
     expect(bestSettlementStep(balances, [])).toBeNull();
+  });
+});
+
+describe('projectBalancesAfterPayment', () => {
+  it('shows the payer and recipient balances after the suggested transfer', () => {
+    const balances = [
+      balance('a', 'Alex', -8000),
+      balance('b', 'Blair', 5000),
+      balance('c', 'Casey', 3000),
+    ];
+
+    expect(projectBalancesAfterPayment(payment('a', 'Alex', 'b', 'Blair', 5000), balances)).toEqual([
+      {
+        userId: 'a',
+        displayName: 'Alex',
+        beforeCents: -8000,
+        afterCents: -3000,
+        becomesSettled: false,
+      },
+      {
+        userId: 'b',
+        displayName: 'Blair',
+        beforeCents: 5000,
+        afterCents: 0,
+        becomesSettled: true,
+      },
+    ]);
+  });
+
+  it('does not mutate the source balances', () => {
+    const balances = [balance('a', 'Alex', -2500), balance('b', 'Blair', 2500)];
+    projectBalancesAfterPayment(payment('a', 'Alex', 'b', 'Blair', 2500), balances);
+    expect(balances.map(entry => entry.netCents)).toEqual([-2500, 2500]);
   });
 });
