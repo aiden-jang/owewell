@@ -35,6 +35,7 @@ import { FrontingInsight } from '../components/FrontingInsight';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { buildGroupRecap } from '../lib/groupRecap';
+import { renderSettleCard } from '../lib/settleCard';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -138,6 +139,7 @@ export function GroupDetailPage(): ReactNode {
   const [repeatingExpense, setRepeatingExpense] = useState<Expense | null>(null);
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -281,6 +283,47 @@ export function GroupDetailPage(): ReactNode {
     } catch {
       setSettleShareStatus(null);
       toast.error('Could not share the settle-up plan.');
+    }
+  }
+
+  async function shareSettleCard(): Promise<void> {
+    if (!group || suggested.length === 0 || settleCardStatus) return;
+    setSettleCardStatus('making');
+    try {
+      const blob = await renderSettleCard(group.name, suggested);
+      if (!blob) {
+        setSettleCardStatus(null);
+        toast.error('Could not make the settle-up card.');
+        return;
+      }
+      const slug = group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'group';
+      const file = new File([blob], `${slug}-settle-up.png`, { type: 'image/png' });
+      const canShare = typeof navigator.share === 'function' &&
+        (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] }));
+      if (canShare) {
+        try {
+          await navigator.share({ title: `${group.name} settle-up`, files: [file] });
+          setSettleCardStatus('shared');
+          window.setTimeout(() => setSettleCardStatus(null), 2200);
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            setSettleCardStatus(null);
+            return;
+          }
+        }
+      }
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = file.name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(href), 0);
+      setSettleCardStatus('saved');
+      window.setTimeout(() => setSettleCardStatus(null), 2200);
+    } catch {
+      setSettleCardStatus(null);
+      toast.error('Could not make the settle-up card.');
     }
   }
 
@@ -1199,11 +1242,11 @@ export function GroupDetailPage(): ReactNode {
 
       {suggested.length > 0 && (
         <section className="mt-6 rounded-2xl border border-accent/25 bg-accent-soft p-4">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-accent">
               <Icon name="wallet" size={16} /> Settle up
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <button
                 type="button"
                 onClick={() => void shareSettlePlan()}
@@ -1221,6 +1264,15 @@ export function GroupDetailPage(): ReactNode {
               >
                 <Icon name="share" size={13} />
                 {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void shareSettleCard()}
+                disabled={settleCardStatus !== null}
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
+              >
+                <Icon name="sparkles" size={13} />
+                {settleCardStatus === 'making' ? 'Making…' : settleCardStatus === 'shared' ? 'Card shared' : settleCardStatus === 'saved' ? 'Card saved' : 'Share card'}
               </button>
               <label className="flex items-center gap-1.5 text-xs text-muted">
                 paid via
