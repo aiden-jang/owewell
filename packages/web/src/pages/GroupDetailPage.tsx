@@ -31,6 +31,7 @@ import { play } from '../lib/sound';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
+import { FrontingInsight } from '../components/FrontingInsight';
 
 function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
@@ -1037,6 +1038,10 @@ export function GroupDetailPage(): ReactNode {
           </button>
         ) : null}
       </div>
+
+      {expenses.length > 0 && group.members.length > 1 && (
+        <FrontingInsight balances={balances} expenseCount={expenses.length} />
+      )}
 
       {paymentReceipt && (
         <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
