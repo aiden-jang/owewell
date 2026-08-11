@@ -38,6 +38,8 @@ interface Item {
   values: Record<string, string>;
   /** Person id of who paid for this item. Empty → the default payer. */
   payerId: string;
+  /** Present only on tip rows created by a preset, so choosing another preset can replace them. */
+  generatedTip?: number;
 }
 
 function newPerson(name = ''): Person {
@@ -190,6 +192,42 @@ export function QuickSplitPage(): ReactNode {
     play('tick');
     setItems((prev) => [...prev, newItem()]);
   }
+  function addTip(percent: number): void {
+    const tipItems: Item[] = [];
+    for (const item of items) {
+      if (item.generatedTip || /\btip\b/i.test(item.description) || !item.amount.trim()) continue;
+      if (item.method === 'EXACT') {
+        setError('Add the tip manually when an item uses exact dollar amounts.');
+        return;
+      }
+      try {
+        const amountCents = dollarsToCents(item.amount);
+        if (amountCents <= 0) continue;
+        tipItems.push({
+          ...newItem(),
+          description: `${item.description.trim() || 'Bill'} tip (${percent}%)`,
+          amount: (Math.round((amountCents * percent) / 100) / 100).toFixed(2),
+          // Each tip follows the item that created it, including custom shares and who paid. That
+          // keeps a split-tab tip aligned with the food instead of silently making it equal.
+          method: item.method,
+          values: { ...item.values },
+          payerId: item.payerId,
+          generatedTip: percent,
+        });
+      } catch {
+        // Invalid amounts are already called out by the item and save validation.
+      }
+    }
+    if (tipItems.length === 0) {
+      setError('Add an item amount before calculating a tip.');
+      return;
+    }
+    setError(null);
+    // A preset is a choice, not an additive action. Switching 18 → 20 replaces the generated tip
+    // rows instead of quietly charging both percentages.
+    setItems((current) => [...current.filter((item) => !item.generatedTip), ...tipItems]);
+    play('tick');
+  }
   function removeItem(id: string): void {
     setItems((prev) => (prev.length <= 1 ? prev : prev.filter((it) => it.id !== id)));
   }
@@ -295,6 +333,15 @@ export function QuickSplitPage(): ReactNode {
   }
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
+  const activeTip = items.find((item) => item.generatedTip)?.generatedTip ?? null;
+  const generatedTipTotal = items.reduce((sum, item) => {
+    if (!item.generatedTip) return sum;
+    try {
+      return sum + dollarsToCents(item.amount);
+    } catch {
+      return sum;
+    }
+  }, 0);
   // Surface the one next step that applies to the person holding the phone. The full transfer list
   // still matters for the group chat, but making everyone scan it to learn their own move is where
   // a simple split starts feeling like admin.
@@ -631,13 +678,35 @@ export function QuickSplitPage(): ReactNode {
               )}
             </div>
           ))}
-          <button
-            type="button"
-            onClick={addItem}
-            className="text-sm font-medium text-accent transition hover:underline"
-          >
-            + Add item
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={addItem}
+              className="text-sm font-medium text-accent transition hover:underline"
+            >
+              + Add item
+            </button>
+            <div className="flex items-center gap-1.5" aria-label="Add tip">
+              <span className="text-xs text-muted">
+                {generatedTipTotal > 0 ? `tip ${Money.fromCents(generatedTipTotal).format()}` : 'add tip'}
+              </span>
+              {[18, 20, 25].map((percent) => (
+                <button
+                  key={percent}
+                  type="button"
+                  onClick={() => addTip(percent)}
+                  aria-pressed={activeTip === percent}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition active:scale-[0.96] ${
+                    activeTip === percent
+                      ? 'border-accent bg-accent-soft text-accent'
+                      : 'border-line bg-field text-muted hover:border-accent hover:text-accent'
+                  }`}
+                >
+                  {percent}%
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <section className="mt-6">
