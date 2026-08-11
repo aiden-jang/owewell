@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Balance } from './groups';
 import type { SuggestedPayment } from './settlements';
-import { bestSettlementStep, projectBalancesAfterPayment, settlementStepImpact } from './settlementGuide';
+import { bestSettlementStep, previewPaymentPlan, projectBalancesAfterPayment, settlementStepImpact } from './settlementGuide';
 
 const balance = (userId: string, displayName: string, netCents: number): Balance => ({
   userId,
@@ -96,5 +96,32 @@ describe('projectBalancesAfterPayment', () => {
     const balances = [balance('a', 'Alex', -2500), balance('b', 'Blair', 2500)];
     projectBalancesAfterPayment(payment('a', 'Alex', 'b', 'Blair', 2500), balances);
     expect(balances.map(entry => entry.netCents)).toEqual([-2500, 2500]);
+  });
+});
+
+describe('previewPaymentPlan', () => {
+  const balances = [
+    balance('a', 'Alex', -8000),
+    balance('b', 'Blair', 5000),
+    balance('c', 'Casey', 3000),
+  ];
+
+  it('rebuilds the remaining plan after a partial payment', () => {
+    const preview = previewPaymentPlan(payment('a', 'Alex', 'b', 'Blair', 2500), balances)!;
+    expect(preview.direction).toBe('helpful');
+    expect(preview.outstandingBeforeCents).toBe(8000);
+    expect(preview.outstandingAfterCents).toBe(5500);
+    expect(preview.remaining.reduce((sum, transfer) => sum + transfer.amountCents, 0)).toBe(5500);
+    expect(preview.remaining).toHaveLength(2);
+  });
+
+  it('warns when a payment reverses debt or travels the wrong way', () => {
+    expect(previewPaymentPlan(payment('a', 'Alex', 'b', 'Blair', 6000), balances)?.direction).toBe('overpay');
+    expect(previewPaymentPlan(payment('b', 'Blair', 'a', 'Alex', 1000), balances)?.direction).toBe('wrong-way');
+  });
+
+  it('does not mutate the live balances', () => {
+    previewPaymentPlan(payment('a', 'Alex', 'b', 'Blair', 1000), balances);
+    expect(balances.map(entry => entry.netCents)).toEqual([-8000, 5000, 3000]);
   });
 });
