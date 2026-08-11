@@ -70,6 +70,8 @@ export interface GroupDetail {
   createdById: string;
   createdAt: string;
   archived: boolean;
+  /** Shared owner-set finish line for outstanding payments. */
+  settleBy: string | null;
   members: GroupMember[];
 }
 

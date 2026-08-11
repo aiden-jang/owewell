@@ -4,7 +4,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import { getBalances } from './expenses.js';
-import { groupMembers, settlements } from './db/schema.js';
+import { groupMembers, groups, settlements } from './db/schema.js';
 
 export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND';
 
@@ -75,6 +75,10 @@ export async function recordSettlement(
     createdById: personId,
     createdAt,
   });
+  const remaining = await getBalances(db, personId, groupId);
+  if (remaining.every((balance) => balance.netCents === 0)) {
+    await db.update(groups).set({ settleBy: null }).where(eq(groups.id, groupId));
+  }
   return {
     id,
     fromUserId: input.fromUserId,
