@@ -34,6 +34,8 @@ import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { SettlementDeadline } from '../components/SettlementDeadline';
+import { TripBudget } from '../components/TripBudget';
+import { tripBudget } from '../lib/tripBudget';
 import { FrontingInsight } from '../components/FrontingInsight';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
@@ -863,6 +865,13 @@ export function GroupDetailPage(): ReactNode {
   // Total money spent on bills in this group (settlements aren't spending, so expenses only).
   const totalSpent = expenses.reduce((sum, e) => sum + e.amountCents, 0);
   const monthlyPulse = spendingPulse(expenses);
+  /*
+   * Everything the group has spent against the number it set, not just this month.
+   *
+   * A trip budget is a total for one trip, so unlike the monthly pulse above it must not reset on the 1st.
+   * Members rather than balances is the right divisor: a person who has paid for nothing still spent.
+   */
+  const budget = tripBudget(group?.budgetCents ?? null, expenses, group?.members.length ?? 0);
   // How much has already been paid back, and the even-split average across the members.
   const totalSettled = settlements.reduce((sum, s) => sum + s.amountCents, 0);
   // Payments and the outstanding balance describe one journey toward zero. Clamp at 100 because
@@ -1400,6 +1409,21 @@ export function GroupDetailPage(): ReactNode {
                 toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
+                throw error;
+              }
+            }}
+          />
+          <TripBudget
+            budget={budget}
+            budgetCents={group.budgetCents}
+            isOwner={isOwner}
+            onSave={async (budgetCents) => {
+              try {
+                const updated = await groupsApi.setBudget(group.id, budgetCents);
+                setGroup(updated);
+                toast.success(budgetCents === null ? 'Budget cleared.' : 'Budget shared with the group.');
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Could not update the budget.');
                 throw error;
               }
             }}

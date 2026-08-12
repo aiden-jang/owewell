@@ -34,6 +34,10 @@ export const groupsApi = {
     api.patch<{ group: GroupDetail }>(`/groups/${id}`, { name }).then((r) => r.group),
   setSettlementDeadline: (id: string, settleBy: string | null): Promise<GroupDetail> =>
     api.patch<{ group: GroupDetail }>(`/groups/${id}/settle-by`, { settleBy }).then((r) => r.group),
+  // Cents, like every other money field on this API: a decimal that has been through JSON is not a
+  // reliable way to say $19.99. Null clears the budget.
+  setBudget: (id: string, budgetCents: number | null): Promise<GroupDetail> =>
+    api.patch<{ group: GroupDetail }>(`/groups/${id}/budget`, { budgetCents }).then((r) => r.group),
   setArchived: (id: string, archived: boolean): Promise<GroupDetail> =>
     api.post<{ group: GroupDetail }>(`/groups/${id}/archive`, { archived }).then((r) => r.group),
   remove: (id: string): Promise<void> => api.del(`/groups/${id}`).then(() => undefined),

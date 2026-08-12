@@ -4,18 +4,12 @@ import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
 import { ocrEnabled } from '../lib/api';
 import type { GroupMember } from '../lib/groups';
-import { normalizeAmountInput } from '../lib/format';
+import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
 import { Icon } from './Icon';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
-}
-
-/** Today as YYYY-MM-DD in the user's local timezone (for the date input default). */
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 interface ItemDraft {
