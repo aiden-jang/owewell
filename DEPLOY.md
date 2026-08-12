@@ -25,7 +25,7 @@ pnpm exec wrangler d1 migrations apply owewell --remote
 
 # 3. Custom-domain two-step: a Worker needs a deployment before a custom domain attaches.
 #    - Comment out the [[routes]] custom_domain block in wrangler.toml.
-pnpm run deploy            # builds owewell-web, then wrangler deploy (creates first deployment)
+pnpm run deploy            # builds owewell-web, applies migrations, then wrangler deploy
 #    - Uncomment the [[routes]] block.
 pnpm run deploy            # redeploy to attach owewell.aidenjang.com
 ```
@@ -38,8 +38,8 @@ pnpm run deploy            # redeploy to attach owewell.aidenjang.com
 ## Routine redeploy (the usual case)
 
 ```bash
-pnpm run deploy            # builds the SPA + deploys (use this whenever web/ changed)
-# API/config-only change (reuse the last-built SPA):
+pnpm run deploy            # builds the SPA, applies pending migrations, then deploys
+# API/config-only change (reuse the last-built SPA, and skip migrations):
 pnpm exec wrangler deploy
 ```
 
