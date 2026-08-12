@@ -59,22 +59,12 @@ export interface CreateRecurringInput {
   cadence: string;
   startsOn: string;
   participantIds: string[];
-  /**
-   * Treat everything up to and including this date as already dealt with.
-   *
-   * Set when a rule is created from an expense that already exists, so the bill somebody just entered
-   * by hand is not immediately proposed back to them as due.
-   */
+  /** Set when a rule is made from an existing expense, so the bill just entered is not proposed back. */
   handledThrough?: string | null;
 }
 
-/**
- * A YYYY-MM-DD occurrence as the instant the expense happened.
- *
- * Midday UTC rather than midnight, because the row stores a timestamp and the feed shows a date. Any
- * offset from UTC-11 to UTC+12 still renders the same calendar day at midday; at midnight UTC the whole
- * of the Americas reads it as the day before, so rent accepted for the 1st would appear on the 31st.
- */
+/** Midday UTC, not midnight: at midnight the Americas read it as the day before, so rent accepted for
+ *  the 1st shows on the 31st. Midday renders the same calendar day from UTC-11 to UTC+12. */
 function calendarDate(ymd: string): Date {
   return new Date(`${ymd}T12:00:00.000Z`);
 }
@@ -187,13 +177,8 @@ async function loadActive(db: DB, groupId: string, ruleId: string) {
   return row;
 }
 
-/**
- * Add the expense for one due occurrence.
- *
- * `on` has to be a date the rule actually proposed. Without that check the endpoint would be a way to
- * post an expense at any date you like with a rule as cover, and, worse, would let the same occurrence
- * be added twice by anyone who kept the old response around.
- */
+/** `on` must be a date the rule actually proposed, or this is a way to post an expense at any date with
+ *  a rule as cover, and to add the same occurrence twice from a stale response. */
 export async function acceptOccurrence(
   db: DB,
   personId: string,
@@ -254,12 +239,7 @@ export async function skipOccurrence(
   return advance(db, groupId, ruleId, on, today);
 }
 
-/**
- * Move the handled marker forward, never back.
- *
- * Accepting an older proposal while a newer one is also outstanding must not rewind the marker and
- * re-open occurrences already dealt with, which is what a plain assignment would do.
- */
+/** Forward only: accepting an older proposal must not rewind the marker and re-open handled ones. */
 async function advance(
   db: DB,
   groupId: string,

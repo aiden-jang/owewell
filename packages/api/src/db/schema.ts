@@ -91,13 +91,8 @@ export const expenses = sqliteTable(
   (t) => ({ byGroup: index('exp_group').on(t.groupId) }),
 );
 
-/*
- * What an expense used to say, kept when somebody changes it.
- *
- * One row per correction, holding the values as they were. Editing overwrote in place, so turning a $40
- * dinner into $80 left no evidence except everybody's balance moving, which is the wrong shape for an
- * app about money between friends. Corrections stay easy; they just stop being invisible.
- */
+/* What an expense used to say. Editing overwrote in place, so a $40 dinner becoming $80 left no
+ * evidence but a moved balance. Corrections stay easy; they stop being invisible. */
 export const expenseRevisions = sqliteTable(
   'expense_revisions',
   {
@@ -108,13 +103,8 @@ export const expenseRevisions = sqliteTable(
     editedById: text('edited_by_id')
       .notNull()
       .references(() => people.id),
-    /*
-     * Milliseconds, and set explicitly rather than defaulted.
-     *
-     * A seconds-resolution timestamp makes two edits in the same second tie, and "the latest
-     * correction" then depends on whatever order the rows come back in. Correcting an amount and then
-     * its description is a completely ordinary pair of taps.
-     */
+    // Milliseconds, set explicitly: at seconds resolution two edits in the same second tie, and
+    // "the latest correction" becomes whatever order the rows come back in.
     editedAt: integer('edited_at', { mode: 'timestamp_ms' }).notNull(),
     // The values before this edit, so "what was it?" is answerable without replaying every row.
     description: text('description').notNull(),
@@ -197,14 +187,8 @@ export const settlements = sqliteTable(
 );
 
 /*
- * Bills that come round again: rent, the internet, the cleaner.
- *
- * A rule is a template plus a schedule, and deliberately NOT a ledger entry. Nothing here affects a
- * balance until somebody accepts a proposal and a real row lands in `expenses`, which is what keeps
- * "I never agreed to that" off the table in an app about money between friends.
- *
- * Dates are stored as plain YYYY-MM-DD text rather than timestamps. "The 1st of the month" is a
- * calendar fact, and storing it as an instant means it is the 30th for whoever is west of you.
+ * A template plus a schedule, never a ledger entry: nothing here moves a balance until somebody accepts
+ * a proposal. Dates are plain YYYY-MM-DD, since "the 1st" stored as an instant is the 30th west of you.
  */
 export const recurringRules = sqliteTable('recurring_rules', {
   id: text('id').primaryKey(),
@@ -226,14 +210,8 @@ export const recurringRules = sqliteTable('recurring_rules', {
   startsOn: text('starts_on').notNull(),
   /** Latest occurrence added OR skipped. Skipping must advance it or the proposal never goes away. */
   lastHandledOn: text('last_handled_on'),
-  /*
-   * Who it splits between, as a JSON array of person ids, always evenly.
-   *
-   * Recurring bills are equal splits in practice, and an EXACT or ITEMIZED template would be actively
-   * misleading: the amount that made those percentages correct is the one thing about a bill that
-   * changes. Anyone needing an uneven recurring split is better served editing the expense once it
-   * exists, which is a thing they can already do.
-   */
+  /* JSON array of person ids, always split evenly. An EXACT template would be misleading: the amount
+   * that made those numbers right is the one thing about a bill that changes. Edit the expense instead. */
   participantIds: text('participant_ids').notNull(),
   /** Stopped rules are kept, not deleted, so the expenses they created keep their explanation. */
   active: integer('active', { mode: 'boolean' }).notNull().default(true),

@@ -2,13 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { todayStr } from './format';
 import { budgetDetail, budgetLine, budgetTone, tripBudget } from './tripBudget';
 
-/*
- * Half of these are arithmetic and half are tone, because for this feature the tone IS the feature.
- *
- * A budget bar that scolds is the single easiest way to make a shared-expenses app feel transactional,
- * which is the thing this app exists to avoid. So the copy is asserted against the rules it claims to
- * follow, not against exact strings.
- */
+/* Half arithmetic, half tone. A budget bar that scolds is the easiest way to make this app feel
+ * transactional, so the copy is asserted against its rules rather than exact strings. */
 
 const day = (date: string, dollars: number) => ({ date, amountCents: Math.round(dollars * 100) });
 
@@ -64,13 +59,7 @@ describe('the arithmetic', () => {
     expect(budget?.perDayCents).toBe(20_000);
   });
 
-  /*
-   * The bug this is written against.
-   *
-   * A group made three weeks before the trip would date its rate from the group rather than the spending,
-   * and report a daily average diluted by three weeks of nothing happening. The first expense is the only
-   * honest start.
-   */
+  // A group made three weeks before the trip would dilute the daily rate with three weeks of nothing.
   it('measures from the first expense, not from whenever the group was made', () => {
     const budget = tripBudget(
       100_000,
@@ -83,14 +72,9 @@ describe('the arithmetic', () => {
   });
 
   /*
-   * The bug the first draft of this file shipped with.
-   *
-   * Expense dates are picked in the user's own timezone, and "today" was being read off `toISOString()`,
-   * which is UTC. From 8pm onwards anywhere in the Americas those two disagree, so a trip that started
-   * this evening reported itself as two days old and halved its own daily rate.
-   *
-   * Asserted across the whole clock rather than at one hour, so it holds wherever the tests happen to run
-   * rather than only in the zone this was written in.
+   * Expense dates are local and "today" was read off toISOString(), which is UTC: from 8pm in the
+   * Americas a trip starting this evening reported two days and halved its rate. Checked across the
+   * whole clock so it holds wherever the tests run.
    */
   it('calls an expense dated today one day, at every hour of the local day', () => {
     for (let hour = 0; hour < 24; hour += 1) {
