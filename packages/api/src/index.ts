@@ -18,6 +18,7 @@ import {
   listGroups,
   removeMember,
   renameGroup,
+  setGroupBudget,
   setSettlementDeadline,
   renameMember,
   requireMembership,
@@ -143,6 +144,22 @@ app.patch('/owewell/groups/:id/settle-by', async (c) => {
     return c.json({ error: 'ValidationError', message: 'Choose a settle-by time that has not passed.' }, 400);
   }
   const group = await setSettlementDeadline(createDb(c.env), c.get('person').id, c.req.param('id'), date);
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ group });
+});
+
+/*
+ * One shared spending target for the group. Owner-only, like the settle-by deadline.
+ *
+ * Takes cents rather than a decimal string, matching every other money field on this API: a float that
+ * has been through JSON is not a reliable way to say $19.99.
+ */
+app.patch('/owewell/groups/:id/budget', async (c) => {
+  const parsed = z
+    .object({ budgetCents: z.number().int().positive().nullable() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
+  const group = await setGroupBudget(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.budgetCents);
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ group });
 });
@@ -532,7 +549,11 @@ app.onError((err, c) => {
         ? 404
         : err.code === 'NOT_OWNER' || err.code === 'CANNOT_REMOVE_OWNER'
           ? 403
-          : 409;
+          : // A rejected value is not a conflict with anything, and 409 sends the client looking for a
+            // race that never happened.
+            err.code === 'INVALID_BUDGET'
+            ? 422
+            : 409;
     return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof ExpenseError) {

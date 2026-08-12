@@ -4,7 +4,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import { getBalances } from './expenses.js';
-import { groupMembers, groups, settlements } from './db/schema.js';
+import { groupMembers, settlements } from './db/schema.js';
 
 export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND';
 
@@ -42,6 +42,19 @@ export interface RecordSettlementInput {
   method?: PaymentMethod;
 }
 
+/**
+ * Record a payment between two members.
+ *
+ * Deliberately does not touch the group's settle-by deadline, even though this is the call that usually
+ * empties the ledger. Nulling it here only worked for this one path out of the eight writes that can move a
+ * balance to zero: deleting the last expense, deleting an overpayment, and accepting a recurring bill that
+ * happens to offset a debt all reach zero too, and all of them left the deadline nagging about a debt that
+ * no longer existed. It also threw the owner's finish line away, so a group that settled mid-trip and kept
+ * spending had no deadline left.
+ *
+ * Whether a deadline still applies is now read from the balances instead of stored, which is correct on
+ * every path for free and gives the finish line back when a tab reopens. See `deadlineStatus`.
+ */
 export async function recordSettlement(
   db: DB,
   personId: string,
@@ -75,10 +88,6 @@ export async function recordSettlement(
     createdById: personId,
     createdAt,
   });
-  const remaining = await getBalances(db, personId, groupId);
-  if (remaining.every((balance) => balance.netCents === 0)) {
-    await db.update(groups).set({ settleBy: null }).where(eq(groups.id, groupId));
-  }
   return {
     id,
     fromUserId: input.fromUserId,

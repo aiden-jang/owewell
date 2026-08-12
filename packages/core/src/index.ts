@@ -72,6 +72,8 @@ export interface GroupDetail {
   archived: boolean;
   /** Shared owner-set finish line for outstanding payments. */
   settleBy: string | null;
+  /** Shared owner-set spending target for the group, in cents. Null for the groups that never set one. */
+  budgetCents: number | null;
   members: GroupMember[];
 }
 

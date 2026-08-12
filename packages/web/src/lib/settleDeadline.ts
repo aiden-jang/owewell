@@ -11,6 +11,26 @@ export function deadlineStatus(settleBy: string, now = new Date()): { tone: Dead
   return { tone: 'calm', label: `${days}d to settle`, hours };
 }
 
+/**
+ * The finish line, given whether there is still anything to settle.
+ *
+ * The deadline is stored and never cleared, on purpose: recording a payment is only one of the eight
+ * writes that can empty a ledger, and nulling it there left every other path nagging about a debt that no
+ * longer existed. Whether it currently applies is therefore read from the balances rather than stored,
+ * which is right on every path for free and hands the finish line back when a tab reopens.
+ *
+ * So this is the one place that decides. Nothing outstanding means there is no deadline right now, and in
+ * particular no red "past settle-by" for a group that has already paid up.
+ */
+export function deadlineState(
+  settleBy: string,
+  outstanding: number,
+  now = new Date(),
+): { tone: DeadlineTone; label: string; hours: number } {
+  if (outstanding <= 0) return { tone: 'calm', label: 'nothing outstanding', hours: 0 };
+  return deadlineStatus(settleBy, now);
+}
+
 export function deadlinePresets(now = new Date()): Array<{ label: string; value: Date }> {
   const tonight = new Date(now);
   tonight.setHours(20, 0, 0, 0);
