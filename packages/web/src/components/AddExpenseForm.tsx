@@ -3,15 +3,9 @@ import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
 import { Money, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
-import { normalizeAmountInput } from '../lib/format';
+import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
-
-/** Today as YYYY-MM-DD in the user's local timezone (for the date input default). */
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 interface Props {
   groupId: string;

@@ -10,6 +10,7 @@ import {
   renameGroup,
   renameMember,
   setGroupArchived,
+  setGroupBudget,
   setSettlementDeadline,
   getOrCreateShareToken,
   getSharedSummary,
@@ -71,6 +72,42 @@ describe('groups', () => {
 
     const bob = await seedPerson(db, 'Bob');
     await expect(setSettlementDeadline(db, bob, group.id, deadline)).rejects.toBeInstanceOf(GroupError);
+  });
+
+  test('the owner can set and clear a shared budget', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    expect((await setGroupBudget(db, alice, group.id, 150_000)).budgetCents).toBe(150_000);
+    expect((await setGroupBudget(db, alice, group.id, null)).budgetCents).toBeNull();
+  });
+
+  /*
+   * Enforced here rather than only by hiding the buttons.
+   *
+   * The budget is one shared number that changes what all four people see, so a member who could set it
+   * could quietly tell everybody else they had overspent. The UI hides the controls from non-owners, but
+   * the UI is not a permission system.
+   */
+  test('a member cannot set the budget (NOT_OWNER)', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    const memberId = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
+    await expect(setGroupBudget(db, memberId, group.id, 150_000)).rejects.toMatchObject({ code: 'NOT_OWNER' });
+
+    const stranger = await seedPerson(db, 'Nosy');
+    // A non-member gets NOT_FOUND rather than NOT_OWNER, which is the existing convention: telling a
+    // stranger "you are not the owner" confirms the group exists.
+    await expect(setGroupBudget(db, stranger, group.id, 150_000)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  test('rejects a budget that is not an amount', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    for (const bad of [0, -1, 1.5, Number.MAX_SAFE_INTEGER]) {
+      await expect(setGroupBudget(db, alice, group.id, bad)).rejects.toMatchObject({ code: 'INVALID_BUDGET' });
+    }
+    // And leaves the stored value alone rather than half-applying one of those.
+    expect((await getGroup(db, alice, group.id)).budgetCents).toBeNull();
   });
 
   test('a non-owner member cannot rename (NOT_OWNER)', async () => {

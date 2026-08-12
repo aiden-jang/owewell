@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { SuggestedPayment } from '../lib/settlements';
-import { deadlinePresets, deadlineStatus, settlementDeadlineCalendar } from '../lib/settleDeadline';
+import { deadlinePresets, deadlineState, settlementDeadlineCalendar } from '../lib/settleDeadline';
 
 function localInput(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -24,7 +24,8 @@ export function SettlementDeadline({
   const [draft, setDraft] = useState(() => localInput(deadlinePresets()[1]!.value));
   const [saving, setSaving] = useState(false);
   const [savedCalendar, setSavedCalendar] = useState(false);
-  const status = settleBy ? deadlineStatus(settleBy) : null;
+  // Reads the outstanding transfers, not just the clock: a settled group has no deadline to be late for.
+  const status = settleBy ? deadlineState(settleBy, suggestions.length) : null;
 
   async function save(value: string | null): Promise<void> {
     setSaving(true);
