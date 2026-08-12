@@ -546,3 +546,92 @@ describe('the leftover cent', () => {
     }
   });
 });
+
+describe('corrections leave a trace', () => {
+  const dinner = () =>
+    createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 4000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+
+  const edit = (id: string, over: Record<string, unknown> = {}) =>
+    updateExpense(db, alice, groupId, id, {
+      description: 'Dinner',
+      amountCents: 4000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+      ...over,
+    } as never);
+
+  test('records what an expense used to say', async () => {
+    /*
+     * The gap this closes: editing overwrote in place, so a $40 dinner becoming $80 left no evidence
+     * except everybody's balance moving.
+     */
+    const created = await dinner();
+    await edit(created.id, { amountCents: 8000 });
+
+    const [listed] = await listExpenses(db, alice, groupId);
+    expect(listed!.amountCents).toBe(8000);
+    expect(listed!.lastEdit).toMatchObject({ byId: alice, fields: ['amount'], formerAmountCents: 4000 });
+  });
+
+  test('says nothing when the form was re-saved unchanged', async () => {
+    // A row for a non-edit would bury the ones that matter.
+    const created = await dinner();
+    await edit(created.id);
+    expect((await listExpenses(db, alice, groupId))[0]!.lastEdit).toBeUndefined();
+  });
+
+  test('keeps the newest correction, not the first', async () => {
+    const created = await dinner();
+    await edit(created.id, { amountCents: 8000 });
+    await edit(created.id, { amountCents: 9000, description: 'Late dinner' });
+
+    const last = (await listExpenses(db, alice, groupId))[0]!.lastEdit;
+    expect(last).toMatchObject({ formerAmountCents: 8000 });
+    expect(last!.fields).toEqual(['amount', 'description']);
+  });
+
+  test('names whoever made the change, not the payer', async () => {
+    // The payer and the editor are different people often enough that conflating them is a real bug.
+    const created = await dinner();
+    const dave = await seedPerson(db, 'Dave');
+    await addPlaceholderMember(db, alice, groupId, 'ignored');
+    await updateExpense(db, alice, groupId, created.id, {
+      description: 'Dinner',
+      amountCents: 4000,
+      payerId: bob,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    } as never);
+    const last = (await listExpenses(db, alice, groupId))[0]!.lastEdit;
+    expect(last!.byId).toBe(alice);
+    expect(last!.fields).toEqual(['payer']);
+    expect(dave).toBeTruthy();
+  });
+
+  test('leaves an expense nobody edited without a trace', async () => {
+    await dinner();
+    expect((await listExpenses(db, alice, groupId))[0]!.lastEdit).toBeUndefined();
+  });
+
+  test('does not record anything when the edit is rejected', async () => {
+    // Written after the update, so a failed edit cannot log a change that never happened.
+    const created = await dinner();
+    await expect(
+      updateExpense(db, alice, groupId, created.id, {
+        description: 'Dinner',
+        amountCents: 8000,
+        payerId: 'nobody',
+        splitMethod: 'EQUAL',
+        participants: [{ userId: alice }, { userId: bob }],
+      } as never),
+    ).rejects.toBeInstanceOf(ExpenseError);
+    expect((await listExpenses(db, alice, groupId))[0]!.lastEdit).toBeUndefined();
+  });
+});
