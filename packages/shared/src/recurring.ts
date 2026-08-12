@@ -1,22 +1,11 @@
 /**
  * Expenses that come round again.
  *
- * Rent, the internet bill, the cleaner. The most repetitive thing in a shared-expenses app is
- * re-typing the same number on the same day of every month, and until now that is exactly what
- * owewell asked people to do.
+ * A rule proposes, it never creates an expense on its own: silent generation in an app about money
+ * between friends starts an argument that being right about the schedule does not win.
  *
- * Two decisions shape everything below.
- *
- * **It proposes, it does not charge.** A rule never quietly creates an expense. When one is due the
- * group is shown "this is due again" and somebody taps to add it or skip it. Silent generation is a
- * real trust problem in an app about money between friends: the first argument it causes is "I never
- * agreed to that", and being right about the schedule is no defence. A human stays in the loop, which
- * costs one tap a month and buys the whole feature its credibility.
- *
- * **Dates are plain year-month-day, in the group's own reckoning.** No Date objects carrying a local
- * timezone, no UTC midnight that is yesterday in California. "The 1st of the month" is a calendar
- * fact, not an instant, and treating it as an instant is how a rent reminder lands on the 30th for
- * half a group.
+ * Plain year-month-day, never a Date. "The 1st" is a calendar fact, and treating it as an instant is
+ * how a rent reminder lands on the 30th for half a group.
  */
 
 export type Cadence = 'weekly' | 'monthly';
@@ -74,12 +63,10 @@ function addDays(date: Ymd, days: number): Ymd {
 }
 
 /**
- * The nth occurrence of a monthly rule anchored on `anchorDay`.
+ * The nth occurrence of a monthly rule, measured from the anchor and never from the previous date.
  *
- * Clamped to the length of the target month, and always measured from the anchor rather than from the
- * previous occurrence. That distinction is the whole function: stepping "one month on" from the last
- * date makes a rule set for the 31st drift permanently down the calendar the first time it meets
- * February. 31 Jan becomes 28 Feb becomes 28 Mar, and by June the rent is due on the 28th forever.
+ * Stepping "one month on" from the last date makes a 31st rule drift permanently: 31 Jan, 28 Feb,
+ * 28 Mar, and by June the rent is due on the 28th forever.
  * Anchoring means February borrows the 28th once and March gets its 31st back.
  */
 function monthlyOccurrence(startY: number, startM: number, anchorDay: number, n: number): Ymd {

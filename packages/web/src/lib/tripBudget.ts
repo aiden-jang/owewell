@@ -2,18 +2,11 @@ import { Money } from '@owewell/shared';
 import { todayStr } from './format';
 
 /*
- * A number the group picked, and how the spending sits against it.
+ * A budget is where a bill splitter turns into a scold. Nothing here raises its voice: going past the
+ * number is a fact, not a failure, and never coloured as a warning.
  *
- * The reason this is worth being careful about: a budget is the one place a bill splitter turns into a
- * scold. Every app that has tried this ends up with a red bar and the words OVER BUDGET, which tells four
- * people on holiday something they already know in the tone of a parking fine. Nothing here raises its
- * voice, nothing is coloured like a warning, and going past the number is reported as a fact rather than
- * a failure. The group set the number; the group can decide how it feels about it.
- *
- * There is deliberately no projection of a final total. That would need a trip end date, which the app
- * does not know: `settleBy` is when everybody pays up, which is usually after people have gone home. A
- * projection built on a guessed end date is confidently wrong, and "you're on track to spend $4,000" is a
- * much worse thing to be wrong about than saying nothing.
+ * No projected final total. That needs a trip end date the app does not have (settleBy is when people
+ * pay up, usually after they are home), and "on track to spend $4,000" is a bad thing to be wrong about.
  */
 
 export interface TripBudget {
@@ -61,19 +54,9 @@ export function tripBudget(
     if (at < earliest) earliest = at;
   }
 
-  /*
-   * Counted from the first expense rather than from when the group was made.
-   *
-   * A group created three weeks before the trip would otherwise report a daily rate diluted by three
-   * weeks of nothing, and "$40 a day" for a trip that has not started yet is not a fact about anything.
-   */
+  // From the first expense, not the group: three weeks of nothing before the trip dilutes the rate.
   const today = dayStart(todayStr(now));
-  /*
-   * Clamped, because the date field accepts future dates.
-   *
-   * Somebody booking tomorrow's ferry today gives an earliest date after today, and an unclamped count
-   * goes to zero or negative: a trip of zero days divides the daily rate by zero and reports Infinity.
-   */
+  // Clamped: the date field accepts future dates, and a trip of zero days divides the rate by zero.
   const days = Number.isFinite(earliest) ? Math.max(1, Math.round((today - earliest) / DAY_MS) + 1) : 1;
 
   return {
@@ -88,12 +71,8 @@ export function tripBudget(
   };
 }
 
-/**
- * How the bar should read, which is not the same question as how much is left.
- *
- * Three states and no alarm state. `close` exists so the bar can change without the copy changing, since
- * the useful moment is noticing you are near the number, and the useless one is being told off after.
- */
+/** No alarm state. `close` lets the bar change without the copy changing: the useful moment is noticing
+ *  you are near the number, not being told off after. */
 export type BudgetTone = 'fine' | 'close' | 'past';
 
 export function budgetTone(budget: TripBudget): BudgetTone {
@@ -101,13 +80,7 @@ export function budgetTone(budget: TripBudget): BudgetTone {
   return budget.used >= 0.8 ? 'close' : 'fine';
 }
 
-/**
- * The headline, in the app's voice.
- *
- * Lowercase and flat on purpose. Past the number it says what is true and stops: no "over budget", no
- * "exceeded", no suggestion that anybody should do something about it. If four people decide the trip was
- * worth an extra two hundred, the app has no opinion about that.
- */
+/** Past the number it states the amount and stops: no "over budget", no suggestion anybody act on it. */
 export function budgetLine(budget: TripBudget): string {
   const spent = Money.fromCents(budget.spentCents).format();
   const total = Money.fromCents(budget.budgetCents).format();
@@ -117,12 +90,7 @@ export function budgetLine(budget: TripBudget): string {
   return `${spent} of ${total}, so ${Money.fromCents(budget.remainingCents).format()} still to play with.`;
 }
 
-/**
- * The quieter second line: what the total actually means for one person, and the daily rate.
- *
- * A group total is the number that sounds alarming and the per-person number is the one anybody can act
- * on, so both are shown rather than making people divide in their heads on holiday.
- */
+/** The group total is the alarming number; the per-person one is the actionable one. Show both. */
 export function budgetDetail(budget: TripBudget): string | null {
   const parts: string[] = [];
   if (budget.perPersonCents !== null) parts.push(`${Money.fromCents(budget.perPersonCents).format()} each so far`);
