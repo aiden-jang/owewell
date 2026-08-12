@@ -1521,7 +1521,7 @@ export function GroupDetailPage(): ReactNode {
                         : 'border-line-strong bg-surface2 hover:border-accent'
                     }`}
                   >
-                    {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it — mark paid' : 'Mark paid'}
+                    {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it, mark paid' : 'Mark paid'}
                   </button>
                   {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` && (
                     <span className="basis-full text-right text-[11px] text-muted" role="status">
@@ -2197,7 +2197,7 @@ export function GroupDetailPage(): ReactNode {
         </div>
         <p className="mb-4 text-xs text-muted">
           {expenseMode === 'simple'
-            ? 'One amount for the whole group — split evenly, or by custom amounts, shares, or percent.'
+            ? 'One amount for the whole group. Split evenly, or by custom amounts, shares, or percent.'
             : 'People ordered different things? Add each line item plus tax and tip, and we work out what everyone owes.'}
         </p>
         {expenseMode === 'simple' ? (

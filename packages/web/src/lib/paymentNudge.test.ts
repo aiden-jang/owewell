@@ -11,7 +11,7 @@ const details = {
 describe('paymentNudgeText', () => {
   it('keeps the gentle version human and low pressure', () => {
     expect(paymentNudgeText(details, 'gentle')).toBe(
-      'Hey Alex — a gentle owewell nudge for $24.50 to Blair in Beach weekend. No rush, just keeping the group square.',
+      "Hey Alex, there's $24.50 left from Beach weekend whenever you get a sec. No rush.",
     );
   });
 
