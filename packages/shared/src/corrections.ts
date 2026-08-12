@@ -1,11 +1,6 @@
 /*
- * What changed when somebody edited an expense.
- *
- * Editing overwrote in place and left no trace: any member could turn a $40 dinner into $80 and the
- * only evidence was everybody's balance moving. In an app about money between friends that is the same
- * trust problem the recurring rules already refuse to have, and the fix is the same shape. Corrections
- * stay easy — blocking them just makes people delete and re-add, which is strictly worse — but they
- * stop being invisible.
+ * Editing overwrote in place: a $40 dinner could become $80 with no evidence but a moved balance.
+ * Corrections stay easy (blocking them just makes people delete and re-add) but stop being invisible.
  */
 
 export interface ExpenseSnapshot {
@@ -17,13 +12,8 @@ export interface ExpenseSnapshot {
 
 export type CorrectionField = 'amount' | 'description' | 'payer' | 'split';
 
-/**
- * The fields that changed, in a fixed order.
- *
- * Only these four. A full diff would record the date, the category and the participant list too, which
- * is a lot of rows saying nothing: what a group needs to see is the number moving, who is owed, and how
- * it is carved up. Everything else is bookkeeping the payer can fix without anybody needing to know.
- */
+/** Four fields, fixed order. A full diff would log date and category changes too, which is a lot of
+ *  rows saying nothing: what matters is the number, who is owed, and how it is carved up. */
 export function changedFields(before: ExpenseSnapshot, after: ExpenseSnapshot): CorrectionField[] {
   const changed: CorrectionField[] = [];
   if (before.amountCents !== after.amountCents) changed.push('amount');
@@ -39,14 +29,10 @@ export function isCorrection(before: ExpenseSnapshot, after: ExpenseSnapshot): b
 }
 
 /**
- * One line describing a correction, in owewell's voice.
+ * Names the person, states the change, stops. Nothing that reads as an accusation: almost every edit is
+ * somebody fixing their own typo, and suspicious copy stops people correcting real mistakes.
  *
- * Names the person and states the change, and stops. No "unauthorised", no warning colour, nothing
- * that reads as an accusation: the overwhelmingly common case is somebody fixing their own typo, and
- * copy that treats every edit as suspicious would make people avoid correcting real mistakes.
- *
- * The amount is the only field whose old value is shown, because it is the only one where "what was it
- * before" is the actual question. Formatting is the caller's, so this module stays currency-agnostic.
+ * Only the amount shows its old value, since that is the only one where "what was it" is the question.
  */
 export function correctionLine(
   fields: readonly CorrectionField[],
