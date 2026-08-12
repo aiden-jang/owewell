@@ -1,10 +1,11 @@
-import { computeItemizedSplit, computeItemizedPayers, computeSplit, type SplitMethod } from '@owewell/shared';
+import { changedFields, computeItemizedSplit, computeItemizedPayers, computeSplit, type SplitMethod } from '@owewell/shared';
 import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import {
   expenseItemShares,
   expenseItems,
+  expenseRevisions,
   expenseSplits,
   expenses,
   groupMembers,
@@ -70,6 +71,8 @@ export interface ExpenseView {
   taxCents?: number;
   tipCents?: number;
   items?: { name: string; amountCents: number; participantIds: string[] }[];
+  /** The most recent correction, when there has been one. Older ones stay in the table, unread. */
+  lastEdit?: { at: Date; byId: string; fields: string[]; formerAmountCents: number };
 }
 
 export interface MemberBalance {
@@ -158,7 +161,13 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
   await requireMembership(db, personId, groupId);
   await assertUnlocked(db, groupId);
   const existing = await db
-    .select({ createdAt: expenses.createdAt })
+    .select({
+      createdAt: expenses.createdAt,
+      description: expenses.description,
+      amountCents: expenses.amountCents,
+      payerId: expenses.payerId,
+      splitMethod: expenses.splitMethod,
+    })
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
     .get();
@@ -191,6 +200,33 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       date: input.date ?? null,
     })
     .where(eq(expenses.id, expenseId));
+  /*
+   * Keep what it used to say, before the row is gone.
+   *
+   * Written after the update rather than before, so a failed edit does not leave a revision for a change
+   * that never happened. Only when something actually moved: re-saving an untouched form is not a
+   * correction, and a row for it would bury the ones that matter.
+   */
+  const changed = changedFields(existing, {
+    description: input.description,
+    amountCents: input.amountCents,
+    payerId: input.payerId,
+    splitMethod: input.splitMethod,
+  });
+  if (changed.length > 0) {
+    await db.insert(expenseRevisions).values({
+      id: crypto.randomUUID(),
+      expenseId,
+      editedById: personId,
+      editedAt: new Date(),
+      description: existing.description,
+      amountCents: existing.amountCents,
+      payerId: existing.payerId,
+      splitMethod: existing.splitMethod,
+      fields: changed.join(','),
+    });
+  }
+
   await clearItemizedRows(db, expenseId); // in case it used to be itemized
   await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
   await db.insert(expenseSplits).values(
@@ -337,6 +373,31 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     byExpense.set(s.expenseId, list);
   }
 
+  /*
+   * The latest correction per expense, in one query.
+   *
+   * Only the newest: the feed answers "has this changed, and from what", and a full trail per row would
+   * be a changelog nobody asked for in the middle of a list of dinners. The older rows are still there
+   * for anything that ever wants them.
+   */
+  const editByExpense = new Map<string, { at: Date; byId: string; fields: string[]; formerAmountCents: number }>();
+  const revisionRows = await db
+    .select()
+    .from(expenseRevisions)
+    .where(inArray(expenseRevisions.expenseId, rows.map((r) => r.id)))
+    .orderBy(desc(expenseRevisions.editedAt))
+    .all();
+  for (const revision of revisionRows) {
+    // Sorted newest first, so the first one seen for an expense is the one to keep.
+    if (editByExpense.has(revision.expenseId)) continue;
+    editByExpense.set(revision.expenseId, {
+      at: revision.editedAt,
+      byId: revision.editedById,
+      fields: revision.fields.split(','),
+      formerAmountCents: revision.amountCents,
+    });
+  }
+
   // For itemized expenses, attach line items + their participants so the edit form can prefill.
   const itemsByExpense = new Map<string, { name: string; amountCents: number; participantIds: string[]; payerId?: string }[]>();
   const itemizedIds = rows.filter((r) => r.splitMethod === 'ITEMIZED').map((r) => r.id);
@@ -376,6 +437,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     createdAt: e.createdAt,
     date: e.date ?? e.createdAt,
     splits: byExpense.get(e.id) ?? [],
+    ...(editByExpense.has(e.id) ? { lastEdit: editByExpense.get(e.id)! } : {}),
     ...(e.splitMethod === 'ITEMIZED'
       ? { taxCents: e.taxCents, tipCents: e.tipCents, items: itemsByExpense.get(e.id) ?? [] }
       : {}),

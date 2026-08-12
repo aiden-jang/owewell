@@ -142,6 +142,14 @@ export interface Expense {
   taxCents?: number;
   tipCents?: number;
   items?: ExpenseItemInput[];
+  /** The most recent correction, when somebody has changed this. Absent means nobody has. */
+  lastEdit?: {
+    at: string;
+    byId: string;
+    /** Which of amount / description / payer / split moved. */
+    fields: string[];
+    formerAmountCents: number;
+  };
 }
 
 export interface SplitParticipantValue {
