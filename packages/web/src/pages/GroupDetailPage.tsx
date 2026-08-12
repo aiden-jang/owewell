@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Money } from '@owewell/shared';
+import { correctionLine, Money, type CorrectionField } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, categoryMeta, type PaymentMethod } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
@@ -1872,6 +1872,17 @@ export function GroupDetailPage(): ReactNode {
                           <> · split {item.expense.splits.length} ways</>
                         )}
                       </p>
+                      {/* A correction, said plainly. Almost every one is somebody fixing their own
+                          typo, so this is muted text and not a warning colour. */}
+                      {item.expense.lastEdit && (
+                        <p className="text-xs text-faint">
+                          {correctionLine(
+                            item.expense.lastEdit.fields as CorrectionField[],
+                            nameOf(item.expense.lastEdit.byId),
+                            Money.fromCents(item.expense.lastEdit.formerAmountCents).format(),
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">

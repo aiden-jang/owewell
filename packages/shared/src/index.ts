@@ -34,3 +34,10 @@ export {
   type RecurringRule,
   type Ymd,
 } from './recurring.js';
+export {
+  changedFields,
+  correctionLine,
+  isCorrection,
+  type CorrectionField,
+  type ExpenseSnapshot,
+} from './corrections.js';

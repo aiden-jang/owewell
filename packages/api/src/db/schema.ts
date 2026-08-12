@@ -91,6 +91,42 @@ export const expenses = sqliteTable(
   (t) => ({ byGroup: index('exp_group').on(t.groupId) }),
 );
 
+/*
+ * What an expense used to say, kept when somebody changes it.
+ *
+ * One row per correction, holding the values as they were. Editing overwrote in place, so turning a $40
+ * dinner into $80 left no evidence except everybody's balance moving, which is the wrong shape for an
+ * app about money between friends. Corrections stay easy; they just stop being invisible.
+ */
+export const expenseRevisions = sqliteTable(
+  'expense_revisions',
+  {
+    id: text('id').primaryKey(),
+    expenseId: text('expense_id')
+      .notNull()
+      .references(() => expenses.id, { onDelete: 'cascade' }),
+    editedById: text('edited_by_id')
+      .notNull()
+      .references(() => people.id),
+    /*
+     * Milliseconds, and set explicitly rather than defaulted.
+     *
+     * A seconds-resolution timestamp makes two edits in the same second tie, and "the latest
+     * correction" then depends on whatever order the rows come back in. Correcting an amount and then
+     * its description is a completely ordinary pair of taps.
+     */
+    editedAt: integer('edited_at', { mode: 'timestamp_ms' }).notNull(),
+    // The values before this edit, so "what was it?" is answerable without replaying every row.
+    description: text('description').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    payerId: text('payer_id').notNull(),
+    splitMethod: text('split_method').notNull(),
+    /** Which of them actually moved, as a comma-separated list. Saves diffing rows to find out. */
+    fields: text('fields').notNull(),
+  },
+  (t) => ({ byExpense: index('rev_expense').on(t.expenseId) }),
+);
+
 export const expenseSplits = sqliteTable(
   'expense_splits',
   {
