@@ -24,8 +24,10 @@ jobs:
       - run: pnpm test
 
   # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
-  # Requires a CLOUDFLARE_API_TOKEN repo secret (Workers-scoped). Wrangler infers the
-  # account from the token, so no account_id is needed here.
+  # Requires a CLOUDFLARE_API_TOKEN repo secret with BOTH Workers Scripts:Edit and D1:Edit.
+  # D1 is not optional: `pnpm run deploy` applies pending migrations before it ships the code, and a
+  # Workers-only token fails that step with a 7403 and never reaches the deploy.
+  # Wrangler infers the account from the token, so no account_id is needed here.
   deploy:
     needs: check
     if: github.ref == 'refs/heads/main'
@@ -43,8 +45,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Code deploy only. D1 schema changes are applied deliberately by hand, from
-      # packages/api: wrangler d1 migrations apply owewell --remote
+      # Migrations first, then the code, in that order and failing hard if the migration fails.
+      # Shipping code whose migration has not run is what 500'd /auth/me for every app once: the
+      # column was missing in production and every session lookup threw. `pnpm run deploy` chains
+      # `d1 migrations apply owewell --remote` ahead of `wrangler deploy` so the two cannot
+      # drift apart. Applying by hand was the old contract and is what allowed that drift.
       - name: Deploy to Cloudflare
         run: pnpm run deploy
         working-directory: packages/api
