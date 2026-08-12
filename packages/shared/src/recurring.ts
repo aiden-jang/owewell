@@ -1,11 +1,6 @@
 /**
- * Expenses that come round again.
- *
- * A rule proposes, it never creates an expense on its own: silent generation in an app about money
- * between friends starts an argument that being right about the schedule does not win.
- *
- * Plain year-month-day, never a Date. "The 1st" is a calendar fact, and treating it as an instant is
- * how a rent reminder lands on the 30th for half a group.
+ * A rule proposes, never creates: silent generation starts an argument that being right about the
+ * schedule does not win. Plain year-month-day, never a Date, or the 1st lands on the 30th for half a group.
  */
 
 export type Cadence = 'weekly' | 'monthly';
@@ -62,13 +57,8 @@ function addDays(date: Ymd, days: number): Ymd {
   return { y: shifted.getUTCFullYear(), m: shifted.getUTCMonth() + 1, d: shifted.getUTCDate() };
 }
 
-/**
- * The nth occurrence of a monthly rule, measured from the anchor and never from the previous date.
- *
- * Stepping "one month on" from the last date makes a 31st rule drift permanently: 31 Jan, 28 Feb,
- * 28 Mar, and by June the rent is due on the 28th forever.
- * Anchoring means February borrows the 28th once and March gets its 31st back.
- */
+/** Measured from the anchor, never the previous date: stepping "one month on" makes a 31st rule drift
+ *  permanently (31 Jan, 28 Feb, 28 Mar) until rent is due on the 28th forever. */
 function monthlyOccurrence(startY: number, startM: number, anchorDay: number, n: number): Ymd {
   const absolute = startM - 1 + n;
   const y = startY + Math.floor(absolute / 12);
@@ -80,22 +70,12 @@ export interface RecurringRule {
   cadence: Cadence;
   /** First date the rule applies, and the anchor every later occurrence is measured from. */
   startsOn: string;
-  /**
-   * The latest occurrence already dealt with, added or skipped alike.
-   *
-   * Skipping has to advance this as well as adding. A skip that left it alone would re-propose the
-   * same month forever, and the only way out would be deleting the rule.
-   */
+  /** Skipping advances this too. A skip that left it alone re-proposes the same month forever. */
   lastHandledOn: string | null;
 }
 
-/**
- * How many overdue occurrences will ever be proposed at once.
- *
- * Somebody who stops opening the app for two years should not come back to twenty-four rent
- * proposals. The cap keeps the card readable and the accept-all path honest; `truncated` says the
- * older ones were dropped rather than silently pretending they never came due.
- */
+/** Two years away should not return twenty-four rent proposals. `truncated` says the older ones were
+ *  dropped rather than pretending they never came due. */
 export const MAX_PROPOSALS = 6;
 
 export interface DueOccurrences {
@@ -105,12 +85,7 @@ export interface DueOccurrences {
   truncated: boolean;
 }
 
-/**
- * Which occurrences of `rule` are due on or before `today` and not yet handled.
- *
- * Returns the newest ones when there are more than the cap, because a two-year-old rent proposal is
- * archaeology and this month's is a bill.
- */
+/** Newest first past the cap: a two-year-old rent proposal is archaeology, this month's is a bill. */
 export function dueOccurrences(rule: RecurringRule, today: string): DueOccurrences {
   const now = parseYmd(today);
   const start = parseYmd(rule.startsOn);
@@ -134,12 +109,7 @@ export function dueOccurrences(rule: RecurringRule, today: string): DueOccurrenc
   return { dates: all.slice(-MAX_PROPOSALS).map(formatYmd), truncated };
 }
 
-/**
- * The next date a rule will come due after `from`, for telling somebody when to expect it.
- *
- * Independent of what has been handled: this answers "when is the next one" about the schedule, not
- * about the group's inbox.
- */
+/** About the schedule, not the group's inbox: independent of what has been handled. */
 export function nextOccurrenceAfter(rule: Pick<RecurringRule, 'cadence' | 'startsOn'>, from: string): string {
   const after = parseYmd(from);
   const start = parseYmd(rule.startsOn);

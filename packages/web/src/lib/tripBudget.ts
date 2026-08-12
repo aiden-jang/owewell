@@ -2,11 +2,10 @@ import { Money } from '@owewell/shared';
 import { todayStr } from './format';
 
 /*
- * A budget is where a bill splitter turns into a scold. Nothing here raises its voice: going past the
- * number is a fact, not a failure, and never coloured as a warning.
+ * Going past the number is a fact, not a failure, and never coloured as a warning.
  *
- * No projected final total. That needs a trip end date the app does not have (settleBy is when people
- * pay up, usually after they are home), and "on track to spend $4,000" is a bad thing to be wrong about.
+ * No projected total: that needs a trip end date the app does not have, and "on track to spend $4,000"
+ * is a bad thing to be wrong about.
  */
 
 export interface TripBudget {
