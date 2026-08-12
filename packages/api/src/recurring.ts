@@ -6,17 +6,10 @@ import { createExpense, ExpenseError, memberPersonIds } from './expenses.js';
 import { requireMembership } from './groups.js';
 
 /*
- * Bills that come round again.
+ * Permissions and proposals; the scheduling maths is in @owewell/shared so it can be property-tested.
  *
- * The scheduling maths lives in @owewell/shared so it can be property-tested without a database. This
- * file is the boring half: who may create a rule, what a proposal looks like, and turning an accepted
- * proposal into a real expense.
- *
- * The design rule worth restating here, because it is the one a future change is most likely to break:
- * a rule never creates an expense on its own. Due occurrences are *proposed* and somebody taps to
- * accept or skip. Silent generation would mean balances moving while nobody was looking, and in an app
- * about money between friends the first thing that causes is an argument that being right about the
- * schedule does not win.
+ * The rule a future change is most likely to break: a rule never creates an expense on its own. Due
+ * occurrences are proposed and somebody taps to accept, or balances move while nobody is looking.
  */
 
 export type RecurringErrorCode =
