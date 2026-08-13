@@ -164,12 +164,42 @@ Or use the Cloudflare dashboard: **Workers & Pages → D1 → owewell → Consol
 ## Tests
 
 ```bash
-pnpm --filter @owewell/api test        # 80 tests: groups, expenses, settlements, invites, quicksplit
-pnpm --filter @owewell/core test       # the pure split/settlement math
+pnpm -r test    # 322 tests: 106 API, 138 web, 78 shared
+                # groups, expenses, settlements, invites, quicksplit, and the pure split math
 ```
 
 The API tests run against a real local D1 (via `@cloudflare/vitest-pool-workers`), so the Drizzle
 queries and migrations are exercised, not mocked.
+
+## Talking about this
+
+**The short version.** Split bills with a group, see who owes whom live, and settle up in the fewest
+payments. Money is integer cents everywhere.
+
+**The shape.** Groups, expenses and balances live in D1 through Drizzle. A Durable Object per group
+session pushes changes to everyone watching, so two people entering expenses at a restaurant table
+see each other's as they happen. The settle-up step takes the debt graph and reduces it to a minimal
+set of transfers, so eight people don't make twenty-eight payments.
+
+**The call I'd defend.** Integer cents from end to end, never floats. This sounds like pedantry until
+you split $10 three ways: floats give you three payments of 3.3333333333333335 and a balance that
+never quite reaches zero. Cents means the remainder is one cent and I have to decide who gets it,
+which is a product question I'd rather answer on purpose than discover in a rounding error. Every
+split method distributes the remainder deterministically instead of letting it drift.
+
+**The one I got wrong.** The trip budget compared expense dates against "today" computed with
+`toISOString()`, which is UTC. Expenses are local calendar dates. Anyone east of UTC saw today's
+spending land on tomorrow for part of the day. It only shows up in certain timezones at certain
+hours, which is exactly why it survived review.
+
+**What breaks first.** D1 write throughput on a single very active group, since every expense is a
+write and the Durable Object fans out the change. Realistic groups are under twenty people so this
+is theoretical, but it's the first thing that would bend.
+
+**What I'd change.** Editing an expense used to overwrite it in place, so a $40 dinner could become
+$80 with nothing but a moved balance to show for it. There's a revision log now, but it went in late.
+I should have written it when I wrote the edit path, because "who changed this" is the first question
+anyone asks when a number looks wrong.
 
 ## Observability
 
