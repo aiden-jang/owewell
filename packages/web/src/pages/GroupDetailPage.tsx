@@ -1257,7 +1257,7 @@ export function GroupDetailPage(): ReactNode {
             <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
               <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Biggest moment</span>
               <strong className="mt-1 block truncate text-sm text-ink" title={groupRecap.largest?.description}>
-                {groupRecap.largest?.description ?? '—'}
+                {groupRecap.largest?.description ?? 'nothing yet'}
               </strong>
               {groupRecap.largest && (
                 <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.largest.amountCents).format()}</span>
@@ -1266,7 +1266,7 @@ export function GroupDetailPage(): ReactNode {
             <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
               <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Top category</span>
               <strong className="mt-1 block text-sm text-ink">
-                {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : '—'}
+                {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : 'nothing yet'}
               </strong>
               {groupRecap.topCategory && (
                 <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.topCategory.amountCents).format()}</span>
