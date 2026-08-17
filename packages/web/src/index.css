@@ -142,7 +142,11 @@ html {
 }
 
 body {
+  /* 100vh first as the fallback, then 100dvh, which is the one that matters on a phone: mobile
+     Safari counts the URL bar inside 100vh, so a "full height" page is taller than the screen and
+     the layout jumps as the bar hides. Browsers that do not know dvh keep the line above. */
   min-height: 100vh;
+  min-height: 100dvh;
   /* Names, group titles and expense descriptions are user-typed and appear on nearly every screen,
      and any one of them can be a single unbroken token. One long name was widening the page to
      659px inside a 375px phone, dragging the header and every row sideways with it. break-word
@@ -289,4 +293,22 @@ input[type='checkbox'] {
   [role='button']:not(:disabled):active {
     transform: scale(0.97);
   }
+}
+
+/*
+ * Where the keyboard is.
+ *
+ * There was not one focus rule in this app, so keyboard users got the browser's default ring, which
+ * is drawn for a white page and has no relationship to anything here. Two rules, and the second is
+ * the one that is easy to leave out: :focus-visible only *adds* a ring, it never removes the one the
+ * UA draws, so without the companion a mouse click still leaves a rectangle behind.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-accent, #4f46e5);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }
