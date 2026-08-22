@@ -7,6 +7,7 @@ import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
 import { Icon } from './Icon';
+import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
 
 function centsToInput(cents: number): string {
@@ -35,6 +36,7 @@ interface Props {
 }
 
 export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
+  const fmt = useMoney();
   const source = editing ?? template;
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
   const defaultPayer = source && members.some((member) => member.userId === source.payerId)
@@ -258,6 +260,22 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         className={inputClass}
       />
 
+      {/*
+        * The total, where the other tab puts the amount.
+        *
+        * It was a small line at the very bottom, under tax and tip, so switching between "Split a
+        * total" and "Itemize a receipt" moved the money from the top of the sheet to the end of it.
+        * Computed rather than typed, but it is the number you check against the printed receipt.
+        */}
+      <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center">
+        <p className="tnum font-display text-4xl font-extrabold tracking-tight">
+          {fmt(grandTotalCents)}
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          {grandTotalCents > 0 ? 'Items, tax and tip' : 'Add the line items below'}
+        </p>
+      </div>
+
       <CategoryPicker value={category} onChange={setCategory} />
 
       {/* Optional and unlabelled on purpose: a placeholder is enough for a field nobody has to fill,
@@ -334,7 +352,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         <button
           type="button"
           onClick={addItem}
-          className="w-full rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-accent transition hover:bg-surface2"
+          className="w-full rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
         >
           + Add another item
         </button>
@@ -359,11 +377,6 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
           className={inputClass}
           aria-label="Tip"
         />
-      </div>
-
-      <div className="flex items-center justify-between px-1 text-sm">
-        <span className="text-muted">receipt total</span>
-        <span className="font-semibold tabular-nums">${(grandTotalCents / 100).toFixed(2)}</span>
       </div>
 
       {error && (
