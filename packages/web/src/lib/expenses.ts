@@ -49,4 +49,9 @@ export const expensesApi = {
       .then((r) => r.expense),
   remove: (groupId: string, expenseId: string): Promise<{ ok: boolean }> =>
     api.del<{ ok: boolean }>(`/groups/${groupId}/expenses/${expenseId}`),
+  /** Undo a delete. Returns the restored expense so the feed can put the row back immediately. */
+  restore: (groupId: string, expenseId: string): Promise<Expense> =>
+    api
+      .post<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/restore`, {})
+      .then((r) => r.expense),
 };

@@ -8,6 +8,7 @@ import {
   deleteExpense,
   getBalances,
   listExpenses,
+  restoreExpense,
   updateExpense,
   updateItemizedExpense,
 } from '../src/expenses.js';
@@ -668,5 +669,71 @@ describe('the note', () => {
       participants: [{ userId: alice }, { userId: bob }],
     });
     expect((await listExpenses(db, alice, groupId))[0]!.note).toBeNull();
+  });
+});
+
+/*
+ * Undo, which is what the delete confirm was replaced with.
+ *
+ * The point of restoring rather than re-creating is that the row is identical afterwards, including
+ * which participant absorbed the odd cent on an uneven bill. A re-create would reroll that.
+ */
+describe('undoing a delete', () => {
+  test('puts the same row back, splits and all', async () => {
+    const created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 1_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }, { userId: carl }],
+    });
+    const before = (await listExpenses(db, alice, groupId)).find((e) => e.id === created.id)!;
+    const balancesBefore = await getBalances(db, alice, groupId);
+
+    await deleteExpense(db, alice, groupId, created.id);
+    expect(await listExpenses(db, alice, groupId)).toHaveLength(0);
+
+    const restored = await restoreExpense(db, alice, groupId, created.id);
+    expect(restored).toEqual(before);
+    // 1000 three ways leaves a cent to place, so this is the assertion that a re-create would fail:
+    // it would reroll who absorbs it and move a penny between two people.
+    expect(await getBalances(db, alice, groupId)).toEqual(balancesBefore);
+  });
+
+  test('refuses once a payment is recorded, like every other write', async () => {
+    const created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 1_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    await deleteExpense(db, alice, groupId, created.id);
+    await recordSettlement(db, alice, groupId, { fromUserId: bob, toUserId: alice, amountCents: 100 });
+    await expect(restoreExpense(db, alice, groupId, created.id)).rejects.toMatchObject({ code: 'LOCKED' });
+  });
+
+  test('will not restore something that was never deleted', async () => {
+    const created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 1_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    await expect(restoreExpense(db, alice, groupId, created.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  test('is a members-only door', async () => {
+    const created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 1_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    await deleteExpense(db, alice, groupId, created.id);
+    const stranger = await seedPerson(db, 'Nosy');
+    await expect(restoreExpense(db, stranger, groupId, created.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
