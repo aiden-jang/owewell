@@ -7,6 +7,7 @@ import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { useCurrencyCode, useMoney } from '../lib/currency';
+import { enqueue, isOffline } from '../lib/outbox';
 
 interface Props {
   groupId: string;
@@ -17,6 +18,13 @@ interface Props {
   editing?: Expense;
   /** Prefill a new expense from an old one while keeping today as the date. */
   template?: Expense;
+  /**
+   * Called instead of onCreated when the write could not leave the device and was queued.
+   *
+   * A separate callback rather than a flag on onCreated: the caller has to say something different
+   * ("waiting for signal", not "added"), and nothing exists on the server yet to hand back.
+   */
+  onQueued?: (description: string) => void;
 }
 
 /** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
@@ -33,7 +41,7 @@ function initialValues(editing: Expense | undefined): Record<string, string> {
   return out;
 }
 
-export function AddExpenseForm({ groupId, members, onCreated, editing, template }: Props): ReactNode {
+export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
   const fmt = useMoney();
   const symbol = currencySymbol(useCurrencyCode());
   const source = editing ?? template;
@@ -59,6 +67,14 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
   const [note, setNote] = useState(source?.note ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  function clearAfterCreate(): void {
+    setDescription('');
+    setAmount('');
+    setValues({});
+    setMethod('EQUAL');
+    setNote('');
+  }
 
   function toggle(userId: string): void {
     setSelected((prev) => {
@@ -144,7 +160,10 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
       }
     }
 
-    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date, note: note.trim() };
+    // Minted before the request, not after: it has to survive the attempt so a retry can carry the
+    // same one and be recognised as the same expense.
+    const clientId = crypto.randomUUID();
+    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date, note: note.trim(), clientId };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -152,13 +171,26 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
         saved = await expensesApi.update(groupId, editing.id, payload);
       } else {
         saved = await expensesApi.create(groupId, payload);
-        setDescription('');
-        setAmount('');
-        setValues({});
-        setMethod('EQUAL');
+        clearAfterCreate();
       }
       onCreated(saved);
     } catch (err) {
+      // Only a new expense can be queued. An edit needs the row it edits to still be there, and by
+      // the time the connection returns somebody else may have changed it out from under this one.
+      if (!editing && onQueued && isOffline(err)) {
+        enqueue({
+          clientId,
+          groupId,
+          kind: 'expense',
+          description: trimmedDescription,
+          amountCents,
+          queuedAt: Date.now(),
+          payload,
+        });
+        clearAfterCreate();
+        onQueued(trimmedDescription);
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Could not save the expense.');
     } finally {
       setSubmitting(false);
