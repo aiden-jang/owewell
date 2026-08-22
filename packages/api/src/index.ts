@@ -33,6 +33,7 @@ import {
   deleteExpense,
   getBalances,
   listExpenses,
+  restoreExpense,
   updateExpense,
   updateItemizedExpense,
 } from './expenses.js';
@@ -355,6 +356,17 @@ app.put('/owewell/groups/:id/expenses/:expenseId/itemized', async (c) => {
     ...rest,
     ...(date ? { date: new Date(date) } : {}),
   });
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ expense });
+});
+
+app.post('/owewell/groups/:id/expenses/:expenseId/restore', async (c) => {
+  const expense = await restoreExpense(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ expense });
 });

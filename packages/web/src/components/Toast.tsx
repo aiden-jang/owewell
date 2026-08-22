@@ -10,14 +10,21 @@ import {
 
 type ToastTone = 'success' | 'error';
 
+/** One thing the toast lets you do about what just happened. Undo is the only user so far. */
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface Toast {
   id: number;
   message: string;
   tone: ToastTone;
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  success: (message: string) => void;
+  success: (message: string, action?: ToastAction) => void;
   error: (message: string) => void;
 }
 
@@ -33,37 +40,62 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
   }, []);
 
   const push = useCallback(
-    (message: string, tone: ToastTone): void => {
+    (message: string, tone: ToastTone, action?: ToastAction): void => {
       const id = nextId.current++;
-      setToasts((prev) => [...prev, { id, message, tone }]);
-      // Errors linger longer than confirmations — you have to actually read them.
-      setTimeout(() => dismiss(id), tone === 'error' ? 7000 : 4000);
+      setToasts((prev) => [...prev, { id, message, tone, ...(action ? { action } : {}) }]);
+      // Errors linger longer than confirmations — you have to actually read them. One with an action
+      // linger longest: four seconds is enough to read "deleted", not to notice it was the wrong row,
+      // decide, and reach for the button.
+      setTimeout(() => dismiss(id), action ? 9000 : tone === 'error' ? 7000 : 4000);
     },
     [dismiss],
   );
 
   const api = useMemo<ToastApi>(
     () => ({
-      success: (message) => push(message, 'success'),
+      success: (message, action) => push(message, 'success', action),
       error: (message) => push(message, 'error'),
     }),
     [push],
   );
 
-  const renderToast = (toast: Toast): ReactNode => (
-    <button
-      key={toast.id}
-      type="button"
-      onClick={() => dismiss(toast.id)}
-      className={`glass pointer-events-auto inline-flex max-w-sm items-center gap-2 animate-rise rounded-full px-4 py-2.5 text-sm font-medium shadow-md transition active:scale-[0.98] ${
-        toast.tone === 'error' ? 'text-rose-300' : 'text-ink'
-      }`}
-    >
-      {/* Non-color cue so tone reads without relying on color alone. */}
-      <span aria-hidden="true">{toast.tone === 'error' ? '⚠️' : '✓'}</span>
-      {toast.message}
-    </button>
-  );
+  const shell = (tone: ToastTone): string =>
+    `glass pointer-events-auto inline-flex max-w-sm items-center gap-2 animate-rise rounded-full px-4 py-2.5 text-sm font-medium shadow-md ${
+      tone === 'error' ? 'text-rose-300' : 'text-ink'
+    }`;
+
+  // Non-color cue so tone reads without relying on color alone.
+  const glyph = (tone: ToastTone): ReactNode => <span aria-hidden="true">{tone === 'error' ? '⚠️' : '✓'}</span>;
+
+  const renderToast = (toast: Toast): ReactNode =>
+    toast.action ? (
+      // A div, not a button: the whole-toast tap dismisses, and a button inside a button is invalid
+      // markup that also swallows the action's own click on some browsers.
+      <div key={toast.id} className={shell(toast.tone)}>
+        {glyph(toast.tone)}
+        <span>{toast.message}</span>
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            dismiss(toast.id);
+          }}
+          className="-mr-1.5 ml-1 rounded-full px-2.5 py-1 font-semibold text-accent transition hover:bg-surface2"
+        >
+          {toast.action.label}
+        </button>
+      </div>
+    ) : (
+      <button
+        key={toast.id}
+        type="button"
+        onClick={() => dismiss(toast.id)}
+        className={`${shell(toast.tone)} transition active:scale-[0.98]`}
+      >
+        {glyph(toast.tone)}
+        {toast.message}
+      </button>
+    );
 
   return (
     <ToastContext.Provider value={api}>
