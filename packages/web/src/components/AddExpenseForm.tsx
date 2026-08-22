@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
-import { Money, dollarsToCents, type SplitMethod } from '@owewell/shared';
+import { Money, computeSplit, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
@@ -206,11 +206,80 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
     }
   }
 
+  /*
+   * What each person will owe, worked out while you type.
+   *
+   * Deliberately the same `computeSplit` the API runs, so the sentence under the amount is a preview
+   * rather than a guess that rounds differently. No seed is passed (the expense has no id yet), so on
+   * an uneven total the odd cent may land on somebody else in the end. That's why an uneven split is
+   * shown as a range instead of one confident number.
+   */
+  const shares = ((): { userId: string; owedCents: number }[] | null => {
+    let cents: number;
+    try {
+      cents = dollarsToCents(amount);
+    } catch {
+      return null;
+    }
+    if (cents <= 0) return null;
+    const chosen = members.filter((m) => selected.has(m.userId));
+    if (chosen.length === 0) return null;
+    try {
+      return computeSplit(method, cents, buildParticipants(chosen));
+    } catch {
+      return null;
+    }
+  })();
+
+  const shareOf = new Map((shares ?? []).map((s) => [s.userId, s.owedCents]));
+  const perPerson = ((): string | null => {
+    if (!shares) return null;
+    const ways = `${shares.length} ${shares.length === 1 ? 'way' : 'ways'}`;
+    if (method !== 'EQUAL') return `Split ${ways}`;
+    const low = Math.min(...shares.map((s) => s.owedCents));
+    const high = Math.max(...shares.map((s) => s.owedCents));
+    const each = low === high
+      ? Money.fromCents(low).format()
+      : `${Money.fromCents(low).format()}–${Money.fromCents(high).format()}`;
+    return `${each} each · split ${ways}`;
+  })();
+
   const inputClass =
     'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
+      {/*
+        * The amount, at the size of the thing it is.
+        *
+        * It was a 16px box sharing a row with the payer dropdown, which is the wrong rank: everything
+        * else on this form is a detail about this number. First in the DOM too, so the sheet's focus
+        * trap opens the numeric keypad on a phone instead of the alphabet.
+        */}
+      <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+        <div className="flex items-baseline justify-center gap-1">
+          <span aria-hidden className="font-display text-2xl font-semibold text-faint">
+            $
+          </span>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onBlur={() => setAmount(normalizeAmountInput(amount))}
+            placeholder="0.00"
+            inputMode="decimal"
+            aria-label="Amount"
+            required
+            /* Sized to its own digits so the $ stays next to the number instead of drifting off the
+               left edge of a fixed box. Tabular figures make 1ch exact for every digit. */
+            style={{ width: `${Math.max(4, amount.length) + 0.3}ch` }}
+            className="tnum bg-transparent text-center font-display text-5xl font-extrabold tracking-tight outline-none placeholder:text-faint"
+          />
+        </div>
+        <p className={`mt-2 text-sm ${perPerson ? 'text-muted' : 'text-faint'}`} aria-live="polite">
+          {perPerson ?? `Split ${selected.size} ${selected.size === 1 ? 'way' : 'ways'}`}
+        </p>
+      </div>
+
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -220,16 +289,6 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
         className={inputClass}
       />
       <div className="flex gap-2">
-        <input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          onBlur={() => setAmount(normalizeAmountInput(amount))}
-          placeholder="0.00"
-          inputMode="decimal"
-          aria-label="Amount"
-          required
-          className={inputClass}
-        />
         <select value={payerId} onChange={(e) => setPayerId(e.target.value)} className={inputClass} aria-label="Paid by">
           {members.map((m) => (
             <option key={m.userId} value={m.userId}>
@@ -237,15 +296,14 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
             </option>
           ))}
         </select>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          aria-label="Date"
+          className={inputClass}
+        />
       </div>
-
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        aria-label="Date"
-        className={inputClass}
-      />
 
       <CategoryPicker value={category} onChange={setCategory} />
 
@@ -287,7 +345,11 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
                   }
                   className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                 />
-                <span className="w-12 text-sm text-muted">{splitMethodUnit(method)}</span>
+                <span className="w-14 shrink-0 text-sm text-muted">{splitMethodUnit(method)}</span>
+                {/* Shares and percentages are abstractions; this is the dollars they come to. */}
+                <span className="tnum w-20 text-right text-sm text-muted">
+                  {shareOf.has(m.userId) ? Money.fromCents(shareOf.get(m.userId)!).format() : ''}
+                </span>
               </div>
             )}
           </div>

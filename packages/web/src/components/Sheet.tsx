@@ -30,8 +30,18 @@ export function Sheet({
         ) ?? [],
       );
 
-    // Move focus into the sheet on open (first field, else the dialog itself).
-    (focusable()[0] ?? dialogRef.current)?.focus();
+    /*
+     * Open on the first field, not the first focusable thing.
+     *
+     * The first focusable thing is the close button in the header, so every sheet used to open with
+     * "Close" highlighted, and on a phone the keyboard stayed shut until you tapped the field anyway.
+     * Buttons are skipped rather than merely deprioritised: a sheet whose body starts with an action
+     * (the expense detail starts with Duplicate) should not open with that action under the cursor.
+     */
+    const firstField = dialogRef.current?.querySelector<HTMLElement>(
+      'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
+    );
+    (firstField ?? dialogRef.current)?.focus();
 
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
