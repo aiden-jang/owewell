@@ -1302,7 +1302,9 @@ export function GroupDetailPage(): ReactNode {
         {hasActivity && settled && <SettledMark tone={groupSettled ? 'settled' : 'square'} />}
         <p className={`text-sm font-medium text-muted ${hasActivity && settled ? 'mt-4' : ''}`}>
           {!hasActivity
-            ? 'Nothing on the tab yet'
+            ? group.members.length < 2
+              ? 'First, add the people'
+              : 'Nothing on the tab yet'
             : settled
               ? groupSettled
                 ? 'Everyone is clear'
@@ -1317,7 +1319,11 @@ export function GroupDetailPage(): ReactNode {
           } ${settled ? (hasActivity && groupSettled ? 'text-pos' : 'text-ink') : owed ? 'text-gradient' : 'text-neg'}`}
         >
           {!hasActivity ? (
-            'Nothing yet'
+            group.members.length < 2 ? (
+              'Just you so far'
+            ) : (
+              'Nothing yet'
+            )
           ) : settled ? (
             groupSettled ? (
               'All settled'
