@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { correctionLine, Money, type CorrectionField } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, categoryMeta, type PaymentMethod } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
@@ -32,6 +32,7 @@ import { ExpenseDetail } from '../components/ExpenseDetail';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
+import { SettledMark } from '../components/SettledMark';
 import { SettlementDeadline } from '../components/SettlementDeadline';
 import { TripBudget } from '../components/TripBudget';
 import { tripBudget } from '../lib/tripBudget';
@@ -131,6 +132,28 @@ export function GroupDetailPage(): ReactNode {
   const [activityQuery, setActivityQuery] = useState('');
   // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
+  /*
+   * Two questions, two tabs: "what do I owe" and "how did we spend".
+   *
+   * Everything used to be one column, and it had grown to eight cards with their own headings and
+   * their own chrome, which is more than a person can hold while deciding whether to send somebody
+   * $70. The balance and the tab bar stay put; only what's under them swaps.
+   *
+   * It lives in the URL so a reload, a back button, or a link keeps the view you were on.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: 'activity' | 'summary' = searchParams.get('view') === 'summary' ? 'summary' : 'activity';
+  const setTab = (next: 'activity' | 'summary'): void => {
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        if (next === 'activity') params.delete('view');
+        else params.set('view', next);
+        return params;
+      },
+      { replace: true },
+    );
+  };
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -228,6 +251,15 @@ export function GroupDetailPage(): ReactNode {
       next[i] = saved;
       return next;
     });
+  }
+
+  /*
+   * Tapping a slice is a question about the feed ("what was all that lodging?"), so it answers it
+   * where the answer lives instead of filtering a list on the tab you can't see.
+   */
+  function filterByCategory(key: string): void {
+    setCategoryFilter(key);
+    setTab('activity');
   }
 
   async function markPaid(payment: SuggestedPayment): Promise<void> {
@@ -858,8 +890,10 @@ export function GroupDetailPage(): ReactNode {
   // category filter is a drill-down from the chart into the feed only. The lens logic is pure and
   // unit-tested in lib/activityFilters.
   const lensActive = personFilter !== null;
-  const spendByCategory = computeSpendByCategory(expenses, personFilter, relationFilter);
   const lensTotal = computeLensTotal(expenses, personFilter, relationFilter);
+  // Summary answers for the whole group; the person lens belongs to the feed it sits above.
+  const spendByCategory = computeSpendByCategory(expenses, null, 'involved');
+  const spendTotal = computeLensTotal(expenses, null, 'involved');
 
   async function onShare(): Promise<void> {
     if (!group) return;
@@ -1086,20 +1120,31 @@ export function GroupDetailPage(): ReactNode {
         </div>
       )}
 
-      <div className="glass mt-5 rounded-3xl p-6 sm:p-7">
-        <p className="text-sm font-medium text-muted">
+      {/*
+        * Left-aligned while there is a number, centred once there isn't.
+        *
+        * A left edge is a column for figures to line up on, and "You're square" is not a figure. Set
+        * in the same place at the same size it read as a sentence abandoned in the corner, so the
+        * ending gets its own composition: the mark, then the words, centred under it.
+        */}
+      <div className={`glass mt-5 rounded-3xl p-6 sm:p-7 ${settled ? 'text-center' : ''}`}>
+        {/* A group with nothing on it is not "settled", it just hasn't started. No mark for that. */}
+        {hasActivity && settled && <SettledMark tone={groupSettled ? 'settled' : 'square'} />}
+        <p className={`text-sm font-medium text-muted ${hasActivity && settled ? 'mt-4' : ''}`}>
           {!hasActivity
             ? 'Nothing on the tab yet'
             : settled
-              ? 'Your standing here'
+              ? groupSettled
+                ? 'Everyone is clear'
+                : 'Your standing here'
               : owed
                 ? "You're owed"
                 : 'You owe'}
         </p>
         <p
-          className={`mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl ${
-            settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
-          }`}
+          className={`mt-1 font-display font-extrabold tracking-tight ${
+            settled ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-6xl'
+          } ${settled ? (hasActivity && groupSettled ? 'text-pos' : 'text-ink') : owed ? 'text-gradient' : 'text-neg'}`}
         >
           {!hasActivity ? (
             'Nothing yet'
@@ -1124,7 +1169,7 @@ export function GroupDetailPage(): ReactNode {
           </p>
         )}
         {monthlyPulse && (
-          <div className="mt-4 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-sm">
+          <div className={`mt-4 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-left text-sm ${settled ? 'mx-auto' : ''}`}>
             <span>
               <span className="block text-xs text-faint">This month</span>
               <span className="tnum font-semibold text-ink">{Money.fromCents(monthlyPulse.currentCents).format()}</span>
@@ -1135,7 +1180,7 @@ export function GroupDetailPage(): ReactNode {
           </div>
         )}
         {settlementJourney > 0 && (
-          <div className="mt-4 max-w-xs">
+          <div className={`mt-4 max-w-xs ${settled ? 'mx-auto' : ''}`}>
             <div className="mb-1.5 flex items-center justify-between text-xs text-faint">
               <span>settle-up progress</span>
               <span className="font-medium text-muted">{settlementProgress}%</span>
@@ -1157,12 +1202,12 @@ export function GroupDetailPage(): ReactNode {
           </div>
         )}
         {hasActivity && groupSettled && (
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <div className={`mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted ${settled ? 'justify-center' : ''}`}>
             <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'} · {settlements.length} {settlements.length === 1 ? 'payment' : 'payments'} recorded</span>
           </div>
         )}
         {/* One row, so the two links can't sit flush against each other when both are showing. */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${settled ? 'justify-center' : ''}`}>
         {hasActivity && !settled && (
           <button
             type="button"
@@ -1172,6 +1217,16 @@ export function GroupDetailPage(): ReactNode {
           >
             <Icon name="share" size={13} />
             {balanceShareStatus === 'sharing' ? 'Opening…' : balanceShareStatus === 'shared' ? 'Balance shared' : balanceShareStatus === 'copied' ? 'Balance copied' : 'Send my balance'}
+          </button>
+        )}
+        {/* The end of a tab should hand you somewhere to go, and the wrapped card is the reward. */}
+        {groupRecap && (
+          <button
+            type="button"
+            onClick={() => setTab('summary')}
+            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-pos transition hover:underline"
+          >
+            <Icon name="sparkles" size={15} /> See the tab, wrapped
           </button>
         )}
         {!hasActivity ? (
@@ -1193,460 +1248,461 @@ export function GroupDetailPage(): ReactNode {
         </div>
       </div>
 
-      {groupRecap && (
-        <section className="mt-4 overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">The tab, wrapped</p>
-              <h2 className="mt-1 font-display text-xl font-bold text-ink">{group.name} in four numbers</h2>
-              <p className="mt-1 text-sm text-muted">Nothing left to chase. Just the story of the tab.</p>
-            </div>
-            <span aria-hidden className="text-2xl text-accent">✦</span>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Total spent</span>
-              <strong className="mt-1 block font-display text-lg text-ink">
-                {Money.fromCents(groupRecap.totalCents).format()}
-              </strong>
-            </div>
-            <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
-              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Biggest moment</span>
-              <strong className="mt-1 block truncate text-sm text-ink" title={groupRecap.largest?.description}>
-                {groupRecap.largest?.description ?? 'nothing yet'}
-              </strong>
-              {groupRecap.largest && (
-                <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.largest.amountCents).format()}</span>
-              )}
-            </div>
-            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Top category</span>
-              <strong className="mt-1 block text-sm text-ink">
-                {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : 'nothing yet'}
-              </strong>
-              {groupRecap.topCategory && (
-                <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.topCategory.amountCents).format()}</span>
-              )}
-            </div>
-            <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-              <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Tab lifetime</span>
-              <strong className="mt-1 block font-display text-lg text-ink">
-                {groupRecap.daysOpen} {groupRecap.daysOpen === 1 ? 'day' : 'days'}
-              </strong>
-            </div>
-          </div>
-
+      {/* Two questions, two tabs. The balance above stays put; only the answer underneath swaps. */}
+      <div className="mt-5 inline-flex w-full rounded-full border border-line bg-field p-1" role="tablist" aria-label="Group view">
+        {(['activity', 'summary'] as const).map((view) => (
           <button
+            key={view}
             type="button"
-            onClick={() => void shareSettledRecap()}
-            disabled={recapShareStatus !== null}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent-soft px-3.5 py-2 text-sm font-semibold text-accent transition hover:border-accent/35 hover:bg-accent/10 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
-          >
-            <Icon name="share" size={14} />
-            {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Wrapped shared' : recapShareStatus === 'copied' ? 'Wrapped copied' : 'Share the wrapped tab'}
-          </button>
-        </section>
-      )}
-
-      {expenses.length > 0 && group.members.length > 1 && (
-        <FrontingInsight balances={balances} expenseCount={expenses.length} />
-      )}
-
-      {paymentReceipt && (
-        <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
-      )}
-
-      {/* Promoted while the group still needs people: this is the obvious next thing to do, so it should
-          not require finding the Invite button first. */}
-      {needsPeople && shareLink && (
-        <InviteLink
-          link={shareLink}
-          copied={copied}
-          onCopy={() => void copyShareLink()}
-          headline={
-            unclaimed > 0
-              ? `Send this to ${unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
-              : "Send this to the people you're splitting with"
-          }
-          hint={
-            unclaimed > 0
-              ? `${unclaimed === 1 ? 'One person is' : `${unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
-              : "It's just you in here so far. Anyone with the link can see the group and claim their spot."
-          }
-        />
-      )}
-
-      {/* And tucked back down here once they are in. */}
-      {shareLink && !needsPeople && (
-        <InviteLink link={shareLink} copied={copied} onCopy={() => void copyShareLink()} />
-      )}
-
-      {suggested.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-line bg-surface p-4">
-          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <Icon name="wallet" size={16} /> Settle up
-            </h2>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <button
-                type="button"
-                onClick={() => void shareSettlePlan()}
-                disabled={settleShareStatus !== null}
-                aria-label={
-                  settleShareStatus === 'sharing'
-                    ? 'Opening settle-up plan sharing'
-                    : settleShareStatus === 'shared'
-                      ? 'Settle-up plan shared'
-                      : settleShareStatus === 'copied'
-                        ? 'Settle-up plan copied'
-                        : 'Share settle-up plan'
-                }
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
-              >
-                <Icon name="share" size={13} />
-                {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
-              </button>
-              <button
-                type="button"
-                onClick={() => void shareSettleCard()}
-                disabled={settleCardStatus !== null}
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
-              >
-                <Icon name="sparkles" size={13} />
-                {settleCardStatus === 'making' ? 'Making…' : settleCardStatus === 'shared' ? 'Card shared' : settleCardStatus === 'saved' ? 'Card saved' : 'Share card'}
-              </button>
-              <label className="flex items-center gap-1.5 text-xs text-muted">
-                paid via
-                <select
-                  value={settleMethod}
-                  onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
-                  aria-label="Payment method"
-                  className="rounded-lg border border-line bg-field px-2 py-1 text-xs outline-none focus:border-accent"
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m} value={m}>
-                      {PAYMENT_METHOD_LABELS[m]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted">
-            Pay in your usual app, then mark it here so the group stays in sync.
-          </p>
-          <SettlementDeadline
-            groupName={group.name}
-            settleBy={group.settleBy}
-            suggestions={suggested}
-            isOwner={isOwner}
-            onSave={async (settleBy) => {
-              try {
-                const updated = await groupsApi.setSettlementDeadline(group.id, settleBy);
-                setGroup(updated);
-                toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
-                throw error;
-              }
-            }}
-          />
-          <TripBudget
-            budget={budget}
-            budgetCents={group.budgetCents}
-            isOwner={isOwner}
-            onSave={async (budgetCents) => {
-              try {
-                const updated = await groupsApi.setBudget(group.id, budgetCents);
-                setGroup(updated);
-                toast.success(budgetCents === null ? 'Budget cleared.' : 'Budget shared with the group.');
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Could not update the budget.');
-                throw error;
-              }
-            }}
-          />
-          {bestSettleStep && (
-            <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
-                  <p className="mt-0.5 text-sm font-semibold text-ink">
-                    {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
-                    <span className="tnum text-ink">{Money.fromCents(bestSettleStep.payment.amountCents).format()}</span>
-                  </p>
-                </div>
-                <span className="tnum shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-muted">
-                  −{bestSettleStep.percentOfOutstanding}%
-                </span>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                {bestSettleStep.remainingTransfers === 0
-                  ? 'One payment settles the whole group.'
-                  : bestSettleStep.clearedNames.length > 0
-                    ? `Clears ${bestSettleStep.clearedNames.join(' and ')} from the list, with ${bestSettleStep.remainingTransfers} ${bestSettleStep.remainingTransfers === 1 ? 'transfer' : 'transfers'} left.`
-                    : `${Money.fromCents(bestSettleStep.remainingCents).format()} would remain after this.`}
-              </p>
-            </div>
-          )}
-          <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
-            <span className="text-muted">
-              {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
-            </span>
-            <span className="tnum font-semibold text-ink">{Money.fromCents(settlePlanTotal).format()} remaining</span>
-          </div>
-          <ul className="mt-3 space-y-2">
-            {orderedSuggestions.map((payment) => (
-              <li
-                key={`${payment.fromUserId}-${payment.toUserId}`}
-                className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${
-                  paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
-                    ? 'border border-accent/20 bg-accent-soft'
-                    : `${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey
-                      ? 'border border-line bg-surface2/40'
-                      : 'border border-transparent'
-                }`}
-              >
-                <span className="flex items-center gap-2 text-sm">
-                  <Avatar name={payment.fromName} size="sm" />
-                  <span>
-                    {`${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey && suggested.length > 1 && (
-                      <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
-                    )}
-                    <span className="font-medium">{payment.fromName}</span>
-                    <span className="text-muted"> pays </span>
-                    <span className="font-medium">{payment.toName}</span>{' '}
-                    <span className="tnum font-medium">
-                      {Money.fromCents(payment.amountCents).format()}
-                    </span>
-                  </span>
-                </span>
-                <div className="flex flex-wrap items-center justify-end gap-1.5 pl-9 sm:pl-0">
-                  {payLinks(
-                    group.members.find((m) => m.userId === payment.toUserId) ?? {
-                      venmoHandle: null,
-                      cashappCashtag: null,
-                      paypalHandle: null,
-                    },
-                    payment.amountCents,
-                    `owewell: ${group.name}`,
-                  ).map((link) => (
-                    <a
-                      key={link.label}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => {
-                        setSettleMethod(link.method);
-                        setPaymentInFlight(`${payment.fromUserId}-${payment.toUserId}`);
-                        play('tick');
-                      }}
-                      title={`Pay ${payment.toName} via ${link.label}`}
-                      className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
-                  <button
-                    type="button"
-                    aria-expanded={paymentNudge === `${payment.fromUserId}-${payment.toUserId}`}
-                    onClick={() => {
-                      const key = `${payment.fromUserId}-${payment.toUserId}`;
-                      setPaymentNudge(current => current === key ? null : key);
-                      setPaymentPreview(null);
-                      setNudgeShareStatus(null);
-                    }}
-                    className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                  >
-                    {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` ? 'Close nudge' : 'Nudge'}
-                  </button>
-                  <button
-                    type="button"
-                    aria-expanded={paymentPreview === `${payment.fromUserId}-${payment.toUserId}`}
-                    onClick={() => {
-                      const key = `${payment.fromUserId}-${payment.toUserId}`;
-                      setPaymentPreview(current => current === key ? null : key);
-                      setPaymentNudge(null);
-                    }}
-                    className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                  >
-                    {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` ? 'Hide preview' : 'Preview'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={settling}
-                    onClick={() => void markPaid(payment)}
-                    title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                    /* The only filled control in the row. Nudge and Preview are text, the pay links
-                       are outlines, and this is the one that changes the ledger. */
-                    className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-                  >
-                    {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it, mark paid' : 'Mark paid'}
-                  </button>
-                  {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` && (
-                    <span className="basis-full text-right text-[11px] text-muted" role="status">
-                      Payment app opened. Record it here once it&rsquo;s sent.
-                    </span>
-                  )}
-                </div>
-                {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` && (
-                  <div className="w-full basis-full rounded-xl border border-line bg-surface2/50 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                        Make it sound like you
-                      </p>
-                      <div className="flex gap-1" role="group" aria-label="Reminder tone">
-                        {(['gentle', 'direct', 'playful'] as NudgeTone[]).map(tone => (
-                          <button
-                            key={tone}
-                            type="button"
-                            aria-pressed={nudgeTone === tone}
-                            onClick={() => setNudgeTone(tone)}
-                            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize transition ${
-                              nudgeTone === tone
-                                ? 'border-accent bg-accent-soft text-accent'
-                                : 'border-line bg-field text-muted hover:text-ink'
-                            }`}
-                          >
-                            {tone}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <p className="mt-2 whitespace-pre-line rounded-lg border border-line bg-field/70 px-3 py-2.5 text-xs leading-relaxed text-ink">
-                      {paymentNudgeText(
-                        {
-                          fromName: payment.fromName,
-                          toName: payment.toName,
-                          amountCents: payment.amountCents,
-                          groupName: group.name,
-                          payUrl: payLinks(
-                            group.members.find(member => member.userId === payment.toUserId) ?? {
-                              venmoHandle: null,
-                              cashappCashtag: null,
-                              paypalHandle: null,
-                            },
-                            payment.amountCents,
-                            `owewell: ${group.name}`,
-                          )[0]?.url,
-                        },
-                        nudgeTone,
-                      )}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <span className="text-[11px] text-muted">Nothing is sent automatically.</span>
-                      <button
-                        type="button"
-                        disabled={nudgeShareStatus !== null}
-                        onClick={() => void sharePaymentNudge(payment)}
-                        className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
-                      >
-                        {nudgeShareStatus === 'sharing'
-                          ? 'Opening…'
-                          : nudgeShareStatus === 'shared'
-                            ? 'Reminder shared'
-                            : nudgeShareStatus === 'copied'
-                              ? 'Reminder copied'
-                              : 'Send reminder'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` && (
-                  <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                      After this payment
-                    </p>
-                    <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
-                      {projectBalancesAfterPayment(payment, balances).map(projected => (
-                        <p key={projected.userId} className="text-xs text-muted">
-                          <span className="font-medium text-ink">{projected.displayName}</span>{' '}
-                          <span className="tnum">{balanceStateLabel(projected.beforeCents)}</span>
-                          <span aria-hidden> → </span>
-                          <span className={`tnum font-medium ${projected.becomesSettled ? 'text-pos' : 'text-ink'}`}>
-                            {balanceStateLabel(projected.afterCents)}
-                          </span>
-                        </p>
-                      ))}
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-muted">
-                      Preview only. Nothing changes until you mark it paid.
-                    </p>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {activity.length > 0 && (
-        <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
-          <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
-            <span className="sr-only">Search activity</span>
-            <input
-              type="search"
-              value={activityQuery}
-              onChange={(event) => setActivityQuery(event.target.value)}
-              placeholder="Find dinner, Alex, $24…"
-              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
-            />
-            {activityQuery && (
-              <button
-                type="button"
-                onClick={() => setActivityQuery('')}
-                aria-label="Clear activity search"
-                className="text-muted transition hover:text-ink"
-              >
-                <Icon name="x" size={13} />
-              </button>
-            )}
-          </label>
-          <select
-            value={personFilter ?? ''}
-            onChange={(e) => setPersonFilter(e.target.value || null)}
-            aria-label="Filter by person"
-            className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
-              personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
+            role="tab"
+            aria-selected={tab === view}
+            onClick={() => setTab(view)}
+            className={`flex-1 rounded-full px-4 py-2 text-sm font-medium capitalize transition ${
+              tab === view ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
             }`}
           >
-            <option value="">Anyone</option>
-            {group.members.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.userId === user?.id ? 'You' : m.displayName}
-              </option>
-            ))}
-          </select>
-          {personFilter && (
-            <select
-              value={relationFilter}
-              onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
-              aria-label="Filter by relationship to the expense"
-              className="rounded-full border border-accent bg-accent-soft px-3 py-1.5 font-medium text-accent outline-none transition focus:border-accent"
-            >
-              <option value="involved">involved</option>
-              <option value="owes">owes</option>
-              <option value="paid">paid</option>
-            </select>
-          )}
-          {categoryFilter && (
-            <button
-              type="button"
-              onClick={() => setCategoryFilter(null)}
-              aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
-              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
-            >
-              <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
-              {categoryMeta(categoryFilter).label}
-              <Icon name="x" size={12} />
-            </button>
-          )}
-          {(activityQuery || categoryFilter || personFilter) && (
-            <>
-              <span className="text-faint">
-                {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
+            {view}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'activity' && (
+        <>
+        {paymentReceipt && (
+          <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
+        )}
+
+        {/* Promoted while the group still needs people: this is the obvious next thing to do, so it should
+            not require finding the Invite button first. */}
+        {needsPeople && shareLink && (
+          <InviteLink
+            link={shareLink}
+            copied={copied}
+            onCopy={() => void copyShareLink()}
+            headline={
+              unclaimed > 0
+                ? `Send this to ${unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
+                : "Send this to the people you're splitting with"
+            }
+            hint={
+              unclaimed > 0
+                ? `${unclaimed === 1 ? 'One person is' : `${unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
+                : "It's just you in here so far. Anyone with the link can see the group and claim their spot."
+            }
+          />
+        )}
+
+        {/* And tucked back down here once they are in. */}
+        {shareLink && !needsPeople && (
+          <InviteLink link={shareLink} copied={copied} onCopy={() => void copyShareLink()} />
+        )}
+
+        {suggested.length > 0 && (
+          <section className="mt-6 rounded-2xl border border-line bg-surface p-4">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <Icon name="wallet" size={16} /> Settle up
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <button
+                  type="button"
+                  onClick={() => void shareSettlePlan()}
+                  disabled={settleShareStatus !== null}
+                  aria-label={
+                    settleShareStatus === 'sharing'
+                      ? 'Opening settle-up plan sharing'
+                      : settleShareStatus === 'shared'
+                        ? 'Settle-up plan shared'
+                        : settleShareStatus === 'copied'
+                          ? 'Settle-up plan copied'
+                          : 'Share settle-up plan'
+                  }
+                  className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
+                >
+                  <Icon name="share" size={13} />
+                  {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void shareSettleCard()}
+                  disabled={settleCardStatus !== null}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
+                >
+                  <Icon name="sparkles" size={13} />
+                  {settleCardStatus === 'making' ? 'Making…' : settleCardStatus === 'shared' ? 'Card shared' : settleCardStatus === 'saved' ? 'Card saved' : 'Share card'}
+                </button>
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  paid via
+                  <select
+                    value={settleMethod}
+                    onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
+                    aria-label="Payment method"
+                    className="rounded-lg border border-line bg-field px-2 py-1 text-xs outline-none focus:border-accent"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Pay in your usual app, then mark it here so the group stays in sync.
+            </p>
+            <SettlementDeadline
+              groupName={group.name}
+              settleBy={group.settleBy}
+              suggestions={suggested}
+              isOwner={isOwner}
+              onSave={async (settleBy) => {
+                try {
+                  const updated = await groupsApi.setSettlementDeadline(group.id, settleBy);
+                  setGroup(updated);
+                  toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
+                  throw error;
+                }
+              }}
+            />
+            {bestSettleStep && (
+              <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
+                    <p className="mt-0.5 text-sm font-semibold text-ink">
+                      {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
+                      <span className="tnum text-ink">{Money.fromCents(bestSettleStep.payment.amountCents).format()}</span>
+                    </p>
+                  </div>
+                  <span className="tnum shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-muted">
+                    −{bestSettleStep.percentOfOutstanding}%
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  {bestSettleStep.remainingTransfers === 0
+                    ? 'One payment settles the whole group.'
+                    : bestSettleStep.clearedNames.length > 0
+                      ? `Clears ${bestSettleStep.clearedNames.join(' and ')} from the list, with ${bestSettleStep.remainingTransfers} ${bestSettleStep.remainingTransfers === 1 ? 'transfer' : 'transfers'} left.`
+                      : `${Money.fromCents(bestSettleStep.remainingCents).format()} would remain after this.`}
+                </p>
+              </div>
+            )}
+            <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
+              <span className="text-muted">
+                {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
               </span>
+              <span className="tnum font-semibold text-ink">{Money.fromCents(settlePlanTotal).format()} remaining</span>
+            </div>
+            <ul className="mt-3 space-y-2">
+              {orderedSuggestions.map((payment) => (
+                <li
+                  key={`${payment.fromUserId}-${payment.toUserId}`}
+                  className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${
+                    paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
+                      ? 'border border-accent/20 bg-accent-soft'
+                      : `${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey
+                        ? 'border border-line bg-surface2/40'
+                        : 'border border-transparent'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-sm">
+                    <Avatar name={payment.fromName} size="sm" />
+                    <span>
+                      {`${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey && suggested.length > 1 && (
+                        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
+                      )}
+                      <span className="font-medium">{payment.fromName}</span>
+                      <span className="text-muted"> pays </span>
+                      <span className="font-medium">{payment.toName}</span>{' '}
+                      <span className="tnum font-medium">
+                        {Money.fromCents(payment.amountCents).format()}
+                      </span>
+                    </span>
+                  </span>
+                  <div className="flex flex-wrap items-center justify-end gap-1.5 pl-9 sm:pl-0">
+                    {payLinks(
+                      group.members.find((m) => m.userId === payment.toUserId) ?? {
+                        venmoHandle: null,
+                        cashappCashtag: null,
+                        paypalHandle: null,
+                      },
+                      payment.amountCents,
+                      `owewell: ${group.name}`,
+                    ).map((link) => (
+                      <a
+                        key={link.label}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => {
+                          setSettleMethod(link.method);
+                          setPaymentInFlight(`${payment.fromUserId}-${payment.toUserId}`);
+                          play('tick');
+                        }}
+                        title={`Pay ${payment.toName} via ${link.label}`}
+                        className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                    <button
+                      type="button"
+                      aria-expanded={paymentNudge === `${payment.fromUserId}-${payment.toUserId}`}
+                      onClick={() => {
+                        const key = `${payment.fromUserId}-${payment.toUserId}`;
+                        setPaymentNudge(current => current === key ? null : key);
+                        setPaymentPreview(null);
+                        setNudgeShareStatus(null);
+                      }}
+                      className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
+                    >
+                      {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` ? 'Close nudge' : 'Nudge'}
+                    </button>
+                    <button
+                      type="button"
+                      aria-expanded={paymentPreview === `${payment.fromUserId}-${payment.toUserId}`}
+                      onClick={() => {
+                        const key = `${payment.fromUserId}-${payment.toUserId}`;
+                        setPaymentPreview(current => current === key ? null : key);
+                        setPaymentNudge(null);
+                      }}
+                      className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
+                    >
+                      {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` ? 'Hide preview' : 'Preview'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={settling}
+                      onClick={() => void markPaid(payment)}
+                      title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
+                      /* The only filled control in the row. Nudge and Preview are text, the pay links
+                         are outlines, and this is the one that changes the ledger. */
+                      className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it, mark paid' : 'Mark paid'}
+                    </button>
+                    {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` && (
+                      <span className="basis-full text-right text-[11px] text-muted" role="status">
+                        Payment app opened. Record it here once it&rsquo;s sent.
+                      </span>
+                    )}
+                  </div>
+                  {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` && (
+                    <div className="w-full basis-full rounded-xl border border-line bg-surface2/50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                          Make it sound like you
+                        </p>
+                        <div className="flex gap-1" role="group" aria-label="Reminder tone">
+                          {(['gentle', 'direct', 'playful'] as NudgeTone[]).map(tone => (
+                            <button
+                              key={tone}
+                              type="button"
+                              aria-pressed={nudgeTone === tone}
+                              onClick={() => setNudgeTone(tone)}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize transition ${
+                                nudgeTone === tone
+                                  ? 'border-accent bg-accent-soft text-accent'
+                                  : 'border-line bg-field text-muted hover:text-ink'
+                              }`}
+                            >
+                              {tone}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="mt-2 whitespace-pre-line rounded-lg border border-line bg-field/70 px-3 py-2.5 text-xs leading-relaxed text-ink">
+                        {paymentNudgeText(
+                          {
+                            fromName: payment.fromName,
+                            toName: payment.toName,
+                            amountCents: payment.amountCents,
+                            groupName: group.name,
+                            payUrl: payLinks(
+                              group.members.find(member => member.userId === payment.toUserId) ?? {
+                                venmoHandle: null,
+                                cashappCashtag: null,
+                                paypalHandle: null,
+                              },
+                              payment.amountCents,
+                              `owewell: ${group.name}`,
+                            )[0]?.url,
+                          },
+                          nudgeTone,
+                        )}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <span className="text-[11px] text-muted">Nothing is sent automatically.</span>
+                        <button
+                          type="button"
+                          disabled={nudgeShareStatus !== null}
+                          onClick={() => void sharePaymentNudge(payment)}
+                          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+                        >
+                          {nudgeShareStatus === 'sharing'
+                            ? 'Opening…'
+                            : nudgeShareStatus === 'shared'
+                              ? 'Reminder shared'
+                              : nudgeShareStatus === 'copied'
+                                ? 'Reminder copied'
+                                : 'Send reminder'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` && (
+                    <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                        After this payment
+                      </p>
+                      <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
+                        {projectBalancesAfterPayment(payment, balances).map(projected => (
+                          <p key={projected.userId} className="text-xs text-muted">
+                            <span className="font-medium text-ink">{projected.displayName}</span>{' '}
+                            <span className="tnum">{balanceStateLabel(projected.beforeCents)}</span>
+                            <span aria-hidden> → </span>
+                            <span className={`tnum font-medium ${projected.becomesSettled ? 'text-pos' : 'text-ink'}`}>
+                              {balanceStateLabel(projected.afterCents)}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-muted">
+                        Preview only. Nothing changes until you mark it paid.
+                      </p>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {activity.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+            <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
+              <span className="sr-only">Search activity</span>
+              <input
+                type="search"
+                value={activityQuery}
+                onChange={(event) => setActivityQuery(event.target.value)}
+                placeholder="Find dinner, Alex, $24…"
+                className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
+              />
+              {activityQuery && (
+                <button
+                  type="button"
+                  onClick={() => setActivityQuery('')}
+                  aria-label="Clear activity search"
+                  className="text-muted transition hover:text-ink"
+                >
+                  <Icon name="x" size={13} />
+                </button>
+              )}
+            </label>
+            <select
+              value={personFilter ?? ''}
+              onChange={(e) => setPersonFilter(e.target.value || null)}
+              aria-label="Filter by person"
+              className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
+                personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
+              }`}
+            >
+              <option value="">Anyone</option>
+              {group.members.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.userId === user?.id ? 'You' : m.displayName}
+                </option>
+              ))}
+            </select>
+            {personFilter && (
+              <select
+                value={relationFilter}
+                onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
+                aria-label="Filter by relationship to the expense"
+                className="rounded-full border border-accent bg-accent-soft px-3 py-1.5 font-medium text-accent outline-none transition focus:border-accent"
+              >
+                <option value="involved">involved</option>
+                <option value="owes">owes</option>
+                <option value="paid">paid</option>
+              </select>
+            )}
+            {categoryFilter && (
+              <button
+                type="button"
+                onClick={() => setCategoryFilter(null)}
+                aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
+                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
+              >
+                <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
+                {categoryMeta(categoryFilter).label}
+                <Icon name="x" size={12} />
+              </button>
+            )}
+            {(activityQuery || categoryFilter || personFilter) && (
+              <>
+                <span className="text-faint">
+                  {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivityQuery('');
+                    setCategoryFilter(null);
+                    setPersonFilter(null);
+                    setRelationFilter('involved');
+                  }}
+                  className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        <section className="mt-6">
+          <div className="flex items-baseline justify-end gap-3">
+            <h2 className="sr-only">Activity</h2>
+            {(lensActive ? lensTotal : totalSpent) > 0 && (
+              <span className="tnum text-sm text-muted">
+                {Money.fromCents(lensActive ? lensTotal : totalSpent).format()}{' '}
+                {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
+                {!lensActive && perPersonCents > 0 && (
+                  <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} avg/person</span>
+                )}
+              </span>
+            )}
+          </div>
+          {settlements.length > 0 && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-faint">
+              <Icon name="undo" size={13} />
+              A payment&rsquo;s been recorded, so this is locked. Undo it below to edit or remove
+              expenses.
+            </p>
+          )}
+          {activity.length === 0 ? (
+            <div className="mt-3 rounded-2xl border border-dashed border-line p-8 text-center">
+              <div className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-surface2 text-muted">
+                <Icon name="receipt" size={20} />
+              </div>
+              <p className="mt-3 text-sm text-muted">
+                Nothing yet. Add an expense and let the math sort itself out.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="btn-gradient mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
+              >
+                <Icon name="plus" size={15} /> Add expense
+              </button>
+            </div>
+          ) : visibleActivity.length === 0 ? (
+            <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
+              Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
               <button
                 type="button"
                 onClick={() => {
@@ -1655,442 +1711,470 @@ export function GroupDetailPage(): ReactNode {
                   setPersonFilter(null);
                   setRelationFilter('involved');
                 }}
-                className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
+                className="font-medium text-accent hover:underline"
               >
-                Clear
+                Clear search and filters
               </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {lensTotal > 0 && spendByCategory.length > 1 && (
-        <section className="mt-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-medium text-muted">Where it went</h2>
-            <div className="flex items-center gap-2">
-              {!categoryFilter && <span className="text-xs text-faint">tap to filter</span>}
-              <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
-                {(['bars', 'donut'] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setBreakdownView(v)}
-                    aria-pressed={breakdownView === v}
-                    className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
-                      breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
             </div>
-          </div>
-          {breakdownView === 'donut' ? (
-            <SpendDonut
-              data={spendByCategory}
-              total={lensTotal}
-              activeKey={categoryFilter}
-              onSelect={(key) => setCategoryFilter((prev) => (prev === key ? null : key))}
-            />
           ) : (
-          <ul className="mt-3 space-y-1">
-            {spendByCategory.map(({ meta, cents }) => {
-              const active = categoryFilter === meta.key;
-              return (
-                <li key={meta.key}>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryFilter((prev) => (prev === meta.key ? null : meta.key))}
-                    aria-pressed={active}
-                    aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
-                    className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
+            <ul className="mt-3 space-y-2">
+              {visibleActivity.map((item, i) =>
+                item.kind === 'expense' ? (
+                  <li
+                    key={`e-${item.expense.id}`}
+                    className="animate-rise surface rounded-2xl"
+                    style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
                   >
-                    <span className={`w-28 shrink-0 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
-                      <span aria-hidden className="mr-1.5">
-                        {meta.emoji}
-                      </span>
-                      {meta.label}
-                    </span>
-                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
-                      <span
-                        className="block h-full rounded-full bg-accent"
-                        style={{ width: `${Math.max(3, Math.round((cents / lensTotal) * 100))}%` }}
-                      />
-                    </span>
-                    <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
-                      {Money.fromCents(cents).format()}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          )}
-        </section>
-      )}
-
-      <section className="mt-8">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-medium text-muted">Activity</h2>
-          {(lensActive ? lensTotal : totalSpent) > 0 && (
-            <span className="tnum text-sm text-muted">
-              {Money.fromCents(lensActive ? lensTotal : totalSpent).format()}{' '}
-              {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
-              {!lensActive && perPersonCents > 0 && (
-                <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} avg/person</span>
-              )}
-            </span>
-          )}
-        </div>
-        {settlements.length > 0 && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-faint">
-            <Icon name="undo" size={13} />
-            A payment&rsquo;s been recorded, so this is locked. Undo it below to edit or remove
-            expenses.
-          </p>
-        )}
-        {activity.length === 0 ? (
-          <div className="mt-3 rounded-2xl border border-dashed border-line p-8 text-center">
-            <div className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-surface2 text-muted">
-              <Icon name="receipt" size={20} />
-            </div>
-            <p className="mt-3 text-sm text-muted">
-              Nothing yet. Add an expense and let the math sort itself out.
-            </p>
-            <button
-              type="button"
-              onClick={() => setSheetOpen(true)}
-              className="btn-gradient mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-            >
-              <Icon name="plus" size={15} /> Add expense
-            </button>
-          </div>
-        ) : visibleActivity.length === 0 ? (
-          <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
-            Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setActivityQuery('');
-                setCategoryFilter(null);
-                setPersonFilter(null);
-                setRelationFilter('involved');
-              }}
-              className="font-medium text-accent hover:underline"
-            >
-              Clear search and filters
-            </button>
-          </div>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {visibleActivity.map((item, i) =>
-              item.kind === 'expense' ? (
-                <li
-                  key={`e-${item.expense.id}`}
-                  className="animate-rise surface rounded-2xl"
-                  style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-                >
-                  {/*
-                    * The whole row opens the detail sheet, and every action lives in there.
-                    *
-                    * The alternative was the four hover-revealed icons this used to carry, which are
-                    * invisible on a phone and, on a desktop, put delete a stray click away from the
-                    * amount you were reading.
-                    */}
-                  <button
-                    type="button"
-                    onClick={() => setDetailExpenseId(item.expense.id)}
-                    aria-label={`${item.expense.description}, ${Money.fromCents(item.expense.amountCents).format()}. See details.`}
-                    className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-surface2 active:scale-[0.99]"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Avatar name={payerSummary(item.expense).avatar} size="sm" />
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">
-                          <span aria-hidden className="mr-1">
-                            {categoryMeta(item.expense.category).emoji}
-                          </span>
-                          {item.expense.description}
-                        </p>
-                        <p className="truncate text-sm text-muted">
-                          {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
-                          {/* Only flag when it wasn't shared with the whole group; "everyone" is the
-                              default, so printing it on every row would just be noise. */}
-                          {item.expense.splits.length < group.members.length && (
-                            <> · {item.expense.splits.length} ways</>
-                          )}
-                        </p>
-                        {/* A correction, said plainly. Almost every one is somebody fixing their own
-                            typo, so this is muted text and not a warning colour. */}
-                        {item.expense.lastEdit && (
-                          <p className="truncate text-xs text-faint">
-                            {correctionLine(
-                              item.expense.lastEdit.fields as CorrectionField[],
-                              nameOf(item.expense.lastEdit.byId),
-                              Money.fromCents(item.expense.lastEdit.formerAmountCents).format(),
+                    {/*
+                      * The whole row opens the detail sheet, and every action lives in there.
+                      *
+                      * The alternative was the four hover-revealed icons this used to carry, which are
+                      * invisible on a phone and, on a desktop, put delete a stray click away from the
+                      * amount you were reading.
+                      */}
+                    <button
+                      type="button"
+                      onClick={() => setDetailExpenseId(item.expense.id)}
+                      aria-label={`${item.expense.description}, ${Money.fromCents(item.expense.amountCents).format()}. See details.`}
+                      className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-surface2 active:scale-[0.99]"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar name={payerSummary(item.expense).avatar} size="sm" />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            <span aria-hidden className="mr-1">
+                              {categoryMeta(item.expense.category).emoji}
+                            </span>
+                            {item.expense.description}
+                          </p>
+                          <p className="truncate text-sm text-muted">
+                            {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
+                            {/* Only flag when it wasn't shared with the whole group; "everyone" is the
+                                default, so printing it on every row would just be noise. */}
+                            {item.expense.splits.length < group.members.length && (
+                              <> · {item.expense.splits.length} ways</>
                             )}
                           </p>
-                        )}
+                          {/* A correction, said plainly. Almost every one is somebody fixing their own
+                              typo, so this is muted text and not a warning colour. */}
+                          {item.expense.lastEdit && (
+                            <p className="truncate text-xs text-faint">
+                              {correctionLine(
+                                item.expense.lastEdit.fields as CorrectionField[],
+                                nameOf(item.expense.lastEdit.byId),
+                                Money.fromCents(item.expense.lastEdit.formerAmountCents).format(),
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="tnum font-semibold">
+                          {Money.fromCents(item.expense.amountCents).format()}
+                        </span>
+                        <Icon name="chevron-right" size={16} className="text-faint" />
+                      </div>
+                    </button>
+                  </li>
+                ) : (
+                  <li
+                    key={`s-${item.settlement.id}`}
+                    className="animate-rise group flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3"
+                    style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-pos/30 bg-pos/10 text-pos">
+                        <Icon name="check" size={16} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">
+                          <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
+                          <span className="text-muted"> paid </span>
+                          <span className="font-medium">{nameOf(item.settlement.toUserId)}</span>
+                        </p>
+                        <p className="text-sm text-muted">
+                          {timeAgo(item.settlement.createdAt)}
+                          {item.settlement.method && ` · via ${PAYMENT_METHOD_LABELS[item.settlement.method]}`}
+                        </p>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <span className="tnum font-semibold">
-                        {Money.fromCents(item.expense.amountCents).format()}
+                      <span className="tnum font-medium text-pos">
+                        {Money.fromCents(item.settlement.amountCents).format()}
                       </span>
-                      <Icon name="chevron-right" size={16} className="text-faint" />
+                      <button
+                        type="button"
+                        onClick={() => void undoSettlement(item.settlement.id)}
+                        aria-label="Undo payment"
+                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                      >
+                        <Icon name="undo" size={15} />
+                      </button>
                     </div>
-                  </button>
-                </li>
-              ) : (
-                <li
-                  key={`s-${item.settlement.id}`}
-                  className="animate-rise group flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3"
-                  style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-pos/30 bg-pos/10 text-pos">
-                      <Icon name="check" size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm">
-                        <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
-                        <span className="text-muted"> paid </span>
-                        <span className="font-medium">{nameOf(item.settlement.toUserId)}</span>
-                      </p>
-                      <p className="text-sm text-muted">
-                        {timeAgo(item.settlement.createdAt)}
-                        {item.settlement.method && ` · via ${PAYMENT_METHOD_LABELS[item.settlement.method]}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span className="tnum font-medium text-pos">
-                      {Money.fromCents(item.settlement.amountCents).format()}
-                    </span>
+                  </li>
+                ),
+              )}
+            </ul>
+          )}
+        </section>
+        </>
+      )}
+
+      {tab === 'summary' && (
+        <>
+        {groupRecap && (
+          <section className="mt-4 overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">The tab, wrapped</p>
+                <h2 className="mt-1 font-display text-xl font-bold text-ink">{group.name} in four numbers</h2>
+                <p className="mt-1 text-sm text-muted">Nothing left to chase. Just the story of the tab.</p>
+              </div>
+              <span aria-hidden className="text-2xl text-accent">✦</span>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
+                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Total spent</span>
+                <strong className="mt-1 block font-display text-lg text-ink">
+                  {Money.fromCents(groupRecap.totalCents).format()}
+                </strong>
+              </div>
+              <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
+                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Biggest moment</span>
+                <strong className="mt-1 block truncate text-sm text-ink" title={groupRecap.largest?.description}>
+                  {groupRecap.largest?.description ?? 'nothing yet'}
+                </strong>
+                {groupRecap.largest && (
+                  <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.largest.amountCents).format()}</span>
+                )}
+              </div>
+              <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
+                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Top category</span>
+                <strong className="mt-1 block text-sm text-ink">
+                  {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : 'nothing yet'}
+                </strong>
+                {groupRecap.topCategory && (
+                  <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.topCategory.amountCents).format()}</span>
+                )}
+              </div>
+              <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
+                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Tab lifetime</span>
+                <strong className="mt-1 block font-display text-lg text-ink">
+                  {groupRecap.daysOpen} {groupRecap.daysOpen === 1 ? 'day' : 'days'}
+                </strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void shareSettledRecap()}
+              disabled={recapShareStatus !== null}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent-soft px-3.5 py-2 text-sm font-semibold text-accent transition hover:border-accent/35 hover:bg-accent/10 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+            >
+              <Icon name="share" size={14} />
+              {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Wrapped shared' : recapShareStatus === 'copied' ? 'Wrapped copied' : 'Share the wrapped tab'}
+            </button>
+          </section>
+        )}
+
+          <div className="mt-4">
+              <TripBudget
+                budget={budget}
+                budgetCents={group.budgetCents}
+                isOwner={isOwner}
+                onSave={async (budgetCents) => {
+                  try {
+                    const updated = await groupsApi.setBudget(group.id, budgetCents);
+                    setGroup(updated);
+                    toast.success(budgetCents === null ? 'Budget cleared.' : 'Budget shared with the group.');
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : 'Could not update the budget.');
+                    throw error;
+                  }
+                }}
+              />
+          </div>
+
+        {expenses.length > 0 && group.members.length > 1 && (
+          <FrontingInsight balances={balances} expenseCount={expenses.length} />
+        )}
+
+        {spendTotal > 0 && spendByCategory.length > 1 && (
+          <section className="mt-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-medium text-muted">Where it went</h2>
+              <div className="flex items-center gap-2">
+                {!categoryFilter && <span className="text-xs text-faint">tap to see them</span>}
+                <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
+                  {(['bars', 'donut'] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setBreakdownView(v)}
+                      aria-pressed={breakdownView === v}
+                      className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
+                        breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {breakdownView === 'donut' ? (
+              <SpendDonut
+                data={spendByCategory}
+                total={spendTotal}
+                activeKey={categoryFilter}
+                onSelect={filterByCategory}
+              />
+            ) : (
+            <ul className="mt-3 space-y-1">
+              {spendByCategory.map(({ meta, cents }) => {
+                const active = categoryFilter === meta.key;
+                return (
+                  <li key={meta.key}>
                     <button
                       type="button"
-                      onClick={() => void undoSettlement(item.settlement.id)}
-                      aria-label="Undo payment"
-                      className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                      onClick={() => filterByCategory(meta.key)}
+                      aria-pressed={active}
+                      aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
+                      className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
                     >
-                      <Icon name="undo" size={15} />
-                    </button>
-                  </div>
-                </li>
-              ),
-            )}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-8">
-        <button
-          type="button"
-          onClick={() => setMembersOpen((v) => !v)}
-          className="flex w-full items-center justify-between"
-        >
-          <span className="text-sm font-medium text-muted">
-            Members · {group.members.length}
-          </span>
-          <span className="flex items-center gap-1 text-sm text-muted">
-            <span className="flex -space-x-2">
-              {group.members.slice(0, 4).map((m) => (
-                <span key={m.userId} className="ring-2 ring-canvas rounded-full">
-                  <Avatar name={m.displayName} size="sm" />
-                </span>
-              ))}
-            </span>
-            <Icon
-              name="chevron-right"
-              size={16}
-              className={`transition ${membersOpen ? 'rotate-90' : ''}`}
-            />
-          </span>
-        </button>
-
-        {membersOpen && (
-          <div className="mt-3 animate-fade">
-            <ul className="space-y-2">
-              {group.members.map((member) => {
-                const label = balanceLabel(balanceByUser[member.userId] ?? 0, hasActivity);
-                const bal = balanceOf[member.userId];
-                const isSelf = member.userId === user?.id;
-                // The owner can remove a non-owner member only before any payment is recorded
-                // (removal re-splits expenses, which would break a logged settlement). There's no
-                // "leave" — to get a group off your list you archive it.
-                const canRemove =
-                  isOwner && !isSelf && member.role !== 'OWNER' && settlements.length === 0;
-                return (
-                  <li
-                    key={member.userId}
-                    className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-                  >
-                    {editingMemberId === member.userId ? (
-                      <span className="flex w-full items-center gap-2">
-                        <input
-                          value={editingMemberName}
-                          onChange={(e) => setEditingMemberName(e.target.value)}
-                          autoFocus
-                          aria-label="Member name"
-                          className="flex-1 rounded-lg border border-line bg-field px-2.5 py-1.5 outline-none focus:border-accent"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void saveMemberName(member.userId)}
-                          className="text-sm font-medium text-accent"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingMemberId(null)}
-                          className="text-sm text-muted"
-                        >
-                          Cancel
-                        </button>
-                      </span>
-                    ) : payingMemberId === member.userId ? (
-                      <span className="flex w-full flex-col gap-2">
-                        <span className="text-xs font-medium text-muted">
-                          {member.displayName}&rsquo;s payment handles
+                      <span className={`w-28 shrink-0 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
+                        <span aria-hidden className="mr-1.5">
+                          {meta.emoji}
                         </span>
-                        <input
-                          value={payVenmo}
-                          onChange={(e) => setPayVenmo(e.target.value)}
-                          placeholder="Venmo username"
-                          aria-label="Venmo username"
-                          autoFocus
-                          className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                        {meta.label}
+                      </span>
+                      <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
+                        <span
+                          className="block h-full rounded-full bg-accent"
+                          style={{ width: `${Math.max(3, Math.round((cents / spendTotal) * 100))}%` }}
                         />
-                        <input
-                          value={payCashapp}
-                          onChange={(e) => setPayCashapp(e.target.value)}
-                          placeholder="Cash App $cashtag"
-                          aria-label="Cash App cashtag"
-                          className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
-                        />
-                        <input
-                          value={payPaypal}
-                          onChange={(e) => setPayPaypal(e.target.value)}
-                          placeholder="PayPal.me username"
-                          aria-label="PayPal.me username"
-                          className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
-                        />
-                        <span className="flex gap-3 pt-0.5">
+                      </span>
+                      <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
+                        {Money.fromCents(cents).format()}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            )}
+          </section>
+        )}
+
+        <section className="mt-8">
+          <button
+            type="button"
+            onClick={() => setMembersOpen((v) => !v)}
+            className="flex w-full items-center justify-between"
+          >
+            <span className="text-sm font-medium text-muted">
+              Members · {group.members.length}
+            </span>
+            <span className="flex items-center gap-1 text-sm text-muted">
+              <span className="flex -space-x-2">
+                {group.members.slice(0, 4).map((m) => (
+                  <span key={m.userId} className="ring-2 ring-canvas rounded-full">
+                    <Avatar name={m.displayName} size="sm" />
+                  </span>
+                ))}
+              </span>
+              <Icon
+                name="chevron-right"
+                size={16}
+                className={`transition ${membersOpen ? 'rotate-90' : ''}`}
+              />
+            </span>
+          </button>
+
+          {membersOpen && (
+            <div className="mt-3 animate-fade">
+              <ul className="space-y-2">
+                {group.members.map((member) => {
+                  const label = balanceLabel(balanceByUser[member.userId] ?? 0, hasActivity);
+                  const bal = balanceOf[member.userId];
+                  const isSelf = member.userId === user?.id;
+                  // The owner can remove a non-owner member only before any payment is recorded
+                  // (removal re-splits expenses, which would break a logged settlement). There's no
+                  // "leave" — to get a group off your list you archive it.
+                  const canRemove =
+                    isOwner && !isSelf && member.role !== 'OWNER' && settlements.length === 0;
+                  return (
+                    <li
+                      key={member.userId}
+                      className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                    >
+                      {editingMemberId === member.userId ? (
+                        <span className="flex w-full items-center gap-2">
+                          <input
+                            value={editingMemberName}
+                            onChange={(e) => setEditingMemberName(e.target.value)}
+                            autoFocus
+                            aria-label="Member name"
+                            className="flex-1 rounded-lg border border-line bg-field px-2.5 py-1.5 outline-none focus:border-accent"
+                          />
                           <button
                             type="button"
-                            onClick={() => void savePaymentHandles(member.userId)}
+                            onClick={() => void saveMemberName(member.userId)}
                             className="text-sm font-medium text-accent"
                           >
                             Save
                           </button>
                           <button
                             type="button"
-                            onClick={() => setPayingMemberId(null)}
+                            onClick={() => setEditingMemberId(null)}
                             className="text-sm text-muted"
                           >
                             Cancel
                           </button>
                         </span>
-                      </span>
-                    ) : (
-                      <>
-                        <span className="flex min-w-0 items-center gap-3 font-medium">
-                          <Avatar name={member.displayName} />
-                          <span className="flex min-w-0 flex-col">
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <span className="truncate">{member.displayName}</span>
-                              {member.role === 'OWNER' && (
-                                <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs text-muted">
-                                  owner
-                                </span>
-                              )}
-                              {member.isPlaceholder && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingMemberId(member.userId);
-                                    setEditingMemberName(member.displayName);
-                                  }}
-                                  aria-label={`Rename ${member.displayName}`}
-                                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
-                                >
-                                  <Icon name="pencil" size={13} />
-                                </button>
-                              )}
-                            </span>
-                            {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
-                              <span className="tnum text-xs font-normal text-faint">
-                                paid {Money.fromCents(bal.paidCents).format()} · share{' '}
-                                {Money.fromCents(bal.owedCents).format()}
-                              </span>
-                            )}
+                      ) : payingMemberId === member.userId ? (
+                        <span className="flex w-full flex-col gap-2">
+                          <span className="text-xs font-medium text-muted">
+                            {member.displayName}&rsquo;s payment handles
+                          </span>
+                          <input
+                            value={payVenmo}
+                            onChange={(e) => setPayVenmo(e.target.value)}
+                            placeholder="Venmo username"
+                            aria-label="Venmo username"
+                            autoFocus
+                            className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                          />
+                          <input
+                            value={payCashapp}
+                            onChange={(e) => setPayCashapp(e.target.value)}
+                            placeholder="Cash App $cashtag"
+                            aria-label="Cash App cashtag"
+                            className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                          />
+                          <input
+                            value={payPaypal}
+                            onChange={(e) => setPayPaypal(e.target.value)}
+                            placeholder="PayPal.me username"
+                            aria-label="PayPal.me username"
+                            className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                          />
+                          <span className="flex gap-3 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => void savePaymentHandles(member.userId)}
+                              className="text-sm font-medium text-accent"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPayingMemberId(null)}
+                              className="text-sm text-muted"
+                            >
+                              Cancel
+                            </button>
                           </span>
                         </span>
-                        <span className="flex shrink-0 items-center gap-3">
-                          {(isSelf || member.isPlaceholder) && (
-                            <button
-                              type="button"
-                              onClick={() => startEditPayment(member)}
-                              aria-label={`Payment handles for ${member.displayName}`}
-                              title="Payment handles"
-                              className="grid h-7 w-7 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
-                            >
-                              <Icon name="wallet" size={14} />
-                            </button>
-                          )}
-                          {label.text && (
-                            <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
-                          )}
-                          {canRemove && (
-                            <button
-                              type="button"
-                              onClick={() => void removeFromGroup(member.userId, balanceByUser[member.userId] ?? 0)}
-                              aria-label={`Remove ${member.displayName}`}
-                              title={`Remove ${member.displayName}`}
-                              className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-neg"
-                            >
-                              <Icon name="x" size={16} />
-                            </button>
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                      ) : (
+                        <>
+                          <span className="flex min-w-0 items-center gap-3 font-medium">
+                            <Avatar name={member.displayName} />
+                            <span className="flex min-w-0 flex-col">
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <span className="truncate">{member.displayName}</span>
+                                {member.role === 'OWNER' && (
+                                  <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs text-muted">
+                                    owner
+                                  </span>
+                                )}
+                                {member.isPlaceholder && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingMemberId(member.userId);
+                                      setEditingMemberName(member.displayName);
+                                    }}
+                                    aria-label={`Rename ${member.displayName}`}
+                                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                                  >
+                                    <Icon name="pencil" size={13} />
+                                  </button>
+                                )}
+                              </span>
+                              {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
+                                <span className="tnum text-xs font-normal text-faint">
+                                  paid {Money.fromCents(bal.paidCents).format()} · share{' '}
+                                  {Money.fromCents(bal.owedCents).format()}
+                                </span>
+                              )}
+                            </span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-3">
+                            {(isSelf || member.isPlaceholder) && (
+                              <button
+                                type="button"
+                                onClick={() => startEditPayment(member)}
+                                aria-label={`Payment handles for ${member.displayName}`}
+                                title="Payment handles"
+                                className="grid h-7 w-7 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                              >
+                                <Icon name="wallet" size={14} />
+                              </button>
+                            )}
+                            {label.text && (
+                              <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
+                            )}
+                            {canRemove && (
+                              <button
+                                type="button"
+                                onClick={() => void removeFromGroup(member.userId, balanceByUser[member.userId] ?? 0)}
+                                aria-label={`Remove ${member.displayName}`}
+                                title={`Remove ${member.displayName}`}
+                                className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-neg"
+                              >
+                                <Icon name="x" size={16} />
+                              </button>
+                            )}
+                          </span>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
 
-            <form onSubmit={(e) => void onAddMember(e)} className="mt-3 flex gap-2">
-              <input
-                type="text"
-                value={memberName}
-                onChange={(e) => setMemberName(e.target.value)}
-                placeholder="Add someone by name"
-                className="flex-1 rounded-xl border border-line bg-field px-3.5 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-              />
-              <button
-                type="submit"
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
-              >
-                <Icon name="user-plus" size={16} /> Add
-              </button>
-            </form>
-            {memberError && <p className="mt-2 text-sm font-medium text-neg">{memberError}</p>}
-            <p className="mt-3 text-xs text-muted">
-              Added someone by name? Use <span className="font-medium text-ink">Invite</span> up top for
-              a link they can use to sign in and claim their spot.
-            </p>
-            {isOwner && settlements.length > 0 && (
-              <p className="mt-1 text-xs text-faint">
-                Members can&rsquo;t be removed once a payment has been recorded.
+              <form onSubmit={(e) => void onAddMember(e)} className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={memberName}
+                  onChange={(e) => setMemberName(e.target.value)}
+                  placeholder="Add someone by name"
+                  className="flex-1 rounded-xl border border-line bg-field px-3.5 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
+                >
+                  <Icon name="user-plus" size={16} /> Add
+                </button>
+              </form>
+              {memberError && <p className="mt-2 text-sm font-medium text-neg">{memberError}</p>}
+              <p className="mt-3 text-xs text-muted">
+                Added someone by name? Use <span className="font-medium text-ink">Invite</span> up top for
+                a link they can use to sign in and claim their spot.
               </p>
-            )}
-          </div>
-        )}
-      </section>
+              {isOwner && settlements.length > 0 && (
+                <p className="mt-1 text-xs text-faint">
+                  Members can&rsquo;t be removed once a payment has been recorded.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+        </>
+      )}
 
       {/* The floating add button appears only once there's a list to add to; the empty state owns
           the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons. */}
