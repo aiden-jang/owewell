@@ -190,6 +190,14 @@ export function ExpenseDetail({
         </div>
       )}
 
+      {/* Above the correction line and below the money: it is context for the numbers, not a footnote
+          about the row's history. */}
+      {expense.note && (
+        <p className="mt-5 whitespace-pre-line rounded-xl border border-line bg-surface2/50 px-3.5 py-3 text-sm text-muted">
+          {expense.note}
+        </p>
+      )}
+
       {expense.lastEdit && (
         <p className="mt-4 text-xs text-faint">
           {correctionLine(

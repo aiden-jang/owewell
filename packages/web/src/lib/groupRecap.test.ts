@@ -11,7 +11,7 @@ const expense = (id: string, description: string, amountCents: number, category:
   createdAt: date,
   payerId: 'a',
   splitMethod: 'EQUAL',
-  splits: [],
+  splits: [], note: null,
 });
 
 describe('buildGroupRecap', () => {

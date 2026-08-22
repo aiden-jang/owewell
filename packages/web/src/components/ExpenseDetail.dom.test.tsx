@@ -36,6 +36,7 @@ const expense = (over: Partial<Expense> = {}): Expense => ({
   category: 'food',
   createdAt: '2026-08-11T18:00:00.000Z',
   date: '2026-08-11T18:00:00.000Z',
+  note: null,
   splits: [
     { userId: 'u1', owedCents: 3_000 },
     { userId: 'u2', owedCents: 3_000 },
@@ -128,6 +129,13 @@ describe('what the sheet says', () => {
     expect(screen.getByText(/paid without taking a share/)).toHaveTextContent(
       'Dev paid without taking a share',
     );
+  });
+
+  it('shows the note when there is one, and nothing when there is not', () => {
+    const { rerender } = render(<ExpenseDetail {...props} expense={expense()} />);
+    expect(screen.queryByText(/Mara/)).not.toBeInTheDocument();
+    rerender(<ExpenseDetail {...props} expense={expense({ note: "Mara's birthday, she didn't pay" })} />);
+    expect(screen.getByText("Mara's birthday, she didn't pay")).toBeInTheDocument();
   });
 
   it('breaks an itemized receipt back into its lines', () => {
