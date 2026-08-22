@@ -546,22 +546,41 @@ export function GroupDetailPage(): ReactNode {
     void refreshLedger();
   });
 
+  /*
+   * Delete, then offer it back. No modal.
+   *
+   * A confirm dialog asks you to predict a mistake you have not made yet, and everybody clicks
+   * through it, so it costs a step every time and catches almost nothing. Undo costs a step only
+   * when you were actually wrong. It is also what undoing a recorded payment already does two
+   * sections up, and the two destructive actions in this app should not disagree about that.
+   *
+   * The restore is honest because deletion is a soft delete: the same row comes back with the same
+   * id and the same splits, down to which person absorbed the odd cent.
+   */
   async function deleteExpense(expenseId: string): Promise<void> {
-    const ok = await confirm({
-      title: 'Delete this expense?',
-      body: 'It comes off the list and everyone’s balances recalculate.',
-      confirmLabel: 'Delete',
-      tone: 'danger',
-    });
-    if (!ok) return;
+    const removed = expenses.find((e) => e.id === expenseId);
     try {
       await expensesApi.remove(id, expenseId);
       // Off the list on the same tick as the toast, rather than one refetch later.
       setExpenses((current) => current.filter((e) => e.id !== expenseId));
-      toast.success('Expense deleted.');
       void refreshLedger();
+      toast.success(removed ? `Deleted ${removed.description}.` : 'Expense deleted.', {
+        label: 'Undo',
+        onClick: () => void undoDeleteExpense(expenseId),
+      });
     } catch {
       toast.error('Could not delete that expense.');
+    }
+  }
+
+  async function undoDeleteExpense(expenseId: string): Promise<void> {
+    try {
+      const restored = await expensesApi.restore(id, expenseId);
+      showSavedExpense(restored);
+      play('tick');
+      void refreshLedger();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not put that back.');
     }
   }
 

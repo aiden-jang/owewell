@@ -1,5 +1,5 @@
 import { changedFields, computeItemizedSplit, computeItemizedPayers, computeSplit, type SplitMethod } from '@owewell/shared';
-import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import {
@@ -460,6 +460,41 @@ export async function deleteExpense(db: DB, personId: string, groupId: string, e
   if (!e) throw new ExpenseError('NOT_FOUND', 'That expense is already gone.');
   await assertUnlocked(db, groupId);
   await db.update(expenses).set({ deletedAt: new Date() }).where(eq(expenses.id, expenseId));
+}
+
+/**
+ * Put back an expense that was just deleted.
+ *
+ * Deletion has always been a soft delete, so undo is a flag flip rather than a re-creation: the same
+ * row, the same id, the same splits, and therefore the same odd-cent assignment it had before. A
+ * re-create would quietly move a penny between two people.
+ *
+ * Deliberately not time-limited on the server. The toast that offers it is, but a rule enforced only
+ * by how long a message stays on screen is not a rule, and there is nothing unsafe about restoring an
+ * expense an hour later: the ledger has to be unlocked either way, which means nobody has settled
+ * against the balances in between.
+ */
+export async function restoreExpense(
+  db: DB,
+  personId: string,
+  groupId: string,
+  expenseId: string,
+): Promise<ExpenseView> {
+  await requireMembership(db, personId, groupId);
+  const e = await db
+    .select({ id: expenses.id })
+    .from(expenses)
+    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNotNull(expenses.deletedAt)))
+    .get();
+  if (!e) throw new ExpenseError('NOT_FOUND', 'That expense is not waiting to be restored.');
+  await assertUnlocked(db, groupId);
+  await db.update(expenses).set({ deletedAt: null }).where(eq(expenses.id, expenseId));
+
+  // Read it back through the same path the feed uses rather than assembling a view by hand, so an
+  // undone itemized receipt comes back with its line items and its correction line intact.
+  const restored = (await listExpenses(db, personId, groupId)).find((x) => x.id === expenseId);
+  if (!restored) throw new ExpenseError('NOT_FOUND', 'That expense is not waiting to be restored.');
+  return restored;
 }
 
 /** Net per member from live expenses + settlements; always sums to zero. Members-only. */
