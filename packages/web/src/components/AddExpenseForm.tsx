@@ -10,7 +10,8 @@ import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMet
 interface Props {
   groupId: string;
   members: GroupMember[];
-  onCreated: () => void;
+  /** Handed the saved expense so the caller can show it without waiting on a refetch. */
+  onCreated: (expense: Expense) => void;
   /** When set, the form edits this expense in place instead of creating a new one. */
   editing?: Expense;
   /** Prefill a new expense from an old one while keeping today as the date. */
@@ -142,16 +143,17 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
     const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date };
     setSubmitting(true);
     try {
+      let saved: Expense;
       if (editing) {
-        await expensesApi.update(groupId, editing.id, payload);
+        saved = await expensesApi.update(groupId, editing.id, payload);
       } else {
-        await expensesApi.create(groupId, payload);
+        saved = await expensesApi.create(groupId, payload);
         setDescription('');
         setAmount('');
         setValues({});
         setMethod('EQUAL');
       }
-      onCreated();
+      onCreated(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the expense.');
     } finally {

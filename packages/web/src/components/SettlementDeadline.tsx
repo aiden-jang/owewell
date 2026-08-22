@@ -57,7 +57,7 @@ export function SettlementDeadline({
     <section className={`mt-3 rounded-xl border p-3 ${status?.tone === 'late' ? 'border-neg/25 bg-neg/5' : 'border-accent/20 bg-surface/75'}`} aria-label="Settle-by deadline">
       {editing ? (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Set a finish line</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Set a finish line</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {deadlinePresets().map(preset => (
               <button key={preset.label} type="button" onClick={() => setDraft(localInput(preset.value))} className="rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-muted hover:border-accent hover:text-ink">
@@ -76,7 +76,7 @@ export function SettlementDeadline({
       ) : settleBy ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Settle by</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Settle by</span>
             <strong className="mt-0.5 block text-sm text-ink">{new Date(settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong>
             <small className={`block text-[11px] font-medium ${status?.tone === 'late' ? 'text-neg' : status?.tone === 'soon' ? 'text-accent' : 'text-muted'}`}>{status?.label}</small>
           </span>

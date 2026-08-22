@@ -211,6 +211,25 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
+  /*
+   * Put a saved expense on screen now, and let the ledger catch up behind it.
+   *
+   * The refetch pulls five endpoints, so waiting for it meant the row a person just typed appeared a
+   * whole extra round trip after the save. Balances are deliberately NOT recomputed here: netting
+   * paid against owed (per-item payers, tax and tip apportioned across shares) is the server's job,
+   * and a second implementation of it on the client is a rounding difference waiting to happen. The
+   * hero number counts up over 650ms anyway, so it landing a beat later reads as the animation.
+   */
+  function showSavedExpense(saved: Expense): void {
+    setExpenses((current) => {
+      const i = current.findIndex((e) => e.id === saved.id);
+      if (i === -1) return [saved, ...current];
+      const next = [...current];
+      next[i] = saved;
+      return next;
+    });
+  }
+
   async function markPaid(payment: SuggestedPayment): Promise<void> {
     const ok = await confirm({
       title: `Mark ${payment.fromName}'s payment as paid?`,
@@ -493,8 +512,10 @@ export function GroupDetailPage(): ReactNode {
     if (!ok) return;
     try {
       await expensesApi.remove(id, expenseId);
-      await refreshLedger();
+      // Off the list on the same tick as the toast, rather than one refetch later.
+      setExpenses((current) => current.filter((e) => e.id !== expenseId));
       toast.success('Expense deleted.');
+      void refreshLedger();
     } catch {
       toast.error('Could not delete that expense.');
     }
@@ -1147,7 +1168,7 @@ export function GroupDetailPage(): ReactNode {
             type="button"
             onClick={() => void shareMyBalance()}
             disabled={balanceShareStatus !== null}
-            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
+            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
           >
             <Icon name="share" size={13} />
             {balanceShareStatus === 'sharing' ? 'Opening…' : balanceShareStatus === 'shared' ? 'Balance shared' : balanceShareStatus === 'copied' ? 'Balance copied' : 'Send my balance'}
@@ -1164,7 +1185,7 @@ export function GroupDetailPage(): ReactNode {
               paymentBeforeRef.current = balances;
               setPaymentOpen(true);
             }}
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition hover:underline"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink hover:underline"
           >
             <Icon name="wallet" size={15} /> Log a payment
           </button>
@@ -1176,7 +1197,7 @@ export function GroupDetailPage(): ReactNode {
         <section className="mt-4 overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">The tab, wrapped</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">The tab, wrapped</p>
               <h2 className="mt-1 font-display text-xl font-bold text-ink">{group.name} in four numbers</h2>
               <p className="mt-1 text-sm text-muted">Nothing left to chase. Just the story of the tab.</p>
             </div>
@@ -1262,9 +1283,9 @@ export function GroupDetailPage(): ReactNode {
       )}
 
       {suggested.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-accent/25 bg-accent-soft p-4">
+        <section className="mt-6 rounded-2xl border border-line bg-surface p-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-accent">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
               <Icon name="wallet" size={16} /> Settle up
             </h2>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -1281,7 +1302,7 @@ export function GroupDetailPage(): ReactNode {
                         ? 'Settle-up plan copied'
                         : 'Share settle-up plan'
                 }
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
               >
                 <Icon name="share" size={13} />
                 {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
@@ -1290,7 +1311,7 @@ export function GroupDetailPage(): ReactNode {
                 type="button"
                 onClick={() => void shareSettleCard()}
                 disabled={settleCardStatus !== null}
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent transition hover:underline disabled:cursor-default disabled:opacity-70"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
               >
                 <Icon name="sparkles" size={13} />
                 {settleCardStatus === 'making' ? 'Making…' : settleCardStatus === 'shared' ? 'Card shared' : settleCardStatus === 'saved' ? 'Card saved' : 'Share card'}
@@ -1347,16 +1368,16 @@ export function GroupDetailPage(): ReactNode {
             }}
           />
           {bestSettleStep && (
-            <div className="mt-3 rounded-xl border border-accent/20 bg-surface/75 px-3 py-3 shadow-sm shadow-accent/5">
+            <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Best next move</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
                   <p className="mt-0.5 text-sm font-semibold text-ink">
                     {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
-                    <span className="tnum text-accent">{Money.fromCents(bestSettleStep.payment.amountCents).format()}</span>
+                    <span className="tnum text-ink">{Money.fromCents(bestSettleStep.payment.amountCents).format()}</span>
                   </p>
                 </div>
-                <span className="tnum shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
+                <span className="tnum shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-muted">
                   −{bestSettleStep.percentOfOutstanding}%
                 </span>
               </div>
@@ -1369,11 +1390,11 @@ export function GroupDetailPage(): ReactNode {
               </p>
             </div>
           )}
-          <div className="mt-3 flex items-center justify-between rounded-xl border border-accent/15 bg-surface/60 px-3 py-2 text-xs">
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
             <span className="text-muted">
               {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
             </span>
-            <span className="tnum font-semibold text-accent">{Money.fromCents(settlePlanTotal).format()} remaining</span>
+            <span className="tnum font-semibold text-ink">{Money.fromCents(settlePlanTotal).format()} remaining</span>
           </div>
           <ul className="mt-3 space-y-2">
             {orderedSuggestions.map((payment) => (
@@ -1383,7 +1404,7 @@ export function GroupDetailPage(): ReactNode {
                   paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
                     ? 'border border-accent/20 bg-accent-soft'
                     : `${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey
-                      ? 'border border-accent/15 bg-surface/45'
+                      ? 'border border-line bg-surface2/40'
                       : 'border border-transparent'
                 }`}
               >
@@ -1391,7 +1412,7 @@ export function GroupDetailPage(): ReactNode {
                   <Avatar name={payment.fromName} size="sm" />
                   <span>
                     {`${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey && suggested.length > 1 && (
-                      <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">Start here</span>
+                      <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
                     )}
                     <span className="font-medium">{payment.fromName}</span>
                     <span className="text-muted"> pays </span>
@@ -1436,7 +1457,7 @@ export function GroupDetailPage(): ReactNode {
                       setPaymentPreview(null);
                       setNudgeShareStatus(null);
                     }}
-                    className="rounded-full border border-line-strong bg-transparent px-3 py-1.5 text-xs font-medium text-muted transition hover:border-accent hover:text-ink active:scale-[0.98]"
+                    className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
                   >
                     {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` ? 'Close nudge' : 'Nudge'}
                   </button>
@@ -1448,7 +1469,7 @@ export function GroupDetailPage(): ReactNode {
                       setPaymentPreview(current => current === key ? null : key);
                       setPaymentNudge(null);
                     }}
-                    className="rounded-full border border-line-strong bg-transparent px-3 py-1.5 text-xs font-medium text-muted transition hover:border-accent hover:text-ink active:scale-[0.98]"
+                    className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
                   >
                     {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` ? 'Hide preview' : 'Preview'}
                   </button>
@@ -1457,11 +1478,9 @@ export function GroupDetailPage(): ReactNode {
                     disabled={settling}
                     onClick={() => void markPaid(payment)}
                     title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-60 ${
-                      paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
-                        ? 'border-accent bg-accent text-white shadow-sm shadow-accent/20'
-                        : 'border-line-strong bg-surface2 hover:border-accent'
-                    }`}
+                    /* The only filled control in the row. Nudge and Preview are text, the pay links
+                       are outlines, and this is the one that changes the ledger. */
+                    className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
                   >
                     {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it, mark paid' : 'Mark paid'}
                   </button>
@@ -1472,9 +1491,9 @@ export function GroupDetailPage(): ReactNode {
                   )}
                 </div>
                 {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` && (
-                  <div className="w-full basis-full rounded-xl border border-accent/15 bg-surface/65 p-3">
+                  <div className="w-full basis-full rounded-xl border border-line bg-surface2/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
                         Make it sound like you
                       </p>
                       <div className="flex gap-1" role="group" aria-label="Reminder tone">
@@ -1536,7 +1555,7 @@ export function GroupDetailPage(): ReactNode {
                 )}
                 {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` && (
                   <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
                       After this payment
                     </p>
                     <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
@@ -1545,7 +1564,7 @@ export function GroupDetailPage(): ReactNode {
                           <span className="font-medium text-ink">{projected.displayName}</span>{' '}
                           <span className="tnum">{balanceStateLabel(projected.beforeCents)}</span>
                           <span aria-hidden> → </span>
-                          <span className={`tnum font-medium ${projected.becomesSettled ? 'text-accent' : 'text-ink'}`}>
+                          <span className={`tnum font-medium ${projected.becomesSettled ? 'text-pos' : 'text-ink'}`}>
                             {balanceStateLabel(projected.afterCents)}
                           </span>
                         </p>
@@ -2092,7 +2111,7 @@ export function GroupDetailPage(): ReactNode {
             type="button"
             onClick={() => setExpenseMode('simple')}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-              expenseMode === 'simple' ? 'btn-gradient' : 'text-muted hover:text-ink'
+              expenseMode === 'simple' ? 'bg-surface shadow-sm text-ink' : 'text-muted hover:text-ink'
             }`}
           >
             Split a total
@@ -2101,7 +2120,7 @@ export function GroupDetailPage(): ReactNode {
             type="button"
             onClick={() => setExpenseMode('itemized')}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-              expenseMode === 'itemized' ? 'btn-gradient' : 'text-muted hover:text-ink'
+              expenseMode === 'itemized' ? 'bg-surface shadow-sm text-ink' : 'text-muted hover:text-ink'
             }`}
           >
             Itemize a receipt
@@ -2117,10 +2136,11 @@ export function GroupDetailPage(): ReactNode {
             key={`simple-${group.members.length}`}
             groupId={group.id}
             members={group.members}
-            onCreated={() => {
+            onCreated={(saved) => {
               setSheetOpen(false);
               play('add');
               toast.success('Added to the tab.');
+              showSavedExpense(saved);
               void refreshLedger();
             }}
           />
@@ -2129,10 +2149,11 @@ export function GroupDetailPage(): ReactNode {
             key={`itemized-${group.members.length}`}
             groupId={group.id}
             members={group.members}
-            onCreated={() => {
+            onCreated={(saved) => {
               setSheetOpen(false);
               play('add');
               toast.success('Receipt added to the tab.');
+              showSavedExpense(saved);
               void refreshLedger();
             }}
           />
@@ -2195,10 +2216,11 @@ export function GroupDetailPage(): ReactNode {
               groupId={group.id}
               members={group.members}
               editing={editingExpense}
-              onCreated={() => {
+              onCreated={(saved) => {
                 setEditingExpense(null);
                 play('tick');
                 toast.success('Receipt updated.');
+                showSavedExpense(saved);
                 void refreshLedger();
               }}
             />
@@ -2208,10 +2230,11 @@ export function GroupDetailPage(): ReactNode {
               groupId={group.id}
               members={group.members}
               editing={editingExpense}
-              onCreated={() => {
+              onCreated={(saved) => {
                 setEditingExpense(null);
                 play('tick');
                 toast.success('Expense updated.');
+                showSavedExpense(saved);
                 void refreshLedger();
               }}
             />
@@ -2234,10 +2257,11 @@ export function GroupDetailPage(): ReactNode {
                 groupId={group.id}
                 members={group.members}
                 template={duplicatingExpense}
-                onCreated={() => {
+                onCreated={(saved) => {
                   setDuplicatingExpense(null);
                   play('add');
                   toast.success('Added the receipt again.');
+                  showSavedExpense(saved);
                   void refreshLedger();
                 }}
               />
@@ -2247,10 +2271,11 @@ export function GroupDetailPage(): ReactNode {
                 groupId={group.id}
                 members={group.members}
                 template={duplicatingExpense}
-                onCreated={() => {
+                onCreated={(saved) => {
                   setDuplicatingExpense(null);
                   play('add');
                   toast.success('Added it again.');
+                  showSavedExpense(saved);
                   void refreshLedger();
                 }}
               />
