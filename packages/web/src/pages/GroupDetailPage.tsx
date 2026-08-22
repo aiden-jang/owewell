@@ -1140,6 +1140,8 @@ export function GroupDetailPage(): ReactNode {
             <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'} · {settlements.length} {settlements.length === 1 ? 'payment' : 'payments'} recorded</span>
           </div>
         )}
+        {/* One row, so the two links can't sit flush against each other when both are showing. */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {hasActivity && !settled && (
           <button
             type="button"
@@ -1167,6 +1169,7 @@ export function GroupDetailPage(): ReactNode {
             <Icon name="wallet" size={15} /> Log a payment
           </button>
         ) : null}
+        </div>
       </div>
 
       {groupRecap && (
