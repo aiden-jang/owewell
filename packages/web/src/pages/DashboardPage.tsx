@@ -265,7 +265,9 @@ export function DashboardPage(): ReactNode {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{group.name}</span>
-          <span className="block text-sm text-muted">
+          {/* Truncated like the group name above it: on a narrow phone "3 people · 23 hours ago"
+              wrapped to two lines and shoved the amount column out of alignment. */}
+          <span className="block truncate text-sm text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
             {activity && <span className="text-faint"> &middot; {activity}</span>}
           </span>
@@ -346,6 +348,9 @@ export function DashboardPage(): ReactNode {
           </div>
         )}
 
+        {/* Nothing to total before there is a group: an account on its first day was being shown a
+            $0.00 the size of a headline, above an empty state that already says the same thing. */}
+        {activeGroups.length > 0 && (
         <section className="glass rounded-3xl p-6 sm:p-7">
           <p className="text-sm font-medium text-muted">
             {totals.mixed
@@ -387,23 +392,24 @@ export function DashboardPage(): ReactNode {
           </p>
           {!totals.mixed && (totals.owed > 0 || totals.owe > 0) && (
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-pos" />
-                <span className="text-muted">owed to you</span>
-                <span className="tnum font-medium text-pos">
-                  {totals.fmt(totals.owed)}
+              {totals.owed > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-pos" />
+                  <span className="text-muted">owed to you</span>
+                  <span className="tnum font-medium text-pos">{totals.fmt(totals.owed)}</span>
                 </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-neg" />
-                <span className="text-muted">you owe</span>
-                <span className="tnum font-medium text-neg">
-                  {totals.fmt(totals.owe)}
+              )}
+              {totals.owe > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-neg" />
+                  <span className="text-muted">you owe</span>
+                  <span className="tnum font-medium text-neg">{totals.fmt(totals.owe)}</span>
                 </span>
-              </span>
+              )}
             </div>
           )}
         </section>
+        )}
 
         <div className="mt-8 flex items-center justify-between">
           <h2 className="font-display text-xl font-semibold tracking-tight">Your groups</h2>
