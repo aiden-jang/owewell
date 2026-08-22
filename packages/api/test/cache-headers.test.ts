@@ -24,6 +24,31 @@ describe('cache headers', () => {
     );
   });
 
+  /*
+   * The other half of the rule, and the reason this file grew.
+   *
+   * `no-store` was on an `app.use('*')`, which with run_worker_first means every asset too: the
+   * hashed bundles were re-fetched on every navigation. The fix splits the origin in two, so the
+   * test has to hold both sides or it will drift back.
+   */
+  it('lets content-addressed assets be kept for a year', async () => {
+    for (const path of ['/assets/index-abc123.js', '/fonts/inter-latin-v20.woff2']) {
+      const res = await SELF.fetch(`https://x${path}`);
+      const cc = res.headers.get('cache-control') ?? '';
+      expect(cc, `${path} returned cache-control: ${cc || '(none)'}`).toContain('immutable');
+      expect(cc).not.toContain('no-store');
+    }
+  });
+
+  it('makes the shell revalidate, since its name never changes', async () => {
+    // index.html, sw.js and the manifest keep their names across deploys, so a long cache would sit
+    // a released fix behind a stale shell.
+    for (const path of ['/', '/sw.js', '/manifest.webmanifest']) {
+      const res = await SELF.fetch(`https://x${path}`);
+      expect(res.headers.get('cache-control'), path).toBe('no-cache');
+    }
+  });
+
   it('sets it on an unauthenticated response too', async () => {
     // Both directions matter: a cached `{user: null}` keeps telling a freshly signed-in person that
     // they are signed out, which is the same bug wearing a different hat.

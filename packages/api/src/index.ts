@@ -64,13 +64,42 @@ app.use('*', harden());
  * until a refresh. Here it cuts both ways, because a cached `{user: null}` can just as easily keep
  * telling a freshly signed-in person they are signed out.
  *
- * Applied to everything rather than to /me, because every response here is per-user: balances, groups,
- * expenses. A response whose body depends on who is asking must never be stored.
+ * Applied to every API path rather than to /me, because every one of them is per-user: balances,
+ * groups, expenses. A response whose body depends on who is asking must never be stored.
  */
+app.use('/owewell/*', noStore());
+app.use('/health', noStore());
+
+function noStore() {
+  return async (c: { header: (k: string, v: string) => void }, next: () => Promise<void>) => {
+    await next();
+    c.header('Cache-Control', 'no-store, max-age=0');
+    c.header('Pragma', 'no-cache');
+  };
+}
+
+/**
+ * Static assets, which are the opposite case.
+ *
+ * This used to be one `app.use('*')` that put `no-store` on literally every response, assets
+ * included. Because `run_worker_first` sends the whole origin through this Worker, that meant the
+ * hashed JS and CSS bundles were re-downloaded on every single navigation, and it would have made
+ * self-hosting the font actively worse than loading it from Google.
+ *
+ * Two buckets. Content-addressed files (Vite's hashed bundles, the versioned font subsets) can never
+ * change under a given name, so they get a year and `immutable`. Everything else — index.html, the
+ * service worker, the manifest, icons — keeps its name across deploys, so it must revalidate or a
+ * released fix sits behind a stale shell.
+ */
+const IMMUTABLE = /^\/(assets\/|fonts\/)/;
+
 app.use('*', async (c, next) => {
   await next();
-  c.header('Cache-Control', 'no-store, max-age=0');
-  c.header('Pragma', 'no-cache');
+  if (c.req.path.startsWith('/owewell') || c.req.path === '/health') return;
+  c.header(
+    'Cache-Control',
+    IMMUTABLE.test(c.req.path) ? 'public, max-age=31536000, immutable' : 'no-cache',
+  );
 });
 
 app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
