@@ -28,8 +28,7 @@ import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
-import { recurringApi, type RecurringRule } from '../lib/recurring';
-import { RecurringDue, RecurringList } from '../components/RecurringDue';
+import { ExpenseDetail } from '../components/ExpenseDetail';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
@@ -110,7 +109,6 @@ export function GroupDetailPage(): ReactNode {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [suggested, setSuggested] = useState<SuggestedPayment[]>([]);
-  const [recurring, setRecurring] = useState<RecurringRule[]>([]);
   const [notFound, setNotFound] = useState(false);
   // A transient load failure (network / 5xx) is distinct from a real 404/403: the former gets a
   // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
@@ -142,7 +140,10 @@ export function GroupDetailPage(): ReactNode {
   const [payCashapp, setPayCashapp] = useState('');
   const [payPaypal, setPayPaypal] = useState('');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [repeatingExpense, setRepeatingExpense] = useState<Expense | null>(null);
+  const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
+  // Held by id, not by value: an edit or a realtime refetch replaces the object in `expenses`, and the
+  // open sheet has to follow it. A deleted expense drops out of the list, which closes the sheet.
+  const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
@@ -161,20 +162,18 @@ export function GroupDetailPage(): ReactNode {
     setNotFound(false);
     setLoadFailed(false);
     try {
-      const [g, b, e, st, s, rr] = await Promise.all([
+      const [g, b, e, st, s] = await Promise.all([
         groupsApi.get(id),
         groupsApi.balances(id),
         expensesApi.list(id),
         settlementsApi.list(id),
         settlementsApi.suggested(id),
-        recurringApi.list(id),
       ]);
       setGroup(g);
       setBalances(b);
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
-      setRecurring(rr);
     } catch (err) {
       // Genuine "not yours / gone" only for 404/403; anything else is a transient failure.
       if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
@@ -193,89 +192,22 @@ export function GroupDetailPage(): ReactNode {
     // swallowed rejection that leaves the just-succeeded change showing over stale data. Keep the
     // current view (it's still valid) but tell the user it may be behind.
     try {
-      const [g, b, e, st, s, rr] = await Promise.all([
+      const [g, b, e, st, s] = await Promise.all([
         groupsApi.get(id),
         groupsApi.balances(id),
         expensesApi.list(id),
         settlementsApi.list(id),
         settlementsApi.suggested(id),
-        recurringApi.list(id),
       ]);
       setGroup(g);
       setBalances(b);
       setExpenses(e);
       setSettlements(st);
       setSuggested(s);
-      setRecurring(rr);
       return { balances: b, suggested: s };
     } catch {
       toast.error('Could not load the latest changes. Reload if the numbers look off.');
       return null;
-    }
-  }
-
-  /*
-   * Dealing with a due occurrence.
-   *
-   * The response carries the updated rule, so the card can drop the line it just handled without
-   * waiting for the ledger refetch. The refetch still runs, because adding one creates a real expense
-   * and every balance on the page has just moved.
-   */
-  async function acceptRecurring(ruleId: string, on: string): Promise<void> {
-    try {
-      const updated = await recurringApi.accept(id, ruleId, on);
-      setRecurring((rules) => rules.map((r) => (r.id === updated.id ? updated : r)));
-      await refreshLedger();
-      toast.success(`${updated.description} added to the tab.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not add that one.');
-    }
-  }
-
-  async function skipRecurring(ruleId: string, on: string): Promise<void> {
-    try {
-      const updated = await recurringApi.skip(id, ruleId, on);
-      setRecurring((rules) => rules.map((r) => (r.id === updated.id ? updated : r)));
-      toast.success('Skipped. It will come round again next time.');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not skip that one.');
-    }
-  }
-
-  async function setRecurringActive(ruleId: string, active: boolean): Promise<void> {
-    try {
-      const updated = await recurringApi.setActive(id, ruleId, active);
-      setRecurring((rules) => rules.map((r) => (r.id === updated.id ? updated : r)));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not change that.');
-    }
-  }
-
-  /**
-   * Turn an expense that already exists into something that repeats.
-   *
-   * The lowest-friction way to make a rule: the amount, payer and split are all sitting there, and
-   * `handledThrough` is the expense's own date so the bill somebody just entered is not immediately
-   * proposed straight back at them.
-   */
-  async function repeatExpense(expense: Expense, cadence: 'weekly' | 'monthly'): Promise<void> {
-    const startsOn = expense.date.slice(0, 10);
-    try {
-      const rule = await recurringApi.create(id, {
-        description: expense.description,
-        amountCents: expense.amountCents,
-        payerId: expense.payerId,
-        category: expense.category,
-        cadence,
-        startsOn,
-        participantIds: expense.splits.map((split) => split.userId),
-        handledThrough: startsOn,
-      });
-      setRecurring((rules) => [...rules, rule]);
-      play('add');
-      toast.success(`${rule.description} now repeats ${rule.cadenceLabel}.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not set that to repeat.');
     }
   }
 
@@ -849,6 +781,7 @@ export function GroupDetailPage(): ReactNode {
           : `${payers.length} people paid`;
     return { avatar: nameOf(payers[0]!), label };
   }
+  const detailExpense = expenses.find((e) => e.id === detailExpenseId) ?? null;
   const balanceByUser = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
   const balanceOf = Object.fromEntries(balances.map((b) => [b.userId, b]));
   const isOwner = group.members.find((m) => m.userId === user?.id)?.role === 'OWNER';
@@ -1323,24 +1256,6 @@ export function GroupDetailPage(): ReactNode {
       {/* And tucked back down here once they are in. */}
       {shareLink && !needsPeople && (
         <InviteLink link={shareLink} copied={copied} onCopy={() => void copyShareLink()} />
-      )}
-
-      {/*
-        * Above settle-up on purpose.
-        *
-        * A due bill changes what everyone owes, so deciding it first means the settle-up numbers below
-        * are the ones you act on. Answering "who pays who" and then adding this month's rent underneath
-        * it is how somebody sends the wrong amount.
-        */}
-      {group && (
-        <div className="mt-6">
-          <RecurringDue
-            rules={recurring}
-            members={group.members}
-            onAccept={acceptRecurring}
-            onSkip={skipRecurring}
-          />
-        </div>
       )}
 
       {suggested.length > 0 && (
@@ -1852,94 +1767,59 @@ export function GroupDetailPage(): ReactNode {
               item.kind === 'expense' ? (
                 <li
                   key={`e-${item.expense.id}`}
-                  className="animate-rise group surface flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+                  className="animate-rise surface rounded-2xl"
                   style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Avatar name={payerSummary(item.expense).avatar} size="sm" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">
-                        <span aria-hidden className="mr-1">
-                          {categoryMeta(item.expense.category).emoji}
-                        </span>
-                        {item.expense.description}
-                      </p>
-                      <p className="text-sm text-muted">
-                        {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
-                        {/* Only flag when it wasn't shared with the whole group; "everyone" is the
-                            default, so printing it on every row would just be noise. */}
-                        {item.expense.splits.length < group.members.length && (
-                          <> · split {item.expense.splits.length} ways</>
-                        )}
-                      </p>
-                      {/* A correction, said plainly. Almost every one is somebody fixing their own
-                          typo, so this is muted text and not a warning colour. */}
-                      {item.expense.lastEdit && (
-                        <p className="text-xs text-faint">
-                          {correctionLine(
-                            item.expense.lastEdit.fields as CorrectionField[],
-                            nameOf(item.expense.lastEdit.byId),
-                            Money.fromCents(item.expense.lastEdit.formerAmountCents).format(),
+                  {/*
+                    * The whole row opens the detail sheet, and every action lives in there.
+                    *
+                    * The alternative was the four hover-revealed icons this used to carry, which are
+                    * invisible on a phone and, on a desktop, put delete a stray click away from the
+                    * amount you were reading.
+                    */}
+                  <button
+                    type="button"
+                    onClick={() => setDetailExpenseId(item.expense.id)}
+                    aria-label={`${item.expense.description}, ${Money.fromCents(item.expense.amountCents).format()}. See details.`}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-surface2 active:scale-[0.99]"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar name={payerSummary(item.expense).avatar} size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">
+                          <span aria-hidden className="mr-1">
+                            {categoryMeta(item.expense.category).emoji}
+                          </span>
+                          {item.expense.description}
+                        </p>
+                        <p className="text-sm text-muted">
+                          {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
+                          {/* Only flag when it wasn't shared with the whole group; "everyone" is the
+                              default, so printing it on every row would just be noise. */}
+                          {item.expense.splits.length < group.members.length && (
+                            <> · split {item.expense.splits.length} ways</>
                           )}
                         </p>
-                      )}
+                        {/* A correction, said plainly. Almost every one is somebody fixing their own
+                            typo, so this is muted text and not a warning colour. */}
+                        {item.expense.lastEdit && (
+                          <p className="text-xs text-faint">
+                            {correctionLine(
+                              item.expense.lastEdit.fields as CorrectionField[],
+                              nameOf(item.expense.lastEdit.byId),
+                              Money.fromCents(item.expense.lastEdit.formerAmountCents).format(),
+                            )}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span className="tnum font-semibold">
-                      {Money.fromCents(item.expense.amountCents).format()}
-                    </span>
-                    {!group.archived && (
-                      <button
-                        type="button"
-                        onClick={() => setRepeatingExpense(item.expense)}
-                        aria-label={`Repeat ${item.expense.description}`}
-                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-accent [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-                      >
-                        <Icon name="copy" size={14} />
-                      </button>
-                    )}
-                    {/* Once a payment is recorded the ledger locks: no editing or deleting. */}
-                    {/*
-                      * Shown whether or not the ledger is locked, unlike edit and delete.
-                      *
-                      * Making a bill repeat says nothing about the expense it came from; it writes a
-                      * separate rule. A group that has recorded a payment can still decide that rent
-                      * happens every month, and having to unlock the ledger to say so would be a rule
-                      * about editing history applied to a thing that does not touch history.
-                      */}
-                    {!recurring.some((r) => r.description === item.expense.description && r.active) && (
-                      <button
-                        type="button"
-                        onClick={() => void repeatExpense(item.expense, 'monthly')}
-                        aria-label={`Repeat ${item.expense.description} every month`}
-                        title="Repeat every month"
-                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-ink [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-                      >
-                        <Icon name="undo" size={15} />
-                      </button>
-                    )}
-                    {settlements.length === 0 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setEditingExpense(item.expense)}
-                          aria-label={`Edit ${item.expense.description}`}
-                          className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-ink [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-                        >
-                          <Icon name="pencil" size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void deleteExpense(item.expense.id)}
-                          aria-label={`Delete ${item.expense.description}`}
-                          className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-                        >
-                          <Icon name="x" size={16} />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="tnum font-semibold">
+                        {Money.fromCents(item.expense.amountCents).format()}
+                      </span>
+                      <Icon name="chevron-right" size={16} className="text-faint" />
+                    </div>
+                  </button>
                 </li>
               ) : (
                 <li
@@ -1982,12 +1862,6 @@ export function GroupDetailPage(): ReactNode {
           </ul>
         )}
       </section>
-
-      {group && recurring.length > 0 && (
-        <div className="mt-8">
-          <RecurringList rules={recurring} members={group.members} onSetActive={setRecurringActive} />
-        </div>
-      )}
 
       <section className="mt-8">
         <button
@@ -2278,6 +2152,35 @@ export function GroupDetailPage(): ReactNode {
       </Sheet>
 
       <Sheet
+        open={!!detailExpense}
+        onClose={() => setDetailExpenseId(null)}
+        title={detailExpense?.description ?? 'Expense'}
+      >
+        {detailExpense && (
+          <ExpenseDetail
+            expense={detailExpense}
+            members={group.members}
+            viewerId={user?.id}
+            locked={settlements.length > 0}
+            archived={group.archived}
+            onEdit={() => {
+              setDetailExpenseId(null);
+              setEditingExpense(detailExpense);
+            }}
+            onDuplicate={() => {
+              setDetailExpenseId(null);
+              setDuplicatingExpense(detailExpense);
+            }}
+            onDelete={() => {
+              // The sheet stays open behind the confirm and closes on its own when the expense
+              // leaves the list, so a cancelled delete puts you back where you were.
+              void deleteExpense(detailExpense.id);
+            }}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
         open={!!editingExpense}
         onClose={() => setEditingExpense(null)}
         title={editingExpense?.splitMethod === 'ITEMIZED' ? 'Edit receipt' : 'Edit expense'}
@@ -2313,38 +2216,38 @@ export function GroupDetailPage(): ReactNode {
       </Sheet>
 
       <Sheet
-        open={!!repeatingExpense}
-        onClose={() => setRepeatingExpense(null)}
-        title={repeatingExpense?.splitMethod === 'ITEMIZED' ? 'Repeat this receipt' : 'Repeat this expense'}
+        open={!!duplicatingExpense}
+        onClose={() => setDuplicatingExpense(null)}
+        title={duplicatingExpense?.splitMethod === 'ITEMIZED' ? 'Duplicate this receipt' : 'Duplicate this expense'}
       >
-        {repeatingExpense && (
+        {duplicatingExpense && (
           <>
             <p className="mb-4 text-sm text-muted">
               Everything is copied over with today&rsquo;s date. Change anything that was different this time.
             </p>
-            {repeatingExpense.splitMethod === 'ITEMIZED' ? (
+            {duplicatingExpense.splitMethod === 'ITEMIZED' ? (
               <AddItemizedExpenseForm
-                key={`repeat-${repeatingExpense.id}`}
+                key={`duplicate-${duplicatingExpense.id}`}
                 groupId={group.id}
                 members={group.members}
-                template={repeatingExpense}
+                template={duplicatingExpense}
                 onCreated={() => {
-                  setRepeatingExpense(null);
+                  setDuplicatingExpense(null);
                   play('add');
-                  toast.success('Repeated the receipt.');
+                  toast.success('Added the receipt again.');
                   void refreshLedger();
                 }}
               />
             ) : (
               <AddExpenseForm
-                key={`repeat-${repeatingExpense.id}`}
+                key={`duplicate-${duplicatingExpense.id}`}
                 groupId={group.id}
                 members={group.members}
-                template={repeatingExpense}
+                template={duplicatingExpense}
                 onCreated={() => {
-                  setRepeatingExpense(null);
+                  setDuplicatingExpense(null);
                   play('add');
-                  toast.success('Repeated the expense.');
+                  toast.success('Added it again.');
                   void refreshLedger();
                 }}
               />

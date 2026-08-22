@@ -38,8 +38,8 @@ describe('settlements', () => {
    * The deadline survives the final payment, on purpose.
    *
    * This used to null it, which covered exactly one of the several writes that can empty a ledger:
-   * deleting the last expense, deleting an overpayment, and a recurring bill that offsets a debt all reach
-   * zero too, and all of them left the deadline nagging about money nobody owed. It also threw the owner's
+   * deleting the last expense, deleting an overpayment, and editing an expense down so it offsets a debt
+   * all reach zero too, and all of them left the deadline nagging about money nobody owed. It also threw the owner's
    * finish line away, so a group that settled mid-trip and kept spending had nothing left to settle by.
    *
    * Whether the finish line currently applies is read from the balances instead. See `deadlineState`.
