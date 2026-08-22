@@ -1,11 +1,12 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents, Money } from '@owewell/shared';
+import { dollarsToCents, type MoneyFormatter } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
 import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
+import { useMoney } from '../lib/currency';
 
 interface Props {
   groupId: string;
@@ -19,14 +20,15 @@ interface Props {
   onRecorded: (settlement: Settlement) => void;
 }
 
-function balanceCopy(cents: number): string {
+function balanceCopy(cents: number, fmt: MoneyFormatter): string {
   if (cents === 0) return 'square';
-  return cents > 0 ? `gets back ${Money.fromCents(cents).format()}` : `owes ${Money.fromCents(-cents).format()}`;
+  return cents > 0 ? `gets back ${fmt(cents)}` : `owes ${fmt(-cents)}`;
 }
 
 /** Record an arbitrary payment between two members — any amount (incl. partial), any method.
  *  Complements the one-tap "Settle" buttons, which only clear the full suggested amount. */
 export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], balances, onRecorded }: Props): ReactNode {
+  const fmt = useMoney();
   const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
   const firstFrom = defaultFromId ?? members[0]?.userId ?? '';
   const firstTo = members.find((m) => m.userId !== firstFrom)?.userId ?? '';
@@ -235,7 +237,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
                 }`}
               >
                 {index === quickAmounts.length - 1 ? 'Full' : `${Math.round((cents / usefulLimit) * 100)}%`}
-                <span className="tnum mt-0.5 block font-normal">{Money.fromCents(cents).format()}</span>
+                <span className="tnum mt-0.5 block font-normal">{fmt(cents)}</span>
               </button>
             ))}
           </div>
@@ -254,7 +256,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
           <div className="flex items-center justify-between gap-3 border-b border-line/70 px-3.5 py-2.5">
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">What if?</span>
             <span className="tnum text-xs font-semibold text-ink">
-              {Money.fromCents(preview.outstandingAfterCents).format()} left
+              {fmt(preview.outstandingAfterCents)} left
             </span>
           </div>
           <div className="p-3.5">
@@ -270,10 +272,10 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
                 <div key={person.userId} className="rounded-xl border border-line bg-surface/70 p-2.5">
                   <strong className="block text-xs text-ink">{person.displayName}</strong>
                   <span className="mt-1 block text-[11px] text-muted">
-                    <span className="tnum line-through">{balanceCopy(person.beforeCents)}</span>
+                    <span className="tnum line-through">{balanceCopy(person.beforeCents, fmt)}</span>
                     <span aria-hidden> → </span>
                     <span className={`tnum font-semibold ${person.becomesSettled ? 'text-pos' : 'text-ink'}`}>
-                      {balanceCopy(person.afterCents)}
+                      {balanceCopy(person.afterCents, fmt)}
                     </span>
                   </span>
                 </div>
@@ -292,7 +294,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
                 {preview.remaining.map(transfer => (
                   <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="flex items-center justify-between gap-3 text-[11px] text-muted">
                     <span><strong className="text-ink">{transfer.fromName}</strong> → {transfer.toName}</span>
-                    <span className="tnum shrink-0 font-semibold text-ink">{Money.fromCents(transfer.amountCents).format()}</span>
+                    <span className="tnum shrink-0 font-semibold text-ink">{fmt(transfer.amountCents)}</span>
                   </li>
                 ))}
               </ul>

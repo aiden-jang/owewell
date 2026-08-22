@@ -1,4 +1,4 @@
-import { Money } from '@owewell/shared';
+import type { MoneyFormatter } from '@owewell/shared';
 import { todayStr } from './format';
 
 /*
@@ -80,19 +80,19 @@ export function budgetTone(budget: TripBudget): BudgetTone {
 }
 
 /** Past the number it states the amount and stops: no "over budget", no suggestion anybody act on it. */
-export function budgetLine(budget: TripBudget): string {
-  const spent = Money.fromCents(budget.spentCents).format();
-  const total = Money.fromCents(budget.budgetCents).format();
+export function budgetLine(budget: TripBudget, fmt: MoneyFormatter): string {
+  const spent = fmt(budget.spentCents);
+  const total = fmt(budget.budgetCents);
   if (budget.remainingCents < 0) {
-    return `${spent} of the ${total} you set, plus ${Money.fromCents(-budget.remainingCents).format()}.`;
+    return `${spent} of the ${total} you set, plus ${fmt(-budget.remainingCents)}.`;
   }
-  return `${spent} of ${total}, so ${Money.fromCents(budget.remainingCents).format()} still to play with.`;
+  return `${spent} of ${total}, so ${fmt(budget.remainingCents)} still to play with.`;
 }
 
 /** The group total is the alarming number; the per-person one is the actionable one. Show both. */
-export function budgetDetail(budget: TripBudget): string | null {
+export function budgetDetail(budget: TripBudget, fmt: MoneyFormatter): string | null {
   const parts: string[] = [];
-  if (budget.perPersonCents !== null) parts.push(`${Money.fromCents(budget.perPersonCents).format()} each so far`);
-  if (budget.perDayCents !== null) parts.push(`about ${Money.fromCents(budget.perDayCents).format()} a day`);
+  if (budget.perPersonCents !== null) parts.push(`${fmt(budget.perPersonCents)} each so far`);
+  if (budget.perDayCents !== null) parts.push(`about ${fmt(budget.perDayCents)} a day`);
   return parts.length > 0 ? parts.join(', ') : null;
 }

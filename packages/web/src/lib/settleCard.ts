@@ -1,4 +1,4 @@
-import { Money } from '@owewell/shared';
+import type { MoneyFormatter } from '@owewell/shared';
 import type { SuggestedPayment } from './settlements';
 
 export function settleCardRows(payments: SuggestedPayment[], limit = 4): {
@@ -20,6 +20,7 @@ function fitText(ctx: CanvasRenderingContext2D, value: string, width: number): s
 export async function renderSettleCard(
   groupName: string,
   payments: SuggestedPayment[],
+  fmt: MoneyFormatter,
 ): Promise<Blob | null> {
   const size = 1080;
   const canvas = document.createElement('canvas');
@@ -58,7 +59,7 @@ export async function renderSettleCard(
   const total = payments.reduce((sum, payment) => sum + payment.amountCents, 0);
   ctx.fillStyle = '#6d5ce7';
   ctx.font = "800 94px 'Bricolage Grotesque', Inter, ui-sans-serif, sans-serif";
-  ctx.fillText(Money.fromCents(total).format(), 76, 300);
+  ctx.fillText(fmt(total), 76, 300);
   ctx.fillStyle = '#716d7c';
   ctx.font = '500 28px Inter, ui-sans-serif, sans-serif';
   ctx.fillText(`to clear in ${payments.length} ${payments.length === 1 ? 'transfer' : 'transfers'}`, 80, 346);
@@ -81,7 +82,7 @@ export async function renderSettleCard(
     ctx.textAlign = 'right';
     ctx.fillStyle = '#6d5ce7';
     ctx.font = '800 34px Inter, ui-sans-serif, sans-serif';
-    ctx.fillText(Money.fromCents(payment.amountCents).format(), 972, y + 62);
+    ctx.fillText(fmt(payment.amountCents), 972, y + 62);
     ctx.textAlign = 'left';
   });
 

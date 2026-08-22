@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Money } from '@owewell/shared';
+import { currencyFormatter, DEFAULT_CURRENCY, type MoneyFormatter } from '@owewell/shared';
+import { CurrencyProvider } from '../lib/currency';
 import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
@@ -11,11 +12,11 @@ import { Icon } from '../components/Icon';
 import { SpendDonut } from '../components/SpendDonut';
 import { useToast } from '../components/Toast';
 
-function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
+function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatter): { text: string; tone: string } {
   // With no expenses yet, nobody is settled OR owing — there's just nothing to settle.
   if (!hasActivity) return { text: '', tone: 'text-muted' };
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
-  const amount = Money.fromCents(Math.abs(netCents)).format();
+  const amount = fmt(Math.abs(netCents));
   return netCents > 0
     ? { text: `is owed ${amount}`, tone: 'text-pos' }
     : { text: `owes ${amount}`, tone: 'text-neg' };
@@ -96,7 +97,11 @@ export function SharedGroupPage(): ReactNode {
     else void claimSeat(seatId);
   }, [status, summary, user, searchParams, viewerIsMember]);
 
+  // The summary carries its group's currency; before it loads there is nothing priced to get wrong.
+  const fmt = currencyFormatter(summary?.currency ?? DEFAULT_CURRENCY);
+
   return (
+    <CurrencyProvider code={summary?.currency ?? DEFAULT_CURRENCY}>
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
@@ -152,12 +157,12 @@ export function SharedGroupPage(): ReactNode {
             <div className="glass mt-5 rounded-3xl p-6 sm:p-7">
               <p className="text-sm font-medium text-muted">Spent together</p>
               <p className="mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl">
-                {Money.fromCents(summary.totalSpentCents).format()}
+                {fmt(summary.totalSpentCents)}
               </p>
               <p className="mt-2 text-xs text-faint">
-                {Money.fromCents(summary.perPersonCents).format()} avg/person
+                {fmt(summary.perPersonCents)} avg/person
                 {summary.totalSettledCents > 0 &&
-                  ` · ${Money.fromCents(summary.totalSettledCents).format()} settled so far`}
+                  ` · ${fmt(summary.totalSettledCents)} settled so far`}
               </p>
             </div>
 
@@ -181,7 +186,7 @@ export function SharedGroupPage(): ReactNode {
                           <span className="font-medium">{p.toName}</span>
                         </span>
                       </span>
-                      <span className="tnum font-medium">{Money.fromCents(p.amountCents).format()}</span>
+                      <span className="tnum font-medium">{fmt(p.amountCents)}</span>
                     </li>
                   ))}
                 </ul>
@@ -195,6 +200,7 @@ export function SharedGroupPage(): ReactNode {
                   const label = balanceLabel(
                     m.netCents,
                     summary.totalSpentCents > 0 || summary.totalSettledCents > 0,
+                    fmt,
                   );
                   const claimable = m.isPlaceholder && !viewerIsMember;
                   return (
@@ -272,7 +278,7 @@ export function SharedGroupPage(): ReactNode {
                           />
                         </span>
                         <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
-                          {Money.fromCents(cents).format()}
+                          {fmt(cents)}
                         </span>
                       </li>
                     );
@@ -304,5 +310,6 @@ export function SharedGroupPage(): ReactNode {
         )}
       </main>
     </div>
+    </CurrencyProvider>
   );
 }

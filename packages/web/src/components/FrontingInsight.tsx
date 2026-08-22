@@ -1,12 +1,13 @@
-import { Money } from '@owewell/shared';
 import type { Balance } from '@owewell/core';
 import { frontingInsight } from '../lib/frontingInsight';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { useMoney } from '../lib/currency';
 
 const SEGMENT_COLORS = ['#6d5ce7', '#eb7d5b', '#2f9b83', '#d49a36', '#4d82bd', '#bd658f'];
 
 export function FrontingInsight({ balances, expenseCount }: { balances: Balance[]; expenseCount: number }) {
+  const fmt = useMoney();
   const insight = frontingInsight(balances, expenseCount);
   if (!insight) return null;
 
@@ -48,7 +49,7 @@ export function FrontingInsight({ balances, expenseCount }: { balances: Balance[
             <li key={share.userId} className="flex items-center gap-2 text-xs">
               <Avatar name={share.displayName} size="sm" />
               <span className="min-w-0 flex-1 truncate font-medium text-ink">{share.displayName}</span>
-              <span className="tnum text-muted">{Money.fromCents(share.paidCents).format()}</span>
+              <span className="tnum text-muted">{fmt(share.paidCents)}</span>
               <span
                 className="tnum w-9 text-right font-semibold"
                 style={{ color: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }}
