@@ -25,7 +25,7 @@ const member = (userId: string, displayName: string): GroupMember => ({
   paypalHandle: null,
 });
 
-const MEMBERS = [member('u1', 'Alice'), member('u2', 'Bob'), member('u3', 'Cleo')];
+const MEMBERS = [member('u1', 'Alice'), member('u2', 'Bob'), member('u3', 'Cleo'), member('u4', 'Dev')];
 
 const expense = (over: Partial<Expense> = {}): Expense => ({
   id: 'e1',
@@ -99,6 +99,35 @@ describe('what the sheet says', () => {
     const shares = within(screen.getByRole('list', { name: 'Every share' }));
     expect(shares.getByText(/Alice/)).toHaveTextContent('2 shares');
     expect(shares.getByText(/^You/)).toHaveTextContent('1 share');
+  });
+
+  /*
+   * The payer is named twice or not at all, never in between.
+   *
+   * Each share already carries a "paid" tag, so a payer line above the list is the same sentence again.
+   * It comes back only for the case the list cannot express: somebody fronting a bill they take no
+   * share of, who would otherwise appear nowhere in a sheet about the money they put up.
+   */
+  it('names a payer who took no share, and stays quiet when the list already said it', () => {
+    const { rerender } = render(<ExpenseDetail {...props} expense={expense()} />);
+    expect(screen.queryByText(/without taking a share/)).not.toBeInTheDocument();
+
+    rerender(
+      <ExpenseDetail
+        {...props}
+        expense={expense({
+          payerId: 'u4',
+          splits: [
+            { userId: 'u1', owedCents: 3_000 },
+            { userId: 'u2', owedCents: 3_000 },
+            { userId: 'u3', owedCents: 3_000 },
+          ],
+        })}
+      />,
+    );
+    expect(screen.getByText(/paid without taking a share/)).toHaveTextContent(
+      'Dev paid without taking a share',
+    );
   });
 
   it('breaks an itemized receipt back into its lines', () => {
