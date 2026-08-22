@@ -61,6 +61,7 @@ import { FrontingInsight } from '../components/FrontingInsight';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { buildGroupRecap } from '../lib/groupRecap';
+import { timeAgoShort as timeAgo } from '../lib/relativeTime';
 import { renderSettleCard } from '../lib/settleCard';
 
 /** How much of the feed renders before asking. Deep enough that most groups never see the button. */
@@ -81,21 +82,6 @@ function balanceStateLabel(netCents: number, fmt: MoneyFormatter): string {
   if (netCents === 0) return 'square';
   const amount = fmt(Math.abs(netCents));
   return netCents > 0 ? `is owed ${amount}` : `owes ${amount}`;
-}
-
-function timeAgo(iso: string): string {
-  const then = new Date(iso).getTime();
-  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (secs < 45) return 'just now';
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.round(days / 7);
-  if (weeks < 5) return `${weeks}w ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function csvCell(value: string | number): string {

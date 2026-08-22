@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { timeAgo } from './relativeTime.js';
+import { timeAgo, timeAgoShort } from './relativeTime.js';
 
 /** A fixed "now" so none of this depends on when the suite runs. */
 const NOW = new Date('2026-08-05T12:00:00Z').getTime();
@@ -67,5 +67,45 @@ describe('timeAgo', () => {
       expect(label, `offset ${h}h`).not.toBe('');
       expect(label).not.toMatch(/NaN|Invalid|undefined/);
     }
+  });
+});
+
+/*
+ * The short register, which the activity feed uses.
+ *
+ * It exists because a feed row cannot spare "23 hours ago" next to a name, an amount and a chevron.
+ * It used to be a second copy of this file living in the group page; these are the cases where the
+ * two had quietly drifted, so they are the ones worth holding.
+ */
+describe('timeAgoShort', () => {
+  const shortAgo = (ms: number): string => timeAgoShort(NOW - ms, NOW);
+
+  test('counts down to the same words for anything under a minute', () => {
+    expect(shortAgo(30 * 1_000)).toBe('just now');
+  });
+
+  test('abbreviates the units', () => {
+    expect(shortAgo(5 * 60_000)).toBe('5m ago');
+    expect(shortAgo(23 * 3_600_000)).toBe('23h ago');
+    expect(shortAgo(3 * 24 * 3_600_000)).toBe('3d ago');
+    expect(shortAgo(3 * 7 * 24 * 3_600_000)).toBe('3w ago');
+  });
+
+  /*
+   * The old copy rounded, so 90 minutes read as "2h ago" and 45 seconds as "just now" while this one
+   * said "1h ago" and "just now" respectively. Flooring is the honest one: something that happened an
+   * hour and a half ago has not happened two hours ago yet.
+   */
+  test('floors rather than rounds, so nothing is reported as older than it is', () => {
+    expect(shortAgo(90 * 60_000)).toBe('1h ago');
+    expect(shortAgo(59 * 60_000)).toBe('59m ago');
+  });
+
+  test('falls back to a date past a month', () => {
+    expect(shortAgo(60 * 24 * 3_600_000)).toMatch(/Jun/);
+  });
+
+  test('says nothing for a timestamp it cannot read', () => {
+    expect(timeAgoShort('not a date', NOW)).toBe('');
   });
 });
