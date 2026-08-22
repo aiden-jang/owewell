@@ -166,8 +166,8 @@ export function SharedGroupPage(): ReactNode {
               </p>
             </div>
 
-            <section className="mt-6 rounded-2xl border border-accent/25 bg-accent-soft p-4">
-              <h2 className="text-sm font-semibold text-accent">Who owes who</h2>
+            <section className="mt-6 rounded-2xl border border-line bg-surface p-4">
+              <h2 className="text-sm font-semibold text-ink">Who owes who</h2>
               {summary.suggested.length === 0 ? (
                 <p className="mt-2 text-sm text-muted">
                   {summary.totalSpentCents > 0 || summary.totalSettledCents > 0

@@ -641,7 +641,7 @@ export function QuickSplitPage(): ReactNode {
         )}
 
         {draftRestored && (
-          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm">
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
             <span>
               <span className="font-semibold text-ink">Your split is back.</span>{' '}
               <span className="text-muted">We kept this draft on this device.</span>
@@ -649,7 +649,7 @@ export function QuickSplitPage(): ReactNode {
             <button
               type="button"
               onClick={startFresh}
-              className="shrink-0 font-medium text-accent transition hover:underline"
+              className="shrink-0 font-medium text-muted transition hover:text-ink hover:underline"
             >
               Start fresh
             </button>
@@ -692,7 +692,7 @@ export function QuickSplitPage(): ReactNode {
           <button
             type="button"
             onClick={addPerson}
-            className="text-sm font-medium text-accent transition hover:underline"
+            className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
           >
             + Add person
           </button>
@@ -821,7 +821,7 @@ export function QuickSplitPage(): ReactNode {
             <button
               type="button"
               onClick={addItem}
-              className="text-sm font-medium text-accent transition hover:underline"
+              className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
             >
               + Add item
             </button>
@@ -862,7 +862,7 @@ export function QuickSplitPage(): ReactNode {
                 <button
                   type="button"
                   onClick={() => addTip(Number(customTip))}
-                  className="px-2 py-1 font-semibold text-accent"
+                  className="px-2 py-1 font-semibold text-muted transition hover:text-ink"
                   aria-label="Apply custom tip"
                 >
                   %
@@ -929,7 +929,7 @@ export function QuickSplitPage(): ReactNode {
             </p>
           )}
           {yourPayment && (
-            <p className="mt-3 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-ink">
+            <p className="mt-3 rounded-xl border border-line bg-surface2/60 px-4 py-3 text-sm text-ink">
               <span className="text-muted">your next step</span>
               <br />
               pay <span className="font-medium">{nameById(yourPayment.toUserId)}</span>{' '}
@@ -937,7 +937,7 @@ export function QuickSplitPage(): ReactNode {
             </p>
           )}
           {!yourPayment && yourReceive && (
-            <p className="mt-3 rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-ink">
+            <p className="mt-3 rounded-xl border border-line bg-surface2/60 px-4 py-3 text-sm text-ink">
               <span className="text-muted">your next step</span>
               <br />
               <span className="font-medium">{nameById(yourReceive.fromUserId)}</span> pays you{' '}
@@ -947,7 +947,7 @@ export function QuickSplitPage(): ReactNode {
           {verdict && <p className="mt-2 text-sm italic text-muted">{verdict}</p>}
         </section>
 
-        {error && <p className="mt-4 text-sm font-medium text-accent">{error}</p>}
+        {error && <p className="mt-4 text-sm font-medium text-neg" role="alert">{error}</p>}
         {/* Above the save button on purpose. Saving needs an account; sending the answer to the
             people it concerns is what you actually want to do next, and it needs nothing. */}
         {transfers && (
@@ -976,7 +976,10 @@ export function QuickSplitPage(): ReactNode {
           {saving ? 'Saving...' : user ? 'Save to my account' : "Save it before someone 'forgets'"}
         </button>
         {user && (
-          <Link to="/" className="mt-3 block text-center text-sm font-medium text-accent">
+          <Link
+            to="/"
+            className="mt-3 block text-center text-sm font-medium text-muted transition hover:text-ink hover:underline"
+          >
             Back to your groups
           </Link>
         )}
