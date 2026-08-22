@@ -50,3 +50,32 @@ export function timeAgo(at: Date | string | number, now: Date | number = Date.no
     ? `in ${d.toLocaleString(undefined, { month: 'long' })}`
     : `${d.toLocaleString(undefined, { month: 'short' })} ${d.getFullYear()}`;
 }
+
+/**
+ * The same answer, short enough to sit in a dense row.
+ *
+ * "5m ago" rather than "5 minutes ago". A second implementation of this used to live in the group
+ * page, which is how the dashboard ended up saying "23 hours ago" while the feed said "23h ago" from
+ * code that had drifted apart in its rounding as well as its wording. One function, two registers.
+ */
+export function timeAgoShort(at: Date | string | number, now: Date | number = Date.now()): string {
+  const then = at instanceof Date ? at.getTime() : typeof at === 'string' ? Date.parse(at) : at;
+  const nowMs = now instanceof Date ? now.getTime() : now;
+  if (!Number.isFinite(then)) return '';
+
+  const diff = nowMs - then;
+  if (diff < MINUTE) return 'just now';
+  if (diff < HOUR) return `${Math.floor(diff / MINUTE)}m ago`;
+  if (diff < DAY) return `${Math.floor(diff / HOUR)}h ago`;
+  if (diff < WEEK) return `${Math.floor(diff / DAY)}d ago`;
+  if (diff < 5 * WEEK) return `${Math.floor(diff / WEEK)}w ago`;
+
+  // Past a month a date places it better than a count of weeks, and it stays about as short.
+  const d = new Date(then);
+  const sameYear = d.getFullYear() === new Date(nowMs).getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+}

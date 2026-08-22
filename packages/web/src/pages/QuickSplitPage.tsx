@@ -716,6 +716,24 @@ export function QuickSplitPage(): ReactNode {
 
         {/* Items — one expense per row, each split its own way among everyone above */}
         <div className="mt-6 space-y-3">
+          {/*
+            * The running total, at the size of the thing it is.
+            *
+            * The group's add sheet makes the amount the biggest thing on screen because every other
+            * field is a detail about it. The same is true here; it just cannot be an input, since
+            * this page is a list of items rather than one figure. So it is the sum, and it is the
+            * number you check against the printed receipt before you send anything to anybody.
+            */}
+          <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center">
+            <p className="tnum font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
+              {Money.fromCents(grandTotal).format()}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {grandTotal > 0
+                ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${named.length} ${named.length === 1 ? 'person' : 'people'}`
+                : 'Add what got spent below'}
+            </p>
+          </div>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-medium text-muted">What you spent</h2>
             <label className="flex items-center gap-1.5 text-xs text-muted">
@@ -755,7 +773,7 @@ export function QuickSplitPage(): ReactNode {
                   onBlur={() => updateItem(item.id, { amount: normalizeAmountInput(item.amount) })}
                   placeholder="0.00"
                   inputMode="decimal"
-                  className={inputClass}
+                  className={`${inputClass} tnum`}
                   aria-label={`Item ${index + 1} amount`}
                 />
                 <select
@@ -881,15 +899,14 @@ export function QuickSplitPage(): ReactNode {
           </div>
         </div>
 
+        {/* Only once there is an answer. It used to render a heading and a promise above an empty
+            space for as long as the form was blank, which is most of the time somebody spends here. */}
+        {transfers && (
         <section className="mt-6">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-medium text-muted">Who owes what</h2>
-            {transfers && <span className="text-sm text-muted">total {Money.fromCents(grandTotal).format()}</span>}
-          </div>
-          {transfers ? (
-            transfers.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">All settled up. Nobody owes anybody.</p>
-            ) : (
+          <h2 className="text-sm font-medium text-muted">Who owes what</h2>
+          {transfers.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">All settled up. Nobody owes anybody.</p>
+          ) : (
               <ul className="mt-3 space-y-2">
                 {transfers.map((t) => (
                   <li
@@ -913,15 +930,10 @@ export function QuickSplitPage(): ReactNode {
                     </span>
                   </li>
                 ))}
-              </ul>
-            )
-          ) : (
-            <p className="mt-3 text-sm text-muted">
-              Names up top, numbers in the middle. We&rsquo;ll handle the part that ends friendships.
-            </p>
+            </ul>
           )}
           {yourShareCents !== null && (
-            <p className="mt-3 flex items-center justify-between border-t border-black/5 pt-3 text-sm text-muted">
+            <p className="mt-3 flex items-center justify-between border-t border-line pt-3 text-sm text-muted">
               <span>your share of it</span>
               <span className="font-medium tabular-nums text-ink">
                 {Money.fromCents(yourShareCents).format()}
@@ -946,6 +958,7 @@ export function QuickSplitPage(): ReactNode {
           )}
           {verdict && <p className="mt-2 text-sm italic text-muted">{verdict}</p>}
         </section>
+        )}
 
         {error && <p className="mt-4 text-sm font-medium text-neg" role="alert">{error}</p>}
         {/* Above the save button on purpose. Saving needs an account; sending the answer to the
@@ -956,7 +969,7 @@ export function QuickSplitPage(): ReactNode {
             onClick={() => void shareSummary()}
             disabled={shareStatus !== null}
             aria-live="polite"
-            className="mt-5 w-full rounded-full border border-black/10 px-5 py-3 font-semibold transition hover:bg-black/[0.03] active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+            className="mt-5 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
           >
             {shareStatus === 'sharing'
               ? 'Opening share…'
