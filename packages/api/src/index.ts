@@ -285,6 +285,8 @@ const createExpenseBody = z.object({
   participants: z.array(z.object({ userId: z.string().min(1), value: z.number().int().optional() })).min(1),
   category,
   note,
+  // Opaque to us; the browser generates it. Bounded so it cannot be used as a smuggled payload.
+  clientId: z.string().min(8).max(64).optional(),
   date: isoDate.optional(),
 });
 app.post('/owewell/groups/:id/expenses', async (c) => {
@@ -319,6 +321,7 @@ const itemizedBody = z.object({
     .min(1),
   category,
   note,
+  clientId: z.string().min(8).max(64).optional(),
   date: isoDate.optional(),
 });
 app.post('/owewell/groups/:id/expenses/itemized', async (c) => {

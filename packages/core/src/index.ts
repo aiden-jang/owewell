@@ -173,6 +173,8 @@ export interface CreateExpensePayload {
   category?: ExpenseCategory;
   /** A line of context. Empty or null clears it. */
   note?: string | null;
+  /** Client-chosen id, so retrying a create that may already have landed cannot double-post it. */
+  clientId?: string;
   /** The date the expense happened, as YYYY-MM-DD. Omit for "today". */
   date?: string;
 }
@@ -195,6 +197,8 @@ export interface CreateItemizedPayload {
   category?: ExpenseCategory;
   /** A line of context. Empty or null clears it. */
   note?: string | null;
+  /** Client-chosen id, so retrying a create that may already have landed cannot double-post it. */
+  clientId?: string;
   /** The date the expense happened, as YYYY-MM-DD. Omit for "today". */
   date?: string;
 }
