@@ -7,8 +7,8 @@ export type { Balance, GroupDetail, GroupMember, GroupRole, GroupSummary, Shared
 export const groupsApi = {
   list: (): Promise<GroupSummary[]> =>
     api.get<{ groups: GroupSummary[] }>('/groups').then((r) => r.groups),
-  create: (name: string): Promise<GroupDetail> =>
-    api.post<{ group: GroupDetail }>('/groups', { name }).then((r) => r.group),
+  create: (name: string, currency?: string): Promise<GroupDetail> =>
+    api.post<{ group: GroupDetail }>('/groups', { name, ...(currency ? { currency } : {}) }).then((r) => r.group),
   get: (id: string): Promise<GroupDetail> =>
     api.get<{ group: GroupDetail }>(`/groups/${id}`).then((r) => r.group),
   // Add a name-only placeholder (someone not on owewell yet). Real accounts join via an
@@ -38,6 +38,9 @@ export const groupsApi = {
   // reliable way to say $19.99. Null clears the budget.
   setBudget: (id: string, budgetCents: number | null): Promise<GroupDetail> =>
     api.patch<{ group: GroupDetail }>(`/groups/${id}/budget`, { budgetCents }).then((r) => r.group),
+  // Relabels the group; stored amounts are minor units and do not move. No conversion, on purpose.
+  setCurrency: (id: string, currency: string): Promise<GroupDetail> =>
+    api.patch<{ group: GroupDetail }>(`/groups/${id}/currency`, { currency }).then((r) => r.group),
   setArchived: (id: string, archived: boolean): Promise<GroupDetail> =>
     api.post<{ group: GroupDetail }>(`/groups/${id}/archive`, { archived }).then((r) => r.group),
   remove: (id: string): Promise<void> => api.del(`/groups/${id}`).then(() => undefined),

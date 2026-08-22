@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { dollarsToCents, Money } from '@owewell/shared';
+import { dollarsToCents } from '@owewell/shared';
 import { budgetDetail, budgetLine, budgetTone, type TripBudget as Budget } from '../lib/tripBudget';
 import { normalizeAmountInput } from '../lib/format';
+import { useMoney } from '../lib/currency';
 
 /*
  * A number the group set, and a bar showing where the spending sits against it.
@@ -29,6 +30,7 @@ export function TripBudget({
   isOwner: boolean;
   onSave: (budgetCents: number | null) => Promise<void>;
 }) {
+  const fmt = useMoney();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -86,7 +88,7 @@ export function TripBudget({
                 }}
                 className="rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-muted hover:border-accent hover:text-ink"
               >
-                {Money.fromCents(amount * 100).format()}
+                {fmt(amount * 100)}
               </button>
             ))}
           </div>
@@ -134,10 +136,10 @@ export function TripBudget({
             <span>
               <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Budget</span>
               <strong className="mt-0.5 block text-sm text-ink">
-                {budget ? budgetLine(budget) : `${Money.fromCents(budgetCents).format()}, nothing spent yet.`}
+                {budget ? budgetLine(budget, fmt) : `${fmt(budgetCents)}, nothing spent yet.`}
               </strong>
-              {budget && budgetDetail(budget) && (
-                <small className="mt-0.5 block text-[11px] text-muted">{budgetDetail(budget)}</small>
+              {budget && budgetDetail(budget, fmt) && (
+                <small className="mt-0.5 block text-[11px] text-muted">{budgetDetail(budget, fmt)}</small>
               )}
             </span>
             {isOwner && (
@@ -170,7 +172,7 @@ export function TripBudget({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={filled}
-            aria-valuetext={budget ? budgetLine(budget) : 'Nothing spent yet.'}
+            aria-valuetext={budget ? budgetLine(budget, fmt) : 'Nothing spent yet.'}
           >
             {/* Past the number is the accent colour, not the negative one. This is not money owed. */}
             <div

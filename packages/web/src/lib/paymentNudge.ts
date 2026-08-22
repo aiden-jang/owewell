@@ -1,4 +1,4 @@
-import { Money } from '@owewell/shared';
+import type { MoneyFormatter } from '@owewell/shared';
 
 export type NudgeTone = 'gentle' | 'direct' | 'playful';
 
@@ -21,8 +21,8 @@ export interface PaymentNudgeDetails {
  * So: no product name in the sentence, no instructions about which app to open, and the pay link does
  * the work that the explaining used to. The tones differ in nerve, not in vocabulary.
  */
-export function paymentNudgeText(details: PaymentNudgeDetails, tone: NudgeTone): string {
-  const amount = Money.fromCents(details.amountCents).format();
+export function paymentNudgeText(details: PaymentNudgeDetails, tone: NudgeTone, fmt: MoneyFormatter): string {
+  const amount = fmt(details.amountCents);
   const copy = tone === 'direct'
     ? `${details.fromName}, you still owe ${details.toName} ${amount} from ${details.groupName}. Send it over when you get a chance.`
     : tone === 'playful'

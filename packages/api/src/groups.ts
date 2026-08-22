@@ -1,4 +1,12 @@
-import { computeSplit, computeItemizedSplit, computeItemizedPayers, simplifyDebts, allocateCents } from '@owewell/shared';
+import {
+  computeSplit,
+  computeItemizedSplit,
+  computeItemizedPayers,
+  simplifyDebts,
+  allocateCents,
+  DEFAULT_CURRENCY,
+  isSupportedCurrency,
+} from '@owewell/shared';
 import { and, count, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { computeBalances } from './expenses.js';
@@ -23,7 +31,8 @@ export type GroupErrorCode =
   | 'NOT_PLACEHOLDER'
   | 'NOT_EDITABLE'
   | 'HAS_ACTIVITY'
-  | 'INVALID_BUDGET';
+  | 'INVALID_BUDGET'
+  | 'INVALID_CURRENCY';
 
 export class GroupError extends Error {
   constructor(
@@ -56,6 +65,8 @@ export interface GroupDetail {
   archived: boolean;
   settleBy: Date | null;
   budgetCents: number | null;
+  /** ISO 4217 code the group counts in. Every amount here is minor units of this. */
+  currency: string;
   viewerId: string; // the caller's person id, so the UI knows which member is "me"
   members: GroupMemberView[];
 }
@@ -76,6 +87,7 @@ export interface GroupSummary {
    */
   lastActivityAt: Date;
   isOwner: boolean;
+  currency: string;
 }
 
 /** Throws NOT_FOUND if the person is not a member (which doubles as "does not exist"). */
@@ -149,6 +161,7 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
     archived: mine?.archivedAt != null,
     settleBy: g.settleBy,
     budgetCents: g.budgetCents,
+    currency: g.currency,
     viewerId: personId,
     members: await membersOf(db, groupId),
   };
@@ -191,6 +204,27 @@ export async function setGroupBudget(
   return getGroup(db, personId, groupId);
 }
 
+/**
+ * The owner can change what the group counts in.
+ *
+ * Only the label changes: stored amounts are minor units and stay exactly as they are, so this is a
+ * relabel, not a conversion. Converting would be worse — it would need a rate, a date for that rate,
+ * and it would silently rewrite what people already agreed they owed.
+ */
+export async function setGroupCurrency(
+  db: DB,
+  personId: string,
+  groupId: string,
+  currency: string,
+): Promise<GroupDetail> {
+  await requireOwner(db, personId, groupId);
+  if (!isSupportedCurrency(currency)) {
+    throw new GroupError('INVALID_CURRENCY', 'That is not a currency owewell can count in.');
+  }
+  await db.update(groups).set({ currency }).where(eq(groups.id, groupId));
+  return getGroup(db, personId, groupId);
+}
+
 /** Ten million dollars, which is past any real trip and short of anything that breaks the layout. */
 const MAX_BUDGET_CENTS = 1_000_000_000;
 
@@ -210,6 +244,7 @@ export async function setGroupArchived(db: DB, personId: string, groupId: string
 export interface SharedGroupSummary {
   groupId: string;
   groupName: string;
+  currency: string;
   memberCount: number;
   totalSpentCents: number;
   perPersonCents: number;
@@ -274,6 +309,7 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
   return {
     groupId: g.id,
     groupName: g.name,
+    currency: g.currency,
     memberCount: balances.length,
     totalSpentCents,
     perPersonCents: balances.length ? Math.round(totalSpentCents / balances.length) : 0,
@@ -434,9 +470,17 @@ export async function claimPlaceholder(
   return { groupId };
 }
 
-export async function createGroup(db: DB, personId: string, name: string): Promise<GroupDetail> {
+export async function createGroup(
+  db: DB,
+  personId: string,
+  name: string,
+  currency: string = DEFAULT_CURRENCY,
+): Promise<GroupDetail> {
+  if (!isSupportedCurrency(currency)) {
+    throw new GroupError('INVALID_CURRENCY', 'That is not a currency owewell can count in.');
+  }
   const id = crypto.randomUUID();
-  await db.insert(groups).values({ id, name, createdById: personId });
+  await db.insert(groups).values({ id, name, createdById: personId, currency });
   await db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: id, personId, role: 'OWNER' });
   return getGroup(db, personId, id);
 }
@@ -450,6 +494,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       createdAt: groups.createdAt,
       archivedAt: groupMembers.archivedAt,
       role: groupMembers.role,
+      currency: groups.currency,
     })
     .from(groups)
     .innerJoin(groupMembers, eq(groupMembers.groupId, groups.id))
@@ -593,6 +638,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       // Falls back to the group's own creation, so a brand-new empty group still has a sensible date.
       lastActivityAt: new Date(Math.max(lastActivity.get(g.id) ?? 0, g.createdAt.getTime())),
       isOwner: g.role === 'OWNER',
+      currency: g.currency,
     };
   });
 }

@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react';
-import { Money, correctionLine, type CorrectionField } from '@owewell/shared';
+import { correctionLine, type CorrectionField } from '@owewell/shared';
 import { categoryMeta, type Expense, type GroupMember } from '@owewell/core';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { useMoney } from '../lib/currency';
 
 /*
  * What one expense actually says, once you tap it.
@@ -75,6 +76,7 @@ export function ExpenseDetail({
   onDuplicate: () => void;
   onDelete: () => void;
 }): ReactNode {
+  const fmt = useMoney();
   const nameOf = (id: string): string => members.find((m) => m.userId === id)?.displayName ?? 'Someone';
   /** Second person for the reader, so a line about them doesn't read as a line about a stranger. */
   const label = (id: string): string => (id === viewerId ? 'you' : nameOf(id));
@@ -95,7 +97,7 @@ export function ExpenseDetail({
     <div>
       <div className="text-center">
         <p className="font-display text-4xl font-semibold tracking-tight tnum">
-          {Money.fromCents(expense.amountCents).format()}
+          {fmt(expense.amountCents)}
         </p>
         <p className="mt-1 text-sm text-muted">
           <span aria-hidden className="mr-1">
@@ -111,12 +113,12 @@ export function ExpenseDetail({
           {iPaid ? (
             <>
               You paid, and your share is{' '}
-              <span className="tnum font-semibold">{Money.fromCents(myShare.owedCents).format()}</span>
+              <span className="tnum font-semibold">{fmt(myShare.owedCents)}</span>
             </>
           ) : (
             <>
               Your share is{' '}
-              <span className="tnum font-semibold">{Money.fromCents(myShare.owedCents).format()}</span>
+              <span className="tnum font-semibold">{fmt(myShare.owedCents)}</span>
             </>
           )}
         </p>
@@ -152,7 +154,7 @@ export function ExpenseDetail({
                     </span>
                   </span>
                 }
-                right={Money.fromCents(split.owedCents).format()}
+                right={fmt(split.owedCents)}
               />
             );
           })}
@@ -177,13 +179,13 @@ export function ExpenseDetail({
                     </span>
                   </span>
                 }
-                right={Money.fromCents(item.amountCents).format()}
+                right={fmt(item.amountCents)}
               />
             ))}
-            <Row left="Items" right={Money.fromCents(itemsTotal).format()} muted />
+            <Row left="Items" right={fmt(itemsTotal)} muted />
             {/* Tax and tip ride along with each item's share, so they're shown but not itemised again. */}
-            <Row left="Tax" right={Money.fromCents(expense.taxCents ?? 0).format()} muted />
-            <Row left="Tip" right={Money.fromCents(expense.tipCents ?? 0).format()} muted />
+            <Row left="Tax" right={fmt(expense.taxCents ?? 0)} muted />
+            <Row left="Tip" right={fmt(expense.tipCents ?? 0)} muted />
           </ul>
         </div>
       )}
@@ -193,7 +195,7 @@ export function ExpenseDetail({
           {correctionLine(
             expense.lastEdit.fields as CorrectionField[],
             nameOf(expense.lastEdit.byId),
-            Money.fromCents(expense.lastEdit.formerAmountCents).format(),
+            fmt(expense.lastEdit.formerAmountCents),
           )}
         </p>
       )}

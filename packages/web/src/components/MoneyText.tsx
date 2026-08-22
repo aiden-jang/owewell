@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Money } from '@owewell/shared';
+import { useMoney } from '../lib/currency';
 
 const REDUCED =
   typeof window !== 'undefined' &&
@@ -18,6 +18,7 @@ export function MoneyText({
   className?: string;
   duration?: number;
 }): ReactNode {
+  const fmt = useMoney();
   const [shown, setShown] = useState(cents);
   const fromRef = useRef(cents);
   const frameRef = useRef<number>(0);
@@ -41,5 +42,5 @@ export function MoneyText({
     return () => cancelAnimationFrame(frameRef.current);
   }, [cents, duration]);
 
-  return <span className={`tnum ${className}`}>{Money.fromCents(shown).format()}</span>;
+  return <span className={`tnum ${className}`}>{fmt(shown)}</span>;
 }

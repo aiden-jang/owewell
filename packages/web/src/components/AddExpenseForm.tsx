@@ -1,11 +1,12 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
-import { Money, computeSplit, dollarsToCents, type SplitMethod } from '@owewell/shared';
+import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
+import { useCurrencyCode, useMoney } from '../lib/currency';
 
 interface Props {
   groupId: string;
@@ -33,6 +34,8 @@ function initialValues(editing: Expense | undefined): Record<string, string> {
 }
 
 export function AddExpenseForm({ groupId, members, onCreated, editing, template }: Props): ReactNode {
+  const fmt = useMoney();
+  const symbol = currencySymbol(useCurrencyCode());
   const source = editing ?? template;
   const sourcePayer = source && members.some((member) => member.userId === source.payerId)
     ? source.payerId
@@ -127,7 +130,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
       const sum = participants.reduce((acc, p) => acc + (p.value ?? 0), 0);
       if (sum !== amountCents) {
         setError(
-          `The amounts need to add up to ${Money.fromCents(amountCents).format()}. Right now they total ${Money.fromCents(sum).format()}.`,
+          `The amounts need to add up to ${fmt(amountCents)}. Right now they total ${fmt(sum)}.`,
         );
         return;
       }
@@ -184,7 +187,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
         target = 0;
       }
       const tone = !ok ? 'text-neg' : target > 0 && sum === target ? 'text-pos' : sum > target ? 'text-neg' : 'text-muted';
-      splitHint = { text: `${Money.fromCents(sum).format()} of ${Money.fromCents(target).format()} assigned`, tone };
+      splitHint = { text: `${fmt(sum)} of ${fmt(target)} assigned`, tone };
     } else if (method === 'PERCENT') {
       let sum = 0;
       let ok = true;
@@ -239,8 +242,8 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
     const low = Math.min(...shares.map((s) => s.owedCents));
     const high = Math.max(...shares.map((s) => s.owedCents));
     const each = low === high
-      ? Money.fromCents(low).format()
-      : `${Money.fromCents(low).format()}–${Money.fromCents(high).format()}`;
+      ? fmt(low)
+      : `${fmt(low)}–${fmt(high)}`;
     return `${each} each · split ${ways}`;
   })();
 
@@ -259,7 +262,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
       <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
         <div className="flex items-baseline justify-center gap-1">
           <span aria-hidden className="font-display text-2xl font-semibold text-faint">
-            $
+            {symbol}
           </span>
           <input
             value={amount}
@@ -345,10 +348,10 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
                   }
                   className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                 />
-                <span className="w-14 shrink-0 text-sm text-muted">{splitMethodUnit(method)}</span>
+                <span className="w-14 shrink-0 text-sm text-muted">{method === 'EXACT' ? symbol : splitMethodUnit(method)}</span>
                 {/* Shares and percentages are abstractions; this is the dollars they come to. */}
                 <span className="tnum w-20 text-right text-sm text-muted">
-                  {shareOf.has(m.userId) ? Money.fromCents(shareOf.get(m.userId)!).format() : ''}
+                  {shareOf.has(m.userId) ? fmt(shareOf.get(m.userId)!) : ''}
                 </span>
               </div>
             )}
