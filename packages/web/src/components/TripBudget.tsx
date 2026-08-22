@@ -74,7 +74,7 @@ export function TripBudget({
     <section className="mt-3 rounded-xl border border-line bg-surface/75 p-3" aria-label="Trip budget">
       {editing ? (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Set a budget</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Set a budget</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {PRESETS.map(amount => (
               <button
@@ -132,7 +132,7 @@ export function TripBudget({
         <div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <span>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Budget</span>
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Budget</span>
               <strong className="mt-0.5 block text-sm text-ink">
                 {budget ? budgetLine(budget) : `${Money.fromCents(budgetCents).format()}, nothing spent yet.`}
               </strong>

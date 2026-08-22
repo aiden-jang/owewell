@@ -252,7 +252,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
           }`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line/70 px-3.5 py-2.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">What if?</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">What if?</span>
             <span className="tnum text-xs font-semibold text-ink">
               {Money.fromCents(preview.outstandingAfterCents).format()} left
             </span>

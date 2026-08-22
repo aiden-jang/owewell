@@ -23,7 +23,8 @@ interface ItemDraft {
 interface Props {
   groupId: string;
   members: GroupMember[];
-  onCreated: () => void;
+  /** Handed the saved expense so the caller can show it without waiting on a refetch. */
+  onCreated: (expense: Expense) => void;
   /** When set (an ITEMIZED expense), the form edits that receipt in place. */
   editing?: Expense;
   /** Prefill a new receipt from an old one while keeping today as the date. */
@@ -160,16 +161,17 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
     const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date };
     setSubmitting(true);
     try {
+      let saved: Expense;
       if (editing) {
-        await expensesApi.updateItemized(groupId, editing.id, payload);
+        saved = await expensesApi.updateItemized(groupId, editing.id, payload);
       } else {
-        await expensesApi.createItemized(groupId, payload);
+        saved = await expensesApi.createItemized(groupId, payload);
         setDescription('');
         setTax('');
         setTip('');
         setItems([{ name: '', amount: '', participantIds: allMemberIds(), payerId }]);
       }
-      onCreated();
+      onCreated(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the receipt.');
     } finally {
