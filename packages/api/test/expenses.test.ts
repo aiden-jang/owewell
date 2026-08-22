@@ -635,3 +635,38 @@ describe('corrections leave a trace', () => {
     expect((await listExpenses(db, alice, groupId))[0]!.lastEdit).toBeUndefined();
   });
 });
+
+describe('the note', () => {
+  test('round-trips, and an emptied field clears it', async () => {
+    const created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 6_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+      note: "Mara's birthday, she didn't pay",
+    });
+    expect((await listExpenses(db, alice, groupId))[0]!.note).toBe("Mara's birthday, she didn't pay");
+
+    // An edit that omits the note is an edit that removed it: the form always sends the field.
+    await updateExpense(db, alice, groupId, created.id, {
+      description: 'Dinner',
+      amountCents: 6_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    expect((await listExpenses(db, alice, groupId))[0]!.note).toBeNull();
+  });
+
+  test('is null on an expense that never had one', async () => {
+    await createExpense(db, alice, groupId, {
+      description: 'Taxi',
+      amountCents: 2_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    expect((await listExpenses(db, alice, groupId))[0]!.note).toBeNull();
+  });
+});

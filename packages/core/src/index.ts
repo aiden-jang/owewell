@@ -141,6 +141,8 @@ export interface Expense {
   createdAt: string;
   /** The effective expense date (user-set date, else createdAt). Drives feed order + display. */
   date: string;
+  /** A line of context from whoever entered it. Null when they didn't write one. */
+  note: string | null;
   splits: ExpenseSplit[];
   /** Present only for ITEMIZED expenses, so the edit form can prefill the receipt. */
   taxCents?: number;
@@ -169,6 +171,8 @@ export interface CreateExpensePayload {
   participants: SplitParticipantValue[];
   /** Spend category. Omit to default to "other". */
   category?: ExpenseCategory;
+  /** A line of context. Empty or null clears it. */
+  note?: string | null;
   /** The date the expense happened, as YYYY-MM-DD. Omit for "today". */
   date?: string;
 }
@@ -189,6 +193,8 @@ export interface CreateItemizedPayload {
   items: ExpenseItemInput[];
   /** Spend category. Omit to default to "other". */
   category?: ExpenseCategory;
+  /** A line of context. Empty or null clears it. */
+  note?: string | null;
   /** The date the expense happened, as YYYY-MM-DD. Omit for "today". */
   date?: string;
 }

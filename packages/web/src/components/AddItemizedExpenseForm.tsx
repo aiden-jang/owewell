@@ -55,6 +55,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
   const [category, setCategory] = useState<ExpenseCategory>(
     source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
+  const [note, setNote] = useState(source?.note ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -158,7 +159,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
       return;
     }
 
-    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date };
+    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date, note: note.trim() };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -233,6 +234,17 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
       />
 
       <CategoryPicker value={category} onChange={setCategory} />
+
+      {/* Optional and unlabelled on purpose: a placeholder is enough for a field nobody has to fill,
+          and a label would give it the same weight as the amount. */}
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        maxLength={280}
+        placeholder="Add a note (optional)"
+        aria-label="Note"
+        className={inputClass}
+      />
 
       <div className="space-y-3">
         {items.map((item, index) => (
