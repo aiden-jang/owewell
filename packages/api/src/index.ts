@@ -274,6 +274,8 @@ app.get('/owewell/groups/:id/expenses', async (c) => {
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const category = z.enum(EXPENSE_CATEGORY_KEYS as [string, ...string[]]).optional();
+// A line of context, not a document. Empty string clears it, which is what an emptied field sends.
+const note = z.string().trim().max(280).nullish();
 const createExpenseBody = z.object({
   description: z.string().trim().min(1).max(140),
   amountCents: z.number().int().positive(),
@@ -281,6 +283,7 @@ const createExpenseBody = z.object({
   splitMethod: z.enum(['EQUAL', 'EXACT', 'PERCENT', 'SHARES']),
   participants: z.array(z.object({ userId: z.string().min(1), value: z.number().int().optional() })).min(1),
   category,
+  note,
   date: isoDate.optional(),
 });
 app.post('/owewell/groups/:id/expenses', async (c) => {
@@ -314,6 +317,7 @@ const itemizedBody = z.object({
     )
     .min(1),
   category,
+  note,
   date: isoDate.optional(),
 });
 app.post('/owewell/groups/:id/expenses/itemized', async (c) => {

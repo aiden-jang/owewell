@@ -33,6 +33,8 @@ export interface CreateExpenseInput {
   participants: { userId: string; value?: number }[];
   /** Spend category key. Omit to default to "other". */
   category?: string | undefined;
+  /** Optional free text: why this cost what it did. Omit or null to clear. */
+  note?: string | null | undefined;
   /** The date the expense happened (backdatable). Omit to use "now". */
   date?: Date;
   /**
@@ -53,6 +55,8 @@ export interface CreateItemizedExpenseInput {
   tipCents: number;
   items: { name: string; amountCents: number; participantIds: string[]; payerId?: string | undefined }[];
   category?: string | undefined;
+  /** Optional free text: why this cost what it did. Omit or null to clear. */
+  note?: string | null | undefined;
   date?: Date;
 }
 
@@ -66,6 +70,8 @@ export interface ExpenseView {
   createdAt: Date;
   /** The effective expense date (user-set date, else createdAt). Drives feed order + display. */
   date: Date;
+  /** Optional free text from whoever entered it. Null when they didn't write one. */
+  note: string | null;
   splits: { userId: string; owedCents: number; inputValue?: number | null }[];
   // Present only for ITEMIZED expenses, so the edit form can prefill the receipt.
   taxCents?: number;
@@ -142,6 +148,7 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
     splitMethod: input.splitMethod,
     category: input.category ?? null,
     date: input.date ?? null,
+    note: input.note ?? null,
   });
   await db.insert(expenseSplits).values(
     shares.map((s) => ({
@@ -152,7 +159,7 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
       inputValue: valueByPerson.get(s.userId) ?? null,
     })),
   );
-  return { id, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 /** Replace a simple (non-itemized) expense in place, recomputing its splits. Preserves createdAt. */
@@ -197,6 +204,7 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       taxCents: 0,
       tipCents: 0,
       date: input.date ?? null,
+      note: input.note ?? null,
     })
     .where(eq(expenses.id, expenseId));
   /*
@@ -237,7 +245,7 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       inputValue: valueByPerson.get(s.userId) ?? null,
     })),
   );
-  return { id: expenseId, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id: expenseId, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 export async function createItemizedExpense(db: DB, personId: string, groupId: string, input: CreateItemizedExpenseInput): Promise<ExpenseView> {
@@ -281,6 +289,7 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
     taxCents: input.taxCents,
     tipCents: input.tipCents,
     date: input.date ?? null,
+    note: input.note ?? null,
   });
   await db.insert(expenseSplits).values(
     shares.map((s) => ({ id: crypto.randomUUID(), expenseId: id, personId: s.userId, owedCents: s.owedCents })),
@@ -292,7 +301,7 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
       item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
     );
   }
-  return { id, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 /** Replace an itemized expense in place: recompute item splits, swap items + shares. Preserves createdAt. */
@@ -339,6 +348,7 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
       taxCents: input.taxCents,
       tipCents: input.tipCents,
       date: input.date ?? null,
+      note: input.note ?? null,
     })
     .where(eq(expenses.id, expenseId));
   await clearItemizedRows(db, expenseId);
@@ -353,7 +363,7 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
       item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
     );
   }
-  return { id: expenseId, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id: expenseId, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 export async function listExpenses(db: DB, personId: string, groupId: string): Promise<ExpenseView[]> {
@@ -435,6 +445,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     category: e.category,
     createdAt: e.createdAt,
     date: e.date ?? e.createdAt,
+    note: e.note,
     splits: byExpense.get(e.id) ?? [],
     ...(editByExpense.has(e.id) ? { lastEdit: editByExpense.get(e.id)! } : {}),
     ...(e.splitMethod === 'ITEMIZED'

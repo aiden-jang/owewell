@@ -56,6 +56,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
   const [category, setCategory] = useState<ExpenseCategory>(
     source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
+  const [note, setNote] = useState(source?.note ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -143,7 +144,7 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
       }
     }
 
-    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date };
+    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date, note: note.trim() };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -309,6 +310,17 @@ export function AddExpenseForm({ groupId, members, onCreated, editing, template 
       </div>
 
       <CategoryPicker value={category} onChange={setCategory} />
+
+      {/* Optional and unlabelled on purpose: a placeholder is enough for a field nobody has to fill,
+          and a label would give it the same weight as the amount. */}
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        maxLength={280}
+        placeholder="Add a note (optional)"
+        aria-label="Note"
+        className={inputClass}
+      />
 
       <select
         value={method}
