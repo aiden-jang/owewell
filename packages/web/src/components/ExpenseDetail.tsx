@@ -76,6 +76,8 @@ export function ExpenseDetail({
   onDelete: () => void;
 }): ReactNode {
   const nameOf = (id: string): string => members.find((m) => m.userId === id)?.displayName ?? 'Someone';
+  /** Second person for the reader, so a line about them doesn't read as a line about a stranger. */
+  const label = (id: string): string => (id === viewerId ? 'you' : nameOf(id));
   const category = categoryMeta(expense.category);
   const itemized = expense.splitMethod === 'ITEMIZED';
   const payers = itemized && expense.items?.length
@@ -85,6 +87,9 @@ export function ExpenseDetail({
   const iPaid = payers.includes(viewerId ?? '');
   const items = expense.items ?? [];
   const itemsTotal = items.reduce((sum, i) => sum + i.amountCents, 0);
+  // Every share below is tagged with who paid, so a payer line on top of that is the same fact twice.
+  // It earns its place only when somebody fronted a bill they're not in, where the list can't say it.
+  const payersOutsideSplit = payers.filter((p) => !expense.splits.some((s) => s.userId === p));
 
   return (
     <div>
@@ -117,16 +122,14 @@ export function ExpenseDetail({
         </p>
       )}
 
-      <div className="mt-5">
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <Avatar name={nameOf(payers[0] ?? expense.payerId)} size="sm" />
-          <span>
-            {payers.length === 1
-              ? `${nameOf(payers[0]!)} paid`
-              : `${payers.map(nameOf).join(', ')} paid`}
+      {payersOutsideSplit.length > 0 && (
+        <div className="mt-5 flex items-center gap-2 text-sm text-muted">
+          <Avatar name={nameOf(payersOutsideSplit[0]!)} size="sm" />
+          <span className="first-letter:uppercase">
+            {payersOutsideSplit.map(label).join(', ')} paid without taking a share
           </span>
         </div>
-      </div>
+      )}
 
       <div className="mt-5 border-t border-line pt-3">
         <p className="text-xs font-medium uppercase tracking-wide text-faint">
@@ -170,7 +173,7 @@ export function ExpenseDetail({
                       {' · '}
                       {item.participantIds.length === expense.splits.length
                         ? 'shared'
-                        : item.participantIds.map(nameOf).join(', ')}
+                        : item.participantIds.map(label).join(', ')}
                     </span>
                   </span>
                 }
@@ -226,8 +229,8 @@ export function ExpenseDetail({
       )}
 
       {locked && !archived && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-faint">
-          <Icon name="undo" size={13} />
+        <p className="mt-3 flex items-start gap-1.5 text-xs text-faint">
+          <Icon name="undo" size={13} className="mt-0.5 shrink-0" />
           A payment&rsquo;s been recorded, so this is locked. Undo it to edit or remove this.
         </p>
       )}
