@@ -53,14 +53,19 @@
   --animate-fade: fade-in 0.2s ease-out;
 }
 
-h1,
-h2,
-h3 {
-  text-wrap: balance;
-}
+/* In the base layer, or these silently beat the utilities: `text-wrap` is part of the `white-space`
+   shorthand, so an unlayered `p { text-wrap: pretty }` re-enables wrapping on every `p.truncate` in
+   the app. Expense descriptions had been wrapping to three lines with a truncate class on them. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
 
-p {
-  text-wrap: pretty;
+  p {
+    text-wrap: pretty;
+  }
 }
 
 /* Direction A — neutral & flat. Deliberately no purple cast and no ambient gradient. */

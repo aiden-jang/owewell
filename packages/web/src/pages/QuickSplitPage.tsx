@@ -606,7 +606,7 @@ export function QuickSplitPage(): ReactNode {
   return (
     <div className="flex-1">
       {user ? <AppHeader /> : <PublicHeader />}
-      <main className="mx-auto max-w-xl animate-rise px-4 py-10">
+      <main className="mx-auto w-full max-w-xl animate-rise px-4 py-10">
         {user ? (
           <>
             <h1 className="font-display text-4xl font-semibold tracking-tight">Split a bill</h1>

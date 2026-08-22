@@ -89,7 +89,7 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
   return (
     <div className="flex-1">
       <AppHeader />
-      <main className="mx-auto max-w-2xl animate-rise px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
+      <main className="mx-auto w-full max-w-2xl animate-rise px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
         {children}
       </main>
     </div>
@@ -1792,18 +1792,18 @@ export function GroupDetailPage(): ReactNode {
                           </span>
                           {item.expense.description}
                         </p>
-                        <p className="text-sm text-muted">
+                        <p className="truncate text-sm text-muted">
                           {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
                           {/* Only flag when it wasn't shared with the whole group; "everyone" is the
                               default, so printing it on every row would just be noise. */}
                           {item.expense.splits.length < group.members.length && (
-                            <> · split {item.expense.splits.length} ways</>
+                            <> · {item.expense.splits.length} ways</>
                           )}
                         </p>
                         {/* A correction, said plainly. Almost every one is somebody fixing their own
                             typo, so this is muted text and not a warning colour. */}
                         {item.expense.lastEdit && (
-                          <p className="text-xs text-faint">
+                          <p className="truncate text-xs text-faint">
                             {correctionLine(
                               item.expense.lastEdit.fields as CorrectionField[],
                               nameOf(item.expense.lastEdit.byId),
