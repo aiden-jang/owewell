@@ -91,9 +91,16 @@ export const expenses = sqliteTable(
     date: integer('date', { mode: 'timestamp' }),
     // Optional free text from whoever entered it: why this cost what it did, who it was really for.
     note: text('note'),
+    // Chosen by the browser before the request leaves it, so a create that is retried after a dropped
+    // connection is recognised as the same expense instead of posted twice. Null on anything written
+    // before the outbox existed, and on writes that never had to be retried.
+    clientId: text('client_id'),
     deletedAt: integer('deleted_at', { mode: 'timestamp' }), // soft delete; keeps balances auditable
   },
-  (t) => ({ byGroup: index('exp_group').on(t.groupId) }),
+  (t) => ({
+    byGroup: index('exp_group').on(t.groupId),
+    groupClient: uniqueIndex('exp_group_client').on(t.groupId, t.clientId),
+  }),
 );
 
 /* What an expense used to say. Editing overwrote in place, so a $40 dinner becoming $80 left no

@@ -35,6 +35,11 @@ export interface CreateExpenseInput {
   category?: string | undefined;
   /** Optional free text: why this cost what it did. Omit or null to clear. */
   note?: string | null | undefined;
+  /**
+   * Client-chosen id, so a create that is retried after a dropped connection is recognised rather
+   * than duplicated. Omit for writes that cannot be replayed.
+   */
+  clientId?: string | undefined;
   /** The date the expense happened (backdatable). Omit to use "now". */
   date?: Date;
   /**
@@ -57,6 +62,8 @@ export interface CreateItemizedExpenseInput {
   category?: string | undefined;
   /** Optional free text: why this cost what it did. Omit or null to clear. */
   note?: string | null | undefined;
+  /** Client-chosen id, so a retried create is recognised rather than duplicated. */
+  clientId?: string | undefined;
   date?: Date;
 }
 
@@ -105,6 +112,38 @@ async function assertUnlocked(db: DB, groupId: string): Promise<void> {
   }
 }
 
+/** The expense this client id already produced, if any. Null when this is a first attempt. */
+async function findByClientId(db: DB, groupId: string, clientId: string): Promise<ExpenseView | null> {
+  const row = await db
+    .select({ id: expenses.id })
+    .from(expenses)
+    .where(and(eq(expenses.groupId, groupId), eq(expenses.clientId, clientId)))
+    .get();
+  if (!row) return null;
+  // Deleted counts as landed: replaying a create for something the user then deleted must not bring
+  // it back, so this looks past `deletedAt` deliberately and the caller gets the row as it stands.
+  const all = await db.select().from(expenses).where(eq(expenses.id, row.id)).get();
+  if (!all) return null;
+  return {
+    id: all.id,
+    description: all.description,
+    amountCents: all.amountCents,
+    payerId: all.payerId,
+    splitMethod: all.splitMethod,
+    category: all.category,
+    createdAt: all.createdAt,
+    date: all.date ?? all.createdAt,
+    note: all.note,
+    splits: (
+      await db
+        .select({ userId: expenseSplits.personId, owedCents: expenseSplits.owedCents, inputValue: expenseSplits.inputValue })
+        .from(expenseSplits)
+        .where(eq(expenseSplits.expenseId, all.id))
+        .all()
+    ).map((sp) => ({ userId: sp.userId, owedCents: sp.owedCents, inputValue: sp.inputValue })),
+  };
+}
+
 async function memberPersonIds(db: DB, groupId: string): Promise<Set<string>> {
   const rows = await db.select({ personId: groupMembers.personId }).from(groupMembers).where(eq(groupMembers.groupId, groupId)).all();
   return new Set(rows.map((r) => r.personId));
@@ -120,6 +159,21 @@ async function clearItemizedRows(db: DB, expenseId: string): Promise<void> {
 
 export async function createExpense(db: DB, personId: string, groupId: string, input: CreateExpenseInput): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
+  /*
+   * A retry of a write that already landed returns what landed.
+   *
+   * The browser's outbox replays a create when it cannot tell whether the first attempt reached us:
+   * a request that times out mid-flight looks identical, from the client, to one that never arrived.
+   * Without this the honest-looking recovery ("send it again") is how a $180 dinner shows up twice.
+   *
+   * Checked before validation on purpose. A replay is a claim about a write we may already have
+   * accepted, and re-validating it against a group that has since changed (a member removed, say)
+   * would reject a retry of something already sitting in the ledger.
+   */
+  if (input.clientId) {
+    const already = await findByClientId(db, groupId, input.clientId);
+    if (already) return already;
+  }
   const members = await memberPersonIds(db, groupId);
   if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   if (input.participants.some((p) => !members.has(p.userId))) {
@@ -149,6 +203,7 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
     category: input.category ?? null,
     date: input.date ?? null,
     note: input.note ?? null,
+    clientId: input.clientId ?? null,
   });
   await db.insert(expenseSplits).values(
     shares.map((s) => ({
@@ -250,6 +305,12 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
 
 export async function createItemizedExpense(db: DB, personId: string, groupId: string, input: CreateItemizedExpenseInput): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
+  // Same replay guard as the simple create. A receipt is the write most likely to be queued offline
+  // and the most expensive to duplicate, since it is also the biggest.
+  if (input.clientId) {
+    const already = await findByClientId(db, groupId, input.clientId);
+    if (already) return already;
+  }
   const members = await memberPersonIds(db, groupId);
   if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   const everyone = new Set(input.items.flatMap((i) => i.participantIds));
@@ -290,6 +351,7 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
     tipCents: input.tipCents,
     date: input.date ?? null,
     note: input.note ?? null,
+    clientId: input.clientId ?? null,
   });
   await db.insert(expenseSplits).values(
     shares.map((s) => ({ id: crypto.randomUUID(), expenseId: id, personId: s.userId, owedCents: s.owedCents })),

@@ -7,6 +7,7 @@ import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
 import { Icon } from './Icon';
+import { enqueue, isOffline } from '../lib/outbox';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -29,9 +30,11 @@ interface Props {
   editing?: Expense;
   /** Prefill a new receipt from an old one while keeping today as the date. */
   template?: Expense;
+  /** Called instead of onCreated when the write could not leave the device and was queued. */
+  onQueued?: (description: string) => void;
 }
 
-export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, template }: Props): ReactNode {
+export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
   const source = editing ?? template;
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
   const defaultPayer = source && members.some((member) => member.userId === source.payerId)
@@ -94,6 +97,14 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
     } finally {
       setScanning(false);
     }
+  }
+
+  function clearAfterCreate(): void {
+    setDescription('');
+    setTax('');
+    setTip('');
+    setNote('');
+    setItems([{ name: '', amount: '', participantIds: allMemberIds(), payerId }]);
   }
 
   function updateItem(index: number, patch: Partial<ItemDraft>): void {
@@ -159,7 +170,9 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
       return;
     }
 
-    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date, note: note.trim() };
+    // Minted before the request, so a retry carries the same one and is recognised as this receipt.
+    const clientId = crypto.randomUUID();
+    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date, note: note.trim(), clientId };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -167,13 +180,25 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, editing, t
         saved = await expensesApi.updateItemized(groupId, editing.id, payload);
       } else {
         saved = await expensesApi.createItemized(groupId, payload);
-        setDescription('');
-        setTax('');
-        setTip('');
-        setItems([{ name: '', amount: '', participantIds: allMemberIds(), payerId }]);
+        clearAfterCreate();
       }
       onCreated(saved);
     } catch (err) {
+      // The receipt is the write most worth keeping: it is the one that takes two minutes to type.
+      if (!editing && onQueued && isOffline(err)) {
+        enqueue({
+          clientId,
+          groupId,
+          kind: 'itemized',
+          description: trimmedDescription,
+          amountCents: payloadItems.reduce((sum, i) => sum + i.amountCents, 0) + taxCents + tipCents,
+          queuedAt: Date.now(),
+          payload,
+        });
+        clearAfterCreate();
+        onQueued(trimmedDescription);
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Could not save the receipt.');
     } finally {
       setSubmitting(false);

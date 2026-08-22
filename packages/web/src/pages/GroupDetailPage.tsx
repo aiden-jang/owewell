@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   correctionLine,
@@ -8,7 +8,14 @@ import {
   type CorrectionField,
   type MoneyFormatter,
 } from '@owewell/shared';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, categoryMeta, type PaymentMethod } from '@owewell/core';
+import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  categoryMeta,
+  type CreateExpensePayload,
+  type CreateItemizedPayload,
+  type PaymentMethod,
+} from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { Avatar } from '../components/Avatar';
@@ -37,6 +44,12 @@ import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
 import { CurrencyProvider } from '../lib/currency';
+import {
+  flush as flushOutboxWrites,
+  queued as outboxQueued,
+  subscribe as outboxSubscribe,
+  type QueuedWrite,
+} from '../lib/outbox';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
@@ -178,6 +191,7 @@ export function GroupDetailPage(): ReactNode {
   // Held by id, not by value: an edit or a realtime refetch replaces the object in `expenses`, and the
   // open sheet has to follow it. A deleted expense drops out of the list, which closes the sheet.
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
+  const [pending, setPending] = useState<QueuedWrite[]>(() => outboxQueued(id));
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
@@ -272,6 +286,65 @@ export function GroupDetailPage(): ReactNode {
     setCategoryFilter(key);
     setTab('activity');
   }
+
+  /*
+   * Send whatever is waiting, then say what happened to it.
+   *
+   * Called on mount, whenever the browser says it is back online, and after any successful write
+   * (a write getting through is the most reliable evidence there is that the network is back —
+   * `navigator.onLine` only means "attached to a network", which a captive portal also satisfies).
+   */
+  const flushing = useRef(false);
+  const flushOutbox = useCallback(async (): Promise<void> => {
+    /*
+     * One flush at a time.
+     *
+     * A flaky connection fires `online` more than once, and mount plus a reconnect can overlap, so
+     * two passes would take the same entry off the queue twice and post it twice. The server's
+     * clientId check means that is not a duplicate expense — which is the whole reason it exists —
+     * but a wasted round trip and two identical toasts are still wrong.
+     */
+    if (flushing.current) return;
+    flushing.current = true;
+    try {
+      await runFlush();
+    } finally {
+      flushing.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const runFlush = async (): Promise<void> => {
+    const { sent, rejected } = await flushOutboxWrites(
+      (entry) =>
+        entry.kind === 'itemized'
+          ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
+          : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
+      id,
+    );
+    setPending(outboxQueued(id));
+    if (sent > 0) {
+      play('add');
+      toast.success(sent === 1 ? 'Sent the expense that was waiting.' : `Sent ${sent} waiting expenses.`);
+      void refreshLedger();
+    }
+    for (const { entry, message } of rejected) {
+      // Named, because it is gone from the queue and the person has to know which one to retype.
+      toast.error(`"${entry.description}" could not be saved: ${message}`);
+    }
+  };
+
+  useEffect(() => {
+    setPending(outboxQueued(id));
+    void flushOutbox();
+    const onOnline = (): void => void flushOutbox();
+    window.addEventListener('online', onOnline);
+    const unsubscribe = outboxSubscribe(() => setPending(outboxQueued(id)));
+    return () => {
+      window.removeEventListener('online', onOnline);
+      unsubscribe();
+    };
+  }, [id, flushOutbox]);
 
   async function markPaid(payment: SuggestedPayment): Promise<void> {
     const ok = await confirm({
@@ -1816,6 +1889,32 @@ export function GroupDetailPage(): ReactNode {
             </div>
           ) : (
             <ul className="mt-3 space-y-2">
+              {/*
+                * Queued writes sit above the ledger, dimmed and inert.
+                *
+                * They are not expenses yet, so they are deliberately not in the balances above and
+                * say so: showing them as normal rows would mean the feed and the number at the top
+                * of the page disagreed, with nothing on screen to explain why.
+                */}
+              {pending.map((entry) => (
+                <li
+                  key={entry.clientId}
+                  className="animate-rise flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line-strong px-4 py-3 opacity-70"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
+                      <Icon name="share" size={13} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-muted">{entry.description}</p>
+                      <p className="truncate text-sm text-faint">
+                        Waiting for signal · not counted yet
+                      </p>
+                    </div>
+                  </div>
+                  <span className="tnum shrink-0 font-semibold text-muted">{fmt(entry.amountCents)}</span>
+                </li>
+              ))}
               {shownActivity.map((item, i) =>
                 item.kind === 'expense' ? (
                   <li
@@ -2334,6 +2433,11 @@ export function GroupDetailPage(): ReactNode {
               showSavedExpense(saved);
               void refreshLedger();
             }}
+            onQueued={(description) => {
+              setSheetOpen(false);
+              setPending(outboxQueued(id));
+              toast.success(`Kept "${description}". It goes out when you have signal.`);
+            }}
           />
         ) : (
           <AddItemizedExpenseForm
@@ -2346,6 +2450,11 @@ export function GroupDetailPage(): ReactNode {
               toast.success('Receipt added to the tab.');
               showSavedExpense(saved);
               void refreshLedger();
+            }}
+            onQueued={(description) => {
+              setSheetOpen(false);
+              setPending(outboxQueued(id));
+              toast.success(`Kept "${description}". It goes out when you have signal.`);
             }}
           />
         )}

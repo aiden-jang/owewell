@@ -737,3 +737,77 @@ describe('undoing a delete', () => {
     await expect(restoreExpense(db, stranger, groupId, created.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
+
+/*
+ * Replaying a create, which is what the browser's outbox does after a dropped connection.
+ *
+ * A request that dies mid-flight is indistinguishable, from the client, from one that never arrived,
+ * so the outbox has to be free to send it again. Everything below is about that being safe.
+ */
+describe('a create that gets retried', () => {
+  const dinnerWith = (clientId: string) =>
+    createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 18_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+      clientId,
+    });
+
+  test('lands once, however many times it is sent', async () => {
+    const first = await dinnerWith('outbox-1');
+    const second = await dinnerWith('outbox-1');
+    const third = await dinnerWith('outbox-1');
+
+    expect(second.id).toBe(first.id);
+    expect(third.id).toBe(first.id);
+    expect(await listExpenses(db, alice, groupId)).toHaveLength(1);
+    // The thing that actually matters: one dinner, not three, in what everybody owes.
+    expect((await getBalances(db, alice, groupId)).find((b) => b.userId === bob)!.netCents).toBe(-9_000);
+  });
+
+  test('does not resurrect something that was deleted after it landed', async () => {
+    const created = await dinnerWith('outbox-2');
+    await deleteExpense(db, alice, groupId, created.id);
+    // A queued replay arriving late must not undo the delete that happened in between.
+    await dinnerWith('outbox-2');
+    expect(await listExpenses(db, alice, groupId)).toHaveLength(0);
+  });
+
+  test('keeps separate writes separate', async () => {
+    await dinnerWith('outbox-3');
+    await dinnerWith('outbox-4');
+    expect(await listExpenses(db, alice, groupId)).toHaveLength(2);
+  });
+
+  test('covers itemized receipts, which are the ones worth queueing', async () => {
+    const receipt = () =>
+      createItemizedExpense(db, alice, groupId, {
+        description: 'Sunset Diner',
+        payerId: alice,
+        taxCents: 100,
+        tipCents: 200,
+        items: [{ name: 'Pasta', amountCents: 1_700, participantIds: [alice, bob] }],
+        clientId: 'outbox-receipt',
+      });
+    const first = await receipt();
+    expect((await receipt()).id).toBe(first.id);
+    expect(await listExpenses(db, alice, groupId)).toHaveLength(1);
+  });
+
+  test('the same id in another group is another expense', async () => {
+    const other = await createGroup(db, alice, 'Flat');
+    await dinnerWith('outbox-5');
+    await createExpense(db, alice, other.id, {
+      description: 'Rent',
+      amountCents: 1_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }],
+      clientId: 'outbox-5',
+    });
+    expect(await listExpenses(db, alice, groupId)).toHaveLength(1);
+    expect(await listExpenses(db, alice, other.id)).toHaveLength(1);
+  });
+});

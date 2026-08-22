@@ -13,7 +13,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
-    environmentMatchGlobs: [['src/**/*.dom.test.tsx', 'jsdom']],
+    // .ts as well as .tsx: not every test that needs a DOM renders a component. The outbox needs
+    // localStorage and navigator.onLine and has no JSX in it at all.
+    environmentMatchGlobs: [['src/**/*.dom.test.{ts,tsx}', 'jsdom']],
     setupFiles: ['./test/setup.ts'],
   },
 });
