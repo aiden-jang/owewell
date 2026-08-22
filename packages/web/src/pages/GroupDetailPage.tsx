@@ -2301,10 +2301,11 @@ export function GroupDetailPage(): ReactNode {
                                   </button>
                                 )}
                               </span>
+                              {/* One line: "paid $172.40 · share $57.00" was wrapping mid-phrase on
+                                  a phone and pushing the balance out of line. */}
                               {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
-                                <span className="tnum text-xs font-normal text-faint">
-                                  paid {fmt(bal.paidCents)} · share{' '}
-                                  {fmt(bal.owedCents)}
+                                <span className="tnum block truncate text-xs font-normal text-faint">
+                                  paid {fmt(bal.paidCents)} · share {fmt(bal.owedCents)}
                                 </span>
                               )}
                             </span>
