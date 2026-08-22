@@ -50,6 +50,9 @@ import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { buildGroupRecap } from '../lib/groupRecap';
 import { renderSettleCard } from '../lib/settleCard';
 
+/** How much of the feed renders before asking. Deep enough that most groups never see the button. */
+const ACTIVITY_PAGE = 50;
+
 function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatter): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
   // a brand-new member "settled up"; that only makes sense once there's been something to settle.
@@ -761,6 +764,23 @@ export function GroupDetailPage(): ReactNode {
       return haystack.some((value) => value.toLocaleLowerCase().includes(query));
     });
   }, [activity, activityQuery, categoryFilter, fmt, group, personFilter, relationFilter]);
+
+  /*
+   * The feed renders the most recent slice, not the whole ledger.
+   *
+   * A flatshare in its second year is several hundred rows, and every one of them is a card with an
+   * avatar and its own entrance animation. Filtering and search still run over everything above this
+   * line, so a match from last March is found and shown; only the unfiltered scroll is bounded.
+   */
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const shownActivity = showAllActivity ? visibleActivity : visibleActivity.slice(0, ACTIVITY_PAGE);
+  const hiddenActivityCount = visibleActivity.length - shownActivity.length;
+
+  // A new set of results is a new question, so it starts from the top again rather than dumping
+  // every match of a two-letter search at once.
+  useEffect(() => {
+    setShowAllActivity(false);
+  }, [activityQuery, categoryFilter, personFilter, relationFilter]);
 
   /**
    * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
@@ -1777,7 +1797,7 @@ export function GroupDetailPage(): ReactNode {
             </div>
           ) : (
             <ul className="mt-3 space-y-2">
-              {visibleActivity.map((item, i) =>
+              {shownActivity.map((item, i) =>
                 item.kind === 'expense' ? (
                   <li
                     key={`e-${item.expense.id}`}
@@ -1874,6 +1894,15 @@ export function GroupDetailPage(): ReactNode {
                 ),
               )}
             </ul>
+          )}
+          {hiddenActivityCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAllActivity(true)}
+              className="mt-3 w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
+            >
+              Show {hiddenActivityCount} older {hiddenActivityCount === 1 ? 'entry' : 'entries'}
+            </button>
           )}
         </section>
         </>
