@@ -99,8 +99,7 @@ async function assertUnlocked(db: DB, groupId: string): Promise<void> {
   }
 }
 
-/** Exported for the recurring-rules module, which validates the same payer/participant membership. */
-export async function memberPersonIds(db: DB, groupId: string): Promise<Set<string>> {
+async function memberPersonIds(db: DB, groupId: string): Promise<Set<string>> {
   const rows = await db.select({ personId: groupMembers.personId }).from(groupMembers).where(eq(groupMembers.groupId, groupId)).all();
   return new Set(rows.map((r) => r.personId));
 }

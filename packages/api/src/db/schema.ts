@@ -185,37 +185,3 @@ export const settlements = sqliteTable(
   },
   (t) => ({ byGroup: index('settle_group').on(t.groupId) }),
 );
-
-/*
- * A template plus a schedule, never a ledger entry: nothing here moves a balance until somebody accepts
- * a proposal. Dates are plain YYYY-MM-DD, since "the 1st" stored as an instant is the 30th west of you.
- */
-export const recurringRules = sqliteTable('recurring_rules', {
-  id: text('id').primaryKey(),
-  groupId: text('group_id')
-    .notNull()
-    .references(() => groups.id, { onDelete: 'cascade' }),
-  createdById: text('created_by_id')
-    .notNull()
-    .references(() => people.id),
-  description: text('description').notNull(),
-  amountCents: integer('amount_cents').notNull(),
-  payerId: text('payer_id')
-    .notNull()
-    .references(() => people.id),
-  category: text('category'),
-  /** 'weekly' | 'monthly'. Validated in the app layer against @owewell/shared CADENCES. */
-  cadence: text('cadence').notNull(),
-  /** The anchor. Every later occurrence is measured from here, never from the previous one. */
-  startsOn: text('starts_on').notNull(),
-  /** Latest occurrence added OR skipped. Skipping must advance it or the proposal never goes away. */
-  lastHandledOn: text('last_handled_on'),
-  /* JSON array of person ids, always split evenly. An EXACT template would be misleading: the amount
-   * that made those numbers right is the one thing about a bill that changes. Edit the expense instead. */
-  participantIds: text('participant_ids').notNull(),
-  /** Stopped rules are kept, not deleted, so the expenses they created keep their explanation. */
-  active: integer('active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
