@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Money } from '@owewell/shared';
+import { useMoney } from '../lib/currency';
 
 /**
  * Part-to-whole view of spend by category: a dependency-free SVG donut plus a legend, both
@@ -37,6 +37,7 @@ export function SpendDonut({
   activeKey?: string | null;
   onSelect?: (key: string) => void;
 }): ReactNode {
+  const fmt = useMoney();
   const interactive = typeof onSelect === 'function';
   const size = 168;
   const stroke = 24;
@@ -88,14 +89,14 @@ export function SpendDonut({
                 className={interactive ? 'cursor-pointer transition-opacity' : 'transition-opacity'}
                 style={{ opacity: dim ? 0.25 : 1 }}
               >
-                <title>{`${a.meta.label}: ${Money.fromCents(a.cents).format()} (${a.pct}%)`}</title>
+                <title>{`${a.meta.label}: ${fmt(a.cents)} (${a.pct}%)`}</title>
               </circle>
             );
           })}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-faint">total</span>
-          <span className="tnum font-display text-lg font-semibold">{Money.fromCents(total).format()}</span>
+          <span className="tnum font-display text-lg font-semibold">{fmt(total)}</span>
         </div>
       </div>
       <ul className="w-full flex-1 space-y-1">
@@ -107,7 +108,7 @@ export function SpendDonut({
               <span aria-hidden>{a.meta.emoji}</span>
               <span className={`truncate ${active ? 'font-medium text-accent' : ''}`}>{a.meta.label}</span>
               <span className="tnum ml-auto shrink-0 text-faint">{a.pct}%</span>
-              <span className="tnum w-20 shrink-0 text-right text-muted">{Money.fromCents(a.cents).format()}</span>
+              <span className="tnum w-20 shrink-0 text-right text-muted">{fmt(a.cents)}</span>
             </>
           );
           return (

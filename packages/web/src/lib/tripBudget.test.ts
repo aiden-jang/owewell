@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { todayStr } from './format';
 import { budgetDetail, budgetLine, budgetTone, tripBudget } from './tripBudget';
+import { currencyFormatter } from '@owewell/shared';
+
+/** Every assertion here is about the sentence, not the currency, so the formatter is a fixture. */
+const usd = currencyFormatter('USD');
 
 /* Half arithmetic, half tone. A budget bar that scolds is the easiest way to make this app feel
  * transactional, so the copy is asserted against its rules rather than exact strings. */
@@ -117,7 +121,7 @@ describe('the tone, which is the actual feature', () => {
   const fine = tripBudget(100_000, [day('2026-08-01', 200)], 4, new Date('2026-08-01T12:00:00Z'))!;
   const close = tripBudget(100_000, [day('2026-08-01', 850)], 4, new Date('2026-08-01T12:00:00Z'))!;
   const past = tripBudget(100_000, [day('2026-08-01', 1_300)], 4, new Date('2026-08-01T12:00:00Z'))!;
-  const lines = [budgetLine(fine), budgetLine(close), budgetLine(past)];
+  const lines = [budgetLine(fine, usd), budgetLine(close, usd), budgetLine(past, usd)];
 
   it('warns before the number rather than telling anybody off after it', () => {
     expect(budgetTone(fine)).toBe('fine');
@@ -145,7 +149,7 @@ describe('the tone, which is the actual feature', () => {
   });
 
   it('says what is true when the group has gone past the number, without a verdict', () => {
-    const line = budgetLine(past);
+    const line = budgetLine(past, usd);
     expect(line).toContain('$300.00'); // how far past, stated plainly
     expect(line).toContain('$1,000.00'); // and the number they set
   });
@@ -159,16 +163,16 @@ describe('the tone, which is the actual feature', () => {
   });
 
   it('turns a frightening group total into the number a person can act on', () => {
-    const detail = budgetDetail(past);
+    const detail = budgetDetail(past, usd);
     expect(detail).toContain('$325.00 each');
   });
 
   it('leaves out the daily rate rather than printing a placeholder for it', () => {
-    expect(budgetDetail(fine)).toBe('$50.00 each so far');
+    expect(budgetDetail(fine, usd)).toBe('$50.00 each so far');
   });
 
   it('has no detail line at all for a group of one on day one', () => {
     const alone = tripBudget(10_000, [day('2026-08-01', 50)], 0, new Date('2026-08-01T12:00:00Z'))!;
-    expect(budgetDetail(alone)).toBeNull();
+    expect(budgetDetail(alone, usd)).toBeNull();
   });
 });

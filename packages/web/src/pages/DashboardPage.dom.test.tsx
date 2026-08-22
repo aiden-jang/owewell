@@ -27,6 +27,7 @@ function group(over: Partial<GroupSummary> = {}): GroupSummary {
     name: 'Tahoe trip',
     createdAt: new Date(Date.now() - 30 * DAY).toISOString(),
     archived: false,
+    currency: 'USD',
     memberCount: 4,
     netCents: 0,
     totalUnsettledCents: 0,

@@ -11,6 +11,7 @@ import {
   renameMember,
   setGroupArchived,
   setGroupBudget,
+  setGroupCurrency,
   setSettlementDeadline,
   getOrCreateShareToken,
   getSharedSummary,
@@ -98,6 +99,44 @@ describe('groups', () => {
     // A non-member gets NOT_FOUND rather than NOT_OWNER, which is the existing convention: telling a
     // stranger "you are not the owner" confirms the group exists.
     await expect(setGroupBudget(db, stranger, group.id, 150_000)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  test('a group counts in dollars unless it is told otherwise', async () => {
+    const db = testDb();
+    expect((await createGroup(db, alice, 'Flat')).currency).toBe('USD');
+    expect((await createGroup(db, alice, 'Lisbon', 'EUR')).currency).toBe('EUR');
+  });
+
+  /*
+   * The currency is a label on a ledger of integer minor units, so changing it must not touch a single
+   * stored amount. A conversion would need a rate and a date, and would rewrite numbers the group has
+   * already agreed on; this only changes how they read.
+   */
+  test('changing the currency relabels without moving any money', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Lisbon');
+    const bob = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
+    await createExpense(db, alice, group.id, {
+      description: 'Dinner',
+      amountCents: 4_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+
+    const before = await getBalances(db, alice, group.id);
+    expect((await setGroupCurrency(db, alice, group.id, 'EUR')).currency).toBe('EUR');
+    expect(await getBalances(db, alice, group.id)).toEqual(before);
+  });
+
+  test('only the owner can change the currency, and only to one we can count in', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Lisbon');
+    const memberId = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
+    await expect(setGroupCurrency(db, memberId, group.id, 'EUR')).rejects.toMatchObject({ code: 'NOT_OWNER' });
+    // Yen has no minor unit, so a ledger of hundredths would allocate amounts nobody can pay.
+    await expect(setGroupCurrency(db, alice, group.id, 'JPY')).rejects.toMatchObject({ code: 'INVALID_CURRENCY' });
+    await expect(createGroup(db, alice, 'Tokyo', 'JPY')).rejects.toMatchObject({ code: 'INVALID_CURRENCY' });
   });
 
   test('rejects a budget that is not an amount', async () => {

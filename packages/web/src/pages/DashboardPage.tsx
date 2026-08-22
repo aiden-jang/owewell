@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Money } from '@owewell/shared';
+import { CURRENCIES, currencyFormatter, DEFAULT_CURRENCY, type MoneyFormatter } from '@owewell/shared';
+import { CurrencyProvider } from '../lib/currency';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
@@ -17,6 +18,7 @@ function perGroupLabel(
   netCents: number,
   hasExpenses: boolean,
   groupHasUnsettled: boolean,
+  fmt: MoneyFormatter,
 ): { text: string; className: string } {
   // No expenses yet isn't "settled" — there's just nothing owed. Show a neutral "no expenses".
   if (!hasExpenses) return { text: 'no expenses', className: 'text-faint' };
@@ -24,7 +26,7 @@ function perGroupLabel(
   // "settled up" claims the whole group is clear; "you're square" is just the viewer's balance.
   if (netCents === 0)
     return { text: groupHasUnsettled ? "you're square" : 'settled up', className: 'text-muted' };
-  const amount = Money.fromCents(Math.abs(netCents)).format();
+  const amount = fmt(Math.abs(netCents));
   return netCents > 0
     ? { text: `+${amount}`, className: 'text-pos' }
     : { text: `-${amount}`, className: 'text-neg' };
@@ -39,6 +41,8 @@ export function DashboardPage(): ReactNode {
   // loadError = the fetch failed (show a retry, not the cheerful "no groups" state).
   const [loadError, setLoadError] = useState(false);
   const [name, setName] = useState('');
+  // Sticky across the session would be wrong: most people have one currency and one odd trip.
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
   const [creatingOpen, setCreatingOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,11 +148,33 @@ export function DashboardPage(): ReactNode {
   }, [loadGroups]);
 
   // Archived groups drop out of the overall totals and the main list.
+  /*
+   * Totals per currency, never across them.
+   *
+   * Groups each count in their own currency, so one summed figure would be euros added to dollars
+   * presented as a number somebody might act on. Almost everybody has one currency and sees exactly
+   * what they saw before; anybody with two gets two lines rather than one wrong one.
+   */
   const totals = useMemo(() => {
-    const list = (groups ?? []).filter((g) => !g.archived);
-    const owed = list.filter((g) => g.netCents > 0).reduce((s, g) => s + g.netCents, 0);
-    const owe = list.filter((g) => g.netCents < 0).reduce((s, g) => s - g.netCents, 0);
-    return { owed, owe, net: owed - owe };
+    const byCurrency = new Map<string, { owed: number; owe: number; net: number }>();
+    for (const g of (groups ?? []).filter((x) => !x.archived)) {
+      const t = byCurrency.get(g.currency) ?? { owed: 0, owe: 0, net: 0 };
+      if (g.netCents > 0) t.owed += g.netCents;
+      if (g.netCents < 0) t.owe -= g.netCents;
+      t.net = t.owed - t.owe;
+      byCurrency.set(g.currency, t);
+    }
+    const codes = [...byCurrency.keys()].sort();
+    const only = codes.length === 1 ? byCurrency.get(codes[0]!)! : null;
+    return {
+      byCurrency,
+      codes,
+      mixed: codes.length > 1,
+      owed: only?.owed ?? 0,
+      owe: only?.owe ?? 0,
+      net: only?.net ?? 0,
+      fmt: currencyFormatter(codes.length === 1 ? codes[0]! : DEFAULT_CURRENCY),
+    };
   }, [groups]);
 
   async function savePending(): Promise<void> {
@@ -180,7 +206,7 @@ export function DashboardPage(): ReactNode {
     setCreating(true);
     setError(null);
     try {
-      const group = await groupsApi.create(name.trim());
+      const group = await groupsApi.create(name.trim(), currency);
       setGroups((prev) => [
         {
           id: group.id,
@@ -193,6 +219,7 @@ export function DashboardPage(): ReactNode {
           totalSpentCents: 0,
           lastActivityAt: group.createdAt,
           isOwner: true,
+          currency: group.currency,
         },
         ...(prev ?? []),
       ]);
@@ -204,7 +231,7 @@ export function DashboardPage(): ReactNode {
     }
   }
 
-  const settled = totals.net === 0;
+  const settled = !totals.mixed && totals.net === 0;
   const owed = totals.net > 0;
   const activeGroups = (groups ?? []).filter((g) => !g.archived);
   const archivedGroups = (groups ?? []).filter((g) => g.archived);
@@ -219,7 +246,8 @@ export function DashboardPage(): ReactNode {
 
   // `selectable` rows become tap-to-select in select mode; archived rows stay plain links.
   const groupRow = (group: GroupSummary, selectable = true): ReactNode => {
-    const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0);
+    const fmt = currencyFormatter(group.currency);
+    const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0, fmt);
     // Last activity, not creation date: it answers "is this still going on", which is the only date
     // question a dashboard row raises. A group with no expenses yet says when it was started.
     const activity = group.totalSpentCents > 0 ? timeAgo(group.lastActivityAt) : `started ${timeAgo(group.createdAt)}`;
@@ -246,7 +274,7 @@ export function DashboardPage(): ReactNode {
           <span className={`tnum text-sm font-semibold ${label.className}`}>{label.text}</span>
           {group.totalUnsettledCents > 0 && (
             <span className="tnum whitespace-nowrap text-xs text-faint">
-              {Money.fromCents(group.totalUnsettledCents).format()} unsettled
+              {fmt(group.totalUnsettledCents)} unsettled
             </span>
           )}
         </span>
@@ -320,37 +348,57 @@ export function DashboardPage(): ReactNode {
 
         <section className="glass rounded-3xl p-6 sm:p-7">
           <p className="text-sm font-medium text-muted">
-            {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
+            {totals.mixed
+              ? 'Across all your groups'
+              : settled
+                ? 'Across all your groups'
+                : owed
+                  ? "You're owed, overall"
+                  : 'You owe, overall'}
           </p>
           <p
             className={`mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl ${
               settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
             }`}
           >
-            {settled && hasAnySpend ? (
+            {totals.mixed ? (
+              <span className="flex flex-col gap-1 text-3xl sm:text-4xl">
+                {totals.codes.map((code) => {
+                  const t = totals.byCurrency.get(code)!;
+                  const f = currencyFormatter(code);
+                  return (
+                    <span key={code} className={t.net > 0 ? 'text-pos' : t.net < 0 ? 'text-neg' : 'text-ink'}>
+                      {t.net === 0 ? `${code} square` : `${t.net > 0 ? '+' : '−'}${f(Math.abs(t.net))}`}
+                    </span>
+                  );
+                })}
+              </span>
+            ) : settled && hasAnySpend ? (
               othersStillOwe ? (
                 "You're square"
               ) : (
                 'All settled'
               )
             ) : (
-              <MoneyText cents={Math.abs(totals.net)} />
+              <CurrencyProvider code={totals.codes[0] ?? DEFAULT_CURRENCY}>
+                <MoneyText cents={Math.abs(totals.net)} />
+              </CurrencyProvider>
             )}
           </p>
-          {(totals.owed > 0 || totals.owe > 0) && (
+          {!totals.mixed && (totals.owed > 0 || totals.owe > 0) && (
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-pos" />
                 <span className="text-muted">owed to you</span>
                 <span className="tnum font-medium text-pos">
-                  {Money.fromCents(totals.owed).format()}
+                  {totals.fmt(totals.owed)}
                 </span>
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-neg" />
                 <span className="text-muted">you owe</span>
                 <span className="tnum font-medium text-neg">
-                  {Money.fromCents(totals.owe).format()}
+                  {totals.fmt(totals.owe)}
                 </span>
               </span>
             </div>
@@ -408,6 +456,20 @@ export function DashboardPage(): ReactNode {
                   nameTouched && !name.trim() ? 'border-neg' : 'border-line focus:border-accent'
                 }`}
               />
+              {/* Right here rather than buried in settings: it is a two-second choice when the group
+                  is a trip, and an annoying correction once the first expense is in. */}
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                aria-label="Currency"
+                className="rounded-xl border border-line bg-field px-2.5 py-2.5 text-sm outline-none transition focus:border-accent"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code}
+                  </option>
+                ))}
+              </select>
               <button
                 type="submit"
                 disabled={creating || !name.trim()}

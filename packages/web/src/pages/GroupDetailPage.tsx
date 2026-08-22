@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { correctionLine, Money, type CorrectionField } from '@owewell/shared';
+import {
+  correctionLine,
+  CURRENCIES,
+  currencyFormatter,
+  DEFAULT_CURRENCY,
+  type CorrectionField,
+  type MoneyFormatter,
+} from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, categoryMeta, type PaymentMethod } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
@@ -29,6 +36,7 @@ import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
+import { CurrencyProvider } from '../lib/currency';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
@@ -42,20 +50,20 @@ import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { buildGroupRecap } from '../lib/groupRecap';
 import { renderSettleCard } from '../lib/settleCard';
 
-function balanceLabel(netCents: number, hasActivity: boolean): { text: string; tone: string } {
+function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatter): { text: string; tone: string } {
   // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
   // a brand-new member "settled up"; that only makes sense once there's been something to settle.
   if (!hasActivity) return { text: '', tone: 'text-muted' };
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
-  const amount = Money.fromCents(Math.abs(netCents)).format();
+  const amount = fmt(Math.abs(netCents));
   return netCents > 0
     ? { text: `is owed ${amount}`, tone: 'text-pos' }
     : { text: `owes ${amount}`, tone: 'text-neg' };
 }
 
-function balanceStateLabel(netCents: number): string {
+function balanceStateLabel(netCents: number, fmt: MoneyFormatter): string {
   if (netCents === 0) return 'square';
-  const amount = Money.fromCents(Math.abs(netCents)).format();
+  const amount = fmt(Math.abs(netCents));
   return netCents > 0 ? `is owed ${amount}` : `owes ${amount}`;
 }
 
@@ -313,14 +321,14 @@ export function GroupDetailPage(): ReactNode {
   async function shareSettlePlan(): Promise<void> {
     if (!group || suggested.length === 0) return;
     const lines = suggested.map(
-      (payment) => `• ${payment.fromName} pays ${payment.toName} ${Money.fromCents(payment.amountCents).format()}`,
+      (payment) => `• ${payment.fromName} pays ${payment.toName} ${fmt(payment.amountCents)}`,
     );
     const total = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
     const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
     const deadline = group.settleBy
       ? `\nSettle by ${new Date(group.settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
       : '';
-    const text = `${group.name} settle-up\n${Money.fromCents(total).format()} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`;
+    const text = `${group.name} settle-up\n${fmt(total)} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`;
     const finish = (status: 'shared' | 'copied'): void => {
       setSettleShareStatus(status);
       window.setTimeout(() => setSettleShareStatus(null), 2200);
@@ -351,7 +359,7 @@ export function GroupDetailPage(): ReactNode {
     if (!group || suggested.length === 0 || settleCardStatus) return;
     setSettleCardStatus('making');
     try {
-      const blob = await renderSettleCard(group.name, suggested);
+      const blob = await renderSettleCard(group.name, suggested, fmt);
       if (!blob) {
         setSettleCardStatus(null);
         toast.error('Could not make the settle-up card.');
@@ -405,6 +413,7 @@ export function GroupDetailPage(): ReactNode {
         payUrl,
       },
       nudgeTone,
+      fmt,
     );
     const finish = (status: 'shared' | 'copied'): void => {
       setNudgeShareStatus(status);
@@ -440,11 +449,11 @@ export function GroupDetailPage(): ReactNode {
     const recap = buildGroupRecap(expenses, settlements);
     const paymentLabel = settlements.length === 1 ? 'payment' : 'payments';
     const highlights = [
-      recap.topCategory ? `Top category: ${recap.topCategory.emoji} ${recap.topCategory.label} (${Money.fromCents(recap.topCategory.amountCents).format()})` : null,
-      recap.largest ? `Biggest expense: ${recap.largest.description} (${Money.fromCents(recap.largest.amountCents).format()})` : null,
+      recap.topCategory ? `Top category: ${recap.topCategory.emoji} ${recap.topCategory.label} (${fmt(recap.topCategory.amountCents)})` : null,
+      recap.largest ? `Biggest expense: ${recap.largest.description} (${fmt(recap.largest.amountCents)})` : null,
       recap.daysOpen ? `Tab open for ${recap.daysOpen} ${recap.daysOpen === 1 ? 'day' : 'days'}` : null,
     ].filter(Boolean).join('\n');
-    const text = `${group.name} is all settled ✓\n${Money.fromCents(recap.totalCents).format()} split across ${group.members.length} people\n${settlements.length} ${paymentLabel} recorded${highlights ? `\n\n${highlights}` : ''}`;
+    const text = `${group.name} is all settled ✓\n${fmt(recap.totalCents)} split across ${group.members.length} people\n${settlements.length} ${paymentLabel} recorded${highlights ? `\n\n${highlights}` : ''}`;
     const finish = (status: 'shared' | 'copied'): void => {
       setRecapShareStatus(status);
       window.setTimeout(() => setRecapShareStatus(null), 2200);
@@ -473,7 +482,7 @@ export function GroupDetailPage(): ReactNode {
 
   async function shareMyBalance(): Promise<void> {
     if (!group || myNet === 0 || balanceShareStatus) return;
-    const amount = Money.fromCents(Math.abs(myNet)).format();
+    const amount = fmt(Math.abs(myNet));
     const text = myNet > 0
       ? `${group.name}: I’m owed ${amount}. Let’s get it settled in owewell.`
       : `${group.name}: I still owe ${amount}. I’ll send it over.`;
@@ -550,6 +559,25 @@ export function GroupDetailPage(): ReactNode {
       void refreshLedger();
     } catch {
       toast.error('Could not delete that expense.');
+    }
+  }
+
+  /*
+   * Relabel, not convert.
+   *
+   * Stored amounts are integer minor units and stay exactly as they are, so a $40 dinner reads as
+   * €40 afterwards. Converting would need a rate and a date for that rate, and would quietly rewrite
+   * numbers people already agreed on. The toast says so rather than leaving it to be discovered.
+   */
+  async function changeCurrency(currency: string): Promise<void> {
+    if (!group || currency === group.currency) return;
+    try {
+      const updated = await groupsApi.setCurrency(id, currency);
+      setGroup(updated);
+      setMenuOpen(false);
+      toast.success(`Now counting in ${currency}. Amounts were relabelled, not converted.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change the currency.');
     }
   }
 
@@ -692,6 +720,16 @@ export function GroupDetailPage(): ReactNode {
     return items.sort((a, b) => b.ts - a.ts);
   }, [expenses, settlements]);
 
+  /*
+   * One formatter for this group's money: used directly by the page and handed to everything under it
+   * through the provider at the bottom of the render.
+   *
+   * Declared up here with the other hooks rather than beside the derived values further down, because
+   * the search memo below formats amounts to match them against the query. A `const` further down the
+   * function body is in its temporal dead zone when that callback runs, so searching would have thrown.
+   */
+  const fmt = useMemo(() => currencyFormatter(group?.currency ?? DEFAULT_CURRENCY), [group?.currency]);
+
   // Person/category filters are expense-specific. Text search spans the entire ledger, including
   // payments, and matches the same human labels the rows display rather than internal ids.
   const visibleActivity = useMemo(() => {
@@ -711,18 +749,18 @@ export function GroupDetailPage(): ReactNode {
             categoryMeta(item.expense.category).label,
             memberName(item.expense.payerId),
             ...item.expense.splits.map((split) => memberName(split.userId)),
-            Money.fromCents(item.expense.amountCents).format(),
+            fmt(item.expense.amountCents),
           ]
         : [
             memberName(item.settlement.fromUserId),
             memberName(item.settlement.toUserId),
             'payment',
             item.settlement.method ? PAYMENT_METHOD_LABELS[item.settlement.method] : '',
-            Money.fromCents(item.settlement.amountCents).format(),
+            fmt(item.settlement.amountCents),
           ];
       return haystack.some((value) => value.toLocaleLowerCase().includes(query));
     });
-  }, [activity, activityQuery, categoryFilter, group, personFilter, relationFilter]);
+  }, [activity, activityQuery, categoryFilter, fmt, group, personFilter, relationFilter]);
 
   /**
    * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
@@ -930,21 +968,21 @@ export function GroupDetailPage(): ReactNode {
         date: expense.date || expense.createdAt,
         type: 'Expense',
         description: expense.description,
-        amount: Money.fromCents(expense.amountCents).format(),
+        amount: fmt(expense.amountCents),
         details: `${nameOf(expense.payerId)} paid · ${categoryMeta(expense.category).label}`,
       })),
       ...settlements.map((settlement) => ({
         date: settlement.createdAt,
         type: 'Payment',
         description: `${nameOf(settlement.fromUserId)} → ${nameOf(settlement.toUserId)}`,
-        amount: Money.fromCents(settlement.amountCents).format(),
+        amount: fmt(settlement.amountCents),
         details: settlement.method ? `via ${PAYMENT_METHOD_LABELS[settlement.method]}` : 'payment recorded',
       })),
       ...balances.map((balance) => ({
         date: '',
         type: 'Current balance',
         description: nameOf(balance.userId),
-        amount: Money.fromCents(Math.abs(balance.netCents)).format(),
+        amount: fmt(Math.abs(balance.netCents)),
         details: balance.netCents > 0 ? 'is owed' : balance.netCents < 0 ? 'owes' : 'settled up',
       })),
     ].sort((a, b) => {
@@ -981,6 +1019,7 @@ export function GroupDetailPage(): ReactNode {
   }
 
   return (
+    <CurrencyProvider code={group.currency}>
     <Shell>
       <div className="flex items-center justify-between gap-3">
         <Link
@@ -1093,6 +1132,25 @@ export function GroupDetailPage(): ReactNode {
                       <Icon name="pencil" size={15} /> Rename
                     </button>
                   )}
+                  {isOwner && (
+                    <label className="flex w-full items-center justify-between gap-2.5 px-4 py-2.5 text-left text-sm">
+                      <span className="flex items-center gap-2.5">
+                        <Icon name="wallet" size={15} /> Currency
+                      </span>
+                      <select
+                        value={group.currency}
+                        onChange={(e) => void changeCurrency(e.target.value)}
+                        aria-label="Group currency"
+                        className="rounded-lg border border-line bg-field px-2 py-1 text-sm outline-none focus:border-accent"
+                      >
+                        {CURRENCIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.code}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   {/* Per-member: archiving hides the group from your own list only. */}
                   <button
                     role="menuitem"
@@ -1160,19 +1218,19 @@ export function GroupDetailPage(): ReactNode {
         </p>
         {totalUnsettled > 0 && (
           <p className="mt-2 text-xs text-faint">
-            {Money.fromCents(totalUnsettled).format()} still unsettled across the group
+            {fmt(totalUnsettled)} still unsettled across the group
           </p>
         )}
         {totalSettled > 0 && (
           <p className="mt-1 text-xs text-faint">
-            {Money.fromCents(totalSettled).format()} settled so far
+            {fmt(totalSettled)} settled so far
           </p>
         )}
         {monthlyPulse && (
           <div className={`mt-4 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-left text-sm ${settled ? 'mx-auto' : ''}`}>
             <span>
               <span className="block text-xs text-faint">This month</span>
-              <span className="tnum font-semibold text-ink">{Money.fromCents(monthlyPulse.currentCents).format()}</span>
+              <span className="tnum font-semibold text-ink">{fmt(monthlyPulse.currentCents)}</span>
             </span>
             <span className={`text-right text-xs font-medium ${monthlyPulse.change === 'up' ? 'text-neg' : monthlyPulse.change === 'down' ? 'text-pos' : 'text-muted'}`}>
               {pulseLabel(monthlyPulse)}
@@ -1374,7 +1432,7 @@ export function GroupDetailPage(): ReactNode {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
                     <p className="mt-0.5 text-sm font-semibold text-ink">
                       {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
-                      <span className="tnum text-ink">{Money.fromCents(bestSettleStep.payment.amountCents).format()}</span>
+                      <span className="tnum text-ink">{fmt(bestSettleStep.payment.amountCents)}</span>
                     </p>
                   </div>
                   <span className="tnum shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-muted">
@@ -1386,7 +1444,7 @@ export function GroupDetailPage(): ReactNode {
                     ? 'One payment settles the whole group.'
                     : bestSettleStep.clearedNames.length > 0
                       ? `Clears ${bestSettleStep.clearedNames.join(' and ')} from the list, with ${bestSettleStep.remainingTransfers} ${bestSettleStep.remainingTransfers === 1 ? 'transfer' : 'transfers'} left.`
-                      : `${Money.fromCents(bestSettleStep.remainingCents).format()} would remain after this.`}
+                      : `${fmt(bestSettleStep.remainingCents)} would remain after this.`}
                 </p>
               </div>
             )}
@@ -1394,7 +1452,7 @@ export function GroupDetailPage(): ReactNode {
               <span className="text-muted">
                 {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
               </span>
-              <span className="tnum font-semibold text-ink">{Money.fromCents(settlePlanTotal).format()} remaining</span>
+              <span className="tnum font-semibold text-ink">{fmt(settlePlanTotal)} remaining</span>
             </div>
             <ul className="mt-3 space-y-2">
               {orderedSuggestions.map((payment) => (
@@ -1418,7 +1476,7 @@ export function GroupDetailPage(): ReactNode {
                       <span className="text-muted"> pays </span>
                       <span className="font-medium">{payment.toName}</span>{' '}
                       <span className="tnum font-medium">
-                        {Money.fromCents(payment.amountCents).format()}
+                        {fmt(payment.amountCents)}
                       </span>
                     </span>
                   </span>
@@ -1532,6 +1590,7 @@ export function GroupDetailPage(): ReactNode {
                             )[0]?.url,
                           },
                           nudgeTone,
+                          fmt,
                         )}
                       </p>
                       <div className="mt-2 flex items-center justify-between gap-3">
@@ -1562,10 +1621,10 @@ export function GroupDetailPage(): ReactNode {
                         {projectBalancesAfterPayment(payment, balances).map(projected => (
                           <p key={projected.userId} className="text-xs text-muted">
                             <span className="font-medium text-ink">{projected.displayName}</span>{' '}
-                            <span className="tnum">{balanceStateLabel(projected.beforeCents)}</span>
+                            <span className="tnum">{balanceStateLabel(projected.beforeCents, fmt)}</span>
                             <span aria-hidden> → </span>
                             <span className={`tnum font-medium ${projected.becomesSettled ? 'text-pos' : 'text-ink'}`}>
-                              {balanceStateLabel(projected.afterCents)}
+                              {balanceStateLabel(projected.afterCents, fmt)}
                             </span>
                           </p>
                         ))}
@@ -1669,10 +1728,10 @@ export function GroupDetailPage(): ReactNode {
             <h2 className="sr-only">Activity</h2>
             {(lensActive ? lensTotal : totalSpent) > 0 && (
               <span className="tnum text-sm text-muted">
-                {Money.fromCents(lensActive ? lensTotal : totalSpent).format()}{' '}
+                {fmt(lensActive ? lensTotal : totalSpent)}{' '}
                 {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
                 {!lensActive && perPersonCents > 0 && (
-                  <span className="text-faint"> · {Money.fromCents(perPersonCents).format()} avg/person</span>
+                  <span className="text-faint"> · {fmt(perPersonCents)} avg/person</span>
                 )}
               </span>
             )}
@@ -1735,7 +1794,7 @@ export function GroupDetailPage(): ReactNode {
                     <button
                       type="button"
                       onClick={() => setDetailExpenseId(item.expense.id)}
-                      aria-label={`${item.expense.description}, ${Money.fromCents(item.expense.amountCents).format()}. See details.`}
+                      aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
                       className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-surface2 active:scale-[0.99]"
                     >
                       <div className="flex min-w-0 items-center gap-3">
@@ -1762,7 +1821,7 @@ export function GroupDetailPage(): ReactNode {
                               {correctionLine(
                                 item.expense.lastEdit.fields as CorrectionField[],
                                 nameOf(item.expense.lastEdit.byId),
-                                Money.fromCents(item.expense.lastEdit.formerAmountCents).format(),
+                                fmt(item.expense.lastEdit.formerAmountCents),
                               )}
                             </p>
                           )}
@@ -1770,7 +1829,7 @@ export function GroupDetailPage(): ReactNode {
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <span className="tnum font-semibold">
-                          {Money.fromCents(item.expense.amountCents).format()}
+                          {fmt(item.expense.amountCents)}
                         </span>
                         <Icon name="chevron-right" size={16} className="text-faint" />
                       </div>
@@ -1800,7 +1859,7 @@ export function GroupDetailPage(): ReactNode {
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className="tnum font-medium text-pos">
-                        {Money.fromCents(item.settlement.amountCents).format()}
+                        {fmt(item.settlement.amountCents)}
                       </span>
                       <button
                         type="button"
@@ -1837,7 +1896,7 @@ export function GroupDetailPage(): ReactNode {
               <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
                 <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Total spent</span>
                 <strong className="mt-1 block font-display text-lg text-ink">
-                  {Money.fromCents(groupRecap.totalCents).format()}
+                  {fmt(groupRecap.totalCents)}
                 </strong>
               </div>
               <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
@@ -1846,7 +1905,7 @@ export function GroupDetailPage(): ReactNode {
                   {groupRecap.largest?.description ?? 'nothing yet'}
                 </strong>
                 {groupRecap.largest && (
-                  <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.largest.amountCents).format()}</span>
+                  <span className="mt-0.5 block text-xs text-muted">{fmt(groupRecap.largest.amountCents)}</span>
                 )}
               </div>
               <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
@@ -1855,7 +1914,7 @@ export function GroupDetailPage(): ReactNode {
                   {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : 'nothing yet'}
                 </strong>
                 {groupRecap.topCategory && (
-                  <span className="mt-0.5 block text-xs text-muted">{Money.fromCents(groupRecap.topCategory.amountCents).format()}</span>
+                  <span className="mt-0.5 block text-xs text-muted">{fmt(groupRecap.topCategory.amountCents)}</span>
                 )}
               </div>
               <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
@@ -1956,7 +2015,7 @@ export function GroupDetailPage(): ReactNode {
                         />
                       </span>
                       <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
-                        {Money.fromCents(cents).format()}
+                        {fmt(cents)}
                       </span>
                     </button>
                   </li>
@@ -1996,7 +2055,7 @@ export function GroupDetailPage(): ReactNode {
             <div className="mt-3 animate-fade">
               <ul className="space-y-2">
                 {group.members.map((member) => {
-                  const label = balanceLabel(balanceByUser[member.userId] ?? 0, hasActivity);
+                  const label = balanceLabel(balanceByUser[member.userId] ?? 0, hasActivity, fmt);
                   const bal = balanceOf[member.userId];
                   const isSelf = member.userId === user?.id;
                   // The owner can remove a non-owner member only before any payment is recorded
@@ -2105,8 +2164,8 @@ export function GroupDetailPage(): ReactNode {
                               </span>
                               {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
                                 <span className="tnum text-xs font-normal text-faint">
-                                  paid {Money.fromCents(bal.paidCents).format()} · share{' '}
-                                  {Money.fromCents(bal.owedCents).format()}
+                                  paid {fmt(bal.paidCents)} · share{' '}
+                                  {fmt(bal.owedCents)}
                                 </span>
                               )}
                             </span>
@@ -2368,5 +2427,6 @@ export function GroupDetailPage(): ReactNode {
         )}
       </Sheet>
     </Shell>
+    </CurrencyProvider>
   );
 }
