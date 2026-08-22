@@ -19,22 +19,6 @@ export {
   type PayerShare,
 } from './itemized.js';
 export {
-  cadenceLabel,
-  CADENCES,
-  daysInMonth,
-  dueOccurrences,
-  formatYmd,
-  MAX_PROPOSALS,
-  nextOccurrenceAfter,
-  parseYmd,
-  RecurringError,
-  compareYmd,
-  type Cadence,
-  type DueOccurrences,
-  type RecurringRule,
-  type Ymd,
-} from './recurring.js';
-export {
   changedFields,
   correctionLine,
   isCorrection,

@@ -30,9 +30,9 @@ describe('settle-by deadlines', () => {
  * Whether a finish line currently applies is read from the balances, not stored.
  *
  * Recording a payment used to null the deadline in the database, which only covered one of the several
- * writes that can empty a ledger: deleting the last expense, deleting an overpayment, and a recurring bill
- * that offsets a debt all reach zero too, and all of them left the deadline nagging about money nobody
- * owed. It also threw the owner's finish line away, so a group that settled mid-trip and kept spending had
+ * writes that can empty a ledger: deleting the last expense, deleting an overpayment, and editing an
+ * expense down so it offsets a debt all reach zero too, and all of them left the deadline nagging about
+ * money nobody owed. It also threw the owner's finish line away, so a group that settled mid-trip and kept spending had
  * nothing left to settle by.
  */
 describe('whether the finish line applies right now', () => {
