@@ -95,6 +95,8 @@ export const expenses = sqliteTable(
     // connection is recognised as the same expense instead of posted twice. Null on anything written
     // before the outbox existed, and on writes that never had to be retried.
     clientId: text('client_id'),
+    // R2 object name for the receipt photo, or null. See the receipt routes in index.ts.
+    receiptKey: text('receipt_key'),
     deletedAt: integer('deleted_at', { mode: 'timestamp' }), // soft delete; keeps balances auditable
   },
   (t) => ({
