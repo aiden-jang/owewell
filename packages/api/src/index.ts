@@ -46,6 +46,13 @@ import {
   recordSettlement,
 } from './settlements.js';
 import { extractReceipt } from './ocr.js';
+import {
+  deleteReceipt,
+  deleteReceipts,
+  getReceipt,
+  putReceipt,
+  ReceiptError,
+} from './receipts.js';
 import { QuickSplitError, createQuickSplit } from './quicksplit.js';
 import { notifyGroupChanged } from './realtime.js';
 
@@ -68,7 +75,13 @@ app.use('*', harden());
  * Applied to every API path rather than to /me, because every one of them is per-user: balances,
  * groups, expenses. A response whose body depends on who is asking must never be stored.
  */
-app.use('/owewell/*', noStore());
+// Receipts set their own (private, short) caching: they are the one thing under /owewell that is
+// bytes rather than a per-user answer, and re-fetching a photo on every render is pure waste.
+const RECEIPT_PATH = /\/expenses\/[^/]+\/receipt$/;
+app.use('/owewell/*', async (c, next) => {
+  if (RECEIPT_PATH.test(c.req.path)) return next();
+  return noStore()(c, next);
+});
 app.use('/health', noStore());
 
 function noStore() {
@@ -205,7 +218,9 @@ app.post('/owewell/groups/:id/archive', async (c) => {
 });
 
 app.delete('/owewell/groups/:id', async (c) => {
-  await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
+  const receiptKeys = await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
+  // After the rows are gone: an image nobody can reach is still an image being paid for.
+  c.executionCtx.waitUntil(deleteReceipts(c.env.RECEIPTS, receiptKeys));
   return c.json({ ok: true });
 });
 
@@ -413,6 +428,63 @@ app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
   return c.json({ ok: true });
 });
 
+/*
+ * Receipt photos: written after the expense exists, read only by members.
+ *
+ * A separate request from the create rather than a multipart body on it, because the ledger write
+ * has to be able to succeed on its own. A photo that fails to upload leaves an expense with the
+ * money right and no picture, which is recoverable; a create that fails because an image did is not
+ * worth the tidiness of one round trip.
+ */
+app.put('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
+  const contentType = c.req.header('content-type') ?? '';
+  await putReceipt(
+    createDb(c.env),
+    c.env.RECEIPTS,
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+    await c.req.arrayBuffer(),
+    contentType.split(';')[0]?.trim() ?? '',
+  );
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ ok: true });
+});
+
+app.get('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
+  const object = await getReceipt(
+    createDb(c.env),
+    c.env.RECEIPTS,
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+  );
+  if (!object) return c.json({ error: 'NOT_FOUND' }, 404);
+  return new Response(object.body, {
+    headers: {
+      'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+      // `private`, so it stays in the one browser that is allowed to have it and never in a shared
+      // cache. Short, because replacing a photo keeps the same URL.
+      'Cache-Control': 'private, max-age=300',
+      // Belt and braces on a route that streams user-supplied bytes back out.
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+});
+
+app.delete('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
+  await deleteReceipt(
+    createDb(c.env),
+    c.env.RECEIPTS,
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+  );
+  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
+  return c.json({ ok: true });
+});
+
 app.post('/owewell/groups/:id/ocr', async (c) => {
   await requireMembership(createDb(c.env), c.get('person').id, c.req.param('id'));
   const form = await c.req.formData();
@@ -514,6 +586,9 @@ app.onError((err, c) => {
   }
   if (err instanceof SettlementError) {
     return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
+  }
+  if (err instanceof ReceiptError) {
+    return c.json({ error: err.code, message: err.message }, 422);
   }
   if (err instanceof QuickSplitError) {
     return c.json({ error: err.code, message: err.message }, 422);

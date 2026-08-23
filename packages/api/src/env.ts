@@ -10,6 +10,9 @@ export interface Env {
   // The built web SPA (apps/owewell/web/dist), served from this same Worker so the UI and
   // the /owewell/* API share one origin.
   ASSETS: Fetcher;
+  // Receipt photos. Objects are keyed "<groupId>/<expenseId>", so the key is derivable from the
+  // expense and nothing is ever stored for a form somebody abandoned.
+  RECEIPTS: R2Bucket;
   // Receipt OCR via Claude vision. Unset = zero-cost mock extractor.
   ANTHROPIC_API_KEY?: string;
 }

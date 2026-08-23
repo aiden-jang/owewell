@@ -36,7 +36,7 @@ import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupDetail, type GroupMember, type GroupSummary } from '../lib/groups';
-import { expensesApi, type Expense } from '../lib/expenses';
+import { expensesApi, receiptUrl, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
@@ -2431,6 +2431,7 @@ export function GroupDetailPage(): ReactNode {
               setPending(outboxQueued(id));
               toast.success(`Kept "${description}". It goes out when you have signal.`);
             }}
+            onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
           />
         ) : (
           <AddItemizedExpenseForm
@@ -2449,6 +2450,7 @@ export function GroupDetailPage(): ReactNode {
               setPending(outboxQueued(id));
               toast.success(`Kept "${description}". It goes out when you have signal.`);
             }}
+            onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
           />
         )}
       </Sheet>
@@ -2476,6 +2478,7 @@ export function GroupDetailPage(): ReactNode {
         {detailExpense && (
           <ExpenseDetail
             expense={detailExpense}
+            receiptSrc={receiptUrl(id, detailExpense.id)}
             members={group.members}
             viewerId={user?.id}
             locked={settlements.length > 0}

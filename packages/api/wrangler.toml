@@ -23,6 +23,13 @@ database_name = "owewell"
 database_id = "1f212b63-ba43-42a4-8b5c-38d7f5c76efb"
 migrations_dir = "migrations"
 
+# Receipt photos, keyed by "<groupId>/<expenseId>" so an object only ever exists for a real expense
+# and re-uploading replaces rather than accumulates. Create it once before the first deploy:
+#   wrangler r2 bucket create owewell-receipts
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "owewell-receipts"
+
 # Per-group realtime fan-out. One GroupRoom instance per group, addressed by group id.
 [[durable_objects.bindings]]
 name = "REALTIME"

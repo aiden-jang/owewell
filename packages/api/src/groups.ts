@@ -649,10 +649,22 @@ export async function renameGroup(db: DB, personId: string, groupId: string, nam
   return getGroup(db, personId, groupId);
 }
 
-export async function deleteGroup(db: DB, personId: string, groupId: string): Promise<void> {
+/**
+ * Delete a group and everything under it.
+ *
+ * Returns the receipt object keys it removed rows for. Deleting them is the caller's job because
+ * this module has no bucket, but they cannot be found afterwards either, so the list has to come
+ * back out of here or the images stay in R2 forever with nothing pointing at them.
+ */
+export async function deleteGroup(db: DB, personId: string, groupId: string): Promise<string[]> {
   await requireOwner(db, personId, groupId);
   // Explicit cascade (don't rely on SQLite FK enforcement in D1).
-  const exps = await db.select({ id: expenses.id }).from(expenses).where(eq(expenses.groupId, groupId)).all();
+  const exps = await db
+    .select({ id: expenses.id, receiptKey: expenses.receiptKey })
+    .from(expenses)
+    .where(eq(expenses.groupId, groupId))
+    .all();
+  const receiptKeys = exps.map((e) => e.receiptKey).filter((k): k is string => k !== null);
   const expIds = exps.map((e) => e.id);
   if (expIds.length) {
     const items = await db.select({ id: expenseItems.id }).from(expenseItems).where(inArray(expenseItems.expenseId, expIds)).all();
@@ -666,6 +678,7 @@ export async function deleteGroup(db: DB, personId: string, groupId: string): Pr
   await db.delete(groupMembers).where(eq(groupMembers.groupId, groupId));
   await db.delete(groups).where(eq(groups.id, groupId));
   await pruneOrphanPlaceholders(db);
+  return receiptKeys;
 }
 
 /**

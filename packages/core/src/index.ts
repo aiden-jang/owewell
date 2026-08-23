@@ -143,6 +143,8 @@ export interface Expense {
   date: string;
   /** A line of context from whoever entered it. Null when they didn't write one. */
   note: string | null;
+  /** Whether a receipt photo is attached. The image comes from its own endpoint, not this payload. */
+  hasReceipt: boolean;
   splits: ExpenseSplit[];
   /** Present only for ITEMIZED expenses, so the edit form can prefill the receipt. */
   taxCents?: number;
