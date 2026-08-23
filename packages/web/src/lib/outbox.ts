@@ -1,4 +1,5 @@
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
+import { ApiError } from './api';
 
 /*
  * Writes that were typed while the network was not there.
@@ -7,9 +8,10 @@ import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core'
  * Losing a six-person itemized receipt to a failed POST is the worst thing this app can do short of
  * getting the arithmetic wrong, so a create that cannot reach the server is kept here and sent later.
  *
- * Scope is deliberately narrow: creates only. Edits and deletes of a queued expense would need a
- * local id that becomes a server id, and offline settlements would let two people record the same
- * payment twice with nothing to reconcile them. Both are real features; neither is this one.
+ * Creates and deletes, not edits or settlements. Those two are not merely unbuilt: an edit replayed
+ * an hour later silently overwrites whatever happened in between, and a settlement recorded offline
+ * lands against balances that have since moved. Both want a "this changed while you were away"
+ * conversation rather than a queue that quietly wins.
  *
  * Not the Background Sync API, which would be the textbook answer: Safari does not implement it, and
  * a bill splitter that only works offline on Android is not offline support.
@@ -17,18 +19,47 @@ import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core'
 
 const KEY = 'owewell:outbox';
 
-export type QueuedKind = 'expense' | 'itemized';
-
-export interface QueuedWrite {
-  /** Also the server's idempotency key: a replay of this is recognised, not duplicated. */
+interface QueuedBase {
+  /** Identifies this write across retries. For creates it is also the server's idempotency key. */
   clientId: string;
   groupId: string;
-  kind: QueuedKind;
-  /** Enough to render a row for it without unpacking the payload. */
+  /** Enough to name it in a message without unpacking the payload. */
   description: string;
-  amountCents: number;
   queuedAt: number;
+}
+
+export interface QueuedCreate extends QueuedBase {
+  kind: 'expense' | 'itemized';
+  amountCents: number;
   payload: CreateExpensePayload | CreateItemizedPayload;
+}
+
+/**
+ * A delete that could not be sent.
+ *
+ * Safe to queue for the same reason it needed no idempotency key: deleting is naturally repeatable,
+ * and an expense that is already gone is the outcome this was asking for. Which is also why the
+ * caller has to treat a 404 on replay as success rather than as a rejection — see `isAlreadyDone`.
+ */
+export interface QueuedDelete extends QueuedBase {
+  kind: 'delete';
+  expenseId: string;
+}
+
+export type QueuedWrite = QueuedCreate | QueuedDelete;
+
+export const isCreate = (entry: QueuedWrite): entry is QueuedCreate => entry.kind !== 'delete';
+export const isDelete = (entry: QueuedWrite): entry is QueuedDelete => entry.kind === 'delete';
+
+/**
+ * A replayed delete landing on something already deleted.
+ *
+ * The server answers 404, which everywhere else means "this failed". Here it means the queue can
+ * stop carrying it: somebody else deleted it, or an earlier attempt got through before the
+ * connection dropped and the browser never heard the answer.
+ */
+export function isAlreadyDone(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404;
 }
 
 type Listener = () => void;

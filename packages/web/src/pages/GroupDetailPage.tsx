@@ -45,7 +45,13 @@ import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
 import { CurrencyProvider } from '../lib/currency';
 import {
+  drop as dropWrite,
+  enqueue as enqueueWrite,
   flush as flushOutboxWrites,
+  isAlreadyDone,
+  isCreate,
+  isDelete,
+  isOffline,
   queued as outboxQueued,
   subscribe as outboxSubscribe,
   type QueuedWrite,
@@ -178,6 +184,12 @@ export function GroupDetailPage(): ReactNode {
   // open sheet has to follow it. A deleted expense drops out of the list, which closes the sheet.
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
   const [pending, setPending] = useState<QueuedWrite[]>(() => outboxQueued(id));
+  const pendingCreates = pending.filter(isCreate);
+  // Memoised: a fresh Set every render would defeat the activity memo below that depends on it.
+  const pendingDeletes = useMemo(
+    () => new Set(pending.filter(isDelete).map((e) => e.expenseId)),
+    [pending],
+  );
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
@@ -303,15 +315,21 @@ export function GroupDetailPage(): ReactNode {
   const runFlush = async (): Promise<void> => {
     const { sent, rejected } = await flushOutboxWrites(
       (entry) =>
-        entry.kind === 'itemized'
-          ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
-          : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
+        entry.kind === 'delete'
+          ? // A queued delete finding nothing to delete got what it wanted, so it leaves the queue
+            // rather than being reported as a failure the person has to do something about.
+            expensesApi.remove(entry.groupId, entry.expenseId).catch((err: unknown) => {
+              if (!isAlreadyDone(err)) throw err;
+            })
+          : entry.kind === 'itemized'
+            ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
+            : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
       id,
     );
     setPending(outboxQueued(id));
     if (sent > 0) {
       play('add');
-      toast.success(sent === 1 ? 'Sent the expense that was waiting.' : `Sent ${sent} waiting expenses.`);
+      toast.success(sent === 1 ? 'Sent the change that was waiting.' : `Sent ${sent} waiting changes.`);
       void refreshLedger();
     }
     for (const { entry, message } of rejected) {
@@ -650,17 +668,41 @@ export function GroupDetailPage(): ReactNode {
    */
   async function deleteExpense(expenseId: string): Promise<void> {
     const removed = expenses.find((e) => e.id === expenseId);
+    const name = removed ? `Deleted ${removed.description}.` : 'Expense deleted.';
     try {
       await expensesApi.remove(id, expenseId);
       // Off the list on the same tick as the toast, rather than one refetch later.
       setExpenses((current) => current.filter((e) => e.id !== expenseId));
       void refreshLedger();
-      toast.success(removed ? `Deleted ${removed.description}.` : 'Expense deleted.', {
-        label: 'Undo',
-        onClick: () => void undoDeleteExpense(expenseId),
+      toast.success(name, { label: 'Undo', onClick: () => void undoDeleteExpense(expenseId) });
+    } catch (err) {
+      if (!isOffline(err)) {
+        toast.error('Could not delete that expense.');
+        return;
+      }
+      /*
+       * Queued, and undone by dropping the queue entry.
+       *
+       * Calling restore here would be asking the server to put back something it never removed. The
+       * row is hidden from the feed by the queued delete itself, so undo is simply forgetting it.
+       */
+      const clientId = crypto.randomUUID();
+      enqueueWrite({
+        clientId,
+        groupId: id,
+        kind: 'delete',
+        expenseId,
+        description: removed?.description ?? 'that expense',
+        queuedAt: Date.now(),
       });
-    } catch {
-      toast.error('Could not delete that expense.');
+      setPending(outboxQueued(id));
+      toast.success(`${name} It syncs when you have signal.`, {
+        label: 'Undo',
+        onClick: () => {
+          dropWrite(clientId);
+          setPending(outboxQueued(id));
+        },
+      });
     }
   }
 
@@ -823,7 +865,11 @@ export function GroupDetailPage(): ReactNode {
 
   const activity = useMemo<Activity[]>(() => {
     const items: Activity[] = [
-      ...expenses.map((e) => ({ kind: 'expense' as const, ts: new Date(e.date).getTime(), expense: e })),
+      // A delete waiting to be sent hides its row. Without this the feed would show it again after a
+      // reload — the server still has it — and the queue would delete it a second time on reconnect.
+      ...expenses
+        .filter((e) => !pendingDeletes.has(e.id))
+        .map((e) => ({ kind: 'expense' as const, ts: new Date(e.date).getTime(), expense: e })),
       ...settlements.map((s) => ({
         kind: 'settlement' as const,
         ts: new Date(s.createdAt).getTime(),
@@ -831,7 +877,7 @@ export function GroupDetailPage(): ReactNode {
       })),
     ];
     return items.sort((a, b) => b.ts - a.ts);
-  }, [expenses, settlements]);
+  }, [expenses, settlements, pendingDeletes]);
 
   /*
    * One formatter for this group's money: used directly by the page and handed to everything under it
@@ -1920,7 +1966,7 @@ export function GroupDetailPage(): ReactNode {
                 * say so: showing them as normal rows would mean the feed and the number at the top
                 * of the page disagreed, with nothing on screen to explain why.
                 */}
-              {pending.map((entry) => (
+              {pendingCreates.map((entry) => (
                 <li
                   key={entry.clientId}
                   className="animate-rise flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line-strong px-4 py-3 opacity-70"
