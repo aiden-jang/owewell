@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import { ExpenseError } from './expenses.js';
@@ -101,35 +101,9 @@ export async function deleteReceipt(
   await db.update(expenses).set({ receiptKey: null }).where(eq(expenses.id, expenseId));
 }
 
-/**
- * Every object belonging to a group, for the one operation that really destroys data.
- *
- * Deleting an expense is soft, so its photo stays with it and comes back on undo. Deleting a group
- * is not: the rows go, and images left behind would be unreachable bytes billed forever.
- */
-export async function receiptKeysForGroup(db: DB, groupId: string): Promise<string[]> {
-  const rows = await db
-    .select({ receiptKey: expenses.receiptKey })
-    .from(expenses)
-    .where(and(eq(expenses.groupId, groupId), isNotNull(expenses.receiptKey)))
-    .all();
-  return rows.map((r) => r.receiptKey).filter((k): k is string => k !== null);
-}
-
 /** R2 caps a bulk delete at 1000 keys, so this goes in batches for a group with a long history. */
 export async function deleteReceipts(bucket: R2Bucket, keys: string[]): Promise<void> {
   for (let i = 0; i < keys.length; i += 1000) {
     await bucket.delete(keys.slice(i, i + 1000));
   }
-}
-
-/** Used by the expense reader to say which rows have one without touching the bucket. */
-export async function receiptFlags(db: DB, expenseIds: string[]): Promise<Set<string>> {
-  if (expenseIds.length === 0) return new Set();
-  const rows = await db
-    .select({ id: expenses.id, receiptKey: expenses.receiptKey })
-    .from(expenses)
-    .where(and(inArray(expenses.id, expenseIds), isNotNull(expenses.receiptKey)))
-    .all();
-  return new Set(rows.map((r) => r.id));
 }
