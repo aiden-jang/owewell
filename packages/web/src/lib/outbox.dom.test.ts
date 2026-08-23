@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { drop, enqueue, flush, isOffline, queued } from './outbox';
+import { drop, enqueue, flush, isAlreadyDone, isCreate, isDelete, isOffline, queued } from './outbox';
+import { ApiError } from './api';
 import type { CreateExpensePayload } from '@owewell/core';
 
 /**
@@ -144,5 +145,51 @@ describe('dropping', () => {
     enqueue(entry('b', 200));
     drop('a');
     expect(queued().map((e) => e.clientId)).toEqual(['b']);
+  });
+});
+
+/*
+ * Deletes, which are queued on different terms from creates.
+ *
+ * A create needs an idempotency key so a replay is recognised. A delete needs none: it is repeatable
+ * by nature, and the failure mode a key would prevent — doing it twice — is the outcome anyway.
+ */
+describe('a queued delete', () => {
+  const del = (clientId: string, expenseId: string) => ({
+    clientId,
+    groupId: 'g1',
+    kind: 'delete' as const,
+    expenseId,
+    description: 'Dinner',
+    queuedAt: 100,
+  });
+
+  it('is told apart from a create', () => {
+    enqueue(del('d1', 'e1'));
+    enqueue(entry('c1', 200));
+    const all = queued();
+    expect(all.filter(isDelete).map((e) => e.expenseId)).toEqual(['e1']);
+    expect(all.filter(isCreate).map((e) => e.clientId)).toEqual(['c1']);
+  });
+
+  it('goes out and leaves the queue', async () => {
+    enqueue(del('d1', 'e1'));
+    const send = vi.fn().mockResolvedValue(undefined);
+    await flush(send);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ kind: 'delete', expenseId: 'e1' }));
+    expect(queued()).toEqual([]);
+  });
+
+  /*
+   * "Already gone" is success, not failure.
+   *
+   * Somebody else deleted it, or the first attempt landed and the answer never came back. Either way
+   * the queue's job is done, and reporting it as a rejection would tell the person to worry about
+   * something that already happened the way they wanted.
+   */
+  it('recognises a 404 as the job being done', () => {
+    expect(isAlreadyDone(new ApiError(404, 'That expense is already gone.'))).toBe(true);
+    expect(isAlreadyDone(new ApiError(422, 'Nope.'))).toBe(false);
+    expect(isAlreadyDone(new TypeError('Failed to fetch'))).toBe(false);
   });
 });
