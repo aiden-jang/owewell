@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { correctionLine, type CorrectionField } from '@owewell/shared';
 import { categoryMeta, type Expense, type GroupMember } from '@owewell/core';
 import { Avatar } from './Avatar';
@@ -66,6 +66,8 @@ export function ExpenseDetail({
   onDuplicate,
   onDelete,
   receiptSrc,
+  onAttachReceipt,
+  onRemoveReceipt,
 }: {
   expense: Expense;
   members: GroupMember[];
@@ -78,8 +80,12 @@ export function ExpenseDetail({
   onDelete: () => void;
   /** Where the photo lives, when there is one. Same-origin and members-only. */
   receiptSrc?: string;
+  /** Attach or replace the photo. Omitted in read-only views. */
+  onAttachReceipt?: (file: File) => void;
+  onRemoveReceipt?: () => void;
 }): ReactNode {
   const fmt = useMoney();
+  const fileRef = useRef<HTMLInputElement>(null);
   const nameOf = (id: string): string => members.find((m) => m.userId === id)?.displayName ?? 'Someone';
   /** Second person for the reader, so a line about them doesn't read as a line about a stranger. */
   const label = (id: string): string => (id === viewerId ? 'you' : nameOf(id));
@@ -200,20 +206,71 @@ export function ExpenseDetail({
         * so loading it before anyone looks would be the most expensive thing on the screen. No
         * lightbox — the browser's own image view already pinches and zooms better than one built here.
         */}
-      {expense.hasReceipt && receiptSrc && (
-        <a
-          href={receiptSrc}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 block overflow-hidden rounded-xl border border-line transition hover:border-line-strong"
-        >
-          <img
-            src={receiptSrc}
-            alt={`Receipt for ${expense.description}`}
-            loading="lazy"
-            className="max-h-64 w-full bg-surface2 object-contain"
-          />
-        </a>
+      {expense.hasReceipt && receiptSrc ? (
+        <div className="mt-5">
+          <a
+            href={receiptSrc}
+            target="_blank"
+            rel="noreferrer"
+            className="block overflow-hidden rounded-xl border border-line transition hover:border-line-strong"
+          >
+            <img
+              src={receiptSrc}
+              alt={`Receipt for ${expense.description}`}
+              loading="lazy"
+              className="max-h-64 w-full bg-surface2 object-contain"
+            />
+          </a>
+          {onRemoveReceipt && (
+            <div className="mt-1.5 flex justify-end gap-3 text-xs">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="font-medium text-muted transition hover:text-ink hover:underline"
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                onClick={onRemoveReceipt}
+                className="font-medium text-muted transition hover:text-neg hover:underline"
+              >
+                Remove photo
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /*
+         * Attaching after the fact, which is the case the add form cannot cover: you photograph the
+         * receipt at the table and split the bill on the walk home. Allowed on a locked ledger too —
+         * a picture of a receipt does not move anybody's balance, so the settle-up lock has no
+         * business blocking it.
+         */
+        onAttachReceipt && (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
+          >
+            <Icon name="scan" size={15} /> Add a photo of the receipt
+          </button>
+        )
+      )}
+      {onAttachReceipt && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          className="sr-only"
+          aria-label="Receipt photo"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // Cleared so choosing the same file twice still fires a change event.
+            e.target.value = '';
+            if (file) onAttachReceipt(file);
+          }}
+        />
       )}
 
       {/* Above the correction line and below the money: it is context for the numbers, not a footnote
