@@ -163,6 +163,57 @@ describe('what the sheet says', () => {
   });
 });
 
+/*
+ * The photo, which is the one thing here that is not part of the ledger.
+ *
+ * That distinction drives the rules: it can be attached and removed after a payment has been
+ * recorded, because a picture of a receipt does not move anybody's balance, and it disappears
+ * entirely in an archived group, which is read-only.
+ */
+describe('the receipt photo', () => {
+  const withPhoto = { ...props, receiptSrc: '/owewell/groups/g1/expenses/e1/receipt' };
+
+  it('offers to attach one when there is none', async () => {
+    const onAttachReceipt = vi.fn();
+    render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
+    expect(screen.getByRole('button', { name: /Add a photo/ })).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('shows the photo, and offers to replace or remove it', () => {
+    render(
+      <ExpenseDetail
+        {...withPhoto}
+        onAttachReceipt={vi.fn()}
+        onRemoveReceipt={vi.fn()}
+        expense={expense({ hasReceipt: true })}
+      />,
+    );
+    const img = screen.getByRole('img', { name: 'Receipt for Dinner' });
+    expect(img).toHaveAttribute('src', withPhoto.receiptSrc);
+    // Lazy: a receipt is a phone photo, and the sheet mounts for whichever row you opened.
+    expect(img).toHaveAttribute('loading', 'lazy');
+    expect(screen.getByRole('button', { name: 'Remove photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replace' })).toBeInTheDocument();
+  });
+
+  it('still lets you attach one on a locked ledger', () => {
+    render(
+      <ExpenseDetail {...withPhoto} locked onAttachReceipt={vi.fn()} expense={expense()} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Add a photo/ })).toBeInTheDocument();
+  });
+
+  it('offers nothing when the caller withholds the handlers', () => {
+    // How an archived group renders: read-only, so no file input at all.
+    render(<ExpenseDetail {...withPhoto} expense={expense({ hasReceipt: true })} />);
+    expect(screen.getByRole('img', { name: 'Receipt for Dinner' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Receipt photo')).not.toBeInTheDocument();
+  });
+});
+
 describe('what you can do from here', () => {
   it('offers duplicate, edit and delete on an open ledger', async () => {
     const onEdit = vi.fn();
