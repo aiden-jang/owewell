@@ -332,6 +332,38 @@ export function GroupDetailPage(): ReactNode {
     };
   }, [id, flushOutbox]);
 
+  /*
+   * Photos on an expense that already exists.
+   *
+   * Not gated on the settle-up lock: a picture of a receipt does not move anybody's balance, so the
+   * rule that stops the ledger changing after a payment has nothing to say about it. Archived groups
+   * are read-only in the UI, which is why the sheet only gets these handlers when the group is live.
+   */
+  async function attachReceipt(expenseId: string, file: File): Promise<void> {
+    try {
+      await expensesApi.putReceipt(id, expenseId, file);
+      setExpenses((current) =>
+        current.map((e) => (e.id === expenseId ? { ...e, hasReceipt: true } : e)),
+      );
+      play('tick');
+      toast.success('Photo attached.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save that photo.');
+    }
+  }
+
+  async function removeReceipt(expenseId: string): Promise<void> {
+    try {
+      await expensesApi.removeReceipt(id, expenseId);
+      setExpenses((current) =>
+        current.map((e) => (e.id === expenseId ? { ...e, hasReceipt: false } : e)),
+      );
+      toast.success('Photo removed.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not remove that photo.');
+    }
+  }
+
   async function markPaid(payment: SuggestedPayment): Promise<void> {
     const ok = await confirm({
       title: `Mark ${payment.fromName}'s payment as paid?`,
@@ -2491,6 +2523,12 @@ export function GroupDetailPage(): ReactNode {
               setDetailExpenseId(null);
               setDuplicatingExpense(detailExpense);
             }}
+            {...(group.archived
+              ? {}
+              : {
+                  onAttachReceipt: (file: File) => void attachReceipt(detailExpense.id, file),
+                  onRemoveReceipt: () => void removeReceipt(detailExpense.id),
+                })}
             onDelete={() => {
               // The sheet stays open behind the confirm and closes on its own when the expense
               // leaves the list, so a cancelled delete puts you back where you were.
