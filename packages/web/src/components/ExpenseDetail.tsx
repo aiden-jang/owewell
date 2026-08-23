@@ -65,6 +65,7 @@ export function ExpenseDetail({
   onEdit,
   onDuplicate,
   onDelete,
+  receiptSrc,
 }: {
   expense: Expense;
   members: GroupMember[];
@@ -75,6 +76,8 @@ export function ExpenseDetail({
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** Where the photo lives, when there is one. Same-origin and members-only. */
+  receiptSrc?: string;
 }): ReactNode {
   const fmt = useMoney();
   const nameOf = (id: string): string => members.find((m) => m.userId === id)?.displayName ?? 'Someone';
@@ -188,6 +191,29 @@ export function ExpenseDetail({
             <Row left="Tip" right={fmt(expense.tipCents ?? 0)} muted />
           </ul>
         </div>
+      )}
+
+      {/*
+        * The photo, full width, tappable to open at full size.
+        *
+        * Lazy: the sheet is mounted for whichever expense you opened, and a receipt is a phone photo,
+        * so loading it before anyone looks would be the most expensive thing on the screen. No
+        * lightbox — the browser's own image view already pinches and zooms better than one built here.
+        */}
+      {expense.hasReceipt && receiptSrc && (
+        <a
+          href={receiptSrc}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-5 block overflow-hidden rounded-xl border border-line transition hover:border-line-strong"
+        >
+          <img
+            src={receiptSrc}
+            alt={`Receipt for ${expense.description}`}
+            loading="lazy"
+            className="max-h-64 w-full bg-surface2 object-contain"
+          />
+        </a>
       )}
 
       {/* Above the correction line and below the money: it is context for the numbers, not a footnote

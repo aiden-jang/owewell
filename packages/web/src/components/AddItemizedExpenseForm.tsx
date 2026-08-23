@@ -7,6 +7,7 @@ import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
 import { Icon } from './Icon';
+import { ReceiptPicker } from './ReceiptPicker';
 import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
 
@@ -33,9 +34,11 @@ interface Props {
   template?: Expense;
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
+  /** The expense saved but its photo did not. Worth saying out loud; not worth failing the save. */
+  onPhotoFailed?: (message: string) => void;
 }
 
-export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
+export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, onPhotoFailed, editing, template }: Props): ReactNode {
   const fmt = useMoney();
   const source = editing ?? template;
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
@@ -61,6 +64,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
     source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
   const [note, setNote] = useState(source?.note ?? '');
+  const [receipt, setReceipt] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -184,6 +188,17 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         saved = await expensesApi.createItemized(groupId, payload);
         clearAfterCreate();
       }
+      if (receipt) {
+        // The ledger write already succeeded, so a photo that fails is a warning, not a rollback.
+        // Attaching it later from the detail sheet is one tap.
+        try {
+          await expensesApi.putReceipt(groupId, saved.id, receipt);
+          saved = { ...saved, hasReceipt: true };
+        } catch (photoErr) {
+          onPhotoFailed?.(photoErr instanceof Error ? photoErr.message : 'The photo did not save.');
+        }
+        setReceipt(null);
+      }
       onCreated(saved);
     } catch (err) {
       // The receipt is the write most worth keeping: it is the one that takes two minutes to type.
@@ -288,6 +303,8 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         aria-label="Note"
         className={inputClass}
       />
+
+      {!editing && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
 
       <div className="space-y-3">
         {items.map((item, index) => (
