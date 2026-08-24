@@ -45,6 +45,7 @@ import {
   type QueuedWrite,
 } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
+import { useShareAction } from '../lib/useShareAction';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
@@ -155,7 +156,7 @@ export function GroupDetailPage(): ReactNode {
    */
   const ledgerHasRows =
     settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
-  const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const { status: balanceShareStatus, share: shareBalance } = useShareAction(toast.error);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
@@ -361,36 +362,18 @@ export function GroupDetailPage(): ReactNode {
     toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
   }
 
-  async function shareMyBalance(): Promise<void> {
-    if (!group || myNet === 0 || balanceShareStatus) return;
+  function shareMyBalance(): void {
+    // Reads `group` and `myNet` from further down the body, which is fine because nothing calls this
+    // until there is a button to press.
+    if (!group || myNet === 0) return;
     const amount = fmt(Math.abs(myNet));
-    const text = myNet > 0
-      ? `${group.name}: I’m owed ${amount}. Let’s get it settled in owewell.`
-      : `${group.name}: I still owe ${amount}. I’ll send it over.`;
-    const finish = (status: 'shared' | 'copied'): void => {
-      setBalanceShareStatus(status);
-      window.setTimeout(() => setBalanceShareStatus(null), 2200);
-    };
-    setBalanceShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${group.name} balance`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setBalanceShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setBalanceShareStatus(null);
-      toast.error('Could not share your balance.');
-    }
+    void shareBalance({
+      title: `${group.name} balance`,
+      text: myNet > 0
+        ? `${group.name}: I’m owed ${amount}. Let’s get it settled in owewell.`
+        : `${group.name}: I still owe ${amount}. I’ll send it over.`,
+      failureMessage: 'Could not share your balance.',
+    });
   }
 
   useEffect(() => {
@@ -1077,7 +1060,7 @@ export function GroupDetailPage(): ReactNode {
         {hasActivity && !settled && (
           <button
             type="button"
-            onClick={() => void shareMyBalance()}
+            onClick={shareMyBalance}
             disabled={balanceShareStatus !== null}
             className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
           >

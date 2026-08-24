@@ -7,6 +7,7 @@ import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 import { lensTotal as computeLensTotal, spendByCategory as computeSpendByCategory } from '../lib/activityFilters';
 import { tripBudget } from '../lib/tripBudget';
+import { useShareAction } from '../lib/useShareAction';
 import type { GroupRecap } from '../lib/groupRecap';
 import type { Balance, GroupMember } from '../lib/groups';
 import type { Expense } from '../lib/expenses';
@@ -59,7 +60,7 @@ export function SummaryTab({
   const fmt = useMoney();
   const toast = useToast();
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
-  const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const { status: recapShareStatus, share: shareRecap } = useShareAction(toast.error);
 
   /*
    * Everything the group has spent against the number it set, not just this month.
@@ -76,39 +77,19 @@ export function SummaryTab({
   // The final payment is a natural handoff point: someone usually wants to tell the group that
   // nothing is hanging over them anymore. Keep the recap factual and compact so it is useful in a
   // group chat without exposing the individual balance history again.
-  async function shareSettledRecap(): Promise<void> {
-    if (!recap || recapShareStatus) return;
+  function shareSettledRecap(): void {
+    if (!recap) return;
     const paymentLabel = settlements.length === 1 ? 'payment' : 'payments';
     const highlights = [
       recap.topCategory ? `Top category: ${recap.topCategory.emoji} ${recap.topCategory.label} (${fmt(recap.topCategory.amountCents)})` : null,
       recap.largest ? `Biggest expense: ${recap.largest.description} (${fmt(recap.largest.amountCents)})` : null,
       recap.daysOpen ? `Tab open for ${recap.daysOpen} ${recap.daysOpen === 1 ? 'day' : 'days'}` : null,
     ].filter(Boolean).join('\n');
-    const text = `${groupName} is all settled ✓\n${fmt(recap.totalCents)} split across ${members.length} people\n${settlements.length} ${paymentLabel} recorded${highlights ? `\n\n${highlights}` : ''}`;
-    const finish = (status: 'shared' | 'copied'): void => {
-      setRecapShareStatus(status);
-      window.setTimeout(() => setRecapShareStatus(null), 2200);
-    };
-    setRecapShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${groupName} is settled`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setRecapShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setRecapShareStatus(null);
-      toast.error('Could not share the settled recap.');
-    }
+    void shareRecap({
+      title: `${groupName} is settled`,
+      text: `${groupName} is all settled ✓\n${fmt(recap.totalCents)} split across ${members.length} people\n${settlements.length} ${paymentLabel} recorded${highlights ? `\n\n${highlights}` : ''}`,
+      failureMessage: 'Could not share the settled recap.',
+    });
   }
 
   return (
@@ -159,7 +140,7 @@ export function SummaryTab({
 
             <button
               type="button"
-              onClick={() => void shareSettledRecap()}
+              onClick={shareSettledRecap}
               disabled={recapShareStatus !== null}
               className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent-soft px-3.5 py-2 text-sm font-semibold text-accent transition hover:border-accent/35 hover:bg-accent/10 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
             >
