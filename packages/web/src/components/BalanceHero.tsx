@@ -173,7 +173,7 @@ export function BalanceHero({
             type="button"
             onClick={shareMyBalance}
             disabled={balanceShareStatus !== null}
-            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
+            className="tap mt-4 inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
           >
             <Icon name="share" size={13} />
             {balanceShareStatus === 'sharing' ? 'Opening…' : balanceShareStatus === 'shared' ? 'Balance shared' : balanceShareStatus === 'copied' ? 'Balance copied' : 'Send my balance'}
@@ -187,7 +187,7 @@ export function BalanceHero({
           <button
             type="button"
             onClick={onLogPayment}
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink hover:underline"
+            className="tap mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink hover:underline"
           >
             <Icon name="wallet" size={15} /> Log a payment
           </button>

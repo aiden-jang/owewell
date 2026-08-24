@@ -80,7 +80,7 @@ export function GroupHeader({
           <div className="flex items-center justify-between gap-3">
             <Link
               to="/"
-              className="inline-flex items-center gap-1 text-sm font-medium text-muted transition hover:text-ink"
+              className="tap inline-flex items-center gap-1 text-sm font-medium text-muted transition hover:text-ink"
             >
               <Icon name="arrow-left" size={16} /> Your groups
             </Link>
@@ -158,7 +158,7 @@ export function GroupHeader({
                     aria-label="Group options"
                     aria-haspopup="menu"
                     aria-expanded={menuOpen}
-                    className="grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
+                    className="tap grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
                   >
                     <Icon name="more" size={18} />
                   </button>

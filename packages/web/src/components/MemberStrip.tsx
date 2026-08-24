@@ -39,7 +39,7 @@ export function MemberStrip({
         type="button"
         onClick={onOpen}
         aria-label={`${members.length} ${members.length === 1 ? 'member' : 'members'}. Open the member list.`}
-        className="group inline-flex items-center gap-2 rounded-full border border-line bg-surface2/50 py-1 pl-1 pr-2.5 transition hover:border-line-strong hover:bg-surface2"
+        className="tap group inline-flex items-center gap-2 rounded-full border border-line bg-surface2/50 py-1 pl-1 pr-2.5 transition hover:border-line-strong hover:bg-surface2"
       >
         <span className="flex -space-x-1.5">
           {shown.map((member) => (

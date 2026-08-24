@@ -217,7 +217,7 @@ export function ActivityFeed({
               value={personFilter ?? ''}
               onChange={(e) => setPersonFilter(e.target.value || null)}
               aria-label="Filter by person"
-              className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
+              className={`rounded-full border px-3 py-2 font-medium outline-none transition focus:border-accent ${
                 personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
               }`}
             >
@@ -233,7 +233,7 @@ export function ActivityFeed({
                 value={relationFilter}
                 onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
                 aria-label="Filter by relationship to the expense"
-                className="rounded-full border border-accent bg-accent-soft px-3 py-1.5 font-medium text-accent outline-none transition focus:border-accent"
+                className="rounded-full border border-accent bg-accent-soft px-3 py-2 font-medium text-accent outline-none transition focus:border-accent"
               >
                 <option value="involved">involved</option>
                 <option value="owes">owes</option>
@@ -446,7 +446,7 @@ export function ActivityFeed({
                         type="button"
                         onClick={() => void onUndoSettlement(item.settlement.id)}
                         aria-label="Undo payment"
-                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                        className="tap grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
                       >
                         <Icon name="undo" size={15} />
                       </button>
