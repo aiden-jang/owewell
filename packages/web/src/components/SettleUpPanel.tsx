@@ -14,7 +14,6 @@ import { payLinks } from '../lib/payLinks';
 import { renderSettleCard } from '../lib/settleCard';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
-import { play } from '../lib/sound';
 import { CONFIRM_MS } from '../lib/timing';
 import { useShareAction } from '../lib/useShareAction';
 import type { Balance, GroupDetail } from '../lib/groups';
@@ -315,7 +314,6 @@ export function SettleUpPanel({
                       // Opening the app is the last thing we see, so default the ledger to it.
                       setSettleMethod(link.method);
                       setPaymentInFlight(key);
-                      play('tick');
                     }}
                     title={`Pay ${payment.toName} via ${link.label}`}
                     className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"

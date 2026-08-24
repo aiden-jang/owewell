@@ -17,7 +17,6 @@ import type { SuggestedPayment } from '../lib/settlements';
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('./Toast', () => ({ useToast: () => toastStub }));
 // Audio has nothing to say in jsdom, and its absence should not be what fails a test.
-vi.mock('../lib/sound', () => ({ play: vi.fn() }));
 
 function member(over: Partial<GroupMember> & { userId: string; displayName: string }): GroupMember {
   return {

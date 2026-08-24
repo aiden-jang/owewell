@@ -1,6 +1,5 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { primeOnFirstGesture } from './lib/sound';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
@@ -18,7 +17,6 @@ if (!rootEl) {
   throw new Error('Root element #root not found');
 }
 
-primeOnFirstGesture();
 
 createRoot(rootEl).render(
   <StrictMode>
