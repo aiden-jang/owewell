@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { correctionLine, type CorrectionField } from '@owewell/shared';
 import { categoryMeta, type Expense, type GroupMember } from '@owewell/core';
-import { CategoryDot } from './CategoryDot';
+import { CategoryGlyph } from './CategoryMark';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
@@ -101,7 +101,7 @@ export function ExpenseDetail({
           {fmt(expense.amountCents)}
         </p>
         <p className="mt-1 text-sm text-muted">
-          <CategoryDot categoryKey={category.key} />{' '}
+          <CategoryGlyph categoryKey={category.key} />{' '}
           {category.label} · {fullDate(expense.date)}
         </p>
       </div>

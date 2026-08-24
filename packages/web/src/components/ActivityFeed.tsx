@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { categoryMeta, PAYMENT_METHOD_LABELS } from '@owewell/core';
 import { correctionLine, type CorrectionField } from '@owewell/shared';
-import { CategoryDot } from './CategoryDot';
+import { CategoryGlyph } from './CategoryMark';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
@@ -234,7 +234,7 @@ export function ActivityFeed({
                 aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
                 className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
               >
-                <CategoryDot categoryKey={categoryFilter} />
+                <CategoryGlyph categoryKey={categoryFilter} />
                 {categoryMeta(categoryFilter).label}
                 <Icon name="x" size={12} />
               </button>
@@ -365,7 +365,7 @@ export function ActivityFeed({
                         <Avatar name={payerSummary(item.expense).avatar} size="sm" />
                         <div className="min-w-0">
                           <p className="truncate font-medium">
-                            <CategoryDot categoryKey={item.expense.category ?? 'other'} />{' '}
+                            <CategoryGlyph categoryKey={item.expense.category ?? 'other'} />{' '}
                             {item.expense.description}
                           </p>
                           <p className="truncate text-sm text-muted">

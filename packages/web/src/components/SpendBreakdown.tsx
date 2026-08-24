@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CategoryDot } from './CategoryDot';
+import { CategoryDot } from './CategoryMark';
 import { SpendDonut } from './SpendDonut';
 import { useMoney } from '../lib/currency';
 import { lensTotal, spendByCategory as computeSpendByCategory } from '../lib/activityFilters';
