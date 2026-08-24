@@ -1,6 +1,6 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { correctionLine, type CorrectionField } from '@owewell/shared';
-import { categoryMeta, type Expense, type GroupMember } from '@owewell/core';
+import { categoryMeta, type Expense, type GroupMember, RECEIPT_ACCEPT, receiptRejection } from '@owewell/core';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
@@ -86,6 +86,7 @@ export function ExpenseDetail({
 }): ReactNode {
   const fmt = useMoney();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [rejected, setRejected] = useState<string | null>(null);
   const nameOf = (id: string): string => members.find((m) => m.userId === id)?.displayName ?? 'Someone';
   /** Second person for the reader, so a line about them doesn't read as a line about a stranger. */
   const label = (id: string): string => (id === viewerId ? 'you' : nameOf(id));
@@ -261,16 +262,28 @@ export function ExpenseDetail({
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          accept={RECEIPT_ACCEPT}
           className="sr-only"
           aria-label="Receipt photo"
           onChange={(e) => {
             const file = e.target.files?.[0];
             // Cleared so choosing the same file twice still fires a change event.
             e.target.value = '';
-            if (file) onAttachReceipt(file);
+            if (!file) return;
+            /*
+             * This upload starts immediately, so the check saves a round trip rather than a wait on
+             * submit. The server refuses the same files; this only means finding out sooner.
+             */
+            const why = receiptRejection(file);
+            setRejected(why);
+            if (!why) onAttachReceipt(file);
           }}
         />
+      )}
+      {rejected && (
+        <p role="alert" className="mt-1.5 text-xs font-medium text-neg">
+          {rejected}
+        </p>
       )}
 
       {/* Above the correction line and below the money: it is context for the numbers, not a footnote
