@@ -14,7 +14,6 @@ import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { InviteLink } from '../components/InviteLink';
-import { MoneyText } from '../components/MoneyText';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
@@ -23,6 +22,7 @@ import { SettleUpPanel } from '../components/SettleUpPanel';
 import { MembersPanel, type PaymentHandles } from '../components/MembersPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { SummaryTab } from '../components/SummaryTab';
+import { BalanceHero } from '../components/BalanceHero';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
@@ -45,11 +45,8 @@ import {
   type QueuedWrite,
 } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
-import { useShareAction } from '../lib/useShareAction';
-import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
-import { SettledMark } from '../components/SettledMark';
 import { buildGroupRecap } from '../lib/groupRecap';
 
 function csvCell(value: string | number): string {
@@ -156,7 +153,6 @@ export function GroupDetailPage(): ReactNode {
    */
   const ledgerHasRows =
     settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
-  const { status: balanceShareStatus, share: shareBalance } = useShareAction(toast.error);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
@@ -360,20 +356,6 @@ export function GroupDetailPage(): ReactNode {
     const allSettled = latest?.suggested.length === 0;
     play(allSettled ? 'allSettled' : 'settled');
     toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
-  }
-
-  function shareMyBalance(): void {
-    // Reads `group` and `myNet` from further down the body, which is fine because nothing calls this
-    // until there is a button to press.
-    if (!group || myNet === 0) return;
-    const amount = fmt(Math.abs(myNet));
-    void shareBalance({
-      title: `${group.name} balance`,
-      text: myNet > 0
-        ? `${group.name}: I’m owed ${amount}. Let’s get it settled in owewell.`
-        : `${group.name}: I still owe ${amount}. I’ll send it over.`,
-      failureMessage: 'Could not share your balance.',
-    });
   }
 
   useEffect(() => {
@@ -690,28 +672,11 @@ export function GroupDetailPage(): ReactNode {
   const nameOf = (userId: string): string =>
     group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
   const detailExpense = expenses.find((e) => e.id === detailExpenseId) ?? null;
-  const balanceByUser = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
   const isOwner = group.members.find((m) => m.userId === user?.id)?.role === 'OWNER';
-  const myNet = balanceByUser[user?.id ?? ''] ?? 0;
-  const settled = myNet === 0;
-  const owed = myNet > 0;
-  // You can be square (net 0) while the group still has debts between others.
-  // Only call it "all settled" when there are no outstanding transfers at all.
+  // You can be square while the group still has debts between others, so "all settled" is about the
+  // outstanding transfers rather than about any one person. The hero derives its own copy of this
+  // from the same array; here it decides whether there is a wrapped recap to offer at all.
   const groupSettled = suggested.length === 0;
-  // The whole group's outstanding money, not just yours: the sum of every positive balance
-  // (which equals the total the debtors owe, since balances net to zero). Shown as context so
-  // "You're square" doesn't read as "the group is done" when others still owe each other.
-  const totalUnsettled = balances.reduce((sum, b) => sum + Math.max(0, b.netCents), 0);
-  // Total money spent on bills in this group (settlements aren't spending, so expenses only).
-  const monthlyPulse = spendingPulse(expenses);
-  // How much has already been paid back, and the even-split average across the members.
-  const totalSettled = settlements.reduce((sum, s) => sum + s.amountCents, 0);
-  // Payments and the outstanding balance describe one journey toward zero. Clamp at 100 because
-  // manual payments can intentionally overpay an earlier split, and a progress bar past the end
-  // would make an otherwise valid ledger look broken.
-  const settlementJourney = totalSettled + totalUnsettled;
-  const settlementProgress = settlementJourney > 0 ? Math.min(100, Math.round((totalSettled / settlementJourney) * 100)) : 0;
-  // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
   const groupRecap = groupSettled && expenses.length > 0
     ? buildGroupRecap(expenses, settlements)
@@ -963,139 +928,22 @@ export function GroupDetailPage(): ReactNode {
         </div>
       )}
 
-      {/*
-        * Left-aligned while there is a number, centred once there isn't.
-        *
-        * A left edge is a column for figures to line up on, and "You're square" is not a figure. Set
-        * in the same place at the same size it read as a sentence abandoned in the corner, so the
-        * ending gets its own composition: the mark, then the words, centred under it.
-        */}
-      <div className={`glass mt-5 rounded-3xl p-6 sm:p-7 ${settled ? 'text-center' : ''}`}>
-        {/* A group with nothing on it is not "settled", it just hasn't started. No mark for that. */}
-        {hasActivity && settled && <SettledMark tone={groupSettled ? 'settled' : 'square'} />}
-        <p className={`text-sm font-medium text-muted ${hasActivity && settled ? 'mt-4' : ''}`}>
-          {!hasActivity
-            ? group.members.length < 2
-              ? 'First, add the people'
-              : 'Nothing on the tab yet'
-            : settled
-              ? groupSettled
-                ? 'Everyone is clear'
-                : 'Your standing here'
-              : owed
-                ? "You're owed"
-                : 'You owe'}
-        </p>
-        <p
-          className={`mt-1 font-display font-extrabold tracking-tight ${
-            settled ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-6xl'
-          } ${settled ? (hasActivity && groupSettled ? 'text-pos' : 'text-ink') : owed ? 'text-gradient' : 'text-neg'}`}
-        >
-          {!hasActivity ? (
-            group.members.length < 2 ? (
-              'Just you so far'
-            ) : (
-              'Nothing yet'
-            )
-          ) : settled ? (
-            groupSettled ? (
-              'All settled'
-            ) : (
-              "You're square"
-            )
-          ) : (
-            <MoneyText cents={Math.abs(myNet)} />
-          )}
-        </p>
-        {totalUnsettled > 0 && (
-          <p className="mt-2 text-xs text-faint">
-            {fmt(totalUnsettled)} still unsettled across the group
-          </p>
-        )}
-        {totalSettled > 0 && (
-          <p className="mt-1 text-xs text-faint">
-            {fmt(totalSettled)} settled so far
-          </p>
-        )}
-        {monthlyPulse && (
-          <div className={`mt-4 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-left text-sm ${settled ? 'mx-auto' : ''}`}>
-            <span>
-              <span className="block text-xs text-faint">This month</span>
-              <span className="tnum font-semibold text-ink">{fmt(monthlyPulse.currentCents)}</span>
-            </span>
-            <span className={`text-right text-xs font-medium ${monthlyPulse.change === 'up' ? 'text-neg' : monthlyPulse.change === 'down' ? 'text-pos' : 'text-muted'}`}>
-              {pulseLabel(monthlyPulse)}
-            </span>
-          </div>
-        )}
-        {settlementJourney > 0 && (
-          <div className={`mt-4 max-w-xs ${settled ? 'mx-auto' : ''}`}>
-            <div className="mb-1.5 flex items-center justify-between text-xs text-faint">
-              <span>settle-up progress</span>
-              <span className="font-medium text-muted">{settlementProgress}%</span>
-            </div>
-            <div
-              className="h-1.5 overflow-hidden rounded-full bg-line"
-              role="progressbar"
-              aria-label="Settle-up progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={settlementProgress}
-              aria-valuetext={`${settlementProgress}% of recorded settle-up payments complete`}
-            >
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-accent to-pos transition-[width] duration-500"
-                style={{ width: `${settlementProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-        {hasActivity && groupSettled && (
-          <div className={`mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted ${settled ? 'justify-center' : ''}`}>
-            <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'} · {settlements.length} {settlements.length === 1 ? 'payment' : 'payments'} recorded</span>
-          </div>
-        )}
-        {/* One row, so the two links can't sit flush against each other when both are showing. */}
-        <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${settled ? 'justify-center' : ''}`}>
-        {hasActivity && !settled && (
-          <button
-            type="button"
-            onClick={shareMyBalance}
-            disabled={balanceShareStatus !== null}
-            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
-          >
-            <Icon name="share" size={13} />
-            {balanceShareStatus === 'sharing' ? 'Opening…' : balanceShareStatus === 'shared' ? 'Balance shared' : balanceShareStatus === 'copied' ? 'Balance copied' : 'Send my balance'}
-          </button>
-        )}
-        {/* The end of a tab should hand you somewhere to go, and the wrapped card is the reward. */}
-        {groupRecap && (
-          <button
-            type="button"
-            onClick={() => setTab('summary')}
-            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-pos transition hover:underline"
-          >
-            <Icon name="sparkles" size={15} /> See the tab, wrapped
-          </button>
-        )}
-        {!hasActivity ? (
-          <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
-        ) : group.members.length < 2 ? (
-          <p className="mt-4 text-sm text-muted">Add someone else before you can log a payment.</p>
-        ) : !groupSettled ? (
-          <button
-            type="button"
-            onClick={() => {
-              paymentBeforeRef.current = balances;
-              setPaymentOpen(true);
-            }}
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink hover:underline"
-          >
-            <Icon name="wallet" size={15} /> Log a payment
-          </button>
-        ) : null}
-        </div>
-      </div>
+      <BalanceHero
+        groupName={group.name}
+        balances={balances}
+        expenses={expenses}
+        settlements={settlements}
+        suggested={suggested}
+        currentUserId={user?.id}
+        memberCount={group.members.length}
+        hasRecap={groupRecap !== null}
+        onSeeWrapped={() => setTab('summary')}
+        onLogPayment={() => {
+          paymentBeforeRef.current = balances;
+          setPaymentOpen(true);
+        }}
+      />
+
 
       {/* Two questions, two tabs. The balance above stays put; only the answer underneath swaps. */}
       <div className="mt-5 inline-flex w-full rounded-full border border-line bg-field p-1" role="tablist" aria-label="Group view">
