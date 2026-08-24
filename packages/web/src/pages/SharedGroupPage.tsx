@@ -8,6 +8,7 @@ import { ApiError } from '../lib/api';
 import { groupsApi } from '../lib/groups';
 import { CategoryDot } from '../components/CategoryMark';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
@@ -115,7 +116,26 @@ export function SharedGroupPage(): ReactNode {
       </header>
 
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 animate-rise px-4 py-8">
-        {status === 'loading' && <p className="text-center text-sm text-muted">Loading the tab...</p>}
+        {/*
+          * A shape, not a sentence.
+          *
+          * This was centred grey text reading "Loading the tab…", which is the first thing anybody
+          * who is not a user ever sees of owewell, on whatever connection they happen to be on. It
+          * read as a page that had failed rather than one that was arriving. These blocks match the
+          * ready state below: label, name, member count, the spend card, then who-owes-who.
+          */}
+        {status === 'loading' && (
+          <div aria-busy="true" aria-label="Loading the tab">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="mt-1 h-9 w-44" />
+            <Skeleton className="mt-1 h-5 w-20" />
+            <Skeleton className="mt-5 h-[146px] w-full rounded-3xl" />
+            <Skeleton className="mt-6 h-[94px] w-full rounded-2xl" />
+            {/* Members. The breakdown below it is conditional on more than one category, so the
+                skeleton stops here rather than guessing at a section that often is not there. */}
+            <Skeleton className="mt-6 h-[234px] w-full rounded-2xl" />
+          </div>
+        )}
 
         {status === 'notfound' && (
           <EmptyState
