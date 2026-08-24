@@ -211,6 +211,7 @@
   --p-cat-other: #d95926;
   --page-bg: #0b0b0d;
   --elevate: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --float: 0 10px 30px -6px rgba(0, 0, 0, 0.6);
 }
 
 /* Direction B — warm & soft. Values corrected for AA; the originals from the mock failed. */
@@ -240,6 +241,7 @@
   --p-cat-other: #9c3e1a;
   --page-bg: #faf7f2;
   --elevate: 0 1px 2px rgba(35, 28, 20, 0.07), 0 8px 20px -14px rgba(35, 28, 20, 0.18);
+  --float: 0 10px 30px -8px rgba(35, 28, 20, 0.28);
 }
 
 @keyframes rise {
@@ -372,6 +374,20 @@ input[type='checkbox'] {
   background: var(--color-card);
   border: 1px solid var(--color-line);
   box-shadow: var(--elevate);
+}
+
+/*
+ * The topmost layer, and the only one that has to stay legible on top of another surface.
+ *
+ * It gets its own background and shadow instead of reusing `.surface`, which is a resting card: a
+ * toast fired from inside a sheet lands ON a card, and card-on-card is #121215 on #121215 behind a
+ * 1px hairline, which is nothing. One step lighter than any surface it can land on, and a shadow
+ * that reads as floating rather than as sitting still.
+ */
+.toast {
+  background: var(--color-surface2);
+  border: 1px solid var(--color-line-strong);
+  box-shadow: var(--float);
 }
 
 /*
