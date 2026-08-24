@@ -74,7 +74,7 @@ export function GroupDetailPage(): ReactNode {
     notFound, loadFailed,
     pendingRows, pendingDeletes, pendingEdits,
     load, refreshLedger, setGroup,
-    showSavedExpense, dropExpense, refreshPending,
+    showSavedExpense, dropExpense, refreshPending, pendingCount,
   } = useGroupLedger(id);
   const [settling, setSettling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -444,6 +444,27 @@ export function GroupDetailPage(): ReactNode {
         onExport={exportActivity}
         onOpenMembers={() => setMembersOpen(true)}
       />
+
+      {/*
+        * Said above the balance, because the balance is the thing it makes wrong.
+        *
+        * The feed already marks individual rows as waiting, which only explains itself if you
+        * happen to be looking at that row — and it explains nothing about the figure at the top,
+        * which is computed by the server from writes that have not reached it. The dashboard has
+        * said this for every group since the outbox landed; the group page, which is the screen you
+        * are actually on when the signal goes, said nothing.
+        */}
+      {pendingCount > 0 && (
+        <p
+          role="status"
+          className="flex items-center justify-center gap-2 rounded-full border border-dashed border-line-strong py-2 text-sm text-muted"
+        >
+          <Icon name="share" size={14} />
+          {pendingCount === 1
+            ? 'One change is waiting for signal'
+            : `${pendingCount} changes are waiting for signal`}
+        </p>
+      )}
 
       <BalanceHero
         groupName={group.name}
