@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { drop, enqueue, flush, isAlreadyDone, isCreate, isDelete, isOffline, queued } from './outbox';
+import { drop, enqueue, flush, isAlreadyDone, isConflict, isCreate, isDelete, isEdit, isOffline, queued } from './outbox';
 import { ApiError } from './api';
 import type { CreateExpensePayload } from '@owewell/core';
 
@@ -191,5 +191,59 @@ describe('a queued delete', () => {
     expect(isAlreadyDone(new ApiError(404, 'That expense is already gone.'))).toBe(true);
     expect(isAlreadyDone(new ApiError(422, 'Nope.'))).toBe(false);
     expect(isAlreadyDone(new TypeError('Failed to fetch'))).toBe(false);
+  });
+});
+
+/*
+ * Edits, which are the one kind that can come back as a question.
+ *
+ * A create either lands or is refused. An edit can be refused for a reason the person may want to
+ * override — the row moved on while they were offline — so a 409 is separated from the failures that
+ * are simply failures.
+ */
+describe('a queued edit', () => {
+  const edit = (clientId: string, expenseId: string) => ({
+    clientId,
+    groupId: 'g1',
+    kind: 'edit' as const,
+    expenseId,
+    description: 'Dinner',
+    amountCents: 5_000,
+    queuedAt: 100,
+    payload: { ...payload('Dinner'), expectedVersion: 3 },
+  });
+
+  it('is told apart from creates and deletes', () => {
+    enqueue(edit('e1', 'x1'));
+    enqueue(entry('c1', 200));
+    const all = queued();
+    expect(all.filter(isEdit).map((e) => e.expenseId)).toEqual(['x1']);
+    expect(all.filter(isCreate)).toHaveLength(1);
+    expect(all.filter(isDelete)).toHaveLength(0);
+  });
+
+  it('comes back as a conflict rather than a rejection when the row moved on', async () => {
+    enqueue(edit('e1', 'x1'));
+    const send = vi.fn().mockRejectedValue(new ApiError(409, 'Somebody changed this expense.'));
+    const result = await flush(send);
+
+    expect(result.conflicted.map((e) => e.expenseId)).toEqual(['x1']);
+    expect(result.rejected).toEqual([]);
+    // Off the queue either way: it cannot be retried as-is, and the caller now owns the question.
+    expect(queued()).toEqual([]);
+  });
+
+  it('is a plain rejection when the server refused it for any other reason', async () => {
+    enqueue(edit('e1', 'x1'));
+    const send = vi.fn().mockRejectedValue(new ApiError(422, 'Amount must be more than zero.'));
+    const result = await flush(send);
+    expect(result.conflicted).toEqual([]);
+    expect(result.rejected).toHaveLength(1);
+  });
+
+  it('recognises 409 and nothing else as a conflict', () => {
+    expect(isConflict(new ApiError(409, 'moved'))).toBe(true);
+    expect(isConflict(new ApiError(404, 'gone'))).toBe(false);
+    expect(isConflict(new TypeError('Failed to fetch'))).toBe(false);
   });
 });

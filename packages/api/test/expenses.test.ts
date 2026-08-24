@@ -811,3 +811,62 @@ describe('a create that gets retried', () => {
     expect(await listExpenses(db, alice, other.id)).toHaveLength(1);
   });
 });
+
+/*
+ * Editing against a version, which is what makes an offline edit safe to replay.
+ *
+ * Without it the last write wins in silence. That is survivable over the second an online edit takes
+ * and not over the hours a queued one can wait: the person who typed it would never learn that their
+ * correction erased somebody else's.
+ */
+describe('an edit that names the version it was based on', () => {
+  const dinnerAt = (amountCents: number, expectedVersion?: number) =>
+    updateExpense(db, alice, groupId, created!.id, {
+      description: 'Dinner',
+      amountCents,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+      ...(expectedVersion === undefined ? {} : { expectedVersion }),
+    });
+
+  let created: Awaited<ReturnType<typeof createExpense>> | undefined;
+  beforeEach(async () => {
+    created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 4_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+  });
+
+  test('starts at 1 and moves on with every edit', async () => {
+    expect(created!.version).toBe(1);
+    expect((await dinnerAt(5_000, 1)).version).toBe(2);
+    expect((await listExpenses(db, alice, groupId))[0]!.version).toBe(2);
+  });
+
+  test('is refused when the row moved on underneath it', async () => {
+    await dinnerAt(5_000, 1); // somebody else, while you were offline
+    await expect(dinnerAt(9_000, 1)).rejects.toMatchObject({ code: 'CONFLICT' });
+    // And the ledger still says what the other edit said, not what the stale one wanted.
+    expect((await listExpenses(db, alice, groupId))[0]!.amountCents).toBe(5_000);
+  });
+
+  /*
+   * Omitting the version means "apply mine anyway", which is what the client sends after showing
+   * somebody the conflict. Re-checking there would loop: the second attempt would conflict with the
+   * change the first attempt was just told about.
+   */
+  test('overwrites unconditionally when no version is named', async () => {
+    await dinnerAt(5_000, 1);
+    expect((await dinnerAt(9_000)).amountCents).toBe(9_000);
+  });
+
+  test('an edit does not disturb the receipt photo', async () => {
+    // The update path used to return hasReceipt: false regardless, which blanked the photo in the
+    // sheet until the next refetch.
+    expect((await dinnerAt(5_000, 1)).hasReceipt).toBe(false);
+  });
+});

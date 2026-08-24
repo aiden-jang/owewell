@@ -38,6 +38,7 @@ const expense = (over: Partial<Expense> = {}): Expense => ({
   date: '2026-08-11T18:00:00.000Z',
   note: null,
   hasReceipt: false,
+  version: 1,
   splits: [
     { userId: 'u1', owedCents: 3_000 },
     { userId: 'u2', owedCents: 3_000 },

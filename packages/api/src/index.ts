@@ -302,6 +302,8 @@ const createExpenseBody = z.object({
   note,
   // Opaque to us; the browser generates it. Bounded so it cannot be used as a smuggled payload.
   clientId: z.string().min(8).max(64).optional(),
+  // Only meaningful on an edit: the version the change was written against.
+  expectedVersion: z.number().int().positive().optional(),
   date: isoDate.optional(),
 });
 app.post('/owewell/groups/:id/expenses', async (c) => {
@@ -337,6 +339,8 @@ const itemizedBody = z.object({
   category,
   note,
   clientId: z.string().min(8).max(64).optional(),
+  // Only meaningful on an edit: the version the change was written against.
+  expectedVersion: z.number().int().positive().optional(),
   date: isoDate.optional(),
 });
 app.post('/owewell/groups/:id/expenses/itemized', async (c) => {
@@ -582,7 +586,8 @@ app.onError((err, c) => {
     return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof ExpenseError) {
-    return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
+    const status = err.code === 'NOT_FOUND' ? 404 : err.code === 'CONFLICT' ? 409 : 422;
+    return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof SettlementError) {
     return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
