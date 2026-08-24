@@ -369,8 +369,16 @@ export function DashboardPage(): ReactNode {
           <p className="text-sm font-medium text-muted">
             {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
           </p>
+          {/*
+            * A step below the figure on a group page, which is set at 5xl/6xl.
+            *
+            * They were the same size, so opening a group did not feel like arriving anywhere: the
+            * same number in the same weight, twice. This one is a roll-up across groups and you
+            * cannot act on it without opening one of them; the group figure sits directly above the
+            * settle-up panel. The larger type belongs to the number you can do something about.
+            */}
           <p
-            className={`mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl ${
+            className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
               settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
             }`}
           >
