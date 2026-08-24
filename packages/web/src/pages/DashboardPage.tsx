@@ -275,7 +275,19 @@ export function DashboardPage(): ReactNode {
             <span className="truncate font-medium">{group.name}</span>
             <span className={`tnum shrink-0 text-sm font-semibold ${label.className}`}>{label.text}</span>
           </span>
-          <span className="block truncate text-sm text-muted">
+          {/*
+            * xs and wrapping, where this was sm and truncating.
+            *
+            * xs because the scale calls it "secondary detail under a primary line", which is what
+            * this is, and the member row already reads that way. At sm the three facts overflowed
+            * by 13px on every row at 375px and clipped "$90.00 unsettled" to "$90.00 unse…".
+            *
+            * Wrapping because xs alone only moves the cliff: twelve people and a four-figure total
+            * still ran 2px over. A name may be cut — you can tell a name has been cut — but this is
+            * a list of facts, and one severed mid-word says less than no third fact at all. The
+            * name above still truncates; this line takes a second row on the rare group needing one.
+            */}
+          <span className="block text-xs text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
             {activity && <span className="text-faint"> &middot; {activity}</span>}
             {/* Dropped when it is only your own figure again, which is what it is whenever you are
