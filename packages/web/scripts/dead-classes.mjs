@@ -23,11 +23,23 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ASSETS = join(ROOT, 'dist/assets');
 
+/*
+ * The stylesheet index.html actually links, not the first .css in the folder.
+ *
+ * dist/assets is not cleaned between builds in every setup, and picking `.find(f => f.endsWith
+ * ('.css'))` out of a directory that has accumulated several means auditing a stale file and
+ * reporting "no dead classes" about a build nobody is running.
+ */
 let cssFile;
 try {
-  cssFile = readdirSync(ASSETS).find((f) => f.endsWith('.css'));
+  const html = readFileSync(join(ROOT, 'dist/index.html'), 'utf8');
+  cssFile = /assets\/([^"']+\.css)/.exec(html)?.[1];
 } catch {
   console.error('No dist/ found. Run the build first:\n  pnpm --filter @owewell/web build');
+  process.exit(2);
+}
+if (!cssFile) {
+  console.error('dist/index.html links no stylesheet. Did the build finish?');
   process.exit(2);
 }
 const css = readFileSync(join(ASSETS, cssFile), 'utf8');
