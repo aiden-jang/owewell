@@ -42,7 +42,7 @@ export function SpendBreakdown({
   const active = categoryFilter ? byCategory.find((c) => c.meta.key === categoryFilter) : null;
 
   return (
-    <section className="mt-3">
+    <section>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -100,9 +100,14 @@ export function SpendBreakdown({
                         {meta.label}
                       </span>
                       <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
+                        {/* The same hue the donut gives this category: one toggle should not change
+                            what colour means. */}
                         <span
-                          className="block h-full rounded-full bg-accent"
-                          style={{ width: `${Math.max(3, Math.round((cents / total) * 100))}%` }}
+                          className="block h-full rounded-full"
+                          style={{
+                            width: `${Math.max(3, Math.round((cents / total) * 100))}%`,
+                            background: `var(--p-cat-${meta.key}, var(--p-accent))`,
+                          }}
                         />
                       </span>
                       <span className="tnum w-20 shrink-0 text-right text-sm text-muted">{fmt(cents)}</span>

@@ -178,7 +178,7 @@ export function ActivityFeed({
   return (
     <>
         {activity.length > 0 && (
-          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
               <span className="sr-only">Search activity</span>
               <input

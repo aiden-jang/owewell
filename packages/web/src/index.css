@@ -71,6 +71,39 @@
   --color-pos: var(--p-pos);
   --color-neg: var(--p-neg);
 
+
+  /*
+   * ── Type ──────────────────────────────────────────────────────────────────
+   *
+   * Tailwind's own scale is kept; it is well proportioned and replacing the numbers would be churn.
+   * What was missing is the rung below `xs`, and its absence showed: `text-[10px]` and `text-[11px]`
+   * had been written inline 32 times between them. Two invented sizes a pixel apart is not a
+   * distinction anybody can see, so both become one step.
+   *
+   * The roles, so the next choice is not a coin flip:
+   *   2xs   overlines, chart legends, timestamps — the layer you read only if you look for it
+   *   xs    secondary detail under a primary line
+   *   sm    body and controls, which is nearly everything here
+   *   lg    section leads
+   *   3xl+  figures, and only figures
+   */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  /*
+   * ── Radius ────────────────────────────────────────────────────────────────
+   *
+   * Tailwind's steps, used proportionally: the bigger the surface, the softer its corner. Written
+   * down because the rule was real but unstated, and an unstated rule is a coin flip at the next
+   * component.
+   *
+   *   full   pills, avatars, icon buttons
+   *   lg     compact inline inputs — a rename field, a per-person amount
+   *   xl     full-width form fields, and rows inside a container
+   *   2xl    cards that stand on their own, including feed rows
+   *   3xl    page-level surfaces — the balance hero, sheets, dialogs, empty states
+   */
+
   --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
@@ -108,6 +141,14 @@
   }
 }
 
+/*
+ * The category hues are declared with the rest of each palette below, and read as `--p-cat-*`
+ * directly rather than being aliased into `@theme`. Tailwind v4 only emits a theme variable that
+ * some generated utility references, and nothing generates a `bg-cat-food` class — these are read
+ * by inline styles on an SVG stroke and a bar. Aliased, they were tree-shaken and every slice fell
+ * back to grey.
+ */
+
 /* Direction A — neutral & flat. Deliberately no purple cast and no ambient gradient. */
 :root,
 [data-theme='dark'] {
@@ -126,6 +167,14 @@
   --p-field: #101013;
   --p-pos: #4ade80;
   --p-neg: #f87171;
+  --p-cat-food: #3987e5;
+  --p-cat-groceries: #199e70;
+  --p-cat-lodging: #c98500;
+  --p-cat-transport: #1f9a9e;
+  --p-cat-entertainment: #9085e9;
+  --p-cat-shopping: #e66767;
+  --p-cat-utilities: #d55181;
+  --p-cat-other: #d95926;
   --page-bg: #0b0b0d;
   --elevate: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
@@ -147,6 +196,14 @@
   --p-field: #ffffff;
   --p-pos: #1f6f4f;
   --p-neg: #8a2b1a;
+  --p-cat-food: #1e5fa8;
+  --p-cat-groceries: #136b4d;
+  --p-cat-lodging: #8a5b00;
+  --p-cat-transport: #146b6e;
+  --p-cat-entertainment: #5b52a8;
+  --p-cat-shopping: #a83f3f;
+  --p-cat-utilities: #9c3459;
+  --p-cat-other: #9c3e1a;
   --page-bg: #faf7f2;
   --elevate: 0 1px 2px rgba(35, 28, 20, 0.07), 0 8px 20px -14px rgba(35, 28, 20, 0.18);
 }
