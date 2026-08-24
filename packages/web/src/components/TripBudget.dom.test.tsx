@@ -34,7 +34,9 @@ describe('who can change the number', () => {
 
   it('shows a member the budget without the controls to change it', () => {
     render(<TripBudget budget={budgetOf(200)} budgetCents={100_000} isOwner={false} onSave={vi.fn()} />);
-    expect(screen.getByText(/\$200\.00 of \$1,000\.00/)).toBeInTheDocument();
+    // The figure leads and the rest supports, rather than one sentence carrying all three numbers.
+    expect(screen.getByText('$800.00')).toBeInTheDocument();
+    expect(screen.getByText('left of $1,000.00')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Change' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
   });
@@ -61,7 +63,8 @@ describe('the bar', () => {
 
   it('says so plainly before anything has been spent', () => {
     render(<TripBudget budget={null} budgetCents={100_000} isOwner onSave={vi.fn()} />);
-    expect(screen.getByText('$1,000.00, nothing spent yet.')).toBeInTheDocument();
+    expect(screen.getByText('$1,000.00')).toBeInTheDocument();
+    expect(screen.getByText('nothing spent yet')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Budget used' })).toHaveAttribute('aria-valuenow', '0');
   });
 });

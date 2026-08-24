@@ -6,6 +6,7 @@ import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
 import { groupsApi } from '../lib/groups';
+import { CategoryDot } from '../components/CategoryDot';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
@@ -266,9 +267,7 @@ export function SharedGroupPage(): ReactNode {
                     return (
                       <li key={category} className="flex items-center gap-3">
                         <span className="w-28 shrink-0 truncate text-sm">
-                          <span aria-hidden className="mr-1.5">
-                            {meta.emoji}
-                          </span>
+                          <CategoryDot categoryKey={meta.key} />{' '}
                           {meta.label}
                         </span>
                         <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
