@@ -4,6 +4,7 @@ import { type MoneyFormatter } from '@owewell/shared';
 import { useMoney } from '../lib/currency';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
+import { EmptyState } from '../components/EmptyState';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { MoneyText } from '../components/MoneyText';
@@ -482,32 +483,30 @@ export function DashboardPage(): ReactNode {
 
         <div className="mt-4">
           {loadError ? (
-            <div className="rounded-3xl border border-dashed border-line p-10 text-center">
-              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
-                <Icon name="users" size={22} />
-              </div>
-              <p className="mt-4 text-lg font-medium">Couldn&apos;t load your groups.</p>
-              <p className="mt-1 text-sm text-muted">Probably a hiccup on our end, not you.</p>
-              <Button variant="secondary" onClick={loadGroups} className="mt-4">
-                Try again
-              </Button>
-            </div>
+            <EmptyState
+              tone="problem"
+              icon="users"
+              title="Couldn't load your groups."
+              body="Probably a hiccup on our end, not you."
+              action={<Button variant="secondary" onClick={loadGroups}>Try again</Button>}
+            />
           ) : groups === null ? (
             <SkeletonList rows={3} />
           ) : activeGroups.length === 0 && archivedGroups.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-line p-10 text-center">
-              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
-                <Icon name="users" size={22} />
-              </div>
-              <p className="mt-4 text-lg font-medium">No groups yet. The calm before the tab.</p>
-              <p className="mt-1 text-sm text-muted">
-                Make one to start splitting, or{' '}
-                <Link to="/split" className="font-medium text-accent hover:underline">
-                  split a bill
-                </Link>{' '}
-                without an account.
-              </p>
-            </div>
+            <EmptyState
+              tone="invite"
+              icon="users"
+              title="No groups yet. The calm before the tab."
+              body={
+                <>
+                  Make one to start splitting, or{' '}
+                  <Link to="/split" className="font-medium text-accent hover:underline">
+                    split a bill
+                  </Link>{' '}
+                  without an account.
+                </>
+              }
+            />
           ) : (
             <>
               {activeGroups.length > 0 ? (

@@ -20,6 +20,7 @@ import { WrappedRecap } from '../components/WrappedRecap';
 import { SpendBreakdown } from '../components/SpendBreakdown';
 import { FrontingInsight } from '../components/FrontingInsight';
 import { GroupHeader } from '../components/GroupHeader';
+import { EmptyState } from '../components/EmptyState';
 import { activityCsv, csvFileName } from '../lib/activityCsv';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
@@ -343,20 +344,21 @@ export function GroupDetailPage(): ReactNode {
   if (loadFailed) {
     return (
       <Shell>
-        <div className="rounded-3xl border border-dashed border-line p-10 text-center">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
-            <Icon name="wallet" size={22} />
-          </div>
-          <p className="mt-4 text-lg font-medium">Couldn&rsquo;t load this group.</p>
-          <p className="mt-1 text-sm text-muted">Probably a hiccup on our end, not you.</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="btn-gradient mt-5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-          >
-            Try again
-          </button>
-        </div>
+        <EmptyState
+          tone="problem"
+          icon="wallet"
+          title="Couldn't load this group."
+          body="Probably a hiccup on our end, not you."
+          action={
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
+            >
+              Try again
+            </button>
+          }
+        />
       </Shell>
     );
   }
@@ -364,21 +366,20 @@ export function GroupDetailPage(): ReactNode {
   if (notFound) {
     return (
       <Shell>
-        <div className="rounded-3xl border border-dashed border-line p-10 text-center">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
-            <Icon name="users" size={22} />
-          </div>
-          <p className="mt-4 text-lg font-medium">That group went missing. Or was never yours.</p>
-          <p className="mt-1 text-sm text-muted">
-            It may have been deleted, or you&rsquo;re not a member.
-          </p>
-          <Link
-            to="/"
-            className="btn-gradient mt-5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-          >
-            <Icon name="arrow-left" size={15} /> Back to your groups
-          </Link>
-        </div>
+        <EmptyState
+          tone="problem"
+          icon="users"
+          title="That group went missing. Or was never yours."
+          body="It may have been deleted, or you're not a member."
+          action={
+            <Link
+              to="/"
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
+            >
+              <Icon name="arrow-left" size={15} /> Back to your groups
+            </Link>
+          }
+        />
       </Shell>
     );
   }

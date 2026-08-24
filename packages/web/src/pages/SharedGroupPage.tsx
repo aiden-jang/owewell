@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
 import { groupsApi } from '../lib/groups';
 import { CategoryDot } from '../components/CategoryMark';
+import { EmptyState } from '../components/EmptyState';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
@@ -117,30 +118,30 @@ export function SharedGroupPage(): ReactNode {
         {status === 'loading' && <p className="text-center text-sm text-muted">Loading the tab...</p>}
 
         {status === 'notfound' && (
-          <div className="rounded-3xl border border-dashed border-line p-10 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
-              <Icon name="link" size={22} />
-            </div>
-            <p className="mt-4 text-lg font-medium">This link isn&rsquo;t valid.</p>
-            <p className="mt-1 text-sm text-muted">Someone turned it off, or the group&rsquo;s long gone.</p>
-          </div>
+          <EmptyState
+            tone="problem"
+            icon="link"
+            title="This link isn't valid."
+            body="Someone turned it off, or the group's long gone."
+          />
         )}
 
         {status === 'failed' && (
-          <div className="rounded-3xl border border-dashed border-line p-10 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-surface2 text-muted">
-              <Icon name="link" size={22} />
-            </div>
-            <p className="mt-4 text-lg font-medium">Couldn&rsquo;t load this tab.</p>
-            <p className="mt-1 text-sm text-muted">Might be your signal. Might be us.</p>
-            <button
-              type="button"
-              onClick={loadSummary}
-              className="btn-gradient mt-5 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98]"
-            >
-              <Icon name="arrow-up-right" size={16} /> Try again
-            </button>
-          </div>
+          <EmptyState
+            tone="problem"
+            icon="link"
+            title="Couldn't load this tab."
+            body="Might be your signal. Might be us."
+            action={
+              <button
+                type="button"
+                onClick={loadSummary}
+                className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98]"
+              >
+                <Icon name="arrow-up-right" size={16} /> Try again
+              </button>
+            }
+          />
         )}
 
         {status === 'ready' && summary && (
