@@ -9,10 +9,8 @@ import { Icon } from './Icon';
 import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 import { payLinks } from '../lib/payLinks';
-import { renderSettleCard } from '../lib/settleCard';
 import { bestSettlementStep } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
-import { CONFIRM_MS } from '../lib/timing';
 import { useShareAction } from '../lib/useShareAction';
 import type { Balance, GroupDetail } from '../lib/groups';
 import type { SuggestedPayment } from '../lib/settlements';
@@ -52,7 +50,6 @@ export function SettleUpPanel({
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const { status: settleShareStatus, share: sharePlan } = useShareAction(toast.error);
   const { status: nudgeShareStatus, share: shareNudge, reset: resetNudgeShare } = useShareAction(toast.error);
-  const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
   const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
   const [paymentNudge, setPaymentNudge] = useState<string | null>(null);
   const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
@@ -84,47 +81,6 @@ export function SettleUpPanel({
       text: `${group.name} settle-up\n${fmt(settlePlanTotal)} across ${suggested.length} ${transferLabel}\n\n${lines.join('\n')}`,
       failureMessage: 'Could not share the settle-up plan.',
     });
-  }
-
-  async function shareSettleCard(): Promise<void> {
-    if (suggested.length === 0 || settleCardStatus) return;
-    setSettleCardStatus('making');
-    try {
-      const blob = await renderSettleCard(group.name, suggested, fmt);
-      if (!blob) {
-        setSettleCardStatus(null);
-        toast.error('Could not make the settle-up card.');
-        return;
-      }
-      const slug = group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'group';
-      const file = new File([blob], `${slug}-settle-up.png`, { type: 'image/png' });
-      const canShare = typeof navigator.share === 'function' &&
-        (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] }));
-      if (canShare) {
-        try {
-          await navigator.share({ title: `${group.name} settle-up`, files: [file] });
-          setSettleCardStatus('shared');
-          window.setTimeout(() => setSettleCardStatus(null), CONFIRM_MS);
-          return;
-        } catch (error) {
-          if (error instanceof Error && error.name === 'AbortError') {
-            setSettleCardStatus(null);
-            return;
-          }
-        }
-      }
-      const href = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = href;
-      link.download = file.name;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(href), 0);
-      setSettleCardStatus('saved');
-      window.setTimeout(() => setSettleCardStatus(null), CONFIRM_MS);
-    } catch {
-      setSettleCardStatus(null);
-      toast.error('Could not make the settle-up card.');
-    }
   }
 
   function sharePaymentNudge(payment: SuggestedPayment): void {
@@ -193,15 +149,6 @@ export function SettleUpPanel({
           >
             <Icon name="share" size={13} />
             {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void shareSettleCard()}
-            disabled={settleCardStatus !== null}
-            className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
-          >
-            <Icon name="sparkles" size={13} />
-            {settleCardStatus === 'making' ? 'Making…' : settleCardStatus === 'shared' ? 'Card shared' : settleCardStatus === 'saved' ? 'Card saved' : 'Share card'}
           </button>
           <label className="flex items-center gap-1.5 text-xs text-muted">
             paid via
