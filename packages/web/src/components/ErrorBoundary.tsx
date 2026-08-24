@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
         {this.state.message && (
           <details className="mt-8 w-full max-w-md text-left">
             <summary className="cursor-pointer text-xs text-muted">What broke</summary>
-            <pre className="mt-2 overflow-x-auto rounded-xl bg-card p-3 text-[11px] leading-relaxed text-muted">
+            <pre className="mt-2 overflow-x-auto rounded-xl bg-card p-3 text-2xs leading-relaxed text-muted">
               {this.state.message}
               {this.state.where ? `\n\n${this.state.where}` : ''}
             </pre>

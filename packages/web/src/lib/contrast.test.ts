@@ -1,7 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { DARK, THEMES, WARM, contrast, luminance, type Hex, type Palette } from './contrast.js';
+import {
+  CATEGORY_DARK,
+  CATEGORY_THEMES,
+  CATEGORY_WARM,
+  DARK,
+  THEMES,
+  WARM,
+  contrast,
+  luminance,
+  type Hex,
+  type Palette,
+} from './contrast.js';
 
 /**
  * Colour contrast, enforced rather than eyeballed.
@@ -67,6 +78,39 @@ describe.each(Object.entries(THEMES))('%s theme', (_name, p) => {
   });
 });
 
+/*
+ * The chart hues, which nobody was checking.
+ *
+ * They lived as literals inside SpendDonut and were picked against the dark canvas, so the warm
+ * theme inherited colours chosen for a background it does not have. A swatch or a bar is a UI
+ * boundary rather than text, so the bar is AA_LARGE — but it is a bar, not a decoration: if you
+ * cannot tell it from the surface behind it, the chart is not saying anything.
+ */
+describe.each(Object.entries(CATEGORY_THEMES))('%s category hues', (name, cats) => {
+  const surface = name === 'dark' ? DARK : WARM;
+
+  test.each(Object.keys(cats) as (keyof typeof cats)[])('%s separates from every surface', (key) => {
+    for (const on of SURFACES) {
+      const ratio = contrast(cats[key], surface[on]);
+      expect(ratio, `${key} on ${on} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
+    }
+  });
+
+  /*
+   * Not tested: whether two categories "look alike".
+   *
+   * Three numeric rules were tried — luminance ratio, luminance gap, hue distance — and each flagged
+   * a different innocent pair while missing the one that actually failed. Groceries and Transport
+   * read as a single wedge in the ring at 10% and 4%, and they were 43° of hue apart, so no
+   * threshold here would have caught them. Small arcs of similar-feeling colour is a judgement about
+   * apparent size and saturation, and fitting a constant until the current palette passes would
+   * measure nothing.
+   *
+   * So it is checked by looking. Transport moved from green to teal because groceries owns green.
+   */
+
+});
+
 describe('the palettes match the stylesheet', () => {
   // contrast.ts duplicates what index.css declares. Tests cannot read CSS variables without a browser,
   // so the duplication buys testability — and this asserts the two copies cannot drift apart.
@@ -90,6 +134,16 @@ describe('the palettes match the stylesheet', () => {
     const declared = block(selector);
     for (const [role, hex] of Object.entries(palette)) {
       expect(declared[kebab(role)], `--p-${kebab(role)}`).toBe((hex as Hex).toLowerCase());
+    }
+  });
+
+  test.each([
+    ['dark', CATEGORY_DARK, "[data-theme='dark']"],
+    ['warm', CATEGORY_WARM, "[data-theme='warm']"],
+  ] as const)('%s category hues', (_name, cats, selector) => {
+    const declared = block(selector);
+    for (const [key, hex] of Object.entries(cats)) {
+      expect(declared[`cat-${key}`], `--p-cat-${key}`).toBe((hex as Hex).toLowerCase());
     }
   });
 });

@@ -58,10 +58,10 @@ export function SettlementDeadline({
     <section className={`mt-3 rounded-xl border p-3 ${status?.tone === 'late' ? 'border-neg/25 bg-neg/5' : 'border-accent/20 bg-surface/75'}`} aria-label="Settle-by deadline">
       {editing ? (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Set a finish line</p>
+          <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Set a finish line</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {deadlinePresets().map(preset => (
-              <button key={preset.label} type="button" onClick={() => setDraft(localInput(preset.value))} className="rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-muted hover:border-accent hover:text-ink">
+              <button key={preset.label} type="button" onClick={() => setDraft(localInput(preset.value))} className="rounded-full border border-line px-2.5 py-1 text-2xs font-medium text-muted hover:border-accent hover:text-ink">
                 {preset.label}
               </button>
             ))}
@@ -72,14 +72,14 @@ export function SettlementDeadline({
               {saving ? 'Saving…' : 'Set deadline'}
             </button>
           </div>
-          <button type="button" onClick={() => setEditing(false)} className="mt-2 text-[11px] font-medium text-muted hover:text-ink">Cancel</button>
+          <button type="button" onClick={() => setEditing(false)} className="mt-2 text-2xs font-medium text-muted hover:text-ink">Cancel</button>
         </div>
       ) : settleBy ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Settle by</span>
+            <span className="block text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Settle by</span>
             <strong className="mt-0.5 block text-sm text-ink">{new Date(settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong>
-            <small className={`block text-[11px] font-medium ${status?.tone === 'late' ? 'text-neg' : status?.tone === 'soon' ? 'text-accent' : 'text-muted'}`}>{status?.label}</small>
+            <small className={`block text-2xs font-medium ${status?.tone === 'late' ? 'text-neg' : status?.tone === 'soon' ? 'text-accent' : 'text-muted'}`}>{status?.label}</small>
           </span>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" onClick={downloadCalendar} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent hover:text-accent">{savedCalendar ? 'Added ✓' : 'Add reminder'}</button>
@@ -89,7 +89,7 @@ export function SettlementDeadline({
         </div>
       ) : (
         <button type="button" onClick={() => setEditing(true)} className="flex w-full items-center justify-between gap-3 text-left">
-          <span><strong className="block text-xs text-ink">Give the tab a finish line</strong><small className="mt-0.5 block text-[11px] text-muted">Pick a settle-by time and everyone can add a reminder.</small></span>
+          <span><strong className="block text-xs text-ink">Give the tab a finish line</strong><small className="mt-0.5 block text-2xs text-muted">Pick a settle-by time and everyone can add a reminder.</small></span>
           <span className="text-accent" aria-hidden>＋</span>
         </button>
       )}

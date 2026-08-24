@@ -256,7 +256,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
                 type="button"
                 aria-pressed={amountCents === cents}
                 onClick={() => setAmount((cents / 100).toFixed(2))}
-                className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition ${
+                className={`rounded-lg border px-2 py-1.5 text-2xs font-semibold transition ${
                   amountCents === cents
                     ? 'border-accent bg-accent-soft text-accent'
                     : 'border-line bg-field text-muted hover:border-accent hover:text-ink'
@@ -280,7 +280,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
           }`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line/70 px-3.5 py-2.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">What if?</span>
+            <span className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">What if?</span>
             <span className="tnum text-xs font-semibold text-ink">
               {fmt(preview.outstandingAfterCents)} left
             </span>
@@ -297,7 +297,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
               {preview.touched.map(person => (
                 <div key={person.userId} className="rounded-xl border border-line bg-surface/70 p-2.5">
                   <strong className="block text-xs text-ink">{person.displayName}</strong>
-                  <span className="mt-1 block text-[11px] text-muted">
+                  <span className="mt-1 block text-2xs text-muted">
                     <span className="tnum line-through">{balanceCopy(person.beforeCents, fmt)}</span>
                     <span aria-hidden> → </span>
                     <span className={`tnum font-semibold ${person.becomesSettled ? 'text-pos' : 'text-ink'}`}>
@@ -318,14 +318,14 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
             {preview.remaining.length > 0 && (
               <ul className="mt-2 space-y-1 rounded-xl border border-line bg-field/70 p-2.5">
                 {preview.remaining.map(transfer => (
-                  <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="flex items-center justify-between gap-3 text-[11px] text-muted">
+                  <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="flex items-center justify-between gap-3 text-2xs text-muted">
                     <span><strong className="text-ink">{transfer.fromName}</strong> → {transfer.toName}</span>
                     <span className="tnum shrink-0 font-semibold text-ink">{fmt(transfer.amountCents)}</span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-2 text-[10px] text-muted">Preview only. Nothing changes until you log the payment.</p>
+            <p className="mt-2 text-2xs text-muted">Preview only. Nothing changes until you log the payment.</p>
           </div>
         </section>
       )}
