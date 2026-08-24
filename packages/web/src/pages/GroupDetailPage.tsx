@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  correctionLine,
   CURRENCIES,
   currencyFormatter,
   DEFAULT_CURRENCY,
-  type CorrectionField,
 } from '@owewell/shared';
 import {
   PAYMENT_METHOD_LABELS,
@@ -14,13 +12,11 @@ import {
 } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
-import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { InviteLink } from '../components/InviteLink';
 import { MoneyText } from '../components/MoneyText';
 import { SpendDonut } from '../components/SpendDonut';
 import {
-  matchesPersonLens,
   spendByCategory as computeSpendByCategory,
   lensTotal as computeLensTotal,
 } from '../lib/activityFilters';
@@ -30,6 +26,7 @@ import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { RecordPaymentForm } from '../components/RecordPaymentForm';
 import { SettleUpPanel } from '../components/SettleUpPanel';
 import { MembersPanel, type PaymentHandles } from '../components/MembersPanel';
+import { ActivityFeed } from '../components/ActivityFeed';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
@@ -60,10 +57,6 @@ import { TripBudget } from '../components/TripBudget';
 import { tripBudget } from '../lib/tripBudget';
 import { FrontingInsight } from '../components/FrontingInsight';
 import { buildGroupRecap } from '../lib/groupRecap';
-import { timeAgoShort as timeAgo } from '../lib/relativeTime';
-
-/** How much of the feed renders before asking. Deep enough that most groups never see the button. */
-const ACTIVITY_PAGE = 50;
 
 function csvCell(value: string | number): string {
   // Spreadsheet apps execute leading formula characters even inside imported CSV files. User
@@ -72,10 +65,6 @@ function csvCell(value: string | number): string {
   const text = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
-
-type Activity =
-  | { kind: 'expense'; ts: number; expense: Expense }
-  | { kind: 'settlement'; ts: number; settlement: Settlement };
 
 function Shell({ children }: { children: ReactNode }): ReactNode {
   return (
@@ -115,9 +104,6 @@ export function GroupDetailPage(): ReactNode {
   // an expense — involved (paid or owe a share) / owes (a share they didn't pay) / paid. Null
   // person = no lens. Category is a separate drill-down from the chart into the feed only.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [personFilter, setPersonFilter] = useState<string | null>(null);
-  const [relationFilter, setRelationFilter] = useState<'involved' | 'owes' | 'paid'>('involved');
-  const [activityQuery, setActivityQuery] = useState('');
   // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   /*
@@ -169,6 +155,14 @@ export function GroupDetailPage(): ReactNode {
     () => new Set(pending.filter(isEdit).map((e) => e.expenseId)),
     [pending],
   );
+  /*
+   * Whether the feed has any rows to show, which is not the same as whether the group has history:
+   * an expense with a delete waiting to be sent is already gone from the list. Deleting your last
+   * one offline has to hide the floating button too, or it sits on top of the empty state's own
+   * "add expense" and the screen offers the same action twice.
+   */
+  const ledgerHasRows =
+    settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -644,22 +638,6 @@ export function GroupDetailPage(): ReactNode {
     toast.success('Added them to the group.');
   }
 
-  const activity = useMemo<Activity[]>(() => {
-    const items: Activity[] = [
-      // A delete waiting to be sent hides its row. Without this the feed would show it again after a
-      // reload — the server still has it — and the queue would delete it a second time on reconnect.
-      ...expenses
-        .filter((e) => !pendingDeletes.has(e.id))
-        .map((e) => ({ kind: 'expense' as const, ts: new Date(e.date).getTime(), expense: e })),
-      ...settlements.map((s) => ({
-        kind: 'settlement' as const,
-        ts: new Date(s.createdAt).getTime(),
-        settlement: s,
-      })),
-    ];
-    return items.sort((a, b) => b.ts - a.ts);
-  }, [expenses, settlements, pendingDeletes]);
-
   /*
    * One formatter for this group's money: used directly by the page and handed to everything under it
    * through the provider at the bottom of the render.
@@ -669,55 +647,6 @@ export function GroupDetailPage(): ReactNode {
    * function body is in its temporal dead zone when that callback runs, so searching would have thrown.
    */
   const fmt = useMemo(() => currencyFormatter(group?.currency ?? DEFAULT_CURRENCY), [group?.currency]);
-
-  // Person/category filters are expense-specific. Text search spans the entire ledger, including
-  // payments, and matches the same human labels the rows display rather than internal ids.
-  const visibleActivity = useMemo(() => {
-    const query = activityQuery.trim().toLocaleLowerCase();
-    const memberName = (userId: string): string =>
-      group?.members.find((member) => member.userId === userId)?.displayName ?? '';
-    return activity.filter((item) => {
-      if (categoryFilter || personFilter) {
-        if (item.kind !== 'expense') return false;
-        if (categoryFilter && (item.expense.category ?? 'other') !== categoryFilter) return false;
-        if (!matchesPersonLens(item.expense, personFilter, relationFilter)) return false;
-      }
-      if (!query) return true;
-      const haystack = item.kind === 'expense'
-        ? [
-            item.expense.description,
-            categoryMeta(item.expense.category).label,
-            memberName(item.expense.payerId),
-            ...item.expense.splits.map((split) => memberName(split.userId)),
-            fmt(item.expense.amountCents),
-          ]
-        : [
-            memberName(item.settlement.fromUserId),
-            memberName(item.settlement.toUserId),
-            'payment',
-            item.settlement.method ? PAYMENT_METHOD_LABELS[item.settlement.method] : '',
-            fmt(item.settlement.amountCents),
-          ];
-      return haystack.some((value) => value.toLocaleLowerCase().includes(query));
-    });
-  }, [activity, activityQuery, categoryFilter, fmt, group, personFilter, relationFilter]);
-
-  /*
-   * The feed renders the most recent slice, not the whole ledger.
-   *
-   * A flatshare in its second year is several hundred rows, and every one of them is a card with an
-   * avatar and its own entrance animation. Filtering and search still run over everything above this
-   * line, so a match from last March is found and shown; only the unfiltered scroll is bounded.
-   */
-  const [showAllActivity, setShowAllActivity] = useState(false);
-  const shownActivity = showAllActivity ? visibleActivity : visibleActivity.slice(0, ACTIVITY_PAGE);
-  const hiddenActivityCount = visibleActivity.length - shownActivity.length;
-
-  // A new set of results is a new question, so it starts from the top again rather than dumping
-  // every match of a two-letter search at once.
-  useEffect(() => {
-    setShowAllActivity(false);
-  }, [activityQuery, categoryFilter, personFilter, relationFilter]);
 
   /**
    * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
@@ -813,22 +742,6 @@ export function GroupDetailPage(): ReactNode {
 
   const nameOf = (userId: string): string =>
     group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
-  // Who actually paid an expense. For itemized receipts we read the per-item payers
-  // (falling back to the expense payer), so a split-tab receipt reads honestly instead
-  // of crediting one person.
-  function payerSummary(e: Expense): { avatar: string; label: string } {
-    const payers =
-      e.splitMethod === 'ITEMIZED' && e.items && e.items.length > 0
-        ? [...new Set(e.items.map((i) => i.payerId ?? e.payerId))]
-        : [e.payerId];
-    const label =
-      payers.length === 1
-        ? `${nameOf(payers[0]!)} paid`
-        : payers.length === 2
-          ? `${nameOf(payers[0]!)} & ${nameOf(payers[1]!)} paid`
-          : `${payers.length} people paid`;
-    return { avatar: nameOf(payers[0]!), label };
-  }
   const detailExpense = expenses.find((e) => e.id === detailExpenseId) ?? null;
   const balanceByUser = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
   const isOwner = group.members.find((m) => m.userId === user?.id)?.role === 'OWNER';
@@ -843,7 +756,6 @@ export function GroupDetailPage(): ReactNode {
   // "You're square" doesn't read as "the group is done" when others still owe each other.
   const totalUnsettled = balances.reduce((sum, b) => sum + Math.max(0, b.netCents), 0);
   // Total money spent on bills in this group (settlements aren't spending, so expenses only).
-  const totalSpent = expenses.reduce((sum, e) => sum + e.amountCents, 0);
   const monthlyPulse = spendingPulse(expenses);
   /*
    * Everything the group has spent against the number it set, not just this month.
@@ -859,18 +771,12 @@ export function GroupDetailPage(): ReactNode {
   // would make an otherwise valid ledger look broken.
   const settlementJourney = totalSettled + totalUnsettled;
   const settlementProgress = settlementJourney > 0 ? Math.min(100, Math.round((totalSettled / settlementJourney) * 100)) : 0;
-  const perPersonCents = group.members.length ? Math.round(totalSpent / group.members.length) : 0;
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
   const groupRecap = groupSettled && expenses.length > 0
     ? buildGroupRecap(expenses, settlements)
     : null;
 
-  // The person lens (personFilter + relationFilter) scopes both the breakdown and the feed; the
-  // category filter is a drill-down from the chart into the feed only. The lens logic is pure and
-  // unit-tested in lib/activityFilters.
-  const lensActive = personFilter !== null;
-  const lensTotal = computeLensTotal(expenses, personFilter, relationFilter);
   // Summary answers for the whole group; the person lens belongs to the feed it sits above.
   const spendByCategory = computeSpendByCategory(expenses, null, 'involved');
   const spendTotal = computeLensTotal(expenses, null, 'involved');
@@ -1315,280 +1221,20 @@ export function GroupDetailPage(): ReactNode {
           />
         )}
 
-        {activity.length > 0 && (
-          <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
-            <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
-              <span className="sr-only">Search activity</span>
-              <input
-                type="search"
-                value={activityQuery}
-                onChange={(event) => setActivityQuery(event.target.value)}
-                placeholder="Find dinner, Alex, $24…"
-                className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
-              />
-              {activityQuery && (
-                <button
-                  type="button"
-                  onClick={() => setActivityQuery('')}
-                  aria-label="Clear activity search"
-                  className="text-muted transition hover:text-ink"
-                >
-                  <Icon name="x" size={13} />
-                </button>
-              )}
-            </label>
-            <select
-              value={personFilter ?? ''}
-              onChange={(e) => setPersonFilter(e.target.value || null)}
-              aria-label="Filter by person"
-              className={`rounded-full border px-3 py-1.5 font-medium outline-none transition focus:border-accent ${
-                personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
-              }`}
-            >
-              <option value="">Anyone</option>
-              {group.members.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.userId === user?.id ? 'You' : m.displayName}
-                </option>
-              ))}
-            </select>
-            {personFilter && (
-              <select
-                value={relationFilter}
-                onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
-                aria-label="Filter by relationship to the expense"
-                className="rounded-full border border-accent bg-accent-soft px-3 py-1.5 font-medium text-accent outline-none transition focus:border-accent"
-              >
-                <option value="involved">involved</option>
-                <option value="owes">owes</option>
-                <option value="paid">paid</option>
-              </select>
-            )}
-            {categoryFilter && (
-              <button
-                type="button"
-                onClick={() => setCategoryFilter(null)}
-                aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
-                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
-              >
-                <span aria-hidden>{categoryMeta(categoryFilter).emoji}</span>
-                {categoryMeta(categoryFilter).label}
-                <Icon name="x" size={12} />
-              </button>
-            )}
-            {(activityQuery || categoryFilter || personFilter) && (
-              <>
-                <span className="text-faint">
-                  {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActivityQuery('');
-                    setCategoryFilter(null);
-                    setPersonFilter(null);
-                    setRelationFilter('involved');
-                  }}
-                  className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                >
-                  Clear
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        <section className="mt-6">
-          <div className="flex items-baseline justify-end gap-3">
-            <h2 className="sr-only">Activity</h2>
-            {(lensActive ? lensTotal : totalSpent) > 0 && (
-              <span className="tnum text-sm text-muted">
-                {fmt(lensActive ? lensTotal : totalSpent)}{' '}
-                {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
-                {!lensActive && perPersonCents > 0 && (
-                  <span className="text-faint"> · {fmt(perPersonCents)} avg/person</span>
-                )}
-              </span>
-            )}
-          </div>
-          {settlements.length > 0 && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-faint">
-              <Icon name="undo" size={13} />
-              A payment&rsquo;s been recorded, so this is locked. Undo it below to edit or remove
-              expenses.
-            </p>
-          )}
-          {activity.length === 0 ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-line p-8 text-center">
-              <div className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-surface2 text-muted">
-                <Icon name="receipt" size={20} />
-              </div>
-              <p className="mt-3 text-sm text-muted">
-                Nothing yet. Add an expense and let the math sort itself out.
-              </p>
-              <button
-                type="button"
-                onClick={() => setSheetOpen(true)}
-                className="btn-gradient mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-              >
-                <Icon name="plus" size={15} /> Add expense
-              </button>
-            </div>
-          ) : visibleActivity.length === 0 ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
-              Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setActivityQuery('');
-                  setCategoryFilter(null);
-                  setPersonFilter(null);
-                  setRelationFilter('involved');
-                }}
-                className="font-medium text-accent hover:underline"
-              >
-                Clear search and filters
-              </button>
-            </div>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {/*
-                * Queued writes sit above the ledger, dimmed and inert.
-                *
-                * They are not expenses yet, so they are deliberately not in the balances above and
-                * say so: showing them as normal rows would mean the feed and the number at the top
-                * of the page disagreed, with nothing on screen to explain why.
-                */}
-              {pendingRows.map((entry) => (
-                <li
-                  key={entry.clientId}
-                  className="animate-rise flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line-strong px-4 py-3 opacity-70"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
-                      <Icon name="share" size={13} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-muted">{entry.description}</p>
-                      <p className="truncate text-sm text-faint">
-                        Waiting for signal · not counted yet
-                      </p>
-                    </div>
-                  </div>
-                  <span className="tnum shrink-0 font-semibold text-muted">{fmt(entry.amountCents)}</span>
-                </li>
-              ))}
-              {shownActivity.map((item, i) =>
-                item.kind === 'expense' ? (
-                  <li
-                    key={`e-${item.expense.id}`}
-                    className="animate-rise surface rounded-2xl"
-                    style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-                  >
-                    {/*
-                      * The whole row opens the detail sheet, and every action lives in there.
-                      *
-                      * The alternative was the four hover-revealed icons this used to carry, which are
-                      * invisible on a phone and, on a desktop, put delete a stray click away from the
-                      * amount you were reading.
-                      */}
-                    <button
-                      type="button"
-                      onClick={() => setDetailExpenseId(item.expense.id)}
-                      aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
-                      className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-surface2 active:scale-[0.99]"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <Avatar name={payerSummary(item.expense).avatar} size="sm" />
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">
-                            <span aria-hidden className="mr-1">
-                              {categoryMeta(item.expense.category).emoji}
-                            </span>
-                            {item.expense.description}
-                          </p>
-                          <p className="truncate text-sm text-muted">
-                            {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
-                            {/* Only flag when it wasn't shared with the whole group; "everyone" is the
-                                default, so printing it on every row would just be noise. */}
-                            {item.expense.splits.length < group.members.length && (
-                              <> · {item.expense.splits.length} ways</>
-                            )}
-                          </p>
-                          {/* A correction, said plainly. Almost every one is somebody fixing their own
-                              typo, so this is muted text and not a warning colour. */}
-                          {pendingEdits.has(item.expense.id) && (
-                          <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
-                        )}
-                        {item.expense.lastEdit && (
-                            <p className="truncate text-xs text-faint">
-                              {correctionLine(
-                                item.expense.lastEdit.fields as CorrectionField[],
-                                nameOf(item.expense.lastEdit.byId),
-                                fmt(item.expense.lastEdit.formerAmountCents),
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <span className="tnum font-semibold">
-                          {fmt(item.expense.amountCents)}
-                        </span>
-                        <Icon name="chevron-right" size={16} className="text-faint" />
-                      </div>
-                    </button>
-                  </li>
-                ) : (
-                  <li
-                    key={`s-${item.settlement.id}`}
-                    className="animate-rise group flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3"
-                    style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-pos/30 bg-pos/10 text-pos">
-                        <Icon name="check" size={16} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm">
-                          <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
-                          <span className="text-muted"> paid </span>
-                          <span className="font-medium">{nameOf(item.settlement.toUserId)}</span>
-                        </p>
-                        <p className="text-sm text-muted">
-                          {timeAgo(item.settlement.createdAt)}
-                          {item.settlement.method && ` · via ${PAYMENT_METHOD_LABELS[item.settlement.method]}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="tnum font-medium text-pos">
-                        {fmt(item.settlement.amountCents)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void undoSettlement(item.settlement.id)}
-                        aria-label="Undo payment"
-                        className="grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-                      >
-                        <Icon name="undo" size={15} />
-                      </button>
-                    </div>
-                  </li>
-                ),
-              )}
-            </ul>
-          )}
-          {hiddenActivityCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAllActivity(true)}
-              className="mt-3 w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
-            >
-              Show {hiddenActivityCount} older {hiddenActivityCount === 1 ? 'entry' : 'entries'}
-            </button>
-          )}
-        </section>
+        <ActivityFeed
+          expenses={expenses}
+          settlements={settlements}
+          members={group.members}
+          currentUserId={user?.id}
+          pendingRows={pendingRows}
+          pendingDeletes={pendingDeletes}
+          pendingEdits={pendingEdits}
+          categoryFilter={categoryFilter}
+          onCategoryFilter={setCategoryFilter}
+          onOpenExpense={setDetailExpenseId}
+          onUndoSettlement={undoSettlement}
+          onAddExpense={() => setSheetOpen(true)}
+        />
         </>
       )}
 
@@ -1757,7 +1403,7 @@ export function GroupDetailPage(): ReactNode {
 
       {/* The floating add button appears only once there's a list to add to; the empty state owns
           the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons. */}
-      {activity.length > 0 && (
+      {ledgerHasRows && (
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
