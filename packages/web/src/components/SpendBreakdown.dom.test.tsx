@@ -8,9 +8,8 @@ import { SpendBreakdown } from './SpendBreakdown';
  * Where the money went, now sitting above the list it filters.
  *
  * Tapping a category used to set a filter and throw you to another tab to see the result. The
- * interaction is local now, so what is worth pinning is that the disclosure earns its row when
- * closed, and that selecting still round-trips through the page — the filter is shared with the
- * feed, so this component reports rather than decides.
+ * interaction is local now, so what is worth pinning is that selecting round-trips through the page
+ * — the filter is shared with the feed, so this component reports rather than decides.
  */
 
 const expense = (id: string, amountCents: number, category: string): Expense => ({
@@ -26,7 +25,7 @@ const EXPENSES = [
 
 const onSelectCategory = vi.fn();
 
-async function open(over: Record<string, unknown> = {}) {
+function show(over: Record<string, unknown> = {}) {
   render(
     <SpendBreakdown
       expenses={EXPENSES}
@@ -38,57 +37,43 @@ async function open(over: Record<string, unknown> = {}) {
   return userEvent.setup();
 }
 
-const disclosure = () => screen.getByRole('button', { name: /Where it went/ });
-
 beforeEach(() => onSelectCategory.mockReset());
 
-describe('closed', () => {
-  /*
-   * A row that only says "Where it went" next to a chevron is furniture. Closed, it reports the
-   * biggest category and its share, so it is worth the line whether or not anybody opens it.
-   */
-  it('still says something', async () => {
-    await open();
-    expect(disclosure()).toHaveTextContent('mostly Food & Drink, 67%');
+/*
+ * No disclosure. It was collapsed while this page also carried a budget card, a settle-by card and a
+ * monthly pulse; with those gone the chart is what the space is for, and the share link had been
+ * rendering it open to guests the whole time.
+ */
+describe('the chart', () => {
+  it('shows a bar per category without anyone asking for it', () => {
+    show();
+    expect(screen.getByRole('heading', { name: 'Where it went' })).toBeInTheDocument();
+    for (const label of ['Food & Drink', 'Transport', 'Groceries']) {
+      expect(screen.getByRole('button', { name: new RegExp(`Filter activity by ${label}`) })).toBeInTheDocument();
+    }
   });
 
-  it('names the active filter instead, once there is one', async () => {
-    await open({ categoryFilter: 'transport' });
-    expect(disclosure()).toHaveTextContent('Transport · $24.00');
-  });
-
-  it('keeps the chart out of the way until asked', async () => {
-    await open();
-    expect(screen.queryByRole('button', { name: /Filter activity by/ })).not.toBeInTheDocument();
-  });
-});
-
-describe('open', () => {
-  it('offers a bar per category', async () => {
-    const user = await open();
-    await user.click(disclosure());
-    expect(screen.getByRole('button', { name: /Filter activity by Food & Drink/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Filter activity by Transport/ })).toBeInTheDocument();
+  // The heading is a heading now, not a control. A button here would be the disclosure coming back.
+  it('has nothing to expand', () => {
+    show();
+    expect(screen.queryByRole('button', { expanded: false })).not.toBeInTheDocument();
   });
 
   it('reports a pick rather than filtering itself', async () => {
-    const user = await open();
-    await user.click(disclosure());
+    const user = show();
     await user.click(screen.getByRole('button', { name: /Filter activity by Food & Drink/ }));
     expect(onSelectCategory).toHaveBeenCalledWith('food');
   });
 
   // The label says "clear", so it has to clear — this was a real bug in the old chart.
   it('clears when the active category is picked again', async () => {
-    const user = await open({ categoryFilter: 'food' });
-    await user.click(disclosure());
+    const user = show({ categoryFilter: 'food' });
     await user.click(screen.getByRole('button', { name: /Clear filter Food & Drink/ }));
     expect(onSelectCategory).toHaveBeenCalledWith(null);
   });
 
   it('switches to the donut', async () => {
-    const user = await open();
-    await user.click(disclosure());
+    const user = show();
     await user.click(screen.getByRole('button', { name: 'donut' }));
     expect(screen.getByRole('button', { name: 'donut' })).toHaveAttribute('aria-pressed', 'true');
   });
