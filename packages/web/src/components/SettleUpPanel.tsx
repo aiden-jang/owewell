@@ -7,7 +7,6 @@ import {
 import type { MoneyFormatter } from '@owewell/shared';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
-import { SettlementDeadline } from './SettlementDeadline';
 import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 import { payLinks } from '../lib/payLinks';
@@ -27,9 +26,8 @@ import type { SuggestedPayment } from '../lib/settlements';
  * a share button is mid-share. The page was keeping eight hooks alive for a section that renders
  * only when somebody owes somebody.
  *
- * Two things deliberately stay outside. Marking a payment moves the ledger, builds a receipt and
- * refetches balances, so the page owns it and this panel only says which payment and by what
- * method. The settle-by deadline belongs to the group rather than to this panel, same reasoning.
+ * Marking a payment deliberately stays outside: it moves the ledger, builds a receipt and refetches
+ * balances, so the page owns it and this panel only says which payment and by what method.
  */
 
 /** "is owed $12.00" / "owes $8.00" / "square", for the before-and-after preview. */
@@ -43,15 +41,12 @@ export function SettleUpPanel({
   group,
   suggested,
   balances,
-  isOwner,
   settling,
   onMarkPaid,
-  onSaveDeadline,
 }: {
   group: GroupDetail;
   suggested: SuggestedPayment[];
   balances: Balance[];
-  isOwner: boolean;
   /** A mark-paid is in flight, so every button in the list is disabled. */
   settling: boolean;
   /**
@@ -59,7 +54,6 @@ export function SettleUpPanel({
    * true when it landed, which is what clears the row's "sent it" state.
    */
   onMarkPaid: (payment: SuggestedPayment, method: PaymentMethod) => Promise<boolean>;
-  onSaveDeadline: (settleBy: string | null) => Promise<void>;
 }): ReactNode {
   const fmt = useMoney();
   const toast = useToast();
@@ -94,12 +88,9 @@ export function SettleUpPanel({
       (payment) => `• ${payment.fromName} pays ${payment.toName} ${fmt(payment.amountCents)}`,
     );
     const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
-    const deadline = group.settleBy
-      ? `\nSettle by ${new Date(group.settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-      : '';
     void sharePlan({
       title: `${group.name} settle-up`,
-      text: `${group.name} settle-up\n${fmt(settlePlanTotal)} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`,
+      text: `${group.name} settle-up\n${fmt(settlePlanTotal)} across ${suggested.length} ${transferLabel}\n\n${lines.join('\n')}`,
       failureMessage: 'Could not share the settle-up plan.',
     });
   }
@@ -241,13 +232,6 @@ export function SettleUpPanel({
       <p className="mt-1 text-xs leading-relaxed text-muted">
         Pay in your usual app, then mark it here so the group stays in sync.
       </p>
-      <SettlementDeadline
-        groupName={group.name}
-        settleBy={group.settleBy}
-        suggestions={suggested}
-        isOwner={isOwner}
-        onSave={onSaveDeadline}
-      />
       {bestSettleStep && (
         <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
           <div className="flex items-center justify-between gap-3">
