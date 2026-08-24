@@ -139,7 +139,8 @@ async function replaceSplits(db: DB, expenseId: string, shares: { userId: string
 
 const sameSet = (ids: string[], set: Set<string>): boolean => ids.length === set.size && ids.every((id) => set.has(id));
 
-export async function resplitSharedExpenses(
+/** Internal: the roster changed, so everybody's share of the shared expenses did too. */
+async function resplitSharedExpenses(
   db: DB,
   groupId: string,
   priorMemberIds: string[],

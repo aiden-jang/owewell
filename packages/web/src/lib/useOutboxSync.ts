@@ -20,7 +20,7 @@ import { flush, isAlreadyDone, subscribe, type QueuedEdit, type QueuedWrite } fr
  */
 
 /** Send one queued write. The four kinds differ in exactly the ways the outbox comments describe. */
-export function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
+function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
   switch (entry.kind) {
     case 'settlement':
       return settlementsApi.record(entry.groupId, entry.payload);

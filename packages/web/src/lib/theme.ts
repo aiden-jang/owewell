@@ -11,9 +11,9 @@ import type { ThemeName } from './contrast.js';
  */
 
 const KEY = 'owewell:theme';
-export const DEFAULT_THEME: ThemeName = 'warm';
+const DEFAULT_THEME: ThemeName = 'warm';
 
-export function applyTheme(name: ThemeName): void {
+function applyTheme(name: ThemeName): void {
   document.documentElement.dataset.theme = name;
   // The address-bar / status-bar colour has to follow, or a light theme gets a black notch on iOS.
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -30,7 +30,7 @@ export function applyTheme(name: ThemeName): void {
   }
 }
 
-export function storedTheme(): ThemeName {
+function storedTheme(): ThemeName {
   try {
     const v = localStorage.getItem(KEY);
     if (v === 'dark' || v === 'warm') return v;
@@ -41,7 +41,7 @@ export function storedTheme(): ThemeName {
 }
 
 /** Forget the local override and fall back to whatever the app ships as its default. */
-export function clearTheme(): void {
+function clearTheme(): void {
   try {
     localStorage.removeItem(KEY);
   } catch {
