@@ -486,3 +486,15 @@ input[type='checkbox'] {
 :focus:not(:focus-visible) {
   outline: none;
 }
+
+/*
+ * The skip target is not a control, and a ring around it is a ring around the whole page.
+ *
+ * <main> carries tabindex="-1" so following "Skip to content" actually moves focus rather than only
+ * scrolling. That makes it match :focus-visible on the way in, and the rule above then drew a 2px
+ * accent outline around every pixel of content. The indicator people need here is the next Tab
+ * landing inside the content, not an outline the size of the viewport.
+ */
+main[tabindex='-1']:focus {
+  outline: none;
+}

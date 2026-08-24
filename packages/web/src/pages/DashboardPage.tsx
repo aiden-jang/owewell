@@ -333,7 +333,7 @@ export function DashboardPage(): ReactNode {
   return (
     <div className="flex-1">
       <AppHeader />
-      <main className={`mx-auto w-full max-w-2xl animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}>
+      <main id="main" tabIndex={-1} className={`mx-auto w-full max-w-2xl animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}>
         {pending && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
             <span className="flex items-center gap-2 text-sm">

@@ -114,7 +114,7 @@ export function SharedGroupPage(): ReactNode {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 animate-rise px-4 py-8">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 animate-rise px-4 py-8">
         {status === 'loading' && <p className="text-center text-sm text-muted">Loading the tab...</p>}
 
         {status === 'notfound' && (
