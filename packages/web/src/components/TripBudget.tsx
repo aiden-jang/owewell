@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { dollarsToCents } from '@owewell/shared';
-import { budgetDetail, budgetLine, budgetTone, type TripBudget as Budget } from '../lib/tripBudget';
+import {
+  budgetCaption,
+  budgetDetail,
+  budgetFigure,
+  budgetLine,
+  budgetTone,
+  type TripBudget as Budget,
+} from '../lib/tripBudget';
 import { normalizeAmountInput } from '../lib/format';
 import { useMoney } from '../lib/currency';
 
@@ -135,9 +142,21 @@ export function TripBudget({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <span>
               <span className="block text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Budget</span>
-              <strong className="mt-0.5 block text-sm text-ink">
-                {budget ? budgetLine(budget, fmt) : `${fmt(budgetCents)}, nothing spent yet.`}
-              </strong>
+              {budget ? (
+                <>
+                  <strong className="tnum mt-0.5 block font-display text-2xl font-semibold tracking-tight text-ink">
+                    {budgetFigure(budget, fmt)}
+                  </strong>
+                  <span className="tnum block text-xs text-muted">{budgetCaption(budget, fmt)}</span>
+                </>
+              ) : (
+                <>
+                  <strong className="tnum mt-0.5 block font-display text-2xl font-semibold tracking-tight text-ink">
+                    {fmt(budgetCents)}
+                  </strong>
+                  <span className="block text-xs text-muted">nothing spent yet</span>
+                </>
+              )}
               {budget && budgetDetail(budget, fmt) && (
                 <small className="mt-0.5 block text-2xs text-muted">{budgetDetail(budget, fmt)}</small>
               )}

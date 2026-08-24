@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { CategoryDot } from './CategoryDot';
 import { Icon } from './Icon';
 import { SpendDonut } from './SpendDonut';
 import { useMoney } from '../lib/currency';
@@ -94,9 +95,7 @@ export function SpendBreakdown({
                       className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${on ? 'bg-accent-soft' : ''}`}
                     >
                       <span className={`w-28 shrink-0 truncate text-sm ${on ? 'font-medium text-accent' : ''}`}>
-                        <span aria-hidden className="mr-1.5">
-                          {meta.emoji}
-                        </span>
+                        <CategoryDot categoryKey={meta.key} />{' '}
                         {meta.label}
                       </span>
                       <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
