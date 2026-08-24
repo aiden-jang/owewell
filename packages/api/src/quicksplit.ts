@@ -1,6 +1,7 @@
 import { computeSplit, quickSplitSeed, type SplitMethod } from '@owewell/shared';
 import type { DB } from './db/client.js';
-import { addPlaceholderMember, createGroup } from './groups.js';
+import { createGroup } from './groups.js';
+import { addPlaceholderMember } from './members.js';
 import { createExpense } from './expenses.js';
 
 export type QuickSplitErrorCode = 'NO_PAYER' | 'TOO_MANY_YOU' | 'NO_ITEMS' | 'INVALID_SPLIT' | 'INVALID_PAYER';

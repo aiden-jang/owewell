@@ -1,22 +1,24 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
   GroupError,
-  addPlaceholderMember,
+  claimPlaceholder,
   createGroup,
   deleteGroup,
   getGroup,
+  getOrCreateShareToken,
+  getSharedSummary,
   listGroups,
-  removeMember,
   renameGroup,
-  renameMember,
   setGroupArchived,
   setGroupBudget,
   setGroupCurrency,
   setSettlementDeadline,
-  getOrCreateShareToken,
-  getSharedSummary,
-  claimPlaceholder,
 } from '../src/groups.js';
+import {
+  addPlaceholderMember,
+  removeMember,
+  renameMember,
+} from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
 import { listSettlements, recordSettlement } from '../src/settlements.js';
 import { testDb, seedPerson } from './helpers.js';

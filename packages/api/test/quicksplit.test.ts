@@ -26,7 +26,7 @@ describe('quick-split', () => {
 
     const expenses = await listExpenses(db, alice, groupId);
     expect(expenses).toHaveLength(1);
-    expect(expenses[0].amountCents).toBe(3000);
+    expect(expenses[0]!.amountCents).toBe(3000);
 
     const balances = await getBalances(db, alice, groupId);
     expect(balances.find((b) => b.userId === alice)?.netCents).toBe(2000);

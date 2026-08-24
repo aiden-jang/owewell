@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { addPlaceholderMember, createGroup } from '../src/groups.js';
+import { createGroup } from '../src/groups.js';
+import { addPlaceholderMember } from '../src/members.js';
 import { recordSettlement } from '../src/settlements.js';
 import {
   ExpenseError,

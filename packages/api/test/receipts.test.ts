@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { addPlaceholderMember, createGroup, deleteGroup } from '../src/groups.js';
+import { createGroup, deleteGroup } from '../src/groups.js';
+import { addPlaceholderMember } from '../src/members.js';
 import { createExpense, listExpenses } from '../src/expenses.js';
 import { deleteReceipt, deleteReceipts, getReceipt, putReceipt } from '../src/receipts.js';
 import { testDb, seedPerson } from './helpers.js';

@@ -132,7 +132,9 @@ describe('odd-cent seeding', () => {
 
   test('still sums to the total, seeded or not', () => {
     for (const seed of [undefined, 'exp_1', 'exp_2']) {
-      const shares = computeItemizedSplit({ items: [item, item, item], taxCents: 137, tipCents: 211, seed });
+      // Spread rather than `seed`: with exactOptionalPropertyTypes an explicit `seed: undefined` is
+      // a different shape from an absent one, and absent is what an unseeded caller actually sends.
+      const shares = computeItemizedSplit({ items: [item, item, item], taxCents: 137, tipCents: 211, ...(seed ? { seed } : {}) });
       expect(shares.reduce((sum, s) => sum + s.owedCents, 0)).toBe(3000 + 137 + 211);
     }
   });

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
-  addPlaceholderMember,
   createGroup,
   getGroup,
   setSettlementDeadline,
 } from '../src/groups.js';
+import {
+  addPlaceholderMember,
+} from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
 import {
   SettlementError,
