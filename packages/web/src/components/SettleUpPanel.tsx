@@ -193,7 +193,7 @@ export function SettleUpPanel({
           return (
             <li
               key={key}
-              className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${
+              className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition ${
                 paymentInFlight === key
                   ? 'border border-accent/20 bg-accent-soft'
                   : key === recommendedPaymentKey
@@ -201,19 +201,43 @@ export function SettleUpPanel({
                     : 'border border-transparent'
               }`}
             >
-              <span className="flex items-center gap-2 text-sm">
-                <Avatar name={payment.fromName} size="sm" />
-                <span>
-                  {key === recommendedPaymentKey && suggested.length > 1 && (
-                    <span className="mb-0.5 block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
-                  )}
-                  <span className="font-medium">{payment.fromName}</span>
-                  <span className="text-muted"> pays </span>
-                  <span className="font-medium">{payment.toName}</span>{' '}
-                  <span className="tnum font-medium">{fmt(payment.amountCents)}</span>
+              {/*
+                * The sentence and the one button that acts on it, on one line.
+                *
+                * Everything used to share a wrapping row: on a phone that put the actions on a
+                * second line pushed to the right edge while the sentence started at the left, so
+                * Mark paid — the only control that touches the ledger — sat as far from its own
+                * sentence as the row allowed. Pinning the two together and dropping the rest
+                * underneath is one layout that holds at every width, which is also why the sm:
+                * variants are gone: two arrangements meant two things to keep right.
+                */}
+              <span className="flex items-start justify-between gap-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <Avatar name={payment.fromName} size="sm" />
+                  <span>
+                    {key === recommendedPaymentKey && suggested.length > 1 && (
+                      <span className="mb-0.5 block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
+                    )}
+                    <span className="font-medium">{payment.fromName}</span>
+                    <span className="text-muted"> pays </span>
+                    <span className="font-medium">{payment.toName}</span>{' '}
+                    <span className="tnum font-medium">{fmt(payment.amountCents)}</span>
+                  </span>
                 </span>
+                <button
+                  type="button"
+                  disabled={settling}
+                  onClick={() => void markPaid(payment)}
+                  title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
+                  /* The only filled control in the row. Nudge is text, the pay links are outlines,
+                     and this is the one that changes the ledger. */
+                  className="shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {paymentInFlight === key ? 'Sent it, mark paid' : 'Mark paid'}
+                </button>
               </span>
-              <div className="flex flex-wrap items-center justify-end gap-1.5 pl-9 sm:pl-0">
+              {/* Indented to the text rather than the avatar, so the row has one left edge. */}
+              <div className="flex flex-wrap items-center gap-1.5 pl-9">
                 {linksFor(payment).map((link) => (
                   <a
                     key={link.label}
@@ -242,19 +266,8 @@ export function SettleUpPanel({
                 >
                   {paymentNudge === key ? 'Close nudge' : 'Nudge'}
                 </button>
-                <button
-                  type="button"
-                  disabled={settling}
-                  onClick={() => void markPaid(payment)}
-                  title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                  /* The only filled control in the row. Nudge and Preview are text, the pay links
-                     are outlines, and this is the one that changes the ledger. */
-                  className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-                >
-                  {paymentInFlight === key ? 'Sent it, mark paid' : 'Mark paid'}
-                </button>
                 {paymentInFlight === key && (
-                  <span className="basis-full text-right text-2xs text-muted" role="status">
+                  <span className="basis-full text-2xs text-muted" role="status">
                     Payment app opened. Record it here once it&rsquo;s sent.
                   </span>
                 )}
