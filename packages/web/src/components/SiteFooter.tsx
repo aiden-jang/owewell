@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { siteFooterLinks } from '@aidenjang/auth-client';
 import { AUTH_ORIGIN } from '../lib/api';
+import { ThemeSwitch } from './ThemeSwitch';
 
 // Content (credit + legal links) is shared via siteFooterLinks so it stays in sync across apps;
 // the styling here is owewell's own theme so the footer matches the app.
@@ -21,6 +22,8 @@ export function SiteFooter(): ReactNode {
           </a>
         </Fragment>
       ))}
+      <span aria-hidden>·</span>
+      <ThemeSwitch />
     </footer>
   );
 }
