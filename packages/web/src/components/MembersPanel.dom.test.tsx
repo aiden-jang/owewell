@@ -53,9 +53,6 @@ const onRemove = vi.fn<(id: string, netCents: number) => Promise<void>>();
 async function open(over: Partial<Parameters<typeof renderPanel>[0]> = {}) {
   const user = userEvent.setup();
   await renderPanel(over);
-  // Collapsed by default for a group that already has people.
-  const toggle = screen.queryByRole('button', { name: /Members/ });
-  if (toggle && !screen.queryByPlaceholderText('Add someone by name')) await user.click(toggle);
   return user;
 }
 
@@ -85,19 +82,17 @@ beforeEach(() => {
   toastStub.error.mockReset();
 });
 
-describe('whether the list starts open', () => {
-  it('stays collapsed for a group that already has people', async () => {
-    await renderPanel();
-    expect(screen.queryByPlaceholderText('Add someone by name')).not.toBeInTheDocument();
-  });
-
+describe('what it shows', () => {
   /*
-   * A group of one has exactly one useful next step, and it is inside this panel. Leaving it folded
-   * away puts the only thing worth doing behind a click that gives no hint of what is under it.
+   * No collapse. This renders inside a sheet somebody opened by choosing "Members", so folding the
+   * list away behind a toggle would hide the thing they just asked for, under a heading that
+   * already says what it is.
    */
-  it('opens itself when the group still needs someone', async () => {
-    await renderPanel({ members: [ALICE], balances: [BALANCES[0]] });
+  it('shows the roster straight away', async () => {
+    await renderPanel();
+    expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Add someone by name')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Members/ })).not.toBeInTheDocument();
   });
 });
 

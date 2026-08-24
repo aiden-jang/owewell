@@ -32,7 +32,6 @@ const settlement = (id: string, amountCents: number): Settlement =>
 
 const OWED: SuggestedPayment = { fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 3_000 };
 
-const onSeeWrapped = vi.fn();
 const onLogPayment = vi.fn();
 
 async function open(over: Record<string, unknown> = {}) {
@@ -46,8 +45,6 @@ async function open(over: Record<string, unknown> = {}) {
       suggested={[OWED]}
       currentUserId="a"
       memberCount={2}
-      hasRecap={false}
-      onSeeWrapped={onSeeWrapped}
       onLogPayment={onLogPayment}
       {...over}
     />,
@@ -71,7 +68,6 @@ const ALL_CLEAR = {
 };
 
 beforeEach(() => {
-  onSeeWrapped.mockReset();
   onLogPayment.mockReset();
 });
 
@@ -161,12 +157,6 @@ describe('what it offers you next', () => {
   it('withholds it once the group is clear', async () => {
     await open(ALL_CLEAR);
     expect(screen.queryByRole('button', { name: /Log a payment/ })).not.toBeInTheDocument();
-  });
-
-  it('hands you to the wrapped card when there is one', async () => {
-    const user = await open({ ...ALL_CLEAR, hasRecap: true });
-    await user.click(screen.getByRole('button', { name: /See the tab, wrapped/ }));
-    expect(onSeeWrapped).toHaveBeenCalled();
   });
 });
 

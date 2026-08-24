@@ -32,8 +32,6 @@ export function BalanceHero({
   suggested,
   currentUserId,
   memberCount,
-  hasRecap,
-  onSeeWrapped,
   onLogPayment,
 }: {
   groupName: string;
@@ -44,9 +42,6 @@ export function BalanceHero({
   suggested: SuggestedPayment[];
   currentUserId: string | undefined;
   memberCount: number;
-  /** Whether the Summary tab has a wrapped card worth sending you to. */
-  hasRecap: boolean;
-  onSeeWrapped: () => void;
   onLogPayment: () => void;
 }): ReactNode {
   const fmt = useMoney();
@@ -183,16 +178,6 @@ export function BalanceHero({
           >
             <Icon name="share" size={13} />
             {balanceShareStatus === 'sharing' ? 'Opening…' : balanceShareStatus === 'shared' ? 'Balance shared' : balanceShareStatus === 'copied' ? 'Balance copied' : 'Send my balance'}
-          </button>
-        )}
-        {/* The end of a tab should hand you somewhere to go, and the wrapped card is the reward. */}
-        {hasRecap && (
-          <button
-            type="button"
-            onClick={onSeeWrapped}
-            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-pos transition hover:underline"
-          >
-            <Icon name="sparkles" size={15} /> See the tab, wrapped
           </button>
         )}
         {!hasActivity ? (

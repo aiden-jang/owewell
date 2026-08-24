@@ -27,6 +27,7 @@ export function GroupHeader({
   onDelete,
   onInvite,
   onExport,
+  onOpenMembers,
 }: {
   groupId: string;
   groupName: string;
@@ -42,6 +43,8 @@ export function GroupHeader({
   onDelete: () => Promise<void>;
   onInvite: () => void;
   onExport: () => void;
+  /** Who is in the group is roster management, so it lives here rather than beside the spending. */
+  onOpenMembers: () => void;
 }): ReactNode {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -169,6 +172,14 @@ export function GroupHeader({
                       role="menu"
                       className="surface absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-2xl border border-line py-1 shadow-xl shadow-black/40"
                     >
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={runAndClose(onOpenMembers)}
+                        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
+                      >
+                        <Icon name="user-plus" size={15} /> Members
+                      </button>
                       <button
                         role="menuitem"
                         type="button"
