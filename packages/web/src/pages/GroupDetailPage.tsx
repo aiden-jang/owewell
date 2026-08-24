@@ -51,6 +51,7 @@ import {
   isAlreadyDone,
   isCreate,
   isDelete,
+  isEdit,
   isOffline,
   queued as outboxQueued,
   subscribe as outboxSubscribe,
@@ -190,6 +191,17 @@ export function GroupDetailPage(): ReactNode {
     () => new Set(pending.filter(isDelete).map((e) => e.expenseId)),
     [pending],
   );
+  /*
+   * Rows with an edit still in the queue.
+   *
+   * The row keeps showing what the server has, because the queued payload is a set of form values
+   * rather than a computed split: pretending otherwise would mean a total that disagreed with the
+   * per-person amounts underneath it. So it says the change is waiting instead of faking it.
+   */
+  const pendingEdits = useMemo(
+    () => new Set(pending.filter(isEdit).map((e) => e.expenseId)),
+    [pending],
+  );
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
@@ -313,17 +325,21 @@ export function GroupDetailPage(): ReactNode {
   }, [id]);
 
   const runFlush = async (): Promise<void> => {
-    const { sent, rejected } = await flushOutboxWrites(
+    const { sent, rejected, conflicted } = await flushOutboxWrites(
       (entry) =>
-        entry.kind === 'delete'
+        entry.kind === 'edit'
+          ? expensesApi.update(entry.groupId, entry.expenseId, entry.payload as CreateExpensePayload)
+          : entry.kind === 'edit-itemized'
+            ? expensesApi.updateItemized(entry.groupId, entry.expenseId, entry.payload as CreateItemizedPayload)
+            : entry.kind === 'delete'
           ? // A queued delete finding nothing to delete got what it wanted, so it leaves the queue
             // rather than being reported as a failure the person has to do something about.
             expensesApi.remove(entry.groupId, entry.expenseId).catch((err: unknown) => {
               if (!isAlreadyDone(err)) throw err;
-            })
-          : entry.kind === 'itemized'
-            ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
-            : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
+                })
+              : entry.kind === 'itemized'
+                ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
+                : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
       id,
     );
     setPending(outboxQueued(id));
@@ -335,6 +351,36 @@ export function GroupDetailPage(): ReactNode {
     for (const { entry, message } of rejected) {
       // Named, because it is gone from the queue and the person has to know which one to retype.
       toast.error(`"${entry.description}" could not be saved: ${message}`);
+    }
+
+    /*
+     * A conflict is a question, not an error.
+     *
+     * The row changed while this edit sat in the queue, so applying it silently would erase whatever
+     * happened in between. Asked one at a time and in order, because answering "keep mine" on the
+     * first can be what makes the second one make sense.
+     */
+    for (const entry of conflicted) {
+      const keepMine = await confirm({
+        title: `"${entry.description}" changed while you were offline`,
+        body: 'Somebody else edited it after you did. Apply your version anyway, or drop yours and keep theirs?',
+        confirmLabel: 'Apply mine',
+        cancelLabel: 'Keep theirs',
+      });
+      if (!keepMine) continue;
+      try {
+        // Without expectedVersion, so it overwrites rather than conflicting with the change it was
+        // just told about.
+        const { expectedVersion: _dropped, ...forced } = entry.payload as { expectedVersion?: number };
+        const saved =
+          entry.kind === 'edit-itemized'
+            ? await expensesApi.updateItemized(id, entry.expenseId, forced as CreateItemizedPayload)
+            : await expensesApi.update(id, entry.expenseId, forced as CreateExpensePayload);
+        showSavedExpense(saved);
+        void refreshLedger();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Could not apply your version.');
+      }
     }
   };
 
@@ -2024,7 +2070,10 @@ export function GroupDetailPage(): ReactNode {
                           </p>
                           {/* A correction, said plainly. Almost every one is somebody fixing their own
                               typo, so this is muted text and not a warning colour. */}
-                          {item.expense.lastEdit && (
+                          {pendingEdits.has(item.expense.id) && (
+                          <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
+                        )}
+                        {item.expense.lastEdit && (
                             <p className="truncate text-xs text-faint">
                               {correctionLine(
                                 item.expense.lastEdit.fields as CorrectionField[],
@@ -2603,6 +2652,11 @@ export function GroupDetailPage(): ReactNode {
                 showSavedExpense(saved);
                 void refreshLedger();
               }}
+              onQueued={(description) => {
+                setEditingExpense(null);
+                setPending(outboxQueued(id));
+                toast.success(`Your change to "${description}" goes out when you have signal.`);
+              }}
             />
           ) : (
             <AddExpenseForm
@@ -2616,6 +2670,11 @@ export function GroupDetailPage(): ReactNode {
                 toast.success('Expense updated.');
                 showSavedExpense(saved);
                 void refreshLedger();
+              }}
+              onQueued={(description) => {
+                setEditingExpense(null);
+                setPending(outboxQueued(id));
+                toast.success(`Your change to "${description}" goes out when you have signal.`);
               }}
             />
           ))}

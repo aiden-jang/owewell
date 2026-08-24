@@ -95,6 +95,10 @@ export const expenses = sqliteTable(
     // connection is recognised as the same expense instead of posted twice. Null on anything written
     // before the outbox existed, and on writes that never had to be retried.
     clientId: text('client_id'),
+    // Incremented on every edit. An edit that names the version it was based on can be rejected when
+    // the row has moved on, which is the difference between "your change won" and "your change
+    // silently erased somebody else's".
+    version: integer('version').notNull().default(1),
     // R2 object name for the receipt photo, or null. See the receipt routes in index.ts.
     receiptKey: text('receipt_key'),
     deletedAt: integer('deleted_at', { mode: 'timestamp' }), // soft delete; keeps balances auditable
