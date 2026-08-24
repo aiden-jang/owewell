@@ -519,13 +519,26 @@ input[type='checkbox'] {
   animation-fill-mode: backwards;
 }
 
+/*
+ * Reduced motion, meaning all of it.
+ *
+ * This named the five keyframe animations and stopped, which is half the answer: there are 108
+ * transition utilities across the app, plus a 500ms width tween on the settle-up progress bar and
+ * the spring easing on every sheet. Somebody who has asked their OS for less movement was still
+ * getting all of that — the named list only ever covered the parts that were easy to name.
+ *
+ * Everything is reduced to 1ms rather than 0, and iteration-count to 1, which is the conventional
+ * shape: a duration of zero can skip transitionend/animationend, and code that waits on those stops
+ * rather than speeding up. `scroll-behavior` is included because a smooth scroll is motion too.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .animate-rise,
-  .animate-sheet,
-  .animate-fade,
-  .animate-pop,
-  .animate-draw {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
