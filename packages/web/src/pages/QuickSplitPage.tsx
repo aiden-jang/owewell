@@ -11,8 +11,16 @@ import {
 } from '@owewell/shared';
 import { normalizeAmountInput } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
+import { PublicHeader } from '../components/PublicHeader';
+import { serverValue } from '../lib/splitValues';
+import {
+  clearQuickSplitDraft,
+  readQuickSplitDraft,
+  writeQuickSplitDraft,
+  type DraftItem,
+  type DraftPerson,
+} from '../lib/quickSplitDraft';
 import { AppHeader } from '../components/AppHeader';
-import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
 import {
   clearPendingSplit,
@@ -24,89 +32,13 @@ import {
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { useShareAction } from '../lib/useShareAction';
 
-interface Person {
-  id: string;
-  name: string;
-}
-
-interface Item {
-  id: string;
-  description: string;
-  amount: string;
-  method: SplitMethod;
-  /** Per-person raw value inputs (shares / percent / exact), keyed by person id. */
-  values: Record<string, string>;
-  /** Person id of who paid for this item. Empty → the default payer. */
-  payerId: string;
-  /** Present only on tip rows created by a preset, so choosing another preset can replace them. */
-  generatedTip?: number;
-}
-
-interface QuickSplitDraft {
-  version: 1;
-  savedAt: number;
-  people: Person[];
-  items: Item[];
-  payerId: string;
-  splitPayers: boolean;
-  youId: string;
-}
-
-const DRAFT_KEY = 'owewell:quick-split-draft';
-const DRAFT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
-const SPLIT_METHOD_SET = new Set<SplitMethod>(['EQUAL', 'SHARES', 'PERCENT', 'EXACT']);
-
-function readQuickSplitDraft(): QuickSplitDraft | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(DRAFT_KEY) ?? 'null') as Partial<QuickSplitDraft> | null;
-    if (
-      !parsed ||
-      parsed.version !== 1 ||
-      typeof parsed.savedAt !== 'number' ||
-      Date.now() - parsed.savedAt > DRAFT_MAX_AGE ||
-      !Array.isArray(parsed.people) ||
-      !Array.isArray(parsed.items)
-    ) return null;
-    const people = parsed.people.filter(
-      (person): person is Person =>
-        !!person && typeof person.id === 'string' && typeof person.name === 'string',
-    );
-    const items = parsed.items.filter(
-      (item): item is Item =>
-        !!item &&
-        typeof item.id === 'string' &&
-        typeof item.description === 'string' &&
-        typeof item.amount === 'string' &&
-        SPLIT_METHOD_SET.has(item.method) &&
-        typeof item.values === 'object' &&
-        item.values !== null &&
-        Object.values(item.values).every((value) => typeof value === 'string') &&
-        typeof item.payerId === 'string' &&
-        (item.generatedTip === undefined || typeof item.generatedTip === 'number'),
-    );
-    if (people.length < 2 || items.length < 1) return null;
-    return {
-      version: 1,
-      savedAt: parsed.savedAt,
-      people,
-      items,
-      payerId: typeof parsed.payerId === 'string' ? parsed.payerId : '',
-      splitPayers: parsed.splitPayers === true,
-      youId: typeof parsed.youId === 'string' ? parsed.youId : '',
-    };
-  } catch {
-    return null;
-  }
-}
-
-function clearQuickSplitDraft(): void {
-  try {
-    window.localStorage.removeItem(DRAFT_KEY);
-  } catch {
-    // Draft recovery is a convenience; storage permissions never block splitting a bill.
-  }
-}
+/*
+ * The draft layer, the split-value parsing and the public header all moved out — see
+ * lib/quickSplitDraft.ts, lib/splitValues.ts and components/PublicHeader.tsx. This file is the
+ * landing page, the demo and the tool in one component, which is enough for one file to be.
+ */
+type Person = DraftPerson;
+type Item = DraftItem;
 
 function newPerson(name = ''): Person {
   return { id: crypto.randomUUID(), name };
@@ -114,21 +46,6 @@ function newPerson(name = ''): Person {
 
 function newItem(): Item {
   return { id: crypto.randomUUID(), description: '', amount: '', method: 'EQUAL', values: {}, payerId: '' };
-}
-
-/** Parse a raw per-person input into the server value for a method, or undefined for EQUAL. */
-function serverValue(method: SplitMethod, raw: string): number | undefined {
-  const trimmed = raw.trim();
-  if (method === 'EQUAL') return undefined;
-  if (method === 'EXACT') return dollarsToCents(trimmed);
-  if (method === 'PERCENT') {
-    const pct = Number(trimmed);
-    if (!Number.isFinite(pct)) throw new Error('bad percent');
-    return Math.round(pct * 100);
-  }
-  const weight = Number(trimmed);
-  if (!Number.isInteger(weight) || weight <= 0) throw new Error('bad share');
-  return weight;
 }
 
 /**
@@ -179,35 +96,6 @@ function splitVerdict(
   return null;
 }
 
-function PublicHeader(): ReactNode {
-  const { login, signup } = useAuth();
-  return (
-    <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
-        <Link to="/split" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-          <BrandMark /> owewell
-        </Link>
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <button
-            type="button"
-            onClick={() => login(window.location.origin)}
-            className="rounded-full px-3 py-1.5 text-muted transition hover:text-ink"
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            onClick={() => signup(window.location.origin)}
-            className="btn-gradient rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98]"
-          >
-            Sign up
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
-
 export function QuickSplitPage(): ReactNode {
   const { user, signup } = useAuth();
   const navigate = useNavigate();
@@ -236,22 +124,10 @@ export function QuickSplitPage(): ReactNode {
       clearQuickSplitDraft();
       return;
     }
-    const timer = window.setTimeout(() => {
-      const draft: QuickSplitDraft = {
-        version: 1,
-        savedAt: Date.now(),
-        people,
-        items,
-        payerId,
-        splitPayers,
-        youId,
-      };
-      try {
-        window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-      } catch {
-        // The form continues normally when private browsing or storage policy blocks persistence.
-      }
-    }, 350);
+    const timer = window.setTimeout(
+      () => writeQuickSplitDraft({ people, items, payerId, splitPayers, youId }),
+      350,
+    );
     return () => window.clearTimeout(timer);
   }, [people, items, payerId, splitPayers, youId]);
 
