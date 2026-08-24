@@ -221,8 +221,10 @@ app.post('/owewell/groups/:id/archive', async (c) => {
 
 app.delete('/owewell/groups/:id', async (c) => {
   const receiptKeys = await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
-  // After the rows are gone: an image nobody can reach is still an image being paid for.
-  c.executionCtx.waitUntil(deleteReceipts(c.env.RECEIPTS, receiptKeys));
+  // After the rows are gone: an image nobody can reach is still an image being paid for. Skipped
+  // entirely without a bucket, where by definition there is nothing stored to leave behind.
+  const bucket = c.env.RECEIPTS;
+  if (bucket) c.executionCtx.waitUntil(deleteReceipts(bucket, receiptKeys));
   return c.json({ ok: true });
 });
 
@@ -444,11 +446,30 @@ app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
  * money right and no picture, which is recoverable; a create that fails because an image did is not
  * worth the tidiness of one round trip.
  */
+/*
+ * Every receipt route goes through here first.
+ *
+ * With no bucket bound these endpoints cannot do their job, and saying so plainly beats the
+ * alternatives: a 500 from a missing binding reads as a broken server, and letting the route 404
+ * reads as a missing expense. The UI hides these controls anyway (VITE_RECEIPTS_ENABLED), so this
+ * only answers a client that got here some other way.
+ */
+app.on(
+  ['PUT', 'GET', 'DELETE'],
+  '/owewell/groups/:id/expenses/:expenseId/receipt',
+  async (c, next) => {
+    if (!c.env.RECEIPTS) {
+      return c.json({ error: 'RECEIPTS_DISABLED', message: 'Receipt photos are not enabled.' }, 503);
+    }
+    await next();
+  },
+);
+
 app.put('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
   const contentType = c.req.header('content-type') ?? '';
   await putReceipt(
     createDb(c.env),
-    c.env.RECEIPTS,
+    c.env.RECEIPTS!,
     c.get('person').id,
     c.req.param('id'),
     c.req.param('expenseId'),
@@ -462,7 +483,7 @@ app.put('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
 app.get('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
   const object = await getReceipt(
     createDb(c.env),
-    c.env.RECEIPTS,
+    c.env.RECEIPTS!,
     c.get('person').id,
     c.req.param('id'),
     c.req.param('expenseId'),
@@ -484,7 +505,7 @@ app.get('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
 app.delete('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
   await deleteReceipt(
     createDb(c.env),
-    c.env.RECEIPTS,
+    c.env.RECEIPTS!,
     c.get('person').id,
     c.req.param('id'),
     c.req.param('expenseId'),

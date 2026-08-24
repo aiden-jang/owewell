@@ -3,6 +3,7 @@ import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
 import { ReceiptPicker } from './ReceiptPicker';
 import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
+import { receiptsEnabled } from '../lib/api';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
@@ -385,7 +386,7 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoF
         className={inputClass}
       />
 
-      {!editing && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
+      {!editing && receiptsEnabled && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
 
       <select
         value={method}

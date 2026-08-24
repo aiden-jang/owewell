@@ -23,13 +23,7 @@ pnpm exec wrangler d1 create owewell
 # 2. Apply migrations to the remote D1.
 pnpm exec wrangler d1 migrations apply owewell --remote
 
-# 3. Create the R2 bucket for receipt photos. CI does NOT do this: `pnpm run deploy` applies D1
-#    migrations, but nothing creates a bucket, and `wrangler deploy` fails on an [[r2_buckets]]
-#    binding whose bucket does not exist. The CI token (Workers Scripts:Edit + D1:Edit) could not
-#    create one anyway.
-pnpm exec wrangler r2 bucket create owewell-receipts
-
-# 4. Custom-domain two-step: a Worker needs a deployment before a custom domain attaches.
+# 3. Custom-domain two-step: a Worker needs a deployment before a custom domain attaches.
 #    - Comment out the [[routes]] custom_domain block in wrangler.toml.
 pnpm run deploy            # builds owewell-web, applies migrations, then wrangler deploy
 #    - Uncomment the [[routes]] block.
@@ -53,6 +47,26 @@ pnpm exec wrangler deploy
 - It's `pnpm exec wrangler deploy` (workspace binary), **not** `pnpm wrangler deploy`.
 - `pnpm run deploy` (not bare `pnpm deploy`, which is pnpm's own command).
 
+## Turning receipt photos on
+
+Off right now: the `[[r2_buckets]]` binding is commented out in `wrangler.toml` and the web build
+does not set `VITE_RECEIPTS_ENABLED`. The code is intact and guarded on both sides — the API answers
+those routes with a 503 and the UI hides the controls — so this is three steps and no code change.
+
+R2 has to be enabled for the whole Cloudflare account first, which is a dashboard action and wants a
+card on file. Its free tier (10 GB, no egress fees) covers this app several thousand receipts over.
+
+```bash
+# 1. Dashboard → R2 Object Storage → enable. Then:
+pnpm exec wrangler r2 bucket create owewell-receipts
+# 2. Uncomment the [[r2_buckets]] block in packages/api/wrangler.toml.
+# 3. Build the web app with VITE_RECEIPTS_ENABLED=true.
+```
+
+**Do not uncomment the binding before the bucket exists.** `wrangler deploy` fails on a binding whose
+bucket is missing, and because CI's `check` job still passes, the run looks green until you open it —
+that took every deploy down for a day before anyone noticed.
+
 ## Optional: receipt OCR with Claude
 
 Receipt scanning needs **both** pieces, set together (like Turnstile/Google elsewhere):
@@ -72,8 +86,6 @@ leave the flag off and the button stays hidden. Uses the cheapest vision model
 
 ## Gotchas (from the auth deploy; expect the same here)
 
-- **`The specified bucket does not exist`** on deploy → step 3 above was skipped. Buckets are not
-  created by the deploy; only D1 migrations are.
 - **`Cannot attach custom domain: Worker has no deployments`** → the two-step in first deploy:
   deploy once with `[[routes]]` commented, then uncomment and deploy again.
 - **Changing `database_id` orphans the local D1** (miniflare keys local storage by id). After

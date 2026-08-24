@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
-import { ApiError, ocrEnabled } from '../lib/api';
+import { ApiError, ocrEnabled, receiptsEnabled } from '../lib/api';
 import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
@@ -329,7 +329,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         className={inputClass}
       />
 
-      {!editing && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
+      {!editing && receiptsEnabled && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
 
       <div className="space-y-3">
         {items.map((item, index) => (

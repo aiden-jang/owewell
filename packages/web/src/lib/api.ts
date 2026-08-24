@@ -16,6 +16,16 @@ export const AUTH_ORIGIN =
 export const ocrEnabled =
   import.meta.env.DEV || import.meta.env.VITE_OCR_ENABLED === 'true';
 
+/*
+ * Receipt photos need an R2 bucket, which needs R2 switched on for the whole Cloudflare account.
+ * Until that happens the binding is commented out in wrangler.toml and the API answers these
+ * endpoints with a 503, so the controls are hidden rather than offered and then refused.
+ *
+ * Off in dev too, deliberately: without the binding `wrangler dev` has no bucket either, so a
+ * dev-only "on" would just be a locally broken feature. Turn both on together — see wrangler.toml.
+ */
+export const receiptsEnabled = import.meta.env.VITE_RECEIPTS_ENABLED === 'true';
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,

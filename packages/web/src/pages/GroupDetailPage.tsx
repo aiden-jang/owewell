@@ -28,6 +28,7 @@ import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
+import { receiptsEnabled } from '../lib/api';
 import { expensesApi, receiptUrl, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { play } from '../lib/sound';
@@ -721,7 +722,7 @@ export function GroupDetailPage(): ReactNode {
         {detailExpense && (
           <ExpenseDetail
             expense={detailExpense}
-            receiptSrc={receiptUrl(id, detailExpense.id)}
+            {...(receiptsEnabled ? { receiptSrc: receiptUrl(id, detailExpense.id) } : {})}
             members={group.members}
             viewerId={user?.id}
             locked={settlements.length > 0}
@@ -734,12 +735,15 @@ export function GroupDetailPage(): ReactNode {
               setDetailExpenseId(null);
               setDuplicatingExpense(detailExpense);
             }}
-            {...(group.archived
-              ? {}
-              : {
-                  onAttachReceipt: (file: File) => void attachReceipt(detailExpense.id, file),
-                  onRemoveReceipt: () => void removeReceipt(detailExpense.id),
-                })}
+            {...(
+              // Withheld while receipts are off, and while the group is archived (read-only).
+              receiptsEnabled && !group.archived
+                ? {
+                    onAttachReceipt: (file: File) => void attachReceipt(detailExpense.id, file),
+                    onRemoveReceipt: () => void removeReceipt(detailExpense.id),
+                  }
+                : {}
+            )}
             onDelete={() => {
               // The sheet stays open behind the confirm and closes on its own when the expense
               // leaves the list, so a cancelled delete puts you back where you were.
