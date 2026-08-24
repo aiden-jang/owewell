@@ -1,0 +1,335 @@
+import { useState, type FormEvent, type ReactNode } from 'react';
+import type { Balance, GroupMember } from '../lib/groups';
+import type { MoneyFormatter } from '@owewell/shared';
+import { Avatar } from './Avatar';
+import { Icon } from './Icon';
+import { useToast } from './Toast';
+import { useMoney } from '../lib/currency';
+
+/*
+ * The member list, and the three small editors hiding inside it.
+ *
+ * Nine pieces of state came out of the group page with this: which row is being renamed, which row
+ * is editing payment handles, three handle drafts, the add-someone field and its error, and whether
+ * the list is expanded at all. None of it was read anywhere else on the page.
+ *
+ * The division of labour with the page: the page's handlers do the work and say so (they call the
+ * API, refetch the group, and toast on success), and they throw when it fails. This panel decides
+ * what failure looks like, which is not the same everywhere — a failed add belongs under the field
+ * you just typed in, while a failed rename has no field left on screen to sit under.
+ */
+
+export interface PaymentHandles {
+  venmoHandle: string;
+  cashappCashtag: string;
+  paypalHandle: string;
+}
+
+/** What a member's net position reads as on their row. Empty before the group has any activity. */
+function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatter): { text: string; tone: string } {
+  // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
+  // a brand-new member "settled up"; that only makes sense once there's been something to settle.
+  if (!hasActivity) return { text: '', tone: 'text-muted' };
+  if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
+  const amount = fmt(Math.abs(netCents));
+  return netCents > 0
+    ? { text: `is owed ${amount}`, tone: 'text-pos' }
+    : { text: `owes ${amount}`, tone: 'text-neg' };
+}
+
+export function MembersPanel({
+  members,
+  balances,
+  currentUserId,
+  isOwner,
+  hasActivity,
+  paymentsRecorded,
+  onRename,
+  onSaveHandles,
+  onAdd,
+  onRemove,
+}: {
+  members: GroupMember[];
+  balances: Balance[];
+  currentUserId: string | undefined;
+  isOwner: boolean;
+  /** Anything on the ledger at all. Before that, "settled up" would be a lie by omission. */
+  hasActivity: boolean;
+  /** A payment exists, which freezes the roster: removing re-splits and would invalidate it. */
+  paymentsRecorded: boolean;
+  onRename: (memberId: string, name: string) => Promise<void>;
+  onSaveHandles: (memberId: string, handles: PaymentHandles) => Promise<void>;
+  onAdd: (name: string) => Promise<void>;
+  /** Owns the confirmation, because the re-split it warns about is the page's business. */
+  onRemove: (memberId: string, netCents: number) => Promise<void>;
+}): ReactNode {
+  const fmt = useMoney();
+  const toast = useToast();
+  /*
+   * A one-person group's only useful next step is adding people, and that lives in here, so it
+   * starts expanded when the group still needs someone.
+   *
+   * Initial state rather than an effect: the page keys this panel on the group id, so switching
+   * groups remounts it and re-asks the question once, instead of an effect that has to be told not
+   * to fight the toggle the person just pressed.
+   */
+  const [open, setOpen] = useState(members.length < 2);
+  const [newName, setNewName] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [handlesId, setHandlesId] = useState<string | null>(null);
+  const [venmo, setVenmo] = useState('');
+  const [cashapp, setCashapp] = useState('');
+  const [paypal, setPaypal] = useState('');
+
+  const netOf = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
+  const balanceOf = Object.fromEntries(balances.map((b) => [b.userId, b]));
+
+  async function saveName(memberId: string): Promise<void> {
+    const name = renameDraft.trim();
+    if (!name) return;
+    try {
+      await onRename(memberId, name);
+      setRenamingId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not rename them.');
+    }
+  }
+
+  function startHandles(member: GroupMember): void {
+    setHandlesId(member.userId);
+    setVenmo(member.venmoHandle ?? '');
+    setCashapp(member.cashappCashtag ?? '');
+    setPaypal(member.paypalHandle ?? '');
+  }
+
+  async function saveHandles(memberId: string): Promise<void> {
+    try {
+      await onSaveHandles(memberId, { venmoHandle: venmo, cashappCashtag: cashapp, paypalHandle: paypal });
+      setHandlesId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save payment handles.');
+    }
+  }
+
+  async function addMember(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    setAddError(null);
+    try {
+      await onAdd(name);
+      setNewName('');
+    } catch (err) {
+      // Inline rather than a toast: the field that caused it is still on screen, and "already in
+      // this group" is something you fix by retyping.
+      setAddError(err instanceof Error ? err.message : 'Could not add them.');
+    }
+  }
+
+  return (
+    <section className="mt-8">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between"
+      >
+        <span className="text-sm font-medium text-muted">
+          Members · {members.length}
+        </span>
+        <span className="flex items-center gap-1 text-sm text-muted">
+          <span className="flex -space-x-2">
+            {members.slice(0, 4).map((m) => (
+              <span key={m.userId} className="ring-2 ring-canvas rounded-full">
+                <Avatar name={m.displayName} size="sm" />
+              </span>
+            ))}
+          </span>
+          <Icon name="chevron-right" size={16} className={`transition ${open ? 'rotate-90' : ''}`} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-3 animate-fade">
+          <ul className="space-y-2">
+            {members.map((member) => {
+              const label = balanceLabel(netOf[member.userId] ?? 0, hasActivity, fmt);
+              const bal = balanceOf[member.userId];
+              const isSelf = member.userId === currentUserId;
+              // The owner can remove a non-owner member only before any payment is recorded
+              // (removal re-splits expenses, which would break a logged settlement). There's no
+              // "leave" — to get a group off your list you archive it.
+              const canRemove = isOwner && !isSelf && member.role !== 'OWNER' && !paymentsRecorded;
+              return (
+                <li
+                  key={member.userId}
+                  className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                >
+                  {renamingId === member.userId ? (
+                    <span className="flex w-full items-center gap-2">
+                      <input
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        autoFocus
+                        aria-label="Member name"
+                        className="flex-1 rounded-lg border border-line bg-field px-2.5 py-1.5 outline-none focus:border-accent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void saveName(member.userId)}
+                        className="text-sm font-medium text-accent"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRenamingId(null)}
+                        className="text-sm text-muted"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : handlesId === member.userId ? (
+                    <span className="flex w-full flex-col gap-2">
+                      <span className="text-xs font-medium text-muted">
+                        {member.displayName}&rsquo;s payment handles
+                      </span>
+                      <input
+                        value={venmo}
+                        onChange={(e) => setVenmo(e.target.value)}
+                        placeholder="Venmo username"
+                        aria-label="Venmo username"
+                        autoFocus
+                        className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                      />
+                      <input
+                        value={cashapp}
+                        onChange={(e) => setCashapp(e.target.value)}
+                        placeholder="Cash App $cashtag"
+                        aria-label="Cash App cashtag"
+                        className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                      />
+                      <input
+                        value={paypal}
+                        onChange={(e) => setPaypal(e.target.value)}
+                        placeholder="PayPal.me username"
+                        aria-label="PayPal.me username"
+                        className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                      />
+                      <span className="flex gap-3 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => void saveHandles(member.userId)}
+                          className="text-sm font-medium text-accent"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHandlesId(null)}
+                          className="text-sm text-muted"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="flex min-w-0 items-center gap-3 font-medium">
+                        <Avatar name={member.displayName} />
+                        <span className="flex min-w-0 flex-col">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate">{member.displayName}</span>
+                            {member.role === 'OWNER' && (
+                              <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs text-muted">
+                                owner
+                              </span>
+                            )}
+                            {member.isPlaceholder && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRenamingId(member.userId);
+                                  setRenameDraft(member.displayName);
+                                }}
+                                aria-label={`Rename ${member.displayName}`}
+                                className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                              >
+                                <Icon name="pencil" size={13} />
+                              </button>
+                            )}
+                          </span>
+                          {/* One line: "paid $172.40 · share $57.00" was wrapping mid-phrase on
+                              a phone and pushing the balance out of line. */}
+                          {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
+                            <span className="tnum block truncate text-xs font-normal text-faint">
+                              paid {fmt(bal.paidCents)} · share {fmt(bal.owedCents)}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-3">
+                        {(isSelf || member.isPlaceholder) && (
+                          <button
+                            type="button"
+                            onClick={() => startHandles(member)}
+                            aria-label={`Payment handles for ${member.displayName}`}
+                            title="Payment handles"
+                            className="grid h-7 w-7 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                          >
+                            <Icon name="wallet" size={14} />
+                          </button>
+                        )}
+                        {label.text && (
+                          <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
+                        )}
+                        {canRemove && (
+                          <button
+                            type="button"
+                            onClick={() => void onRemove(member.userId, netOf[member.userId] ?? 0)}
+                            aria-label={`Remove ${member.displayName}`}
+                            title={`Remove ${member.displayName}`}
+                            className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-neg"
+                          >
+                            <Icon name="x" size={16} />
+                          </button>
+                        )}
+                      </span>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <form onSubmit={(e) => void addMember(e)} className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Add someone by name"
+              className="flex-1 rounded-xl border border-line bg-field px-3.5 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
+            >
+              <Icon name="user-plus" size={16} /> Add
+            </button>
+          </form>
+          {addError && <p className="mt-2 text-sm font-medium text-neg">{addError}</p>}
+          <p className="mt-3 text-xs text-muted">
+            Added someone by name? Use <span className="font-medium text-ink">Invite</span> up top for
+            a link they can use to sign in and claim their spot.
+          </p>
+          {isOwner && paymentsRecorded && (
+            <p className="mt-1 text-xs text-faint">
+              Members can&rsquo;t be removed once a payment has been recorded.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
