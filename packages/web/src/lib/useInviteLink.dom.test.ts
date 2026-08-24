@@ -24,7 +24,7 @@ const member = (userId: string, isPlaceholder = false): GroupMember => ({
 
 const group = (members: GroupMember[], archived = false): GroupDetail => ({
   id: 'g1', name: 'Tahoe', createdById: 'a', createdAt: '2026-08-01T00:00:00.000Z',
-  archived, settleBy: null, members,
+  archived, members,
 });
 
 /** Two real members, nobody outstanding: the link has done its job. */

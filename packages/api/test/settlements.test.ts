@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
   createGroup,
-  getGroup,
-  setSettlementDeadline,
 } from '../src/groups.js';
 import {
   addPlaceholderMember,
@@ -36,17 +34,7 @@ async function net(): Promise<Record<string, number>> {
 }
 
 describe('settlements', () => {
-  /*
-   * The deadline survives the final payment, on purpose.
-   *
-   * This used to null it, which covered exactly one of the several writes that can empty a ledger:
-   * deleting the last expense, deleting an overpayment, and editing an expense down so it offsets a debt
-   * all reach zero too, and all of them left the deadline nagging about money nobody owed. It also threw the owner's
-   * finish line away, so a group that settled mid-trip and kept spending had nothing left to settle by.
-   *
-   * Whether the finish line currently applies is read from the balances instead. See `deadlineState`.
-   */
-  test('recording the final payment leaves the shared deadline for the next tab', async () => {
+  test('recording the final payment zeroes both sides', async () => {
     // Alice pays 1000 split evenly: Bob owes Alice 500.
     await createExpense(db, alice, groupId, {
       description: 'Lunch',
@@ -56,7 +44,6 @@ describe('settlements', () => {
       participants: [{ userId: alice }, { userId: bob }],
     });
     expect((await net())[bob]).toBe(-500);
-    await setSettlementDeadline(db, alice, groupId, new Date('2026-08-20T22:00:00Z'));
 
     const s = await recordSettlement(db, alice, groupId, {
       fromUserId: bob,
@@ -68,7 +55,6 @@ describe('settlements', () => {
     const balances = await net();
     expect(balances[alice]).toBe(0);
     expect(balances[bob]).toBe(0);
-    expect((await getGroup(db, alice, groupId)).settleBy).toEqual(new Date('2026-08-20T22:00:00Z'));
     expect(await listSettlements(db, alice, groupId)).toHaveLength(1);
   });
 

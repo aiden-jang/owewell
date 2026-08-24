@@ -145,16 +145,6 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-  async function saveSettlementDeadline(settleBy: string | null): Promise<void> {
-    try {
-      setGroup(await groupsApi.setSettlementDeadline(id, settleBy));
-      toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
-      throw error;
-    }
-  }
-
   async function finishManualPayment(settlement: Settlement, beforeBalances: Balance[]): Promise<void> {
     setPaymentOpen(false);
     const latest = await refreshLedger();
@@ -507,10 +497,8 @@ export function GroupDetailPage(): ReactNode {
           group={group}
           suggested={suggested}
           balances={balances}
-          isOwner={isOwner}
           settling={settling}
           onMarkPaid={markPaid}
-          onSaveDeadline={saveSettlementDeadline}
         />
       ) : (
         groupRecap && (

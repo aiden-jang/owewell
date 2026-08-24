@@ -41,7 +41,6 @@ const GROUP: GroupDetail = {
   createdById: 'a',
   createdAt: '2026-08-01T00:00:00.000Z',
   archived: false,
-  settleBy: null,
   members: [ALICE, BOB, CARA],
 };
 
@@ -67,10 +66,8 @@ async function open(suggested: SuggestedPayment[] = [BOB_PAYS, CARA_PAYS]) {
       group={GROUP}
       suggested={suggested}
       balances={BALANCES}
-      isOwner
       settling={false}
       onMarkPaid={markPaid}
-      onSaveDeadline={vi.fn().mockResolvedValue(undefined)}
     />,
   );
   return userEvent.setup();

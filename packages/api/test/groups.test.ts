@@ -10,7 +10,6 @@ import {
   listGroups,
   renameGroup,
   setGroupArchived,
-  setSettlementDeadline,
 } from '../src/groups.js';
 import {
   addPlaceholderMember,
@@ -62,17 +61,6 @@ describe('groups', () => {
     await expect(renameGroup(db, bob, group.id, 'Hijacked')).rejects.toBeInstanceOf(GroupError);
     const renamed = await renameGroup(db, alice, group.id, 'Weekend');
     expect(renamed.name).toBe('Weekend');
-  });
-
-  test('the owner can set and clear a shared settle-by deadline', async () => {
-    const db = testDb();
-    const group = await createGroup(db, alice, 'Trip');
-    const deadline = new Date('2026-08-20T22:00:00.000Z');
-    expect((await setSettlementDeadline(db, alice, group.id, deadline)).settleBy).toEqual(deadline);
-    expect((await setSettlementDeadline(db, alice, group.id, null)).settleBy).toBeNull();
-
-    const bob = await seedPerson(db, 'Bob');
-    await expect(setSettlementDeadline(db, bob, group.id, deadline)).rejects.toBeInstanceOf(GroupError);
   });
 
   test('a non-owner member cannot rename (NOT_OWNER)', async () => {
