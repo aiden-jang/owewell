@@ -14,7 +14,7 @@ import type { GroupSummary } from '../lib/groups';
  */
 
 const group = (id: string, name: string): GroupSummary => ({
-  id, name, createdAt: '2026-08-01T00:00:00.000Z', archived: false, currency: 'USD',
+  id, name, createdAt: '2026-08-01T00:00:00.000Z', archived: false,
   memberCount: 3, netCents: 0, totalUnsettledCents: 0, totalSpentCents: 0,
   lastActivityAt: '2026-08-10T00:00:00.000Z', isOwner: true,
 });
@@ -23,7 +23,6 @@ const GROUPS = [group('g1', 'Tahoe'), group('g2', 'Big Sur')];
 const handlers = {
   onSwitchGroup: vi.fn(),
   onRename: vi.fn<(name: string) => Promise<void>>(),
-  onChangeCurrency: vi.fn<(code: string) => Promise<void>>(),
   onToggleArchive: vi.fn<() => Promise<void>>(),
   onDelete: vi.fn<() => Promise<void>>(),
   onInvite: vi.fn(),
@@ -39,7 +38,6 @@ async function open(over: Record<string, unknown> = {}) {
         groupId="g1"
         groupName="Tahoe"
         archived={false}
-        currency="USD"
         isOwner
         groups={GROUPS}
         {...handlers}
@@ -57,7 +55,6 @@ const menu = () => screen.getByRole('menu');
 beforeEach(() => {
   for (const fn of Object.values(handlers)) fn.mockReset();
   handlers.onRename.mockResolvedValue(undefined);
-  handlers.onChangeCurrency.mockResolvedValue(undefined);
   handlers.onToggleArchive.mockResolvedValue(undefined);
   handlers.onDelete.mockResolvedValue(undefined);
 });
@@ -80,7 +77,6 @@ describe('what a member is offered', () => {
     await openMenu(user);
     expect(within(menu()).queryByRole('menuitem', { name: /Rename/ })).not.toBeInTheDocument();
     expect(within(menu()).queryByRole('menuitem', { name: /Delete group/ })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Group currency')).not.toBeInTheDocument();
   });
 
   it('shows an owner all of them', async () => {
@@ -88,13 +84,12 @@ describe('what a member is offered', () => {
     await openMenu(user);
     expect(within(menu()).getByRole('menuitem', { name: /Rename/ })).toBeInTheDocument();
     expect(within(menu()).getByRole('menuitem', { name: /Delete group/ })).toBeInTheDocument();
-    expect(screen.getByLabelText('Group currency')).toBeInTheDocument();
   });
 });
 
 describe('the menu getting out of the way', () => {
   /*
-   * Only Export and Currency used to close it. Archiving or deleting left it hanging open over a
+   * Only Export used to close it. Archiving or deleting left it hanging open over a
    * page that had already changed underneath it.
    */
   it.each([
@@ -191,24 +186,6 @@ describe('the rest of the bar', () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: 'Invite people to this group' }));
     expect(handlers.onInvite).toHaveBeenCalled();
-  });
-
-  /*
-   * Reaching for the currency used to close the menu out from under you.
-   *
-   * It is the one menu item you interact with rather than press, and opening its select is a click
-   * like any other, so the close-on-outside-click listener fired and took the picker with it. There
-   * was no way to change a group's currency at all.
-   */
-  it('survives being reached for, then closes once a currency is picked', async () => {
-    const user = await open();
-    await openMenu(user);
-    await user.click(screen.getByLabelText('Group currency'));
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText('Group currency'), 'EUR');
-    expect(handlers.onChangeCurrency).toHaveBeenCalledWith('EUR');
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('says when the group is archived, and offers the way back', async () => {

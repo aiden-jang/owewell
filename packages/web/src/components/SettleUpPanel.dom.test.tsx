@@ -44,7 +44,6 @@ const GROUP: GroupDetail = {
   archived: false,
   settleBy: null,
   budgetCents: null,
-  currency: 'USD',
   members: [ALICE, BOB, CARA],
 };
 

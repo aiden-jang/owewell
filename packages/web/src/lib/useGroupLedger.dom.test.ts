@@ -57,7 +57,7 @@ const expense = (id: string, description: string, hasReceipt = false): Expense =
   hasReceipt, version: 1, splits: [{ userId: 'a', owedCents: 1_000 }],
 });
 
-const GROUP = { id: 'g1', name: 'Tahoe', currency: 'USD', members: [], archived: false } as never;
+const GROUP = { id: 'g1', name: 'Tahoe', members: [], archived: false } as never;
 const BALANCES = [{ userId: 'a', displayName: 'Alice', netCents: 500, paidCents: 500, owedCents: 0 }];
 const SUGGESTED = [{ fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 500 }];
 

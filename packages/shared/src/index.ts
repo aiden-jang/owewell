@@ -1,14 +1,5 @@
 export { Money, MoneyError, allocateCents, dollarsToCents } from './money.js';
-export {
-  asCurrency,
-  CURRENCIES,
-  currencyFormatter,
-  currencySymbol,
-  DEFAULT_CURRENCY,
-  isSupportedCurrency,
-  type CurrencyCode,
-  type MoneyFormatter,
-} from './currency.js';
+export { currencySymbol, formatMoney, type MoneyFormatter } from './currency.js';
 export {
   computeSplit,
   quickSplitSeed,
