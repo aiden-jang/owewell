@@ -37,7 +37,7 @@ import {
   updateExpense,
   updateItemizedExpense,
 } from './expenses.js';
-import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS, scanRejection } from '@owewell/core';
+import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS } from '@owewell/core';
 import {
   SettlementError,
   deleteSettlement,
@@ -45,14 +45,6 @@ import {
   listSettlements,
   recordSettlement,
 } from './settlements.js';
-import { extractReceipt } from './ocr.js';
-import {
-  deleteReceipt,
-  deleteReceipts,
-  getReceipt,
-  putReceipt,
-  ReceiptError,
-} from './receipts.js';
 import { QuickSplitError, createQuickSplit } from './quicksplit.js';
 import { notifyGroupChanged } from './realtime.js';
 
@@ -75,13 +67,7 @@ app.use('*', harden());
  * Applied to every API path rather than to /me, because every one of them is per-user: balances,
  * groups, expenses. A response whose body depends on who is asking must never be stored.
  */
-// Receipts set their own (private, short) caching: they are the one thing under /owewell that is
-// bytes rather than a per-user answer, and re-fetching a photo on every render is pure waste.
-const RECEIPT_PATH = /\/expenses\/[^/]+\/receipt$/;
-app.use('/owewell/*', async (c, next) => {
-  if (RECEIPT_PATH.test(c.req.path)) return next();
-  return noStore()(c, next);
-});
+app.use('/owewell/*', noStore());
 app.use('/health', noStore());
 
 function noStore() {
@@ -194,11 +180,7 @@ app.post('/owewell/groups/:id/archive', async (c) => {
 });
 
 app.delete('/owewell/groups/:id', async (c) => {
-  const receiptKeys = await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
-  // After the rows are gone: an image nobody can reach is still an image being paid for. Skipped
-  // entirely without a bucket, where by definition there is nothing stored to leave behind.
-  const bucket = c.env.RECEIPTS;
-  if (bucket) c.executionCtx.waitUntil(deleteReceipts(bucket, receiptKeys));
+  await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
   return c.json({ ok: true });
 });
 
@@ -412,104 +394,6 @@ app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
   return c.json({ ok: true });
 });
 
-/*
- * Receipt photos: written after the expense exists, read only by members.
- *
- * A separate request from the create rather than a multipart body on it, because the ledger write
- * has to be able to succeed on its own. A photo that fails to upload leaves an expense with the
- * money right and no picture, which is recoverable; a create that fails because an image did is not
- * worth the tidiness of one round trip.
- */
-/*
- * Every receipt route goes through here first.
- *
- * With no bucket bound these endpoints cannot do their job, and saying so plainly beats the
- * alternatives: a 500 from a missing binding reads as a broken server, and letting the route 404
- * reads as a missing expense. The UI hides these controls anyway (VITE_RECEIPTS_ENABLED), so this
- * only answers a client that got here some other way.
- */
-app.on(
-  ['PUT', 'GET', 'DELETE'],
-  '/owewell/groups/:id/expenses/:expenseId/receipt',
-  async (c, next) => {
-    if (!c.env.RECEIPTS) {
-      return c.json({ error: 'RECEIPTS_DISABLED', message: 'Receipt photos are not enabled.' }, 503);
-    }
-    await next();
-  },
-);
-
-app.put('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
-  const contentType = c.req.header('content-type') ?? '';
-  await putReceipt(
-    createDb(c.env),
-    c.env.RECEIPTS!,
-    c.get('person').id,
-    c.req.param('id'),
-    c.req.param('expenseId'),
-    await c.req.arrayBuffer(),
-    contentType.split(';')[0]?.trim() ?? '',
-  );
-  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
-  return c.json({ ok: true });
-});
-
-app.get('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
-  const object = await getReceipt(
-    createDb(c.env),
-    c.env.RECEIPTS!,
-    c.get('person').id,
-    c.req.param('id'),
-    c.req.param('expenseId'),
-  );
-  if (!object) return c.json({ error: 'NOT_FOUND' }, 404);
-  return new Response(object.body, {
-    headers: {
-      'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
-      // `private`, so it stays in the one browser that is allowed to have it and never in a shared
-      // cache. Short, because replacing a photo keeps the same URL.
-      'Cache-Control': 'private, max-age=300',
-      // Belt and braces on a route that streams user-supplied bytes back out.
-      'Content-Disposition': 'inline',
-      'X-Content-Type-Options': 'nosniff',
-    },
-  });
-});
-
-app.delete('/owewell/groups/:id/expenses/:expenseId/receipt', async (c) => {
-  await deleteReceipt(
-    createDb(c.env),
-    c.env.RECEIPTS!,
-    c.get('person').id,
-    c.req.param('id'),
-    c.req.param('expenseId'),
-  );
-  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
-  return c.json({ ok: true });
-});
-
-app.post('/owewell/groups/:id/ocr', async (c) => {
-  await requireMembership(createDb(c.env), c.get('person').id, c.req.param('id'));
-  const form = await c.req.formData();
-  const file = form.get('file') as File | string | null;
-  if (!file || typeof file === 'string') return c.json({ error: 'NoFile', message: 'Attach a receipt image.' }, 400);
-  /*
-   * Checked here rather than only in the model call. Without it an unreadable image became a 502
-   * "could not read that receipt", which reads as "your receipt is unclear" when the real answer is
-   * "that file type will never work". Size too: base64 inflates by a third, and there was nothing
-   * stopping a 40MB photo becoming a 53MB request.
-   */
-  const why = scanRejection(file);
-  if (why) return c.json({ error: 'UnsupportedImage', message: why }, 400);
-  try {
-    const receipt = await extractReceipt(c.env, await file.arrayBuffer(), file.type);
-    return c.json({ receipt });
-  } catch (err) {
-    console.error('receipt OCR failed', err);
-    return c.json({ error: 'OcrFailed', message: 'Could not read that receipt.' }, 502);
-  }
-});
-
 // Claim an unclaimed seat (placeholder) via a share token. Requires sign-in (auth guard above);
 // the token authorizes the claim. The caller merges into the placeholder and becomes a member.
 app.post('/owewell/shared/:token/claim', async (c) => {
@@ -594,9 +478,6 @@ app.onError((err, c) => {
   }
   if (err instanceof SettlementError) {
     return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
-  }
-  if (err instanceof ReceiptError) {
-    return c.json({ error: err.code, message: err.message }, 422);
   }
   if (err instanceof QuickSplitError) {
     return c.json({ error: err.code, message: err.message }, 422);

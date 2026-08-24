@@ -1,16 +1,12 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
-import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
-import { ApiError, ocrEnabled, receiptsEnabled } from '../lib/api';
+import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
-import { Icon } from './Icon';
-import { ReceiptPicker } from './ReceiptPicker';
 import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
-import { prepareForScan } from '../lib/prepareForScan';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -36,10 +32,9 @@ interface Props {
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
   /** The expense saved but its photo did not. Worth saying out loud; not worth failing the save. */
-  onPhotoFailed?: (message: string) => void;
 }
 
-export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, onPhotoFailed, editing, template }: Props): ReactNode {
+export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
   const fmt = useMoney();
   const source = editing ?? template;
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
@@ -65,10 +60,8 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
     source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
   const [note, setNote] = useState(source?.note ?? '');
-  const [receipt, setReceipt] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [scanning, setScanning] = useState(false);
 
   // Live receipt total (items + tax + tip) so you can check it against the printed total before
   // saving. Computed in integer cents to avoid float drift; blank/invalid fields count as 0.
@@ -79,40 +72,6 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
     };
     return items.reduce((sum, it) => sum + toCents(it.amount), 0) + toCents(tax) + toCents(tip);
   }, [items, tax, tip]);
-
-  // Scan a receipt photo: send it to the OCR endpoint and prefill the items + tax/tip from what
-  // it reads. Everything stays editable afterward, since OCR is a starting point, not gospel.
-  async function handleScan(file: File): Promise<void> {
-    setScanning(true);
-    setError(null);
-    try {
-      // Converted and shrunk first: an iPhone hands over HEIC, which the model cannot read, and a
-      // full-size photo is megabytes the model does not use. See `prepareForScan`.
-      const receipt = await ocrReceipt(groupId, await prepareForScan(file));
-      if (receipt.items.length > 0) {
-        setItems(
-          receipt.items.map((it) => ({
-            name: it.name,
-            amount: centsToInput(it.amountCents),
-            participantIds: allMemberIds(),
-            payerId: defaultPayer,
-          })),
-        );
-      }
-      setTax(receipt.taxCents ? centsToInput(receipt.taxCents) : '');
-      setTip(receipt.tipCents ? centsToInput(receipt.tipCents) : '');
-    } catch (err) {
-      // The server's reason when it has one — "that image isn't one we can scan" is actionable in a
-      // way that the generic line is not.
-      setError(
-        err instanceof ApiError && err.status === 400
-          ? err.message
-          : 'Could not read that receipt. Add the items by hand below.',
-      );
-    } finally {
-      setScanning(false);
-    }
-  }
 
   function clearAfterCreate(): void {
     setDescription('');
@@ -199,17 +158,6 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         saved = await expensesApi.createItemized(groupId, payload);
         clearAfterCreate();
       }
-      if (receipt) {
-        // The ledger write already succeeded, so a photo that fails is a warning, not a rollback.
-        // Attaching it later from the detail sheet is one tap.
-        try {
-          await expensesApi.putReceipt(groupId, saved.id, receipt);
-          saved = { ...saved, hasReceipt: true };
-        } catch (photoErr) {
-          onPhotoFailed?.(photoErr instanceof Error ? photoErr.message : 'The photo did not save.');
-        }
-        setReceipt(null);
-      }
       onCreated(saved);
     } catch (err) {
       // The receipt is the write most worth keeping: it is the one that takes two minutes to type.
@@ -252,31 +200,6 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
-      {ocrEnabled && (
-        <label
-          className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm font-medium transition ${
-            scanning
-              ? 'border-accent/60 text-accent'
-              : 'border-line text-muted hover:border-accent/60 hover:text-ink'
-          }`}
-        >
-          <Icon name="scan" size={18} />
-          {scanning ? 'Scanning receipt...' : 'Scan a receipt photo'}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            disabled={scanning}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void handleScan(file);
-              e.target.value = ''; // let the same file be picked again after an edit
-            }}
-          />
-        </label>
-      )}
-
       <input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -329,7 +252,6 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         className={inputClass}
       />
 
-      {!editing && receiptsEnabled && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
 
       <div className="space-y-3">
         {items.map((item, index) => (

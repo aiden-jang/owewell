@@ -24,7 +24,6 @@ function expense(over: Partial<Expense> & { id: string; description: string; amo
     createdAt: '2026-08-10T12:00:00.000Z',
     date: '2026-08-10T12:00:00.000Z',
     note: null,
-    hasReceipt: false,
     version: 1,
     splits: [{ userId: 'a', owedCents: 0 }, { userId: 'b', owedCents: 0 }],
     ...over,

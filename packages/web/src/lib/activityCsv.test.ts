@@ -8,7 +8,7 @@ const nameOf = (id: string) => ({ a: 'Alice', b: 'Bob' })[id] ?? 'Someone';
 
 const expense = (over: Partial<Expense> & { id: string; description: string; amountCents: number }): Expense => ({
   payerId: 'a', splitMethod: 'EQUAL', category: 'food', createdAt: '2026-08-10T12:00:00.000Z',
-  date: '2026-08-10T12:00:00.000Z', note: null, hasReceipt: false, version: 1,
+  date: '2026-08-10T12:00:00.000Z', note: null, version: 1,
   splits: [{ userId: 'a', owedCents: 0 }], ...over,
 });
 
