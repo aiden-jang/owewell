@@ -178,7 +178,9 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
 
     // Minted before the request, so a retry carries the same one and is recognised as this receipt.
     const clientId = crypto.randomUUID();
-    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date, note: note.trim(), clientId };
+    // An edit says which version it was based on; a create has none to be based on.
+    const versioned = editing ? { expectedVersion: editing.version } : {};
+    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date, note: note.trim(), clientId, ...versioned };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -202,6 +204,20 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
       onCreated(saved);
     } catch (err) {
       // The receipt is the write most worth keeping: it is the one that takes two minutes to type.
+      if (editing && onQueued && isOffline(err)) {
+        enqueue({
+          clientId,
+          groupId,
+          kind: 'edit-itemized',
+          expenseId: editing.id,
+          description: trimmedDescription,
+          amountCents: payloadItems.reduce((sum, i) => sum + i.amountCents, 0) + taxCents + tipCents,
+          queuedAt: Date.now(),
+          payload,
+        });
+        onQueued(trimmedDescription);
+        return;
+      }
       if (!editing && onQueued && isOffline(err)) {
         enqueue({
           clientId,

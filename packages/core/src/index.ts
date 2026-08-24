@@ -145,6 +145,8 @@ export interface Expense {
   note: string | null;
   /** Whether a receipt photo is attached. The image comes from its own endpoint, not this payload. */
   hasReceipt: boolean;
+  /** Bumped on every edit. Send it back with an edit to be told when the row has moved on. */
+  version: number;
   splits: ExpenseSplit[];
   /** Present only for ITEMIZED expenses, so the edit form can prefill the receipt. */
   taxCents?: number;
@@ -177,6 +179,8 @@ export interface CreateExpensePayload {
   note?: string | null;
   /** Client-chosen id, so retrying a create that may already have landed cannot double-post it. */
   clientId?: string;
+  /** The version an edit was written against. Omit to overwrite whatever is there now. */
+  expectedVersion?: number;
   /** The date the expense happened, as YYYY-MM-DD. Omit for "today". */
   date?: string;
 }
@@ -201,6 +205,8 @@ export interface CreateItemizedPayload {
   note?: string | null;
   /** Client-chosen id, so retrying a create that may already have landed cannot double-post it. */
   clientId?: string;
+  /** The version an edit was written against. Omit to overwrite whatever is there now. */
+  expectedVersion?: number;
   /** The date the expense happened, as YYYY-MM-DD. Omit for "today". */
   date?: string;
 }

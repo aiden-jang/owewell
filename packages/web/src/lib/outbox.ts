@@ -46,10 +46,38 @@ export interface QueuedDelete extends QueuedBase {
   expenseId: string;
 }
 
-export type QueuedWrite = QueuedCreate | QueuedDelete;
+/**
+ * An edit that could not be sent.
+ *
+ * Carries the version it was written against, so the server can refuse it if the row moved on while
+ * this sat in the queue. That refusal is the whole point: an edit replayed an hour later would
+ * otherwise erase whatever happened in between without anybody being told.
+ */
+export interface QueuedEdit extends QueuedBase {
+  kind: 'edit' | 'edit-itemized';
+  expenseId: string;
+  amountCents: number;
+  payload: CreateExpensePayload | CreateItemizedPayload;
+}
 
-export const isCreate = (entry: QueuedWrite): entry is QueuedCreate => entry.kind !== 'delete';
+export type QueuedWrite = QueuedCreate | QueuedDelete | QueuedEdit;
+
+const CREATE_KINDS = new Set(['expense', 'itemized']);
+export const isCreate = (entry: QueuedWrite): entry is QueuedCreate => CREATE_KINDS.has(entry.kind);
 export const isDelete = (entry: QueuedWrite): entry is QueuedDelete => entry.kind === 'delete';
+export const isEdit = (entry: QueuedWrite): entry is QueuedEdit =>
+  entry.kind === 'edit' || entry.kind === 'edit-itemized';
+
+/**
+ * A replayed edit landing on a row that has since changed.
+ *
+ * Distinct from a plain rejection: the change is still wanted, it just cannot be applied blindly. The
+ * caller has to ask a person, which is why this leaves the queue and comes back as a conflict rather
+ * than an error message.
+ */
+export function isConflict(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 409;
+}
 
 /**
  * A replayed delete landing on something already deleted.
@@ -120,6 +148,8 @@ export interface FlushResult {
   sent: number;
   /** Writes the server refused outright. Dropped from the queue; the caller has to say so. */
   rejected: { entry: QueuedWrite; message: string }[];
+  /** Edits the row moved out from under. Dropped too, but they need a question, not a message. */
+  conflicted: QueuedEdit[];
 }
 
 /**
@@ -133,7 +163,7 @@ export async function flush(
   send: (entry: QueuedWrite) => Promise<unknown>,
   groupId?: string,
 ): Promise<FlushResult> {
-  const result: FlushResult = { sent: 0, rejected: [] };
+  const result: FlushResult = { sent: 0, rejected: [], conflicted: [] };
   for (const entry of queued(groupId)) {
     try {
       await send(entry);
@@ -142,6 +172,10 @@ export async function flush(
     } catch (err) {
       if (isOffline(err)) return result;
       drop(entry.clientId);
+      if (isConflict(err) && isEdit(entry)) {
+        result.conflicted.push(entry);
+        continue;
+      }
       result.rejected.push({
         entry,
         message: err instanceof Error ? err.message : 'The server would not take it.',

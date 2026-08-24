@@ -13,7 +13,13 @@ import {
   settlements,
 } from './db/schema.js';
 
-export type ExpenseErrorCode = 'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT' | 'NOT_FOUND' | 'LOCKED';
+export type ExpenseErrorCode =
+  | 'INVALID_PAYER'
+  | 'INVALID_PARTICIPANT'
+  | 'INVALID_SPLIT'
+  | 'NOT_FOUND'
+  | 'LOCKED'
+  | 'CONFLICT';
 
 export class ExpenseError extends Error {
   constructor(
@@ -40,6 +46,11 @@ export interface CreateExpenseInput {
    * than duplicated. Omit for writes that cannot be replayed.
    */
   clientId?: string | undefined;
+  /**
+   * The version this edit was written against. Omit to overwrite whatever is there now, which is
+   * what "apply mine anyway" does after a conflict has been shown to a person.
+   */
+  expectedVersion?: number | undefined;
   /** The date the expense happened (backdatable). Omit to use "now". */
   date?: Date;
   /**
@@ -64,6 +75,8 @@ export interface CreateItemizedExpenseInput {
   note?: string | null | undefined;
   /** Client-chosen id, so a retried create is recognised rather than duplicated. */
   clientId?: string | undefined;
+  /** The version this edit was written against. Omit to overwrite unconditionally. */
+  expectedVersion?: number | undefined;
   date?: Date;
 }
 
@@ -81,6 +94,8 @@ export interface ExpenseView {
   note: string | null;
   /** Whether a receipt photo is attached. The image itself comes from its own endpoint. */
   hasReceipt: boolean;
+  /** Bumped on every edit. Hand it back on an edit to be told when the row has moved on. */
+  version: number;
   splits: { userId: string; owedCents: number; inputValue?: number | null }[];
   // Present only for ITEMIZED expenses, so the edit form can prefill the receipt.
   taxCents?: number;
@@ -114,6 +129,19 @@ async function assertUnlocked(db: DB, groupId: string): Promise<void> {
   }
 }
 
+/**
+ * Refuse an edit written against a version that has since moved.
+ *
+ * Only when the caller names a version. Omitting it means "apply mine regardless", which is what the
+ * client sends after showing somebody the conflict and being told to go ahead — the alternative would
+ * be a loop where the second attempt conflicts with the change the first attempt was told about.
+ */
+function assertVersion(current: number, expected: number | undefined): void {
+  if (expected !== undefined && expected !== current) {
+    throw new ExpenseError('CONFLICT', 'Somebody changed this expense while you were away.');
+  }
+}
+
 /** The expense this client id already produced, if any. Null when this is a first attempt. */
 async function findByClientId(db: DB, groupId: string, clientId: string): Promise<ExpenseView | null> {
   const row = await db
@@ -137,6 +165,7 @@ async function findByClientId(db: DB, groupId: string, clientId: string): Promis
     date: all.date ?? all.createdAt,
     note: all.note,
     hasReceipt: all.receiptKey !== null,
+    version: all.version,
     splits: (
       await db
         .select({ userId: expenseSplits.personId, owedCents: expenseSplits.owedCents, inputValue: expenseSplits.inputValue })
@@ -217,7 +246,7 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
       inputValue: valueByPerson.get(s.userId) ?? null,
     })),
   );
-  return { id, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, hasReceipt: false, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, hasReceipt: false, version: 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 /** Replace a simple (non-itemized) expense in place, recomputing its splits. Preserves createdAt. */
@@ -231,11 +260,14 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       amountCents: expenses.amountCents,
       payerId: expenses.payerId,
       splitMethod: expenses.splitMethod,
+      version: expenses.version,
+      receiptKey: expenses.receiptKey,
     })
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
     .get();
   if (!existing) throw new ExpenseError('NOT_FOUND', 'That expense no longer exists.');
+  assertVersion(existing.version, input.expectedVersion);
   const members = await memberPersonIds(db, groupId);
   if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   if (input.participants.some((p) => !members.has(p.userId))) {
@@ -263,6 +295,7 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       tipCents: 0,
       date: input.date ?? null,
       note: input.note ?? null,
+      version: existing.version + 1,
     })
     .where(eq(expenses.id, expenseId));
   /*
@@ -303,7 +336,7 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       inputValue: valueByPerson.get(s.userId) ?? null,
     })),
   );
-  return { id: expenseId, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, hasReceipt: false, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id: expenseId, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, hasReceipt: existing.receiptKey !== null, version: existing.version + 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 export async function createItemizedExpense(db: DB, personId: string, groupId: string, input: CreateItemizedExpenseInput): Promise<ExpenseView> {
@@ -366,7 +399,7 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
       item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
     );
   }
-  return { id, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, hasReceipt: false, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, hasReceipt: false, version: 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 /** Replace an itemized expense in place: recompute item splits, swap items + shares. Preserves createdAt. */
@@ -374,11 +407,12 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
   await requireMembership(db, personId, groupId);
   await assertUnlocked(db, groupId);
   const existing = await db
-    .select({ createdAt: expenses.createdAt })
+    .select({ createdAt: expenses.createdAt, version: expenses.version, receiptKey: expenses.receiptKey })
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
     .get();
   if (!existing) throw new ExpenseError('NOT_FOUND', 'That expense no longer exists.');
+  assertVersion(existing.version, input.expectedVersion);
   const members = await memberPersonIds(db, groupId);
   if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   const everyone = new Set(input.items.flatMap((i) => i.participantIds));
@@ -414,6 +448,7 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
       tipCents: input.tipCents,
       date: input.date ?? null,
       note: input.note ?? null,
+      version: existing.version + 1,
     })
     .where(eq(expenses.id, expenseId));
   await clearItemizedRows(db, expenseId);
@@ -428,7 +463,7 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
       item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
     );
   }
-  return { id: expenseId, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, hasReceipt: false, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return { id: expenseId, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, hasReceipt: existing.receiptKey !== null, version: existing.version + 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
 }
 
 export async function listExpenses(db: DB, personId: string, groupId: string): Promise<ExpenseView[]> {
@@ -512,6 +547,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     date: e.date ?? e.createdAt,
     note: e.note,
     hasReceipt: e.receiptKey !== null,
+    version: e.version,
     splits: byExpense.get(e.id) ?? [],
     ...(editByExpense.has(e.id) ? { lastEdit: editByExpense.get(e.id)! } : {}),
     ...(e.splitMethod === 'ITEMIZED'

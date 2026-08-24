@@ -167,7 +167,9 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoF
     // Minted before the request, not after: it has to survive the attempt so a retry can carry the
     // same one and be recognised as the same expense.
     const clientId = crypto.randomUUID();
-    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date, note: note.trim(), clientId };
+    // An edit says which version it was based on; a create has none to be based on.
+    const versioned = editing ? { expectedVersion: editing.version } : {};
+    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date, note: note.trim(), clientId, ...versioned };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -192,6 +194,20 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoF
     } catch (err) {
       // Only a new expense can be queued. An edit needs the row it edits to still be there, and by
       // the time the connection returns somebody else may have changed it out from under this one.
+      if (editing && onQueued && isOffline(err)) {
+        enqueue({
+          clientId,
+          groupId,
+          kind: 'edit',
+          expenseId: editing.id,
+          description: trimmedDescription,
+          amountCents: amountCents,
+          queuedAt: Date.now(),
+          payload,
+        });
+        onQueued(trimmedDescription);
+        return;
+      }
       if (!editing && onQueued && isOffline(err)) {
         enqueue({
           clientId,
