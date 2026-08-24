@@ -412,6 +412,7 @@ const recordSettlementBody = z.object({
   toUserId: z.string().min(1),
   amountCents: z.number().int().positive(),
   method: z.enum(PAYMENT_METHODS).optional(),
+  clientId: z.string().min(8).max(64).optional(),
 });
 app.post('/owewell/groups/:id/settlements', async (c) => {
   const parsed = recordSettlementBody.safeParse(await c.req.json().catch(() => null));
@@ -421,6 +422,7 @@ app.post('/owewell/groups/:id/settlements', async (c) => {
     toUserId: parsed.data.toUserId,
     amountCents: parsed.data.amountCents,
     ...(parsed.data.method ? { method: parsed.data.method } : {}),
+    ...(parsed.data.clientId ? { clientId: parsed.data.clientId } : {}),
   });
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ settlement }, 201);

@@ -1,5 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { drop, enqueue, flush, isAlreadyDone, isConflict, isCreate, isDelete, isEdit, isOffline, queued } from './outbox';
+import {
+  drop,
+  enqueue,
+  flush,
+  isAlreadyDone,
+  isConflict,
+  isCreate,
+  isDelete,
+  isEdit,
+  isOffline,
+  isPendingRow,
+  isSettlement,
+  queued,
+} from './outbox';
 import { ApiError } from './api';
 import type { CreateExpensePayload } from '@owewell/core';
 
@@ -245,5 +258,58 @@ describe('a queued edit', () => {
     expect(isConflict(new ApiError(409, 'moved'))).toBe(true);
     expect(isConflict(new ApiError(404, 'gone'))).toBe(false);
     expect(isConflict(new TypeError('Failed to fetch'))).toBe(false);
+  });
+});
+
+/*
+ * Recorded payments, the last write to get an offline path.
+ *
+ * The easiest of the four, because it appends rather than overwrites: nothing it lands on can be made
+ * wrong by the delay, only duplicated, and the server's client id handles that. So there is no
+ * conflict case here, unlike an edit.
+ */
+describe('a queued payment', () => {
+  const pay = (clientId: string) => ({
+    clientId,
+    groupId: 'g1',
+    kind: 'settlement' as const,
+    description: 'Bob → Alice',
+    amountCents: 3_000,
+    queuedAt: 100,
+    payload: { fromUserId: 'u2', toUserId: 'u1', amountCents: 3_000, clientId },
+  });
+
+  it('is told apart from the expense writes', () => {
+    enqueue(pay('p1'));
+    enqueue(entry('c1', 200));
+    const all = queued();
+    expect(all.filter(isSettlement)).toHaveLength(1);
+    expect(all.filter(isEdit)).toHaveLength(0);
+    expect(all.filter(isDelete)).toHaveLength(0);
+  });
+
+  /*
+   * Both of these show as a row waiting to go out; an edit or a delete changes a row that is already
+   * there, so those mark or hide it instead of adding one.
+   */
+  it('counts as a row to render, alongside creates', () => {
+    enqueue(pay('p1'));
+    enqueue(entry('c1', 200));
+    enqueue({
+      clientId: 'd1', groupId: 'g1', kind: 'delete', expenseId: 'e9',
+      description: 'Gone', queuedAt: 300,
+    });
+    const rows = queued().filter(isPendingRow);
+    expect(rows).toHaveLength(2);
+    expect(rows.filter(isCreate)).toHaveLength(1);
+  });
+
+  it('goes out and leaves the queue', async () => {
+    enqueue(pay('p1'));
+    const send = vi.fn().mockResolvedValue(undefined);
+    const result = await flush(send);
+    expect(result.sent).toBe(1);
+    expect(result.conflicted).toEqual([]);
+    expect(queued()).toEqual([]);
   });
 });

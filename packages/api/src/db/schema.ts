@@ -200,6 +200,11 @@ export const settlements = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),
+    // Chosen by the browser, so a payment recorded with no signal and sent later is logged once.
+    clientId: text('client_id'),
   },
-  (t) => ({ byGroup: index('settle_group').on(t.groupId) }),
+  (t) => ({
+    byGroup: index('settle_group').on(t.groupId),
+    groupClient: uniqueIndex('settle_group_client').on(t.groupId, t.clientId),
+  }),
 );
