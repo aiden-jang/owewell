@@ -15,11 +15,6 @@ import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { InviteLink } from '../components/InviteLink';
 import { MoneyText } from '../components/MoneyText';
-import { SpendDonut } from '../components/SpendDonut';
-import {
-  spendByCategory as computeSpendByCategory,
-  lensTotal as computeLensTotal,
-} from '../lib/activityFilters';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
@@ -27,6 +22,7 @@ import { RecordPaymentForm } from '../components/RecordPaymentForm';
 import { SettleUpPanel } from '../components/SettleUpPanel';
 import { MembersPanel, type PaymentHandles } from '../components/MembersPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
+import { SummaryTab } from '../components/SummaryTab';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
@@ -53,9 +49,6 @@ import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { SettledMark } from '../components/SettledMark';
-import { TripBudget } from '../components/TripBudget';
-import { tripBudget } from '../lib/tripBudget';
-import { FrontingInsight } from '../components/FrontingInsight';
 import { buildGroupRecap } from '../lib/groupRecap';
 
 function csvCell(value: string | number): string {
@@ -105,7 +98,6 @@ export function GroupDetailPage(): ReactNode {
   // person = no lens. Category is a separate drill-down from the chart into the feed only.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
-  const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   /*
    * Two questions, two tabs: "what do I owe" and "how did we spend".
    *
@@ -163,7 +155,6 @@ export function GroupDetailPage(): ReactNode {
    */
   const ledgerHasRows =
     settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
-  const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
@@ -337,6 +328,16 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
+  async function saveBudget(budgetCents: number | null): Promise<void> {
+    try {
+      setGroup(await groupsApi.setBudget(id, budgetCents));
+      toast.success(budgetCents === null ? 'Budget cleared.' : 'Budget shared with the group.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update the budget.');
+      throw error;
+    }
+  }
+
   async function saveSettlementDeadline(settleBy: string | null): Promise<void> {
     try {
       setGroup(await groupsApi.setSettlementDeadline(id, settleBy));
@@ -356,45 +357,6 @@ export function GroupDetailPage(): ReactNode {
     const allSettled = latest?.suggested.length === 0;
     play(allSettled ? 'allSettled' : 'settled');
     toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
-  }
-
-  // The final payment is a natural handoff point: someone usually wants to tell the group that
-  // nothing is hanging over them anymore. Keep the recap factual and compact so it is useful in a
-  // group chat without exposing the individual balance history again.
-  async function shareSettledRecap(): Promise<void> {
-    if (!group || recapShareStatus) return;
-    const recap = buildGroupRecap(expenses, settlements);
-    const paymentLabel = settlements.length === 1 ? 'payment' : 'payments';
-    const highlights = [
-      recap.topCategory ? `Top category: ${recap.topCategory.emoji} ${recap.topCategory.label} (${fmt(recap.topCategory.amountCents)})` : null,
-      recap.largest ? `Biggest expense: ${recap.largest.description} (${fmt(recap.largest.amountCents)})` : null,
-      recap.daysOpen ? `Tab open for ${recap.daysOpen} ${recap.daysOpen === 1 ? 'day' : 'days'}` : null,
-    ].filter(Boolean).join('\n');
-    const text = `${group.name} is all settled ✓\n${fmt(recap.totalCents)} split across ${group.members.length} people\n${settlements.length} ${paymentLabel} recorded${highlights ? `\n\n${highlights}` : ''}`;
-    const finish = (status: 'shared' | 'copied'): void => {
-      setRecapShareStatus(status);
-      window.setTimeout(() => setRecapShareStatus(null), 2200);
-    };
-    setRecapShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${group.name} is settled`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setRecapShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setRecapShareStatus(null);
-      toast.error('Could not share the settled recap.');
-    }
   }
 
   async function shareMyBalance(): Promise<void> {
@@ -757,13 +719,6 @@ export function GroupDetailPage(): ReactNode {
   const totalUnsettled = balances.reduce((sum, b) => sum + Math.max(0, b.netCents), 0);
   // Total money spent on bills in this group (settlements aren't spending, so expenses only).
   const monthlyPulse = spendingPulse(expenses);
-  /*
-   * Everything the group has spent against the number it set, not just this month.
-   *
-   * A trip budget is a total for one trip, so unlike the monthly pulse above it must not reset on the 1st.
-   * Members rather than balances is the right divisor: a person who has paid for nothing still spent.
-   */
-  const budget = tripBudget(group?.budgetCents ?? null, expenses, group?.members.length ?? 0);
   // How much has already been paid back, and the even-split average across the members.
   const totalSettled = settlements.reduce((sum, s) => sum + s.amountCents, 0);
   // Payments and the outstanding balance describe one journey toward zero. Clamp at 100 because
@@ -777,9 +732,6 @@ export function GroupDetailPage(): ReactNode {
     ? buildGroupRecap(expenses, settlements)
     : null;
 
-  // Summary answers for the whole group; the person lens belongs to the feed it sits above.
-  const spendByCategory = computeSpendByCategory(expenses, null, 'involved');
-  const spendTotal = computeLensTotal(expenses, null, 'involved');
 
   async function onShare(): Promise<void> {
     if (!group) return;
@@ -1240,150 +1192,20 @@ export function GroupDetailPage(): ReactNode {
 
       {tab === 'summary' && (
         <>
-        {groupRecap && (
-          <section className="mt-4 overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">The tab, wrapped</p>
-                <h2 className="mt-1 font-display text-xl font-bold text-ink">{group.name} in four numbers</h2>
-                <p className="mt-1 text-sm text-muted">Nothing left to chase. Just the story of the tab.</p>
-              </div>
-              <span aria-hidden className="text-2xl text-accent">✦</span>
-            </div>
+        <SummaryTab
+          groupName={group.name}
+          recap={groupRecap}
+          expenses={expenses}
+          settlements={settlements}
+          balances={balances}
+          members={group.members}
+          budgetCents={group.budgetCents}
+          isOwner={isOwner}
+          categoryFilter={categoryFilter}
+          onSelectCategory={filterByCategory}
+          onSaveBudget={saveBudget}
+        />
 
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Total spent</span>
-                <strong className="mt-1 block font-display text-lg text-ink">
-                  {fmt(groupRecap.totalCents)}
-                </strong>
-              </div>
-              <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
-                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Biggest moment</span>
-                <strong className="mt-1 block truncate text-sm text-ink" title={groupRecap.largest?.description}>
-                  {groupRecap.largest?.description ?? 'nothing yet'}
-                </strong>
-                {groupRecap.largest && (
-                  <span className="mt-0.5 block text-xs text-muted">{fmt(groupRecap.largest.amountCents)}</span>
-                )}
-              </div>
-              <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Top category</span>
-                <strong className="mt-1 block text-sm text-ink">
-                  {groupRecap.topCategory ? `${groupRecap.topCategory.emoji} ${groupRecap.topCategory.label}` : 'nothing yet'}
-                </strong>
-                {groupRecap.topCategory && (
-                  <span className="mt-0.5 block text-xs text-muted">{fmt(groupRecap.topCategory.amountCents)}</span>
-                )}
-              </div>
-              <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-                <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Tab lifetime</span>
-                <strong className="mt-1 block font-display text-lg text-ink">
-                  {groupRecap.daysOpen} {groupRecap.daysOpen === 1 ? 'day' : 'days'}
-                </strong>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void shareSettledRecap()}
-              disabled={recapShareStatus !== null}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent-soft px-3.5 py-2 text-sm font-semibold text-accent transition hover:border-accent/35 hover:bg-accent/10 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
-            >
-              <Icon name="share" size={14} />
-              {recapShareStatus === 'sharing' ? 'Opening…' : recapShareStatus === 'shared' ? 'Wrapped shared' : recapShareStatus === 'copied' ? 'Wrapped copied' : 'Share the wrapped tab'}
-            </button>
-          </section>
-        )}
-
-          <div className="mt-4">
-              <TripBudget
-                budget={budget}
-                budgetCents={group.budgetCents}
-                isOwner={isOwner}
-                onSave={async (budgetCents) => {
-                  try {
-                    const updated = await groupsApi.setBudget(group.id, budgetCents);
-                    setGroup(updated);
-                    toast.success(budgetCents === null ? 'Budget cleared.' : 'Budget shared with the group.');
-                  } catch (error) {
-                    toast.error(error instanceof Error ? error.message : 'Could not update the budget.');
-                    throw error;
-                  }
-                }}
-              />
-          </div>
-
-        {expenses.length > 0 && group.members.length > 1 && (
-          <FrontingInsight balances={balances} expenseCount={expenses.length} />
-        )}
-
-        {spendTotal > 0 && spendByCategory.length > 1 && (
-          <section className="mt-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-medium text-muted">Where it went</h2>
-              <div className="flex items-center gap-2">
-                {!categoryFilter && <span className="text-xs text-faint">tap to see them</span>}
-                <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
-                  {(['bars', 'donut'] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setBreakdownView(v)}
-                      aria-pressed={breakdownView === v}
-                      className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
-                        breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {breakdownView === 'donut' ? (
-              <SpendDonut
-                data={spendByCategory}
-                total={spendTotal}
-                activeKey={categoryFilter}
-                onSelect={filterByCategory}
-              />
-            ) : (
-            <ul className="mt-3 space-y-1">
-              {spendByCategory.map(({ meta, cents }) => {
-                const active = categoryFilter === meta.key;
-                return (
-                  <li key={meta.key}>
-                    <button
-                      type="button"
-                      onClick={() => filterByCategory(meta.key)}
-                      aria-pressed={active}
-                      aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
-                      className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
-                    >
-                      <span className={`w-28 shrink-0 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
-                        <span aria-hidden className="mr-1.5">
-                          {meta.emoji}
-                        </span>
-                        {meta.label}
-                      </span>
-                      <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
-                        <span
-                          className="block h-full rounded-full bg-accent"
-                          style={{ width: `${Math.max(3, Math.round((cents / spendTotal) * 100))}%` }}
-                        />
-                      </span>
-                      <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
-                        {fmt(cents)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            )}
-          </section>
-        )}
 
         <MembersPanel
           key={group.id}
