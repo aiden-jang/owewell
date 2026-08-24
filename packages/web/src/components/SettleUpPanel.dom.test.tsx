@@ -43,7 +43,6 @@ const GROUP: GroupDetail = {
   createdAt: '2026-08-01T00:00:00.000Z',
   archived: false,
   settleBy: null,
-  budgetCents: null,
   members: [ALICE, BOB, CARA],
 };
 

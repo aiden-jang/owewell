@@ -25,8 +25,7 @@ export type GroupErrorCode =
   | 'CANNOT_REMOVE_OWNER'
   | 'NOT_PLACEHOLDER'
   | 'NOT_EDITABLE'
-  | 'HAS_ACTIVITY'
-  | 'INVALID_BUDGET';
+  | 'HAS_ACTIVITY';
 
 export class GroupError extends Error {
   constructor(
@@ -58,8 +57,6 @@ export interface GroupDetail {
   createdAt: Date;
   archived: boolean;
   settleBy: Date | null;
-  budgetCents: number | null;
-  /** ISO 4217 code the group counts in. Every amount here is minor units of this. */
   viewerId: string; // the caller's person id, so the UI knows which member is "me"
   members: GroupMemberView[];
 }
@@ -152,7 +149,6 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
     createdAt: g.createdAt,
     archived: mine?.archivedAt != null,
     settleBy: g.settleBy,
-    budgetCents: g.budgetCents,
     viewerId: personId,
     members: await membersOf(db, groupId),
   };
@@ -170,34 +166,6 @@ export async function setSettlementDeadline(
   return getGroup(db, personId, groupId);
 }
 
-/**
- * The owner can set or clear one spending target for the group.
- *
- * Owner-only for the same reason the settle-by deadline is: it is one shared number that changes what
- * everybody sees, not a personal preference. A member who could set it could quietly tell the other four
- * people they had overspent.
- *
- * Validated here rather than only in the route, because the route is not the only thing that can call
- * this. Cents are integers by construction everywhere in this app, and a fractional or absurd budget is
- * the kind of thing that renders as a bar three screens wide rather than failing visibly.
- */
-export async function setGroupBudget(
-  db: DB,
-  personId: string,
-  groupId: string,
-  budgetCents: number | null,
-): Promise<GroupDetail> {
-  await requireOwner(db, personId, groupId);
-  if (budgetCents !== null && (!Number.isSafeInteger(budgetCents) || budgetCents <= 0 || budgetCents > MAX_BUDGET_CENTS)) {
-    throw new GroupError('INVALID_BUDGET', 'That budget is not an amount we can work with.');
-  }
-  await db.update(groups).set({ budgetCents }).where(eq(groups.id, groupId));
-  return getGroup(db, personId, groupId);
-}
-
-
-/** Ten million dollars, which is past any real trip and short of anything that breaks the layout. */
-const MAX_BUDGET_CENTS = 1_000_000_000;
 
 /** Archive (or restore) a group in the caller's own view. Any member may do this; it's a
  *  personal "hide from my list", not a group-wide freeze — the group stays live for everyone. */

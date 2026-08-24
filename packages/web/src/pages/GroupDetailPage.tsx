@@ -19,9 +19,7 @@ import { ActivityFeed } from '../components/ActivityFeed';
 import { BalanceHero } from '../components/BalanceHero';
 import { WrappedRecap } from '../components/WrappedRecap';
 import { SpendBreakdown } from '../components/SpendBreakdown';
-import { TripBudget } from '../components/TripBudget';
 import { FrontingInsight } from '../components/FrontingInsight';
-import { tripBudget } from '../lib/tripBudget';
 import { GroupHeader } from '../components/GroupHeader';
 import { activityCsv, csvFileName } from '../lib/activityCsv';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
@@ -54,7 +52,7 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
         *
         * One gap between blocks, owned here. Each block used to carry its own top margin, so the
         * distance between two of them was decided by whichever was written second: the hero said
-        * mt-5, the settle-up panel mt-6, the recap and the budget mt-4. Three gaps between peers in
+        * mt-5, the settle-up panel mt-6, the recap mt-4. Three gaps between peers in
         * one column, which is what made the spacing read as uneven.
         *
         * Anything that needs a different distance from its neighbour is saying it belongs to that
@@ -175,16 +173,6 @@ export function GroupDetailPage(): ReactNode {
       return false;
     } finally {
       setSettling(false);
-    }
-  }
-
-  async function saveBudget(budgetCents: number | null): Promise<void> {
-    try {
-      setGroup(await groupsApi.setBudget(id, budgetCents));
-      toast.success(budgetCents === null ? 'Budget cleared.' : 'Budget shared with the group.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not update the budget.');
-      throw error;
     }
   }
 
@@ -459,12 +447,6 @@ export function GroupDetailPage(): ReactNode {
   // from the same array; here it decides whether there is a wrapped recap to offer at all.
   const groupSettled = suggested.length === 0;
   const hasActivity = expenses.length > 0 || settlements.length > 0;
-  /*
-   * Everything the group has spent against the number it set, not just this month. A trip budget is
-   * a total for one trip, so unlike a monthly figure it must not reset on the 1st, and members
-   * rather than balances is the right divisor: somebody who has paid for nothing still spent.
-   */
-  const budget = tripBudget(group.budgetCents, expenses, group.members.length);
   const groupRecap = groupSettled && expenses.length > 0
     ? buildGroupRecap(expenses, settlements)
     : null;
@@ -574,8 +556,6 @@ export function GroupDetailPage(): ReactNode {
           />
         )
       )}
-
-      <TripBudget budget={budget} budgetCents={group.budgetCents} isOwner={isOwner} onSave={saveBudget} />
 
       {expenses.length > 0 && group.members.length > 1 && (
         <FrontingInsight balances={balances} expenseCount={expenses.length} />
