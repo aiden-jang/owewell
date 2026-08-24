@@ -579,7 +579,30 @@ export function QuickSplitPage(): ReactNode {
   return (
     <div className="flex-1">
       {user ? <AppHeader /> : <PublicHeader />}
-      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl animate-rise px-4 py-10">
+      {/*
+        * Two widths on purpose, which is the one place in the app that has them.
+        *
+        * Everything else is max-w-2xl end to end. Here the page is also a landing page, and a
+        * headline plus a three-card row penned into 672px on a 1280px laptop reads as a phone
+        * screenshot someone centred. The pitch and the feature row get the wider column; the tool
+        * itself stays at 2xl, because it is a form and a form does not get better by getting wider.
+        *
+        * Signed in there is no marketing, so the page is just the form and stays narrow.
+        */}
+      <main
+        id="main"
+        tabIndex={-1}
+        className={`mx-auto w-full animate-rise px-4 py-10 ${user ? 'max-w-2xl' : 'max-w-2xl lg:max-w-5xl'}`}
+      >
+        {/*
+          * Pitch beside the tool once there is room for both.
+          *
+          * Stacked, the wider column gave the hero a left edge at 85px and the centred form one at
+          * 190px — two starts, and a lot of empty right-hand side. Side by side, the pitch stays
+          * visible while you use the thing it is pitching, which is the whole argument for a
+          * no-signup demo being on the landing page at all. Below lg it stacks as before.
+          */}
+        <div className={user ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] lg:items-start lg:gap-12'}>
         {user ? (
           <>
             <h1 className="font-display text-4xl font-semibold tracking-tight">Split a bill</h1>
@@ -589,14 +612,18 @@ export function QuickSplitPage(): ReactNode {
             </p>
           </>
         ) : (
-          <section className="mb-9">
+          <section className="mb-9 lg:sticky lg:top-24 lg:mb-0">
             <p className="text-sm font-semibold text-accent">owewell</p>
+            {/* No lg bump: beside the tool the pitch column is ~430px, and 60px type breaks
+                "Keep the friends." across two lines. 48px needs 382px and holds. */}
             <h1 className="mt-1 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
               Split the bill.
               <br />
               Keep the friends.
             </h1>
-            <p className="mt-3 text-base text-muted">
+            {/* Held to a measure rather than the column: 46 characters of 16px text is a line you
+                read, and the wider column would otherwise stretch this to about 90. */}
+            <p className="mt-3 max-w-[46ch] text-base text-muted">
               Who owes who, sorted in about ten seconds. Add people, punch in what got spent, and
               let the math do the awkward part.
             </p>
@@ -609,10 +636,13 @@ export function QuickSplitPage(): ReactNode {
                 ),
               )}
             </div>
-            <p className="mt-6 text-sm font-medium text-muted">Try it right here, no sign-up:</p>
+            {/* On a laptop the tool is beside this, not below it, so "right here" points sideways. */}
+            <p className="mt-6 text-sm font-medium text-muted lg:hidden">Try it right here, no sign-up:</p>
           </section>
         )}
 
+        {/* The form, at form width, whatever the page around it is doing. */}
+        <div className="mx-auto w-full max-w-2xl lg:mx-0">
         {draftRestored && (
           <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
             <span>
@@ -969,6 +999,8 @@ export function QuickSplitPage(): ReactNode {
             Back to your groups
           </Link>
         )}
+        </div>
+        </div>
 
         {!user && (
           <section className="mt-12 grid gap-4 sm:grid-cols-3">
