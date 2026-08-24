@@ -187,3 +187,30 @@ describe('what you can do from here', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
+
+/*
+ * The other half of moving corrections off the feed row.
+ *
+ * The row is a list you scan; this is the thing you opened to find out what happened to it. If the
+ * sentence is not here it is nowhere, and the edit history becomes invisible rather than tidy.
+ */
+describe('a correction someone already made', () => {
+  it('shows who changed it and what it used to be', () => {
+    render(
+      <ExpenseDetail
+        {...props}
+        expense={expense({
+          lastEdit: { at: '2026-08-11T10:00:00.000Z', byId: 'u3', fields: ['amount'], formerAmountCents: 4_000 },
+        })}
+      />,
+    );
+    const said = document.body.textContent ?? '';
+    expect(said).toMatch(/Cleo/);
+    expect(said).toContain('$40.00');
+  });
+
+  it('says nothing when nobody has touched it', () => {
+    render(<ExpenseDetail {...props} expense={expense()} />);
+    expect(document.body.textContent ?? '').not.toMatch(/changed/i);
+  });
+});

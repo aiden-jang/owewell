@@ -391,3 +391,34 @@ describe('the total above the list', () => {
     expect(screen.queryByText(/avg\/person/)).not.toBeInTheDocument();
   });
 });
+
+/*
+ * A correction belongs to the expense, not to the list.
+ *
+ * "Alice changed the amount from $40.00" used to print on the feed row as well, so every row anybody
+ * had ever fixed carried a third line of history on the one screen you scan rather than read. It
+ * still shows on the expense itself.
+ */
+describe('a correction someone already made', () => {
+  const EDITED = expense({
+    id: 'e9',
+    description: 'Dinner at Nopa',
+    amountCents: 8_000,
+    lastEdit: { at: '2026-08-11T10:00:00.000Z', byId: 'a', fields: ['amount'], formerAmountCents: 4_000 },
+  });
+
+  it('stays off the row', async () => {
+    await open({ expenses: [EDITED], settlements: [] });
+    const row = screen.getByRole('listitem');
+    // Both halves of the sentence: who changed it, and the figure it used to be.
+    expect(row.textContent).not.toMatch(/changed/i);
+    expect(row.textContent).not.toContain('$40.00');
+    expect(row.textContent).toContain('$80.00');
+  });
+
+  // The queued-edit line is not history: it explains why the row disagrees with what you typed.
+  it('does not take the waiting-for-signal line with it', async () => {
+    await open({ expenses: [EDITED], pendingEdits: new Set(['e9']) });
+    expect(screen.getByText('Your change is waiting for signal')).toBeInTheDocument();
+  });
+});
