@@ -1,0 +1,87 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+/*
+ * Handing a line of text to whoever is standing next to you.
+ *
+ * This was written five times — the settle-up plan, a payment nudge, the wrapped recap, your own
+ * balance, a quick split — and all five said the same thing: try the share sheet, treat a dismissed
+ * sheet as a decision rather than a failure, fall back to the clipboard, and let the button say
+ * where the text went for a couple of seconds. Five copies meant five places for the AbortError
+ * check to be forgotten, which is the one that matters: without it, backing out of the share sheet
+ * silently writes to your clipboard instead.
+ *
+ * Not every share fits here. The settle-up card shares a File and falls back to a download, and the
+ * invite link deliberately passes a url with no text body so the sheet's own Copy copies the link.
+ * Both are their own shape and stayed where they were.
+ */
+
+/** Null between shares. Drives the button label, which is why 'shared' and 'copied' stay distinct. */
+export type ShareStatus = 'sharing' | 'shared' | 'copied' | null;
+
+/** How long the button admits to what it just did before going back to its resting label. */
+const SETTLE_BACK_MS = 2200;
+
+export function useShareAction(reportFailure: (message: string) => void): {
+  status: ShareStatus;
+  share: (input: { title: string; text: string; failureMessage: string }) => Promise<void>;
+  /** Drop the confirmation early, for a surface that reopens somewhere else before it fades. */
+  reset: () => void;
+} {
+  const [status, setStatus] = useState<ShareStatus>(null);
+  // Held in refs so a caller passing an inline arrow (or a toast api rebuilt each render) does not
+  // change the identity of `share` on every render.
+  const report = useRef(reportFailure);
+  report.current = reportFailure;
+  const busy = useRef(false);
+  const timer = useRef<number | undefined>(undefined);
+
+  // The old copies left their timer running. Nothing broke, because the component that owned the
+  // state was usually still mounted, but a settle-up panel that disappears the moment the last debt
+  // clears is exactly the case where it was not.
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const settleBack = useCallback((landed: 'shared' | 'copied'): void => {
+    setStatus(landed);
+    timer.current = window.setTimeout(() => setStatus(null), SETTLE_BACK_MS);
+  }, []);
+
+  const share = useCallback(
+    async ({ title, text, failureMessage }: { title: string; text: string; failureMessage: string }): Promise<void> => {
+      if (busy.current) return;
+      busy.current = true;
+      setStatus('sharing');
+      try {
+        if (navigator.share) {
+          try {
+            await navigator.share({ title, text });
+            settleBack('shared');
+            return;
+          } catch (err) {
+            // Backing out of the sheet is an answer, not an error: fall no further, copy nothing.
+            if (err instanceof Error && err.name === 'AbortError') {
+              setStatus(null);
+              return;
+            }
+          }
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          settleBack('copied');
+        } catch {
+          setStatus(null);
+          report.current(failureMessage);
+        }
+      } finally {
+        busy.current = false;
+      }
+    },
+    [settleBack],
+  );
+
+  const reset = useCallback((): void => {
+    window.clearTimeout(timer.current);
+    setStatus(null);
+  }, []);
+
+  return { status, share, reset };
+}
