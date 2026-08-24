@@ -7,12 +7,35 @@ import type { ThemeName } from './contrast.js';
  * mock with a group called "Tahoe trip". Everything is CSS variables, so switching is one attribute and
  * costs nothing — the palette is the cheap decision and this keeps it cheap.
  *
- * Set it from the console:  owewell.theme('warm')
+ * Set it from the footer, or from the console:  owewell.theme('warm')
  */
 
 const KEY = 'owewell:theme';
-const DEFAULT_THEME: ThemeName = 'warm';
 
+/**
+ * What a first visit gets, when the device has an opinion and the person has not expressed one.
+ *
+ * Shipping 'warm' unconditionally meant someone whose phone is in dark mode got a white app until
+ * they found a console. The OS setting is the closest thing to a stated preference that exists
+ * before anybody touches anything, so it wins over the shipped default and loses to a real choice.
+ */
+function preferredTheme(): ThemeName {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'warm';
+  } catch {
+    return 'warm';
+  }
+}
+
+/*
+ * Paint it. Deliberately does NOT remember it.
+ *
+ * This used to write to localStorage on every call, which was harmless while the only caller was a
+ * console command. It stopped being harmless the moment boot started deriving a theme from the
+ * device: the first paint persisted that derivation as though it were a decision, so someone who
+ * later switched their phone to dark stayed on the palette their phone had the day they first
+ * opened the app. Remembering is `setTheme`, and only a person calls that.
+ */
 function applyTheme(name: ThemeName): void {
   document.documentElement.dataset.theme = name;
   // The address-bar / status-bar colour has to follow, or a light theme gets a black notch on iOS.
@@ -23,11 +46,6 @@ function applyTheme(name: ThemeName): void {
       getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim() || '#0b0b0d',
     );
   }
-  try {
-    localStorage.setItem(KEY, name);
-  } catch {
-    // Private mode, or storage disabled. The theme still applies for this session.
-  }
 }
 
 function storedTheme(): ThemeName {
@@ -37,37 +55,60 @@ function storedTheme(): ThemeName {
   } catch {
     // ignore
   }
-  return DEFAULT_THEME;
+  return preferredTheme();
 }
 
-/** Forget the local override and fall back to whatever the app ships as its default. */
+/** Forget the local override and go back to following the device. */
 function clearTheme(): void {
   try {
     localStorage.removeItem(KEY);
   } catch {
     // ignore
   }
-  applyTheme(DEFAULT_THEME);
+  applyTheme(preferredTheme());
+}
+
+/** Whatever is on right now. Read at mount by the footer switch. */
+export function currentTheme(): ThemeName {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'warm';
+}
+
+const listeners = new Set<(name: ThemeName) => void>();
+
+/** Notified on every change, including the ones made from the console. */
+export function onThemeChange(fn: (name: ThemeName) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+/** Set the palette and remember it. A stated choice outlasts both the device and a deploy. */
+export function setTheme(name: ThemeName): void {
+  applyTheme(name);
+  try {
+    localStorage.setItem(KEY, name);
+  } catch {
+    // Private mode, or storage disabled. The theme still applies for this session.
+  }
+  for (const fn of listeners) fn(name);
 }
 
 /**
  * Call once at boot, before the app paints, so there is no flash of the wrong palette.
  *
- * Hangs the switcher on `window.owewell` rather than building a settings screen for a decision that
- * gets made once and then deleted.
+ * The console handles stay, because they can do one thing the footer switch cannot: `reset()` drops
+ * the stored choice entirely and hands the decision back to the device. That is the only way to see
+ * what a first-time visitor actually gets, and a stored choice otherwise wins forever.
  *
  *   owewell.theme('warm')   try the warm palette on this device
- *   owewell.reset()         drop the local override and use the shipped default
- *
- * Note the interaction with deploys: a stored choice WINS over DEFAULT_THEME, so once you have flipped
- * a device to warm, changing the shipped default will not appear to do anything there. That is correct
- * (a person's choice should outlast a deploy) but it means you must call owewell.reset() to check what
- * a new visitor actually sees.
+ *   owewell.reset()         forget the choice and follow the OS again
  */
 export function initTheme(): void {
   applyTheme(storedTheme());
   (window as unknown as { owewell: { theme: (n: ThemeName) => void; reset: () => void } }).owewell = {
-    theme: (n: ThemeName) => applyTheme(n),
-    reset: clearTheme,
+    theme: (n: ThemeName) => setTheme(n),
+    reset: () => {
+      clearTheme();
+      for (const fn of listeners) fn(currentTheme());
+    },
   };
 }
