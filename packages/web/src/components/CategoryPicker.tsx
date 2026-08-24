@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '@owewell/core';
-import { CategoryDot } from './CategoryDot';
+import { CategoryGlyph } from './CategoryMark';
 
 /**
  * A compact chip grid for picking an expense category. Shared by the simple and itemized
@@ -29,7 +29,7 @@ export function CategoryPicker({
                 : 'border-line bg-field text-muted hover:border-line-strong hover:text-ink'
             }`}
           >
-            <CategoryDot categoryKey={c.key} />
+            <CategoryGlyph categoryKey={c.key} />
             {c.label}
           </button>
         );

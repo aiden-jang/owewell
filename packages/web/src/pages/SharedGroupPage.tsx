@@ -6,7 +6,7 @@ import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
 import { groupsApi } from '../lib/groups';
-import { CategoryDot } from '../components/CategoryDot';
+import { CategoryDot } from '../components/CategoryMark';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';

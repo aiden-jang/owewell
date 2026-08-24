@@ -16,7 +16,7 @@ import { useMoney } from '../lib/currency';
 const hueOf = (key: string): string => `var(--p-cat-${key}, var(--p-faint))`;
 
 interface Slice {
-  meta: { key: string; label: string; emoji: string };
+  meta: { key: string; label: string };
   cents: number;
 }
 
