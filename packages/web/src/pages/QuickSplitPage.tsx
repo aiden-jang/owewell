@@ -22,7 +22,6 @@ import {
   type PendingSplit,
 } from '../lib/quicksplit';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
-import { play } from '../lib/sound';
 import { useShareAction } from '../lib/useShareAction';
 
 interface Person {
@@ -266,7 +265,6 @@ export function QuickSplitPage(): ReactNode {
     setCustomTip('');
     setError(null);
     setDraftRestored(false);
-    play('tick');
   }
 
   const named = people.filter((p) => p.name.trim());
@@ -283,7 +281,6 @@ export function QuickSplitPage(): ReactNode {
     setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
   function addPerson(): void {
-    play('tick');
     setPeople((prev) => [...prev, newPerson('')]);
   }
   function removePerson(id: string): void {
@@ -303,7 +300,6 @@ export function QuickSplitPage(): ReactNode {
     );
   }
   function addItem(): void {
-    play('tick');
     setItems((prev) => [...prev, newItem()]);
   }
   function addTip(percent: number): void {
@@ -344,12 +340,10 @@ export function QuickSplitPage(): ReactNode {
     // A preset is a choice, not an additive action. Switching 18 → 20 replaces the generated tip
     // rows instead of quietly charging both percentages.
     setItems((current) => [...current.filter((item) => !item.generatedTip), ...tipItems]);
-    play('tick');
   }
   function clearGeneratedTip(): void {
     setItems((current) => current.filter((item) => !item.generatedTip));
     setCustomTip('');
-    play('tick');
   }
   function removeItem(id: string): void {
     setItems((prev) => (prev.length <= 1 ? prev : prev.filter((it) => it.id !== id)));
@@ -494,7 +488,6 @@ export function QuickSplitPage(): ReactNode {
   }
 
   function shareSummary(): void {
-    play('tick');
     void share({
       title: 'owewell split',
       text: summaryText(),
@@ -573,7 +566,6 @@ export function QuickSplitPage(): ReactNode {
       const { groupId } = await quickSplitApi.save(pending);
       clearPendingSplit();
       clearQuickSplitDraft();
-      play('verdict');
       navigate(`/groups/${groupId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the split.');

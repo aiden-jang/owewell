@@ -29,7 +29,6 @@ vi.mock('./settlements', () => ({
 
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../components/Toast', () => ({ useToast: () => toastStub }));
-vi.mock('./sound', () => ({ play: vi.fn() }));
 
 // Captured so the tests can fire the two things that change the ledger from outside.
 let fireRealtime: () => void = () => {};
