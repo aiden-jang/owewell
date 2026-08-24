@@ -4,7 +4,6 @@ import { MoneyText } from './MoneyText';
 import { SettledMark } from './SettledMark';
 import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
-import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { useShareAction } from '../lib/useShareAction';
 import type { Balance } from '../lib/groups';
 import type { Expense } from '../lib/expenses';
@@ -67,7 +66,6 @@ export function BalanceHero({
   // otherwise valid ledger look broken.
   const settlementJourney = totalSettled + totalUnsettled;
   const settlementProgress = settlementJourney > 0 ? Math.min(100, Math.round((totalSettled / settlementJourney) * 100)) : 0;
-  const monthlyPulse = spendingPulse(expenses);
 
   function shareMyBalance(): void {
     if (myNet === 0) return;
@@ -135,17 +133,6 @@ export function BalanceHero({
           <p className="mt-1 text-xs text-faint">
             {fmt(totalSettled)} settled so far
           </p>
-        )}
-        {monthlyPulse && (
-          <div className={`mt-4 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-left text-sm ${settled ? 'mx-auto' : ''}`}>
-            <span>
-              <span className="block text-xs text-faint">This month</span>
-              <span className="tnum font-semibold text-ink">{fmt(monthlyPulse.currentCents)}</span>
-            </span>
-            <span className={`text-right text-xs font-medium ${monthlyPulse.change === 'up' ? 'text-neg' : monthlyPulse.change === 'down' ? 'text-pos' : 'text-muted'}`}>
-              {pulseLabel(monthlyPulse)}
-            </span>
-          </div>
         )}
         {settlementJourney > 0 && (
           <div className={`mt-4 max-w-xs ${settled ? 'mx-auto' : ''}`}>
