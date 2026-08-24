@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  CURRENCIES,
   currencyFormatter,
   DEFAULT_CURRENCY,
 } from '@owewell/shared';
 import {
   PAYMENT_METHOD_LABELS,
-  categoryMeta,
   type PaymentMethod,
 } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
@@ -23,6 +21,8 @@ import { MembersPanel, type PaymentHandles } from '../components/MembersPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { SummaryTab } from '../components/SummaryTab';
 import { BalanceHero } from '../components/BalanceHero';
+import { GroupHeader } from '../components/GroupHeader';
+import { activityCsv, csvFileName } from '../lib/activityCsv';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
@@ -49,14 +49,6 @@ import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settl
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { buildGroupRecap } from '../lib/groupRecap';
 
-function csvCell(value: string | number): string {
-  // Spreadsheet apps execute leading formula characters even inside imported CSV files. User
-  // controlled descriptions and names must stay text when the export is opened in Excel/Sheets.
-  const raw = String(value);
-  const text = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
 function Shell({ children }: { children: ReactNode }): ReactNode {
   return (
     <div className="flex-1">
@@ -75,8 +67,6 @@ export function GroupDetailPage(): ReactNode {
   const toast = useToast();
   const confirm = useConfirm();
   const [group, setGroup] = useState<GroupDetail | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [newName, setNewName] = useState('');
   const [balances, setBalances] = useState<Balance[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -90,7 +80,6 @@ export function GroupDetailPage(): ReactNode {
   const [sheetOpen, setSheetOpen] = useState(false);
   // All the viewer's groups, for the header switcher. Fetched once; the list rarely changes.
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
   // A "person lens" over both the breakdown and the feed: pick a person, then how they relate to
   // an expense — involved (paid or owe a share) / owes (a share they didn't pay) / paid. Null
   // person = no lens. Category is a separate drill-down from the chart into the feed only.
@@ -369,13 +358,6 @@ export function GroupDetailPage(): ReactNode {
       .catch(() => undefined);
   }, []);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const close = (): void => setMenuOpen(false);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [menuOpen]);
-
   useGroupRealtime(id, () => {
     play('nudge');
     void refreshLedger();
@@ -455,7 +437,6 @@ export function GroupDetailPage(): ReactNode {
     try {
       const updated = await groupsApi.setCurrency(id, currency);
       setGroup(updated);
-      setMenuOpen(false);
       toast.success(`Now counting in ${currency}. Amounts were relabelled, not converted.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not change the currency.');
@@ -491,16 +472,13 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-  async function saveRename(): Promise<void> {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
+  async function renameGroup(name: string): Promise<void> {
     try {
-      const updated = await groupsApi.rename(id, trimmed);
-      setGroup(updated);
-      setRenaming(false);
-      toast.success('Group renamed.');
-    } catch {
-      toast.error('Could not rename the group.');
+      setGroup(await groupsApi.rename(id, name));
+      toast.success('Renamed.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not rename the group.');
+      throw err;
     }
   }
 
@@ -683,7 +661,8 @@ export function GroupDetailPage(): ReactNode {
     : null;
 
 
-  async function onShare(): Promise<void> {
+  /** Mint the invite link, reveal it below, and offer the share sheet where there is one. */
+  async function createAndRevealInvite(): Promise<void> {
     if (!group) return;
     let url: string;
     try {
@@ -710,51 +689,18 @@ export function GroupDetailPage(): ReactNode {
 
   function exportActivity(): void {
     if (!group) return;
-    // An export is intentionally ledger-shaped rather than an attempt to recreate the whole UI in
-    // a spreadsheet. Expenses and payments share one sorted timeline, with names resolved at the
-    // time of export so it remains readable after somebody changes their display name elsewhere.
-    const rows = [
-      ...expenses.map((expense) => ({
-        date: expense.date || expense.createdAt,
-        type: 'Expense',
-        description: expense.description,
-        amount: fmt(expense.amountCents),
-        details: `${nameOf(expense.payerId)} paid · ${categoryMeta(expense.category).label}`,
-      })),
-      ...settlements.map((settlement) => ({
-        date: settlement.createdAt,
-        type: 'Payment',
-        description: `${nameOf(settlement.fromUserId)} → ${nameOf(settlement.toUserId)}`,
-        amount: fmt(settlement.amountCents),
-        details: settlement.method ? `via ${PAYMENT_METHOD_LABELS[settlement.method]}` : 'payment recorded',
-      })),
-      ...balances.map((balance) => ({
-        date: '',
-        type: 'Current balance',
-        description: nameOf(balance.userId),
-        amount: fmt(Math.abs(balance.netCents)),
-        details: balance.netCents > 0 ? 'is owed' : balance.netCents < 0 ? 'owes' : 'settled up',
-      })),
-    ].sort((a, b) => {
-      if (a.type === 'Current balance') return b.type === 'Current balance' ? a.description.localeCompare(b.description) : 1;
-      if (b.type === 'Current balance') return -1;
-      return a.date.localeCompare(b.date);
-    });
-    const csv = [
-      ['Date', 'Type', 'Description', 'Amount', 'Details'],
-      ...rows.map((row) => [
-        new Date(row.date).toLocaleDateString(), row.type, row.description, row.amount, row.details,
-      ]),
-    ].map((row) => row.map(csvCell).join(',')).join('\r\n');
-    // BOM keeps names and descriptions with emoji/non-Latin characters intact in desktop Excel.
-    const href = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+    const href = URL.createObjectURL(
+      // BOM keeps names and descriptions with emoji/non-Latin characters intact in desktop Excel.
+      new Blob(['\uFEFF', activityCsv({ expenses, settlements, balances, nameOf, fmt })], {
+        type: 'text/csv;charset=utf-8',
+      }),
+    );
     const link = document.createElement('a');
     link.href = href;
-    link.download = `${group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'owewell'}-activity.csv`;
+    link.download = csvFileName(group.name);
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(href), 0);
     toast.success('Activity exported as a CSV.');
-    setMenuOpen(false);
   }
 
   async function copyShareLink(): Promise<void> {
@@ -771,162 +717,21 @@ export function GroupDetailPage(): ReactNode {
   return (
     <CurrencyProvider code={group.currency}>
     <Shell>
-      <div className="flex items-center justify-between gap-3">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1 text-sm font-medium text-muted transition hover:text-ink"
-        >
-          <Icon name="arrow-left" size={16} /> Your groups
-        </Link>
-        {allGroups.length > 1 && allGroups.some((g) => g.id === id) && (
-          <select
-            value={id}
-            onChange={(e) => {
-              if (e.target.value !== id) navigate(`/groups/${e.target.value}`);
-            }}
-            aria-label="Switch group"
-            className="max-w-[55%] truncate rounded-full border border-line bg-field px-3 py-1.5 text-sm text-muted outline-none transition hover:text-ink focus:border-accent"
-          >
-            {allGroups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      {renaming ? (
-        <div className="mt-3 flex gap-2">
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            aria-label="Group name"
-            className="flex-1 rounded-xl border border-line bg-field px-3 py-2 font-display text-2xl outline-none focus:border-accent"
-          />
-          <button
-            type="button"
-            onClick={() => void saveRename()}
-            className="btn-gradient rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => setRenaming(false)}
-            className="rounded-full border border-line px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface2"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="flex min-w-0 items-center gap-2 font-display text-3xl font-semibold tracking-tight">
-            <span className="truncate">{group.name}</span>
-            {group.archived && (
-              <span className="shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-muted">
-                archived
-              </span>
-            )}
-          </h1>
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={() => void onShare()}
-              aria-label="Invite people to this group"
-              className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-surface2 text-sm font-medium text-ink transition hover:border-accent hover:text-accent sm:w-auto sm:px-3.5"
-            >
-              {/* Icon-only on phones, where the header competes with a long group name for width. The
-                  aria-label above carries the meaning either way, so nothing is lost to a screen
-                  reader. */}
-              <Icon name="share" size={15} />
-              <span className="hidden sm:inline">Invite</span>
-            </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen((v) => !v);
-                }}
-                aria-label="Group options"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                className="grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
-              >
-                <Icon name="more" size={18} />
-              </button>
-              {menuOpen && (
-                <div
-                  role="menu"
-                  className="surface absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-2xl border border-line py-1 shadow-xl shadow-black/40"
-                >
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={exportActivity}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
-                  >
-                    <Icon name="receipt" size={15} /> Export activity
-                  </button>
-                  {isOwner && (
-                    <button
-                      role="menuitem"
-                      type="button"
-                      onClick={() => {
-                        setNewName(group.name);
-                        setRenaming(true);
-                      }}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
-                    >
-                      <Icon name="pencil" size={15} /> Rename
-                    </button>
-                  )}
-                  {isOwner && (
-                    <label className="flex w-full items-center justify-between gap-2.5 px-4 py-2.5 text-left text-sm">
-                      <span className="flex items-center gap-2.5">
-                        <Icon name="wallet" size={15} /> Currency
-                      </span>
-                      <select
-                        value={group.currency}
-                        onChange={(e) => void changeCurrency(e.target.value)}
-                        aria-label="Group currency"
-                        className="rounded-lg border border-line bg-field px-2 py-1 text-sm outline-none focus:border-accent"
-                      >
-                        {CURRENCIES.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.code}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {/* Per-member: archiving hides the group from your own list only. */}
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => void toggleArchive()}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
-                  >
-                    <Icon name={group.archived ? 'undo' : 'archive'} size={15} />{' '}
-                    {group.archived ? 'Unarchive (show in my list)' : 'Archive (hide from my list)'}
-                  </button>
-                  {isOwner && (
-                    <button
-                      role="menuitem"
-                      type="button"
-                      onClick={() => void deleteGroup()}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-neg transition hover:bg-surface2"
-                    >
-                      <Icon name="trash" size={15} /> Delete group
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <GroupHeader
+        groupId={id}
+        groupName={group.name}
+        archived={group.archived}
+        currency={group.currency}
+        isOwner={isOwner}
+        groups={allGroups}
+        onSwitchGroup={(next) => navigate(`/groups/${next}`)}
+        onRename={renameGroup}
+        onChangeCurrency={changeCurrency}
+        onToggleArchive={toggleArchive}
+        onDelete={deleteGroup}
+        onInvite={() => void createAndRevealInvite()}
+        onExport={exportActivity}
+      />
 
       <BalanceHero
         groupName={group.name}
