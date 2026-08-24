@@ -23,6 +23,7 @@ import {
 } from '../lib/quicksplit';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { play } from '../lib/sound';
+import { useShareAction } from '../lib/useShareAction';
 
 interface Person {
   id: string;
@@ -220,7 +221,8 @@ export function QuickSplitPage(): ReactNode {
   const [youId, setYouId] = useState<string>(initialDraft?.youId ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [shareStatus, setShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  // An inline error rather than a toast: this page has no toast provider above it.
+  const { status: shareStatus, share } = useShareAction(setError);
   const [customTip, setCustomTip] = useState('');
   const [draftRestored, setDraftRestored] = useState(initialDraft !== null);
 
@@ -491,34 +493,13 @@ export function QuickSplitPage(): ReactNode {
     return lines.join('\n');
   }
 
-  async function shareSummary(): Promise<void> {
-    if (shareStatus) return;
+  function shareSummary(): void {
     play('tick');
-    const text = summaryText();
-    // The share sheet where there is one (a phone at the table is the whole use case), clipboard
-    // everywhere else. A cancelled share sheet throws AbortError, which is not a failure.
-    setShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'owewell split', text });
-        setShareStatus('shared');
-        window.setTimeout(() => setShareStatus(null), 2200);
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareStatus('copied');
-      window.setTimeout(() => setShareStatus(null), 2200);
-    } catch {
-      setShareStatus(null);
-      setError('Couldn’t share the split. Try again in a moment.');
-    }
+    void share({
+      title: 'owewell split',
+      text: summaryText(),
+      failureMessage: 'Couldn’t share the split. Try again in a moment.',
+    });
   }
 
   async function onSave(): Promise<void> {
@@ -966,7 +947,7 @@ export function QuickSplitPage(): ReactNode {
         {transfers && (
           <button
             type="button"
-            onClick={() => void shareSummary()}
+            onClick={shareSummary}
             disabled={shareStatus !== null}
             aria-live="polite"
             className="mt-5 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"

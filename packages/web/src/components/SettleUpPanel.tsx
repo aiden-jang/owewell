@@ -15,6 +15,7 @@ import { renderSettleCard } from '../lib/settleCard';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { play } from '../lib/sound';
+import { useShareAction } from '../lib/useShareAction';
 import type { Balance, GroupDetail } from '../lib/groups';
 import type { SuggestedPayment } from '../lib/settlements';
 
@@ -63,13 +64,13 @@ export function SettleUpPanel({
   const fmt = useMoney();
   const toast = useToast();
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
-  const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
+  const { status: settleShareStatus, share: sharePlan } = useShareAction(toast.error);
+  const { status: nudgeShareStatus, share: shareNudge, reset: resetNudgeShare } = useShareAction(toast.error);
   const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
   const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
   const [paymentNudge, setPaymentNudge] = useState<string | null>(null);
   const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
-  const [nudgeShareStatus, setNudgeShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
 
   const settlePlanTotal = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
   const bestSettleStep = bestSettlementStep(balances, suggested);
@@ -87,7 +88,7 @@ export function SettleUpPanel({
       )
     : suggested;
 
-  async function shareSettlePlan(): Promise<void> {
+  function shareSettlePlan(): void {
     if (suggested.length === 0) return;
     const lines = suggested.map(
       (payment) => `• ${payment.fromName} pays ${payment.toName} ${fmt(payment.amountCents)}`,
@@ -96,31 +97,11 @@ export function SettleUpPanel({
     const deadline = group.settleBy
       ? `\nSettle by ${new Date(group.settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
       : '';
-    const text = `${group.name} settle-up\n${fmt(settlePlanTotal)} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`;
-    const finish = (status: 'shared' | 'copied'): void => {
-      setSettleShareStatus(status);
-      window.setTimeout(() => setSettleShareStatus(null), 2200);
-    };
-    setSettleShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${group.name} settle-up`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setSettleShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setSettleShareStatus(null);
-      toast.error('Could not share the settle-up plan.');
-    }
+    void sharePlan({
+      title: `${group.name} settle-up`,
+      text: `${group.name} settle-up\n${fmt(settlePlanTotal)} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`,
+      failureMessage: 'Could not share the settle-up plan.',
+    });
   }
 
   async function shareSettleCard(): Promise<void> {
@@ -164,33 +145,12 @@ export function SettleUpPanel({
     }
   }
 
-  async function sharePaymentNudge(payment: SuggestedPayment): Promise<void> {
-    if (nudgeShareStatus) return;
-    const text = nudgeTextFor(payment);
-    const finish = (status: 'shared' | 'copied'): void => {
-      setNudgeShareStatus(status);
-      window.setTimeout(() => setNudgeShareStatus(null), 2200);
-    };
-    setNudgeShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${group.name} payment reminder`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setNudgeShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setNudgeShareStatus(null);
-      toast.error('Could not share that reminder.');
-    }
+  function sharePaymentNudge(payment: SuggestedPayment): void {
+    void shareNudge({
+      title: `${group.name} payment reminder`,
+      text: nudgeTextFor(payment),
+      failureMessage: 'Could not share that reminder.',
+    });
   }
 
   async function markPaid(payment: SuggestedPayment): Promise<void> {
@@ -236,7 +196,7 @@ export function SettleUpPanel({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <button
             type="button"
-            onClick={() => void shareSettlePlan()}
+            onClick={shareSettlePlan}
             disabled={settleShareStatus !== null}
             aria-label={
               settleShareStatus === 'sharing'
@@ -368,7 +328,7 @@ export function SettleUpPanel({
                   onClick={() => {
                     setPaymentNudge((current) => (current === key ? null : key));
                     setPaymentPreview(null);
-                    setNudgeShareStatus(null);
+                    resetNudgeShare();
                   }}
                   className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
                 >
@@ -434,7 +394,7 @@ export function SettleUpPanel({
                     <button
                       type="button"
                       disabled={nudgeShareStatus !== null}
-                      onClick={() => void sharePaymentNudge(payment)}
+                      onClick={() => sharePaymentNudge(payment)}
                       className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
                     >
                       {nudgeShareStatus === 'sharing'
