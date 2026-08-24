@@ -28,6 +28,7 @@ const handlers = {
   onDelete: vi.fn<() => Promise<void>>(),
   onInvite: vi.fn(),
   onExport: vi.fn(),
+  onOpenMembers: vi.fn(),
 };
 
 async function open(over: Record<string, unknown> = {}) {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   currencyFormatter,
   DEFAULT_CURRENCY,
@@ -20,8 +20,12 @@ import { RecordPaymentForm } from '../components/RecordPaymentForm';
 import { SettleUpPanel } from '../components/SettleUpPanel';
 import { MembersPanel, type PaymentHandles } from '../components/MembersPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
-import { SummaryTab } from '../components/SummaryTab';
 import { BalanceHero } from '../components/BalanceHero';
+import { WrappedRecap } from '../components/WrappedRecap';
+import { SpendBreakdown } from '../components/SpendBreakdown';
+import { TripBudget } from '../components/TripBudget';
+import { FrontingInsight } from '../components/FrontingInsight';
+import { tripBudget } from '../lib/tripBudget';
 import { GroupHeader } from '../components/GroupHeader';
 import { activityCsv, csvFileName } from '../lib/activityCsv';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
@@ -71,6 +75,7 @@ export function GroupDetailPage(): ReactNode {
   } = useGroupLedger(id);
   const [settling, setSettling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   // All the viewer's groups, for the header switcher. Fetched once; the list rarely changes.
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
   // A "person lens" over both the breakdown and the feed: pick a person, then how they relate to
@@ -78,28 +83,6 @@ export function GroupDetailPage(): ReactNode {
   // person = no lens. Category is a separate drill-down from the chart into the feed only.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // "Where it went" can render as bars (default, easiest to compare) or a part-to-whole donut.
-  /*
-   * Two questions, two tabs: "what do I owe" and "how did we spend".
-   *
-   * Everything used to be one column, and it had grown to eight cards with their own headings and
-   * their own chrome, which is more than a person can hold while deciding whether to send somebody
-   * $70. The balance and the tab bar stay put; only what's under them swaps.
-   *
-   * It lives in the URL so a reload, a back button, or a link keeps the view you were on.
-   */
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab: 'activity' | 'summary' = searchParams.get('view') === 'summary' ? 'summary' : 'activity';
-  const setTab = (next: 'activity' | 'summary'): void => {
-    setSearchParams(
-      (current) => {
-        const params = new URLSearchParams(current);
-        if (next === 'activity') params.delete('view');
-        else params.set('view', next);
-        return params;
-      },
-      { replace: true },
-    );
-  };
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
   // Held by id, not by value: an edit or a realtime refetch replaces the object in `expenses`, and the
@@ -121,13 +104,6 @@ export function GroupDetailPage(): ReactNode {
    * Tapping a slice is a question about the feed ("what was all that lodging?"), so it answers it
    * where the answer lives instead of filtering a list on the tab you can't see.
    */
-  function filterByCategory(key: string | null): void {
-    setCategoryFilter(key);
-    // Picking a category is a request to go and look at it. Clearing one is not, so it leaves you
-    // on the chart you cleared it from.
-    if (key) setTab('activity');
-  }
-
   /*
    * Photos on an expense that already exists.
    *
@@ -493,6 +469,12 @@ export function GroupDetailPage(): ReactNode {
   // from the same array; here it decides whether there is a wrapped recap to offer at all.
   const groupSettled = suggested.length === 0;
   const hasActivity = expenses.length > 0 || settlements.length > 0;
+  /*
+   * Everything the group has spent against the number it set, not just this month. A trip budget is
+   * a total for one trip, so unlike a monthly figure it must not reset on the 1st, and members
+   * rather than balances is the right divisor: somebody who has paid for nothing still spent.
+   */
+  const budget = tripBudget(group.budgetCents, expenses, group.members.length);
   const groupRecap = groupSettled && expenses.length > 0
     ? buildGroupRecap(expenses, settlements)
     : null;
@@ -531,6 +513,7 @@ export function GroupDetailPage(): ReactNode {
         onDelete={deleteGroup}
         onInvite={() => void invite.reveal()}
         onExport={exportActivity}
+        onOpenMembers={() => setMembersOpen(true)}
       />
 
       <BalanceHero
@@ -541,8 +524,6 @@ export function GroupDetailPage(): ReactNode {
         suggested={suggested}
         currentUserId={user?.id}
         memberCount={group.members.length}
-        hasRecap={groupRecap !== null}
-        onSeeWrapped={() => setTab('summary')}
         onLogPayment={() => {
           paymentBeforeRef.current = balances;
           setPaymentOpen(true);
@@ -550,116 +531,89 @@ export function GroupDetailPage(): ReactNode {
       />
 
 
-      {/* Two questions, two tabs. The balance above stays put; only the answer underneath swaps. */}
-      <div className="mt-5 inline-flex w-full rounded-full border border-line bg-field p-1" role="tablist" aria-label="Group view">
-        {(['activity', 'summary'] as const).map((view) => (
-          <button
-            key={view}
-            type="button"
-            role="tab"
-            aria-selected={tab === view}
-            onClick={() => setTab(view)}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-medium capitalize transition ${
-              tab === view ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
-            }`}
-          >
-            {view}
-          </button>
-        ))}
+      {paymentReceipt && (
+        <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
+      )}
+
+      {/*
+        * One block, two readings. While the group still needs people this is the obvious next
+        * thing to do and says so; once they are in, it is just the link, kept around because
+        * somebody always needs it again.
+        */}
+      {invite.link && (
+        <InviteLink
+          link={invite.link}
+          copied={invite.copied}
+          onCopy={() => void invite.copy()}
+          {...(invite.needsPeople
+            ? {
+                headline:
+                  invite.unclaimed > 0
+                    ? `Send this to ${invite.unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
+                    : "Send this to the people you're splitting with",
+                hint:
+                  invite.unclaimed > 0
+                    ? `${invite.unclaimed === 1 ? 'One person is' : `${invite.unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
+                    : "It's just you in here so far. Anyone with the link can see the group and claim their spot.",
+              }
+            : {})}
+        />
+      )}
+
+      {/*
+        * The same slot, before and after.
+        *
+        * A recap only exists once there is nothing left to transfer, so these two can never both
+        * apply. That makes one place on the page read "here is what to pay" and then "here is what
+        * it came to", instead of two places you have to know about.
+        */}
+      {suggested.length > 0 ? (
+        <SettleUpPanel
+          group={group}
+          suggested={suggested}
+          balances={balances}
+          isOwner={isOwner}
+          settling={settling}
+          onMarkPaid={markPaid}
+          onSaveDeadline={saveSettlementDeadline}
+        />
+      ) : (
+        groupRecap && (
+          <WrappedRecap
+            groupName={group.name}
+            recap={groupRecap}
+            settlements={settlements}
+            memberCount={group.members.length}
+          />
+        )
+      )}
+
+      <div className="mt-4">
+        <TripBudget budget={budget} budgetCents={group.budgetCents} isOwner={isOwner} onSave={saveBudget} />
       </div>
 
-      {tab === 'activity' && (
-        <>
-        {paymentReceipt && (
-          <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
-        )}
-
-        {/*
-          * One block, two readings. While the group still needs people this is the obvious next
-          * thing to do and says so; once they are in, it is just the link, kept around because
-          * somebody always needs it again.
-          */}
-        {invite.link && (
-          <InviteLink
-            link={invite.link}
-            copied={invite.copied}
-            onCopy={() => void invite.copy()}
-            {...(invite.needsPeople
-              ? {
-                  headline:
-                    invite.unclaimed > 0
-                      ? `Send this to ${invite.unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
-                      : "Send this to the people you're splitting with",
-                  hint:
-                    invite.unclaimed > 0
-                      ? `${invite.unclaimed === 1 ? 'One person is' : `${invite.unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
-                      : "It's just you in here so far. Anyone with the link can see the group and claim their spot.",
-                }
-              : {})}
-          />
-        )}
-
-        {suggested.length > 0 && (
-          <SettleUpPanel
-            group={group}
-            suggested={suggested}
-            balances={balances}
-            isOwner={isOwner}
-            settling={settling}
-            onMarkPaid={markPaid}
-            onSaveDeadline={saveSettlementDeadline}
-          />
-        )}
-
-        <ActivityFeed
-          expenses={expenses}
-          settlements={settlements}
-          members={group.members}
-          currentUserId={user?.id}
-          pendingRows={pendingRows}
-          pendingDeletes={pendingDeletes}
-          pendingEdits={pendingEdits}
-          categoryFilter={categoryFilter}
-          onCategoryFilter={setCategoryFilter}
-          onOpenExpense={setDetailExpenseId}
-          onUndoSettlement={undoSettlement}
-          onAddExpense={() => setSheetOpen(true)}
-        />
-        </>
+      {expenses.length > 0 && group.members.length > 1 && (
+        <FrontingInsight balances={balances} expenseCount={expenses.length} />
       )}
 
-      {tab === 'summary' && (
-        <>
-        <SummaryTab
-          groupName={group.name}
-          recap={groupRecap}
-          expenses={expenses}
-          settlements={settlements}
-          balances={balances}
-          members={group.members}
-          budgetCents={group.budgetCents}
-          isOwner={isOwner}
-          categoryFilter={categoryFilter}
-          onSelectCategory={filterByCategory}
-          onSaveBudget={saveBudget}
-        />
+      <ActivityFeed
+        expenses={expenses}
+        settlements={settlements}
+        members={group.members}
+        currentUserId={user?.id}
+        pendingRows={pendingRows}
+        pendingDeletes={pendingDeletes}
+        pendingEdits={pendingEdits}
+        categoryFilter={categoryFilter}
+        onCategoryFilter={setCategoryFilter}
+        onOpenExpense={setDetailExpenseId}
+        onUndoSettlement={undoSettlement}
+        onAddExpense={() => setSheetOpen(true)}
+        breakdown={
+          <SpendBreakdown expenses={expenses} categoryFilter={categoryFilter} onSelectCategory={setCategoryFilter} />
+        }
+      />
 
-
-        <MembersPanel
-          key={group.id}
-          members={group.members}
-          balances={balances}
-          currentUserId={user?.id}
-          isOwner={isOwner}
-          hasActivity={hasActivity}
-          paymentsRecorded={settlements.length > 0}
-          onRename={renameMember}
-          onSaveHandles={saveMemberHandles}
-          onAdd={addMember}
-          onRemove={removeFromGroup}
-        />
-        </>
-      )}
 
       {/* The floating add button appears only once there's a list to add to; the empty state owns
           the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons. */}
@@ -673,6 +627,23 @@ export function GroupDetailPage(): ReactNode {
           <Icon name="plus" size={20} /> <span className="hidden sm:inline">Add expense</span>
         </button>
       )}
+
+      {/* Roster management, out of the spending column and behind the group menu where it belongs. */}
+      <Sheet open={membersOpen} onClose={() => setMembersOpen(false)} title="Members">
+        <MembersPanel
+          key={group.id}
+          members={group.members}
+          balances={balances}
+          currentUserId={user?.id}
+          isOwner={isOwner}
+          hasActivity={hasActivity}
+          paymentsRecorded={settlements.length > 0}
+          onRename={renameMember}
+          onSaveHandles={saveMemberHandles}
+          onAdd={addMember}
+          onRemove={removeFromGroup}
+        />
+      </Sheet>
 
       <AddExpenseSheet
         open={sheetOpen}
