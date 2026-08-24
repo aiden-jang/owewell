@@ -16,7 +16,7 @@ export function FrontingInsight({ balances, expenseCount }: { balances: Balance[
     : 'No one has carried most of the tab';
 
   return (
-    <details className="group mt-4 overflow-hidden rounded-2xl border border-line bg-surface/70 shadow-sm">
+    <details className="group overflow-hidden rounded-2xl border border-line bg-surface/70 shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
         <span className="flex min-w-0 items-center gap-3">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
@@ -44,7 +44,7 @@ export function FrontingInsight({ balances, expenseCount }: { balances: Balance[
           ))}
         </div>
 
-        <ul className="mt-3 space-y-2">
+        <ul className="space-y-2">
           {insight.shares.map((share, index) => (
             <li key={share.userId} className="flex items-center gap-2 text-xs">
               <Avatar name={share.displayName} size="sm" />

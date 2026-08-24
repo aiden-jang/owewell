@@ -53,7 +53,18 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
   return (
     <div className="flex-1">
       <AppHeader />
-      <main className="mx-auto w-full max-w-2xl animate-rise px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
+      {/*
+        * ── Rhythm ──
+        *
+        * One gap between blocks, owned here. Each block used to carry its own top margin, so the
+        * distance between two of them was decided by whichever was written second: the hero said
+        * mt-5, the settle-up panel mt-6, the recap and the budget mt-4. Three gaps between peers in
+        * one column, which is what made the spacing read as uneven.
+        *
+        * Anything that needs a different distance from its neighbour is saying it belongs to that
+        * neighbour, and should be nested inside it rather than adjusting the gap.
+        */}
+      <main className="mx-auto flex w-full max-w-2xl animate-rise flex-col gap-5 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
         {children}
       </main>
     </div>
@@ -588,9 +599,7 @@ export function GroupDetailPage(): ReactNode {
         )
       )}
 
-      <div className="mt-4">
-        <TripBudget budget={budget} budgetCents={group.budgetCents} isOwner={isOwner} onSave={saveBudget} />
-      </div>
+      <TripBudget budget={budget} budgetCents={group.budgetCents} isOwner={isOwner} onSave={saveBudget} />
 
       {expenses.length > 0 && group.members.length > 1 && (
         <FrontingInsight balances={balances} expenseCount={expenses.length} />

@@ -189,7 +189,7 @@ export function SettleUpPanel({
   }
 
   return (
-    <section className="mt-6 rounded-2xl border border-line bg-surface p-4">
+    <section className="rounded-2xl border border-line bg-surface p-4">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
           <Icon name="wallet" size={16} /> Settle up
@@ -253,7 +253,7 @@ export function SettleUpPanel({
         <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
+              <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
               <p className="mt-0.5 text-sm font-semibold text-ink">
                 {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
                 <span className="tnum text-ink">{fmt(bestSettleStep.payment.amountCents)}</span>
@@ -296,7 +296,7 @@ export function SettleUpPanel({
                 <Avatar name={payment.fromName} size="sm" />
                 <span>
                   {key === recommendedPaymentKey && suggested.length > 1 && (
-                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
+                    <span className="mb-0.5 block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
                   )}
                   <span className="font-medium">{payment.fromName}</span>
                   <span className="text-muted"> pays </span>
@@ -358,7 +358,7 @@ export function SettleUpPanel({
                   {paymentInFlight === key ? 'Sent it, mark paid' : 'Mark paid'}
                 </button>
                 {paymentInFlight === key && (
-                  <span className="basis-full text-right text-[11px] text-muted" role="status">
+                  <span className="basis-full text-right text-2xs text-muted" role="status">
                     Payment app opened. Record it here once it&rsquo;s sent.
                   </span>
                 )}
@@ -366,7 +366,7 @@ export function SettleUpPanel({
               {paymentNudge === key && (
                 <div className="w-full basis-full rounded-xl border border-line bg-surface2/50 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                    <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-faint">
                       Make it sound like you
                     </p>
                     <div className="flex gap-1" role="group" aria-label="Reminder tone">
@@ -376,7 +376,7 @@ export function SettleUpPanel({
                           type="button"
                           aria-pressed={nudgeTone === tone}
                           onClick={() => setNudgeTone(tone)}
-                          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize transition ${
+                          className={`rounded-full border px-2.5 py-1 text-2xs font-medium capitalize transition ${
                             nudgeTone === tone
                               ? 'border-accent bg-accent-soft text-accent'
                               : 'border-line bg-field text-muted hover:text-ink'
@@ -391,7 +391,7 @@ export function SettleUpPanel({
                     {nudgeTextFor(payment)}
                   </p>
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-[11px] text-muted">Nothing is sent automatically.</span>
+                    <span className="text-2xs text-muted">Nothing is sent automatically.</span>
                     <button
                       type="button"
                       disabled={nudgeShareStatus !== null}
@@ -411,7 +411,7 @@ export function SettleUpPanel({
               )}
               {paymentPreview === key && (
                 <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                  <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-faint">
                     After this payment
                   </p>
                   <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
@@ -426,7 +426,7 @@ export function SettleUpPanel({
                       </p>
                     ))}
                   </div>
-                  <p className="mt-1.5 text-[11px] text-muted">
+                  <p className="mt-1.5 text-2xs text-muted">
                     Preview only. Nothing changes until you mark it paid.
                   </p>
                 </div>

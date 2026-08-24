@@ -76,7 +76,7 @@ export function TripBudget({
     <section className="mt-3 rounded-xl border border-line bg-surface/75 p-3" aria-label="Trip budget">
       {editing ? (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Set a budget</p>
+          <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Set a budget</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {PRESETS.map(amount => (
               <button
@@ -86,7 +86,7 @@ export function TripBudget({
                   setDraft(String(amount));
                   setError(null);
                 }}
-                className="rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-muted hover:border-accent hover:text-ink"
+                className="rounded-full border border-line px-2.5 py-1 text-2xs font-medium text-muted hover:border-accent hover:text-ink"
               >
                 {fmt(amount * 100)}
               </button>
@@ -115,7 +115,7 @@ export function TripBudget({
             </button>
           </div>
           {error && (
-            <p role="alert" className="mt-1.5 text-[11px] font-medium text-neg">
+            <p role="alert" className="mt-1.5 text-2xs font-medium text-neg">
               {error}
             </p>
           )}
@@ -125,7 +125,7 @@ export function TripBudget({
               setEditing(false);
               setError(null);
             }}
-            className="mt-2 text-[11px] font-medium text-muted hover:text-ink"
+            className="mt-2 text-2xs font-medium text-muted hover:text-ink"
           >
             Cancel
           </button>
@@ -134,12 +134,12 @@ export function TripBudget({
         <div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <span>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Budget</span>
+              <span className="block text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Budget</span>
               <strong className="mt-0.5 block text-sm text-ink">
                 {budget ? budgetLine(budget, fmt) : `${fmt(budgetCents)}, nothing spent yet.`}
               </strong>
               {budget && budgetDetail(budget, fmt) && (
-                <small className="mt-0.5 block text-[11px] text-muted">{budgetDetail(budget, fmt)}</small>
+                <small className="mt-0.5 block text-2xs text-muted">{budgetDetail(budget, fmt)}</small>
               )}
             </span>
             {isOwner && (
@@ -185,7 +185,7 @@ export function TripBudget({
         <button type="button" onClick={() => setEditing(true)} className="flex w-full items-center justify-between gap-3 text-left">
           <span>
             <strong className="block text-xs text-ink">Set a budget for the trip</strong>
-            <small className="mt-0.5 block text-[11px] text-muted">Everyone sees how it is going. Nobody gets told off.</small>
+            <small className="mt-0.5 block text-2xs text-muted">Everyone sees how it is going. Nobody gets told off.</small>
           </span>
           <span className="text-accent" aria-hidden>
             ＋

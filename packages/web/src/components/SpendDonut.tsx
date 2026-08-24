@@ -3,22 +3,17 @@ import { useMoney } from '../lib/currency';
 
 /**
  * Part-to-whole view of spend by category: a dependency-free SVG donut plus a legend, both
- * tappable to filter the activity feed (mirrors the bar view). Colour is categorical identity,
- * one fixed hue per category so a category keeps its colour across groups. The hues are the
- * dataviz-validated categorical set for a dark surface; because CVD separation sits in the floor
- * band, identity is always carried by the legend's emoji + label + a swatch, never colour alone.
+ * tappable to filter the activity feed. Colour is categorical identity, one fixed hue per category
+ * so a category keeps its colour across groups — but never the only carrier of it: every legend row
+ * pairs the swatch with a label.
+ *
+ * The hues come from `--color-cat-*` rather than from literals in here. They used to be eight hexes
+ * in this file, which meant the warm theme inherited colours picked against a dark canvas, the
+ * contrast test could not see them, and the bar chart could not reach them — so the two views of the
+ * same data were coloured differently. Referencing the variables means both read one source and the
+ * theme swap applies to charts too.
  */
-const CATEGORY_COLORS: Record<string, string> = {
-  food: '#3987e5',
-  groceries: '#199e70',
-  lodging: '#c98500',
-  transport: '#008300',
-  entertainment: '#9085e9',
-  shopping: '#e66767',
-  utilities: '#d55181',
-  other: '#d95926',
-};
-const FALLBACK_COLOR = '#8a8a99';
+const hueOf = (key: string): string => `var(--p-cat-${key}, var(--p-faint))`;
 
 interface Slice {
   meta: { key: string; label: string; emoji: string };
@@ -53,7 +48,7 @@ export function SpendDonut({
     const len = Math.max(0, frac * circ - gap);
     const arc = {
       ...d,
-      color: CATEGORY_COLORS[d.meta.key] ?? FALLBACK_COLOR,
+      color: hueOf(d.meta.key),
       len,
       offset: -acc * circ,
       pct: Math.round(frac * 100),

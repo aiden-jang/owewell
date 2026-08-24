@@ -93,4 +93,46 @@ export const WARM: Palette = {
 };
 
 export const THEMES = { dark: DARK, warm: WARM } as const;
+
+/*
+ * Categorical hues for the spend charts.
+ *
+ * Here rather than inside the chart component because they were eight hex literals in SpendDonut.tsx,
+ * which meant three things: the warm theme never got its own set, the contrast test could not see
+ * them, and the bar chart could not reach them — so bars and donut coloured the same data
+ * differently. One source, two themes, both checked.
+ *
+ * A category keeps its hue across groups, and identity is never carried by colour alone: every
+ * legend row pairs the swatch with a label.
+ */
+export type CategoryPalette = Record<
+  'food' | 'groceries' | 'lodging' | 'transport' | 'entertainment' | 'shopping' | 'utilities' | 'other',
+  Hex
+>;
+
+/** Tuned for the dark canvas. */
+export const CATEGORY_DARK: CategoryPalette = {
+  food: '#3987e5',
+  groceries: '#199e70',
+  lodging: '#c98500',
+  transport: '#1f9a9e',
+  entertainment: '#9085e9',
+  shopping: '#e66767',
+  utilities: '#d55181',
+  other: '#d95926',
+};
+
+/** Darkened for the warm canvas, where the dark set washed out against #faf7f2 and #ffffff. */
+export const CATEGORY_WARM: CategoryPalette = {
+  food: '#1e5fa8',
+  groceries: '#136b4d',
+  lodging: '#8a5b00',
+  transport: '#146b6e',
+  entertainment: '#5b52a8',
+  shopping: '#a83f3f',
+  utilities: '#9c3459',
+  other: '#9c3e1a',
+};
+
+export const CATEGORY_THEMES = { dark: CATEGORY_DARK, warm: CATEGORY_WARM } as const;
 export type ThemeName = keyof typeof THEMES;

@@ -47,10 +47,10 @@ export function WrappedRecap({
   }
 
   return (
-      <section className="mt-4 overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
+      <section className="overflow-hidden rounded-3xl border border-accent/15 bg-gradient-to-br from-accent-soft/80 via-surface to-surface2 p-5 shadow-sm shadow-accent/5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">The tab, wrapped</p>
+            <p className="text-2xs font-semibold uppercase tracking-[0.18em] text-faint">The tab, wrapped</p>
             <h2 className="mt-1 font-display text-xl font-bold text-ink">{groupName} in four numbers</h2>
             <p className="mt-1 text-sm text-muted">Nothing left to chase. Just the story of the tab.</p>
           </div>
@@ -59,13 +59,13 @@ export function WrappedRecap({
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-            <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Total spent</span>
+            <span className="block text-2xs font-medium uppercase tracking-wide text-faint">Total spent</span>
             <strong className="mt-1 block font-display text-lg text-ink">
               {fmt(recap.totalCents)}
             </strong>
           </div>
           <div className="min-w-0 rounded-2xl border border-line/70 bg-surface/70 p-3">
-            <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Biggest moment</span>
+            <span className="block text-2xs font-medium uppercase tracking-wide text-faint">Biggest moment</span>
             <strong className="mt-1 block truncate text-sm text-ink" title={recap.largest?.description}>
               {recap.largest?.description ?? 'nothing yet'}
             </strong>
@@ -74,7 +74,7 @@ export function WrappedRecap({
             )}
           </div>
           <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-            <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Top category</span>
+            <span className="block text-2xs font-medium uppercase tracking-wide text-faint">Top category</span>
             <strong className="mt-1 block text-sm text-ink">
               {recap.topCategory ? `${recap.topCategory.emoji} ${recap.topCategory.label}` : 'nothing yet'}
             </strong>
@@ -83,7 +83,7 @@ export function WrappedRecap({
             )}
           </div>
           <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
-            <span className="block text-[10px] font-medium uppercase tracking-wide text-faint">Tab lifetime</span>
+            <span className="block text-2xs font-medium uppercase tracking-wide text-faint">Tab lifetime</span>
             <strong className="mt-1 block font-display text-lg text-ink">
               {recap.daysOpen} {recap.daysOpen === 1 ? 'day' : 'days'}
             </strong>
