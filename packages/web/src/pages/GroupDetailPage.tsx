@@ -539,14 +539,33 @@ export function GroupDetailPage(): ReactNode {
       />
 
 
-      {/* The floating add button appears only once there's a list to add to; the empty state owns
-          the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons. */}
+      {/*
+        * The floating add button appears only once there's a list to add to; the empty state owns
+        * the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons.
+        *
+        * Bottom LEFT, which is not where a floating action button usually goes.
+        *
+        * Every action in this app is right-aligned — Mark paid, the row chevrons, the amounts, the
+        * sheet close buttons — so the bottom-right corner is the one place a fixed control is
+        * guaranteed to land on something. It did: on the shortest group page that still shows this
+        * button, at rest, it covered 30px of Mark paid and the payment-method select beside it.
+        * That was survivable while the page carried a budget card, a settle-by card and a monthly
+        * pulse to push the settle-up panel up the screen; with those gone it is the landing state.
+        *
+        * The cost is right-thumb reach, which on a 375px screen is a stretch rather than a problem.
+        * The alternative was making people scroll before they could press the primary button on the
+        * page, which is worse. The bottom padding on <main> still clears the end of the feed.
+        *
+        * It is not zero-overlap — nothing fixed over a scrolling page can be. What it now lands on
+        * is the row avatar, an aria-hidden disc with the same person's name in text beside it.
+        * Measured at the top, middle and end of the shortest page that renders this button.
+        */}
       {ledgerHasRows && (
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
           aria-label="Add expense"
-          className="btn-gradient fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-40 flex items-center gap-2 rounded-full p-4 font-semibold shadow-xl shadow-black/30 transition active:scale-[0.97] sm:px-6 sm:py-3.5"
+          className="btn-gradient fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-5 z-40 flex items-center gap-2 rounded-full p-4 font-semibold shadow-xl shadow-black/30 transition active:scale-[0.97] sm:px-6 sm:py-3.5"
         >
           <Icon name="plus" size={20} /> <span className="hidden sm:inline">Add expense</span>
         </button>
