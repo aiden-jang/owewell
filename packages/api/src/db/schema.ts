@@ -32,9 +32,6 @@ export const groups = sqliteTable('groups', {
   shareToken: text('share_token').unique(),
   // Optional owner-set deadline for the current settle-up plan. Shared by every group member.
   settleBy: integer('settle_by', { mode: 'timestamp' }),
-  // Optional owner-set spending target for the whole group, in cents. Null means the group never set
-  // one, which is most groups: a budget is a trip thing, not a flatshare thing.
-  budgetCents: integer('budget_cents'),
 });
 
 export const groupMembers = sqliteTable(
