@@ -26,25 +26,18 @@ import { activityCsv, csvFileName } from '../lib/activityCsv';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
-import { groupsApi, type Balance, type GroupDetail, type GroupSummary } from '../lib/groups';
+import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
 import { expensesApi, receiptUrl, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
-import { ApiError } from '../lib/api';
-import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
 import { CurrencyProvider } from '../lib/currency';
 import {
   drop as dropWrite,
   enqueue as enqueueWrite,
-  isDelete,
-  isEdit,
-  isPendingRow,
   isOffline,
-  queued as outboxQueued,
-  type QueuedWrite,
 } from '../lib/outbox';
-import { useOutboxSync } from '../lib/useOutboxSync';
+import { useGroupLedger } from '../lib/useGroupLedger';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { buildGroupRecap } from '../lib/groupRecap';
@@ -66,15 +59,13 @@ export function GroupDetailPage(): ReactNode {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
-  const [group, setGroup] = useState<GroupDetail | null>(null);
-  const [balances, setBalances] = useState<Balance[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [suggested, setSuggested] = useState<SuggestedPayment[]>([]);
-  const [notFound, setNotFound] = useState(false);
-  // A transient load failure (network / 5xx) is distinct from a real 404/403: the former gets a
-  // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
-  const [loadFailed, setLoadFailed] = useState(false);
+  const {
+    group, balances, expenses, settlements, suggested,
+    notFound, loadFailed,
+    pendingRows, pendingDeletes, pendingEdits,
+    load, refreshLedger, setGroup,
+    showSavedExpense, patchExpense, dropExpense, refreshPending,
+  } = useGroupLedger(id);
   const [settling, setSettling] = useState(false);
   const [expenseMode, setExpenseMode] = useState<'simple' | 'itemized'>('simple');
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -114,26 +105,6 @@ export function GroupDetailPage(): ReactNode {
   // Held by id, not by value: an edit or a realtime refetch replaces the object in `expenses`, and the
   // open sheet has to follow it. A deleted expense drops out of the list, which closes the sheet.
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
-  const [pending, setPending] = useState<QueuedWrite[]>(() => outboxQueued(id));
-  // Creates and recorded payments both show as a row waiting to go out; edits and deletes change
-  // rows that already exist, so they mark or hide those instead.
-  const pendingRows = pending.filter(isPendingRow);
-  // Memoised: a fresh Set every render would defeat the activity memo below that depends on it.
-  const pendingDeletes = useMemo(
-    () => new Set(pending.filter(isDelete).map((e) => e.expenseId)),
-    [pending],
-  );
-  /*
-   * Rows with an edit still in the queue.
-   *
-   * The row keeps showing what the server has, because the queued payload is a set of form values
-   * rather than a computed split: pretending otherwise would mean a total that disagreed with the
-   * per-person amounts underneath it. So it says the change is waiting instead of faking it.
-   */
-  const pendingEdits = useMemo(
-    () => new Set(pending.filter(isEdit).map((e) => e.expenseId)),
-    [pending],
-  );
   /*
    * Whether the feed has any rows to show, which is not the same as whether the group has history:
    * an expense with a delete waiting to be sent is already gone from the list. Deleting your last
@@ -145,78 +116,6 @@ export function GroupDetailPage(): ReactNode {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
-
-  async function load(): Promise<void> {
-    setNotFound(false);
-    setLoadFailed(false);
-    try {
-      const [g, b, e, st, s] = await Promise.all([
-        groupsApi.get(id),
-        groupsApi.balances(id),
-        expensesApi.list(id),
-        settlementsApi.list(id),
-        settlementsApi.suggested(id),
-      ]);
-      setGroup(g);
-      setBalances(b);
-      setExpenses(e);
-      setSettlements(st);
-      setSuggested(s);
-    } catch (err) {
-      // Genuine "not yours / gone" only for 404/403; anything else is a transient failure.
-      if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
-        setNotFound(true);
-      } else {
-        setLoadFailed(true);
-      }
-    }
-  }
-
-  async function refreshLedger(): Promise<{ balances: Balance[]; suggested: SuggestedPayment[] } | null> {
-    // Refetch the group too, not just the ledger: if it was archived, renamed, or had a
-    // member change in another tab/device, `group.archived` (which drives read-only) and the
-    // member list must stay current, otherwise stale gates would keep edit controls live.
-    // Callers fire this as `void refreshLedger()`, so a failed refetch would otherwise be a
-    // swallowed rejection that leaves the just-succeeded change showing over stale data. Keep the
-    // current view (it's still valid) but tell the user it may be behind.
-    try {
-      const [g, b, e, st, s] = await Promise.all([
-        groupsApi.get(id),
-        groupsApi.balances(id),
-        expensesApi.list(id),
-        settlementsApi.list(id),
-        settlementsApi.suggested(id),
-      ]);
-      setGroup(g);
-      setBalances(b);
-      setExpenses(e);
-      setSettlements(st);
-      setSuggested(s);
-      return { balances: b, suggested: s };
-    } catch {
-      toast.error('Could not load the latest changes. Reload if the numbers look off.');
-      return null;
-    }
-  }
-
-  /*
-   * Put a saved expense on screen now, and let the ledger catch up behind it.
-   *
-   * The refetch pulls five endpoints, so waiting for it meant the row a person just typed appeared a
-   * whole extra round trip after the save. Balances are deliberately NOT recomputed here: netting
-   * paid against owed (per-item payers, tax and tip apportioned across shares) is the server's job,
-   * and a second implementation of it on the client is a rounding difference waiting to happen. The
-   * hero number counts up over 650ms anyway, so it landing a beat later reads as the animation.
-   */
-  function showSavedExpense(saved: Expense): void {
-    setExpenses((current) => {
-      const i = current.findIndex((e) => e.id === saved.id);
-      if (i === -1) return [saved, ...current];
-      const next = [...current];
-      next[i] = saved;
-      return next;
-    });
-  }
 
   /*
    * Tapping a slice is a question about the feed ("what was all that lodging?"), so it answers it
@@ -230,22 +129,6 @@ export function GroupDetailPage(): ReactNode {
   }
 
   /*
-   * Sending what is waiting.
-   *
-   * Scoped to this group, because this is the screen with the ledger on it to refresh. The dashboard
-   * runs the same hook unscoped, so a write queued here still goes out even if the next thing you
-   * open is a different group.
-   */
-  useOutboxSync({
-    groupId: id,
-    onChanged: () => {
-      play('add');
-      void refreshLedger();
-    },
-    onQueueChanged: () => setPending(outboxQueued(id)),
-  });
-
-  /*
    * Photos on an expense that already exists.
    *
    * Not gated on the settle-up lock: a picture of a receipt does not move anybody's balance, so the
@@ -255,9 +138,7 @@ export function GroupDetailPage(): ReactNode {
   async function attachReceipt(expenseId: string, file: File): Promise<void> {
     try {
       await expensesApi.putReceipt(id, expenseId, file);
-      setExpenses((current) =>
-        current.map((e) => (e.id === expenseId ? { ...e, hasReceipt: true } : e)),
-      );
+      patchExpense(expenseId, { hasReceipt: true });
       play('tick');
       toast.success('Photo attached.');
     } catch (err) {
@@ -268,9 +149,7 @@ export function GroupDetailPage(): ReactNode {
   async function removeReceipt(expenseId: string): Promise<void> {
     try {
       await expensesApi.removeReceipt(id, expenseId);
-      setExpenses((current) =>
-        current.map((e) => (e.id === expenseId ? { ...e, hasReceipt: false } : e)),
-      );
+      patchExpense(expenseId, { hasReceipt: false });
       toast.success('Photo removed.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not remove that photo.');
@@ -348,20 +227,11 @@ export function GroupDetailPage(): ReactNode {
   }
 
   useEffect(() => {
-    void load();
-  }, [id]);
-
-  useEffect(() => {
     groupsApi
       .list()
       .then((gs) => setAllGroups(gs.filter((g) => !g.archived)))
       .catch(() => undefined);
   }, []);
-
-  useGroupRealtime(id, () => {
-    play('nudge');
-    void refreshLedger();
-  });
 
   /*
    * Delete, then offer it back. No modal.
@@ -380,7 +250,7 @@ export function GroupDetailPage(): ReactNode {
     try {
       await expensesApi.remove(id, expenseId);
       // Off the list on the same tick as the toast, rather than one refetch later.
-      setExpenses((current) => current.filter((e) => e.id !== expenseId));
+      dropExpense(expenseId);
       void refreshLedger();
       toast.success(name, { label: 'Undo', onClick: () => void undoDeleteExpense(expenseId) });
     } catch (err) {
@@ -403,12 +273,12 @@ export function GroupDetailPage(): ReactNode {
         description: removed?.description ?? 'that expense',
         queuedAt: Date.now(),
       });
-      setPending(outboxQueued(id));
+      refreshPending();
       toast.success(`${name} It syncs when you have signal.`, {
         label: 'Undo',
         onClick: () => {
           dropWrite(clientId);
-          setPending(outboxQueued(id));
+          refreshPending();
         },
       });
     }
@@ -914,7 +784,7 @@ export function GroupDetailPage(): ReactNode {
             }}
             onQueued={(description) => {
               setSheetOpen(false);
-              setPending(outboxQueued(id));
+              refreshPending();
               toast.success(`Kept "${description}". It goes out when you have signal.`);
             }}
             onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
@@ -933,7 +803,7 @@ export function GroupDetailPage(): ReactNode {
             }}
             onQueued={(description) => {
               setSheetOpen(false);
-              setPending(outboxQueued(id));
+              refreshPending();
               toast.success(`Kept "${description}". It goes out when you have signal.`);
             }}
             onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
@@ -950,7 +820,7 @@ export function GroupDetailPage(): ReactNode {
           suggestions={suggested}
           onQueued={(summary) => {
             setPaymentOpen(false);
-            setPending(outboxQueued(id));
+            refreshPending();
             toast.success(`Kept the payment ${summary}. It goes out when you have signal.`);
           }}
           onRecorded={(settlement) => {
@@ -1018,7 +888,7 @@ export function GroupDetailPage(): ReactNode {
               }}
               onQueued={(description) => {
                 setEditingExpense(null);
-                setPending(outboxQueued(id));
+                refreshPending();
                 toast.success(`Your change to "${description}" goes out when you have signal.`);
               }}
             />
@@ -1037,7 +907,7 @@ export function GroupDetailPage(): ReactNode {
               }}
               onQueued={(description) => {
                 setEditingExpense(null);
-                setPending(outboxQueued(id));
+                refreshPending();
                 toast.success(`Your change to "${description}" goes out when you have signal.`);
               }}
             />
