@@ -239,6 +239,28 @@ describe('writes still waiting to go out', () => {
     expect([...result.current.pendingEdits]).toEqual(['e9']);
   });
 
+  /*
+   * The count is every kind, where the three sets above are each one kind.
+   *
+   * The page says it out loud above the balance, and the balance is wrong by all three: a create,
+   * a delete and an edit that have not reached the server all leave the server's figure stale.
+   * Counting only pendingRows would under-report exactly when it matters.
+   */
+  it('counts every queued write, not just the ones that show as rows', async () => {
+    outbox = [queuedCreate, queuedDelete, queuedEdit];
+    const { result } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+
+    expect(result.current.pendingRows).toHaveLength(1);
+    expect(result.current.pendingCount).toBe(3);
+  });
+
+  it('counts nothing when the queue is empty', async () => {
+    const { result } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+    expect(result.current.pendingCount).toBe(0);
+  });
+
   it('re-reads the queue when told it moved', async () => {
     const { result } = await open();
     await waitFor(() => expect(result.current.pendingRows).toHaveLength(0));
