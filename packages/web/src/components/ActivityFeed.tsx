@@ -5,7 +5,7 @@ import { CategoryGlyph } from './CategoryMark';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
-import { lensTotal as computeLensTotal, matchesPersonLens } from '../lib/activityFilters';
+import { lensAmount, matchesPersonLens } from '../lib/activityFilters';
 import { timeAgoShort as timeAgo } from '../lib/relativeTime';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
@@ -172,7 +172,19 @@ export function ActivityFeed({
   // The person lens scopes the feed and the total above it; the category filter is a drill-down from
   // the Summary chart. The lens logic is pure and unit-tested in lib/activityFilters.
   const lensActive = personFilter !== null;
-  const lensTotal = computeLensTotal(expenses, personFilter, relationFilter);
+  /*
+   * Summed over what is on screen, not over what the person lens alone would match.
+   *
+   * This used to come from `lensTotal(expenses, person, relation)`, which knows about the person
+   * filter and nothing else — so filtering to Food & Drink showed one $80 row under a heading that
+   * still read "$1,344.00 spent", the whole ledger. Search had the same effect. Reading it off the
+   * rendered list is correct for every filter at once, including ones added later.
+   */
+  const visibleTotal = visibleActivity.reduce(
+    (sum, item) => (item.kind === 'expense' ? sum + lensAmount(item.expense, personFilter, relationFilter) : sum),
+    0,
+  );
+  const filtering = Boolean(activityQuery || categoryFilter || personFilter);
   const totalSpent = expenses.reduce((sum, e) => sum + e.amountCents, 0);
   const perPersonCents = members.length ? Math.round(totalSpent / members.length) : 0;
 
@@ -239,7 +251,7 @@ export function ActivityFeed({
                 <Icon name="x" size={12} />
               </button>
             )}
-            {(activityQuery || categoryFilter || personFilter) && (
+            {filtering && (
               <>
                 <span className="text-faint">
                   {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
@@ -261,11 +273,12 @@ export function ActivityFeed({
         <section className="mt-6">
           <div className="flex items-baseline justify-end gap-3">
             <h2 className="sr-only">Activity</h2>
-            {(lensActive ? lensTotal : totalSpent) > 0 && (
+            {visibleTotal > 0 && (
               <span className="tnum text-sm text-muted">
-                {fmt(lensActive ? lensTotal : totalSpent)}{' '}
+                {fmt(visibleTotal)}{' '}
                 {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
-                {!lensActive && perPersonCents > 0 && (
+                {/* A whole-ledger average has no business beside a filtered total. */}
+                {!filtering && perPersonCents > 0 && (
                   <span className="text-faint"> · {fmt(perPersonCents)} avg/person</span>
                 )}
               </span>
