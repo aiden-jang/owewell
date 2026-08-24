@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Balance } from '../lib/groups';
+import type { Balance, GroupMember } from '../lib/groups';
 import type { Expense } from '../lib/expenses';
 import type { Settlement, SuggestedPayment } from '../lib/settlements';
 
@@ -33,6 +33,21 @@ const settlement = (id: string, amountCents: number): Settlement =>
 const OWED: SuggestedPayment = { fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 3_000 };
 
 const onLogPayment = vi.fn();
+const onOpenMembers = vi.fn();
+
+/** Only the count and the names matter to this component; the strip reads both. */
+const roster = (...names: string[]): GroupMember[] =>
+  names.map((displayName, i) => ({
+    userId: String.fromCharCode(97 + i),
+    displayName,
+    email: null,
+    role: 'MEMBER' as const,
+    joinedAt: '2026-08-01T00:00:00.000Z',
+    isPlaceholder: false,
+    venmoHandle: null,
+    cashappCashtag: null,
+    paypalHandle: null,
+  }));
 
 async function open(over: Record<string, unknown> = {}) {
   const { BalanceHero } = await import('./BalanceHero');
@@ -44,8 +59,9 @@ async function open(over: Record<string, unknown> = {}) {
       settlements={[]}
       suggested={[OWED]}
       currentUserId="a"
-      memberCount={2}
+      members={roster('Alice', 'Bob')}
       onLogPayment={onLogPayment}
+      onOpenMembers={onOpenMembers}
       {...over}
     />,
   );
@@ -58,7 +74,7 @@ const EMPTY = { balances: [], expenses: [], settlements: [], suggested: [] };
 const SQUARE_BUT_NOT_DONE = {
   balances: [balance('a', 'Alice', 0), balance('b', 'Bob', -2_000), balance('c', 'Cara', 2_000)],
   suggested: [{ fromUserId: 'b', fromName: 'Bob', toUserId: 'c', toName: 'Cara', amountCents: 2_000 }],
-  memberCount: 3,
+  members: roster('Alice', 'Bob', 'Cara'),
 };
 /** Nobody owes anybody. */
 const ALL_CLEAR = {
@@ -112,7 +128,7 @@ describe('which of the four things it says', () => {
   });
 
   it('points a group of one at the thing it actually needs', async () => {
-    await open({ ...EMPTY, memberCount: 1 });
+    await open({ ...EMPTY, members: roster('Alice') });
     expect(screen.getByText('Just you so far')).toBeInTheDocument();
     expect(screen.getByText('First, add the people')).toBeInTheDocument();
   });
@@ -149,7 +165,7 @@ describe('what it offers you next', () => {
 
   // Nothing to log against, and nobody to log it with.
   it('withholds it from a group of one, saying why', async () => {
-    await open({ ...EMPTY, memberCount: 1, expenses: [expense('e1', 100)] });
+    await open({ ...EMPTY, members: roster('Alice'), expenses: [expense('e1', 100)] });
     expect(screen.queryByRole('button', { name: /Log a payment/ })).not.toBeInTheDocument();
     expect(screen.getByText('Add someone else before you can log a payment.')).toBeInTheDocument();
   });

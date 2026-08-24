@@ -448,7 +448,8 @@ export function GroupDetailPage(): ReactNode {
         settlements={settlements}
         suggested={suggested}
         currentUserId={user?.id}
-        memberCount={group.members.length}
+        members={group.members}
+        onOpenMembers={() => setMembersOpen(true)}
         onLogPayment={() => {
           paymentBeforeRef.current = balances;
           setPaymentOpen(true);

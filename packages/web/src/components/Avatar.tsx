@@ -18,9 +18,11 @@ function colorFor(name: string): string {
   return COLORS[hash % COLORS.length] ?? '#f0573f';
 }
 
-export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }): ReactNode {
+const DIMS = { xs: 'h-6 w-6 text-2xs', sm: 'h-7 w-7 text-xs', md: 'h-9 w-9 text-sm' } as const;
+
+export function Avatar({ name, size = 'md' }: { name: string; size?: keyof typeof DIMS }): ReactNode {
   const initial = name.trim().charAt(0).toUpperCase() || '?';
-  const dims = size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm';
+  const dims = DIMS[size];
   return (
     <span
       aria-hidden

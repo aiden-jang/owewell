@@ -1,11 +1,12 @@
 import { type ReactNode } from 'react';
 import { Icon } from './Icon';
+import { MemberStrip } from './MemberStrip';
 import { MoneyText } from './MoneyText';
 import { SettledMark } from './SettledMark';
 import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 import { useShareAction } from '../lib/useShareAction';
-import type { Balance } from '../lib/groups';
+import type { Balance, GroupMember } from '../lib/groups';
 import type { Expense } from '../lib/expenses';
 import type { Settlement, SuggestedPayment } from '../lib/settlements';
 
@@ -30,8 +31,9 @@ export function BalanceHero({
   settlements,
   suggested,
   currentUserId,
-  memberCount,
+  members,
   onLogPayment,
+  onOpenMembers,
 }: {
   groupName: string;
   balances: Balance[];
@@ -40,11 +42,13 @@ export function BalanceHero({
   /** Outstanding transfers. Empty means the whole group is clear, not just you. */
   suggested: SuggestedPayment[];
   currentUserId: string | undefined;
-  memberCount: number;
+  members: GroupMember[];
   onLogPayment: () => void;
+  onOpenMembers: () => void;
 }): ReactNode {
   const fmt = useMoney();
   const toast = useToast();
+  const memberCount = members.length;
   const { status: balanceShareStatus, share: shareBalance } = useShareAction(toast.error);
 
   const myNet = balances.find((b) => b.userId === currentUserId)?.netCents ?? 0;
@@ -81,6 +85,7 @@ export function BalanceHero({
 
   return (
       <div className={`surface rounded-3xl p-6 sm:p-7 ${settled ? 'text-center' : ''}`}>
+        <MemberStrip members={members} onOpen={onOpenMembers} centered={settled} />
         {/* A group with nothing on it is not "settled", it just hasn't started. No mark for that. */}
         {hasActivity && settled && <SettledMark tone={groupSettled ? 'settled' : 'square'} />}
         <p className={`text-sm font-medium text-muted ${hasActivity && settled ? 'mt-4' : ''}`}>
