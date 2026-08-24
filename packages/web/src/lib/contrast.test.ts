@@ -36,6 +36,26 @@ describe.each(Object.entries(THEMES))('%s theme', (_name, p) => {
     }
   });
 
+  /*
+   * The one token used as a background rather than a foreground.
+   *
+   * `neg` cannot do this job: it is tuned to read as text on the page, so in the dark theme it is a
+   * light red and white on it measures 2.77:1. That is why three danger buttons were hardcoded to
+   * Tailwind's rose instead of using the palette at all.
+   */
+  test('a destructive button can carry white text', () => {
+    const ratio = contrast('#ffffff', p.negSolid);
+    expect(ratio, `white on negSolid is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  // And it has to be visible as a shape, not just legible inside: a button whose fill matches the
+  // page is a label. 3:1 is the bar for a UI component boundary.
+  test('a destructive button is distinguishable from the page', () => {
+    for (const surface of SURFACES) {
+      expect(contrast(p.negSolid, p[surface])).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   test('faint text clears the large-text bar at least', () => {
     // `faint` is used for timestamps and secondary counts. Held to the large-text bar rather than
     // body, and named here so nobody assumes it is safe for a paragraph.

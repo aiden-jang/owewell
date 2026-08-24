@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
 
   const shell = (tone: ToastTone): string =>
     `toast pointer-events-auto inline-flex max-w-sm items-center gap-2 animate-rise rounded-full px-4 py-2.5 text-sm font-medium ${
-      tone === 'error' ? 'text-rose-300' : 'text-ink'
+      tone === 'error' ? 'text-neg' : 'text-ink'
     }`;
 
   /*
