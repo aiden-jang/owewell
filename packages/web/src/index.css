@@ -1,6 +1,26 @@
 @import 'tailwindcss';
 
 /*
+ * ── hover, only where hovering is a thing ─────────────────────────────────────
+ *
+ * Tailwind emits `hover:` as a bare `:hover`, and on a touchscreen `:hover` does not simply fail to
+ * fire — it latches. Tap a group row and it keeps the hover background until you tap somewhere
+ * else, so the last thing you touched looks selected when nothing is. Across 114 hover utilities
+ * that is most of the app quietly lying about its state on the device it was built for.
+ *
+ * Redefining the variant fixes every one of them at once, and is the supported way to do it in v4.
+ * A mouse is unaffected. `.row-interactive:hover` further down carries the same guard by hand,
+ * because it is our CSS rather than a generated utility.
+ */
+@custom-variant hover {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+/*
  * ── Inter, served from here ───────────────────────────────────────────────────
  *
  * Was two preconnects and a render-blocking stylesheet from fonts.googleapis.com, which put a
@@ -359,8 +379,11 @@ input[type='checkbox'] {
   background: var(--color-accent);
   color: var(--color-accent-ink);
 }
-.btn-gradient:hover {
-  background: var(--color-accent-hover);
+/* Guarded by hand, same reason as `.row-interactive` below. */
+@media (hover: hover) {
+  .btn-gradient:hover {
+    background: var(--color-accent-hover);
+  }
 }
 
 /*
@@ -414,16 +437,37 @@ input[type='checkbox'] {
 }
 
 
-/* Interactive rows: a gentle lift and accent hairline on hover. */
+/*
+ * Press feedback for the two controls the base layer does not cover.
+ *
+ * Buttons already press: there is a shared `scale(0.97)` on :active down in @layer base. Links and
+ * selects were never in it, so on a phone — where the gate above correctly stops hover from
+ * latching — tapping a footer link or the payment-method select now acknowledges nothing at all.
+ *
+ * Scoped to `hover: none`, because a pointer already has hover for this. Opacity rather than a
+ * transform, so it never argues with the scale a nested button might be doing.
+ */
+@media (hover: none) {
+  a:active,
+  select:active {
+    opacity: 0.7;
+  }
+}
+
+/* Interactive rows: a gentle lift on hover, a press on touch. */
 .row-interactive {
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
     background-color 0.18s ease;
 }
-.row-interactive:hover {
-  background: var(--color-surface2);
+/* Guarded by hand — see the @custom-variant note at the top; this one is not a Tailwind utility. */
+@media (hover: hover) {
+  .row-interactive:hover {
+    background: var(--color-surface2);
+  }
 }
+/* The touch equivalent, and the only feedback a phone gets from this rule. */
 .row-interactive:active {
   transform: scale(0.99);
 }
