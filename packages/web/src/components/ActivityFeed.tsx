@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { categoryMeta, PAYMENT_METHOD_LABELS } from '@owewell/core';
 import { correctionLine, type CorrectionField } from '@owewell/shared';
 import { CategoryGlyph } from './CategoryMark';
+import { EmptyState } from './EmptyState';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
@@ -292,20 +293,22 @@ export function ActivityFeed({
             </p>
           )}
           {activity.length === 0 ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-line p-8 text-center">
-              <div className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-surface2 text-muted">
-                <Icon name="receipt" size={20} />
-              </div>
-              <p className="mt-3 text-sm text-muted">
-                Nothing yet. Add an expense and let the math sort itself out.
-              </p>
-              <button
-                type="button"
-                onClick={() => onAddExpense()}
-                className="btn-gradient mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-              >
-                <Icon name="plus" size={15} /> Add expense
-              </button>
+            <div className="mt-3">
+              <EmptyState
+                tone="invite"
+                icon="receipt"
+                title="Nothing yet."
+                body="Add an expense and let the math sort itself out."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => onAddExpense()}
+                    className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
+                  >
+                    <Icon name="plus" size={15} /> Add expense
+                  </button>
+                }
+              />
             </div>
           ) : visibleActivity.length === 0 ? (
             <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
