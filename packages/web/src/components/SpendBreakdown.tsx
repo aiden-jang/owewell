@@ -73,13 +73,24 @@ export function SpendBreakdown({
                   onClick={() => onSelectCategory(on ? null : meta.key)}
                   aria-pressed={on}
                   aria-label={`${on ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
-                  className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${on ? 'bg-accent-soft' : ''}`}
+                  className={`-mx-2 block w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${on ? 'bg-accent-soft' : ''}`}
                 >
-                  <span className={`w-28 shrink-0 truncate text-sm ${on ? 'font-medium text-accent' : ''}`}>
-                    <CategoryDot categoryKey={meta.key} />{' '}
-                    {meta.label}
+                  {/*
+                    * Label and figure above, bar across the full width below.
+                    *
+                    * These were three columns on one line: a 112px label, an 80px figure, and the
+                    * bar taking whatever was left — about 105px on a 375px phone. The bar is the
+                    * only part of the row you are actually comparing, and it was the smallest thing
+                    * in it. Stacking costs a line per category and gives the comparison the width.
+                    */}
+                  <span className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className={`min-w-0 truncate ${on ? 'font-medium text-accent' : ''}`}>
+                      <CategoryDot categoryKey={meta.key} />{' '}
+                      {meta.label}
+                    </span>
+                    <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
                   </span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
+                  <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
                     {/* The same hue the donut gives this category: one toggle should not change
                         what colour means. */}
                     <span
@@ -90,7 +101,6 @@ export function SpendBreakdown({
                       }}
                     />
                   </span>
-                  <span className="tnum w-20 shrink-0 text-right text-sm text-muted">{fmt(cents)}</span>
                 </button>
               </li>
             );
