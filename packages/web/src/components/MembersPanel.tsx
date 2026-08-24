@@ -223,35 +223,44 @@ export function MembersPanel({
                       <span className="flex min-w-0 flex-1 items-center gap-3">
                         <Avatar name={member.displayName} />
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="flex min-w-0 items-center gap-1.5 font-medium">
-                            <span className="truncate">{member.displayName}</span>
-                            {member.role === 'OWNER' && (
-                              <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs font-normal text-muted">
-                                owner
-                              </span>
-                            )}
-                            {member.isPlaceholder && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRenamingId(member.userId);
-                                  setRenameDraft(member.displayName);
-                                }}
-                                aria-label={`Rename ${member.displayName}`}
-                                className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
-                              >
-                                <Icon name="pencil" size={13} />
-                              </button>
-                            )}
-                          </span>
-                          <span className="flex items-baseline justify-between gap-3 text-xs">
-                            <span className="tnum truncate text-faint">
-                              {bal && (bal.paidCents > 0 || bal.owedCents > 0)
-                                ? `paid ${fmt(bal.paidCents)} · share ${fmt(bal.owedCents)}`
-                                : ''}
+                          <span className="flex items-baseline justify-between gap-3">
+                            <span className="flex min-w-0 items-center gap-1.5 font-medium">
+                              <span className="truncate">{member.displayName}</span>
+                              {member.isPlaceholder && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRenamingId(member.userId);
+                                    setRenameDraft(member.displayName);
+                                  }}
+                                  aria-label={`Rename ${member.displayName}`}
+                                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                                >
+                                  <Icon name="pencil" size={13} />
+                                </button>
+                              )}
                             </span>
                             {label.text && (
                               <span className={`tnum shrink-0 text-sm font-medium ${label.tone}`}>{label.text}</span>
+                            )}
+                          </span>
+                          {/* Its own line, with nothing to compete against. Sharing a line with the
+                              balance is what truncated it to "paid $0.00 · sha..." — and a detail
+                              cut mid-fact says less than no detail at all. */}
+                          {/*
+                           * Everything secondary on one line, owner badge included.
+                           *
+                           * Name, badge, balance and the actions are four things and they do not fit
+                           * a 375px row — something has to lose, and the badge is the one nobody
+                           * scans for. It said who can delete the group; the name says who this is.
+                           */}
+                          <span className="truncate text-xs text-faint">
+                            {member.role === 'OWNER' && <span className="text-muted">owner</span>}
+                            {member.role === 'OWNER' && bal && (bal.paidCents > 0 || bal.owedCents > 0) && ' · '}
+                            {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
+                              <span className="tnum">
+                                paid {fmt(bal.paidCents)} · share {fmt(bal.owedCents)}
+                              </span>
                             )}
                           </span>
                         </span>
