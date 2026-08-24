@@ -15,6 +15,7 @@ import { InviteLink } from '../components/InviteLink';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
+import { AddExpenseSheet } from '../components/AddExpenseSheet';
 import { RecordPaymentForm } from '../components/RecordPaymentForm';
 import { SettleUpPanel } from '../components/SettleUpPanel';
 import { MembersPanel, type PaymentHandles } from '../components/MembersPanel';
@@ -68,7 +69,6 @@ export function GroupDetailPage(): ReactNode {
     showSavedExpense, patchExpense, dropExpense, refreshPending,
   } = useGroupLedger(id);
   const [settling, setSettling] = useState(false);
-  const [expenseMode, setExpenseMode] = useState<'simple' | 'itemized'>('simple');
   const [sheetOpen, setSheetOpen] = useState(false);
   // All the viewer's groups, for the header switcher. Fetched once; the list rarely changes.
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
@@ -673,72 +673,25 @@ export function GroupDetailPage(): ReactNode {
         </button>
       )}
 
-      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Add to the tab">
-        <div className="mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
-          <button
-            type="button"
-            onClick={() => setExpenseMode('simple')}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-              expenseMode === 'simple' ? 'bg-surface shadow-sm text-ink' : 'text-muted hover:text-ink'
-            }`}
-          >
-            Split a total
-          </button>
-          <button
-            type="button"
-            onClick={() => setExpenseMode('itemized')}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-              expenseMode === 'itemized' ? 'bg-surface shadow-sm text-ink' : 'text-muted hover:text-ink'
-            }`}
-          >
-            Itemize a receipt
-          </button>
-        </div>
-        <p className="mb-4 text-xs text-muted">
-          {expenseMode === 'simple'
-            ? 'One amount for the whole group. Split evenly, or by custom amounts, shares, or percent.'
-            : 'People ordered different things? Add each line item plus tax and tip, and we work out what everyone owes.'}
-        </p>
-        {expenseMode === 'simple' ? (
-          <AddExpenseForm
-            key={`simple-${group.members.length}`}
-            groupId={group.id}
-            members={group.members}
-            onCreated={(saved) => {
-              setSheetOpen(false);
-              play('add');
-              toast.success('Added to the tab.');
-              showSavedExpense(saved);
-              void refreshLedger();
-            }}
-            onQueued={(description) => {
-              setSheetOpen(false);
-              refreshPending();
-              toast.success(`Kept "${description}". It goes out when you have signal.`);
-            }}
-            onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
-          />
-        ) : (
-          <AddItemizedExpenseForm
-            key={`itemized-${group.members.length}`}
-            groupId={group.id}
-            members={group.members}
-            onCreated={(saved) => {
-              setSheetOpen(false);
-              play('add');
-              toast.success('Receipt added to the tab.');
-              showSavedExpense(saved);
-              void refreshLedger();
-            }}
-            onQueued={(description) => {
-              setSheetOpen(false);
-              refreshPending();
-              toast.success(`Kept "${description}". It goes out when you have signal.`);
-            }}
-            onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
-          />
-        )}
-      </Sheet>
+      <AddExpenseSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        groupId={group.id}
+        members={group.members}
+        onCreated={(saved, mode) => {
+          setSheetOpen(false);
+          play('add');
+          toast.success(mode === 'itemized' ? 'Receipt added to the tab.' : 'Added to the tab.');
+          showSavedExpense(saved);
+          void refreshLedger();
+        }}
+        onQueued={(description) => {
+          setSheetOpen(false);
+          refreshPending();
+          toast.success(`Kept "${description}". It goes out when you have signal.`);
+        }}
+        onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
+      />
 
       <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Log a payment">
         <RecordPaymentForm
