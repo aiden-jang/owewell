@@ -43,6 +43,19 @@ export interface Palette {
   field: Hex;
   pos: Hex;
   neg: Hex;
+  /**
+   * A destructive control's fill, which `neg` cannot be.
+   *
+   * `neg` is tuned as a foreground: it has to read as text on the page background, so in the dark
+   * theme it is a light red. White on it measures 2.77:1 — unreadable. Filled danger buttons were
+   * therefore hardcoded to Tailwind's rose-500 in three places, the only colours in the app not
+   * coming from a token, and the only ones that ignored the palette.
+   *
+   * Dark has a narrow window: light enough to read as a shape on a near-black page (3:1) and dark
+   * enough to carry white text (4.5:1), which is a luminance band about 0.06 wide. #c9342a sits in
+   * it at 3.34 and 5.24. Warm has no such squeeze and reuses `neg`.
+   */
+  negSolid: Hex;
 }
 
 /** Direction A. Neutral, flat, no purple cast. */
@@ -62,6 +75,7 @@ export const DARK: Palette = {
   field: '#101013',
   pos: '#4ade80',
   neg: '#f87171',
+  negSolid: '#c9342a',
 };
 
 /**
@@ -90,6 +104,7 @@ export const WARM: Palette = {
   field: '#ffffff',
   pos: '#1f6f4f',
   neg: '#8a2b1a',
+  negSolid: '#8a2b1a',
 };
 
 export const THEMES = { dark: DARK, warm: WARM } as const;

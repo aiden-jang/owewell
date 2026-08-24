@@ -77,7 +77,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
       {children}
       {pending && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+          className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
           role="presentation"
           onClick={() => settle(false)}
         >
@@ -89,7 +89,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
             aria-modal="true"
             aria-label={pending.title}
             tabIndex={-1}
-            className="surface w-full max-w-sm animate-rise rounded-3xl p-6 shadow-xl shadow-black/40"
+            /*
+              * Enters the way a sheet does: up from the bottom on a phone, centred on a wider
+              * screen. It used to land in the middle at every size, so the app had two arrival
+              * animations for two kinds of modal — and the destructive confirm put its buttons in
+              * the centre of the screen, furthest from a thumb.
+              */
+            className="animate-sheet surface w-full rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-xl font-semibold tracking-tight">{pending.title}</h2>
@@ -129,7 +135,7 @@ function ConfirmButton({
   const base = 'rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition active:scale-[0.98]';
   const color =
     tone === 'danger'
-      ? 'bg-rose-500 text-white hover:bg-rose-600'
+      ? 'bg-neg-solid text-white hover:brightness-110'
       : 'btn-gradient hover:opacity-90';
   return (
     <button ref={buttonRef} type="button" onClick={onClick} className={`${base} ${color}`}>

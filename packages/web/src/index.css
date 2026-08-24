@@ -106,6 +106,8 @@
   --color-field: var(--p-field);
   --color-pos: var(--p-pos);
   --color-neg: var(--p-neg);
+  /* The fill under white text on a destructive button. See the note on Palette.negSolid. */
+  --color-neg-solid: var(--p-neg-solid);
 
 
   /*
@@ -221,6 +223,7 @@
   --p-field: #101013;
   --p-pos: #4ade80;
   --p-neg: #f87171;
+  --p-neg-solid: #c9342a;
   --p-cat-food: #3987e5;
   --p-cat-groceries: #199e70;
   --p-cat-lodging: #c98500;
@@ -251,6 +254,7 @@
   --p-field: #ffffff;
   --p-pos: #1f6f4f;
   --p-neg: #8a2b1a;
+  --p-neg-solid: #8a2b1a;
   --p-cat-food: #1e5fa8;
   --p-cat-groceries: #136b4d;
   --p-cat-lodging: #8a5b00;
