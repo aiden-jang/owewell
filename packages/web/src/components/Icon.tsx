@@ -17,7 +17,7 @@ export type IconName =
   | 'wallet'
   | 'settings'
   | 'logout'
-  | 'scan'
+  | 'alert'
   | 'trash'
   | 'link'
   | 'pencil'
@@ -94,10 +94,10 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M16 17l5-5-5-5M21 12H9" />
     </>
   ),
-  scan: (
+  alert: (
     <>
-      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-      <path d="M7 12h10" />
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4M12 17h.01" />
     </>
   ),
   trash: (
