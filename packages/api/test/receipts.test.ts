@@ -1,3 +1,4 @@
+import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createGroup, deleteGroup } from '../src/groups.js';
 import { addPlaceholderMember } from '../src/members.js';
@@ -153,5 +154,65 @@ describe('cleanup', () => {
 
     await deleteReceipts(bucket, keys);
     expect((await bucket.list({ prefix: `${groupId}/` })).objects).toHaveLength(0);
+  });
+});
+
+/*
+ * Running without an R2 bucket at all.
+ *
+ * The binding is commented out in wrangler.toml until R2 is enabled on the account (see the note
+ * there), so `env.RECEIPTS` is genuinely undefined in production right now. The web app hides the
+ * controls, but the endpoints still have to answer something honest to anything that reaches them —
+ * a missing binding would otherwise surface as a 500, which reads as a broken server rather than a
+ * feature that is off.
+ */
+describe('with no bucket bound', () => {
+  const routes = [
+    ['PUT', 'attaching'],
+    ['GET', 'viewing'],
+    ['DELETE', 'removing'],
+  ] as const;
+
+  /*
+   * A signed-in caller, because the auth guard runs first — correctly, since whether a feature
+   * exists is not something to tell an anonymous request. That ordering is asserted below.
+   */
+  async function asMember(method: string): Promise<Response> {
+    const app = (await import('../src/index.js')).default;
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('/session') || String(input).includes(env.AUTH_URL)
+        ? new Response(JSON.stringify({ user: { id: 'p1', displayName: 'Alice', email: 'a@x.z' } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        : real(input as RequestInfo, init)) as typeof fetch;
+    try {
+      return await app.request(
+        '/owewell/groups/g1/expenses/e1/receipt',
+        { method, headers: { cookie: 'session=stub' } },
+        // Everything the Worker needs, and deliberately no RECEIPTS.
+        { ...env, RECEIPTS: undefined },
+      );
+    } finally {
+      globalThis.fetch = real;
+    }
+  }
+
+  test.each(routes)('%s (%s) answers 503 rather than throwing', async (method) => {
+    const res = await asMember(method);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ error: 'RECEIPTS_DISABLED' });
+  });
+
+  // Availability is not something to tell a stranger, so the session check comes first.
+  test('still refuses an unauthenticated caller before saying anything about receipts', async () => {
+    const app = (await import('../src/index.js')).default;
+    const res = await app.request(
+      '/owewell/groups/g1/expenses/e1/receipt',
+      { method: 'GET' },
+      { ...env, RECEIPTS: undefined },
+    );
+    expect(res.status).toBe(401);
   });
 });

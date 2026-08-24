@@ -24,11 +24,21 @@ database_id = "1f212b63-ba43-42a4-8b5c-38d7f5c76efb"
 migrations_dir = "migrations"
 
 # Receipt photos, keyed by "<groupId>/<expenseId>" so an object only ever exists for a real expense
-# and re-uploading replaces rather than accumulates. Create it once before the first deploy:
-#   wrangler r2 bucket create owewell-receipts
-[[r2_buckets]]
-binding = "RECEIPTS"
-bucket_name = "owewell-receipts"
+# and re-uploading replaces rather than accumulates.
+#
+# OFF, because R2 has to be switched on for the whole account before a bucket can exist, and
+# `wrangler deploy` fails on a binding whose bucket does not — which took every deploy down for a
+# day before anyone noticed the check job was green and only the deploy job was red.
+#
+# To turn it back on, all three together:
+#   1. Enable R2 in the Cloudflare dashboard (account-level, needs a card on file).
+#   2. wrangler r2 bucket create owewell-receipts
+#   3. Uncomment the block below, and set VITE_RECEIPTS_ENABLED=true for the web build.
+# The code on both sides is intact and guarded; nothing else needs changing.
+#
+# [[r2_buckets]]
+# binding = "RECEIPTS"
+# bucket_name = "owewell-receipts"
 
 # Per-group realtime fan-out. One GroupRoom instance per group, addressed by group id.
 [[durable_objects.bindings]]
