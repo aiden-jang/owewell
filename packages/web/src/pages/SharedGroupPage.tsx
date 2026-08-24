@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { currencyFormatter, DEFAULT_CURRENCY, type MoneyFormatter } from '@owewell/shared';
 import { CurrencyProvider } from '../lib/currency';
@@ -41,7 +41,7 @@ export function SharedGroupPage(): ReactNode {
 
   // Claim a seat. Signed out → sign in and come back with ?claim=<seat> so we finish
   // automatically. Signed in → merge the seat and drop into the now-editable group.
-  async function claimSeat(seatId: string): Promise<void> {
+  const claimSeat = useCallback(async (seatId: string): Promise<void> => {
     if (!token) return;
     if (!user) {
       login(`${window.location.origin}/s/${token}?claim=${seatId}`);
@@ -57,12 +57,12 @@ export function SharedGroupPage(): ReactNode {
       toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
       setClaiming(null);
     }
-  }
+  }, [login, navigate, toast, token, user]);
 
   const viewerIsMember = !!user && !!summary && summary.members.some((m) => m.userId === user.id);
   const hasOpenSeats = !!summary && summary.members.some((m) => m.isPlaceholder);
 
-  function loadSummary(): void {
+  const loadSummary = useCallback((): void => {
     if (!token) {
       setStatus('notfound');
       return;
@@ -80,11 +80,11 @@ export function SharedGroupPage(): ReactNode {
         if (err instanceof ApiError && (err.status === 404 || err.status === 403)) setStatus('notfound');
         else setStatus('failed');
       });
-  }
+  }, [token]);
 
   useEffect(() => {
     loadSummary();
-  }, [token]);
+  }, [loadSummary]);
 
   // Returning from sign-in with ?claim=<seat>: finish the claim now and head to the group.
   // Already-members just go straight in. Runs once; the param is cleared so a refresh won't retry.
@@ -95,7 +95,9 @@ export function SharedGroupPage(): ReactNode {
     setSearchParams({}, { replace: true });
     if (viewerIsMember) navigate(`/groups/${summary.groupId}`);
     else void claimSeat(seatId);
-  }, [status, summary, user, searchParams, viewerIsMember]);
+    // `claimSeat`, `navigate` and `setSearchParams` are listed for honesty rather than because they
+    // gate anything: the ref above makes this a once-per-mount effect whatever their identities do.
+  }, [claimSeat, navigate, searchParams, setSearchParams, status, summary, user, viewerIsMember]);
 
   // The summary carries its group's currency; before it loads there is nothing priced to get wrong.
   const fmt = currencyFormatter(summary?.currency ?? DEFAULT_CURRENCY);
