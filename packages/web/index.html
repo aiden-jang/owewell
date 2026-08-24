@@ -3,15 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Matches DEFAULT_THEME. Read before the bundle runs, so it cannot be left on the old palette:
-         a warm app with this set dark flashes a black status bar and installs with a dark splash. -->
-    <meta name="theme-color" content="#faf7f2" />
+    <!--
+      Two, scoped by scheme, because the browser reads this long before any script runs.
+
+      One hardcoded value could only ever be right for half the audience, and it was set to the warm
+      background while the stylesheet's :root is the dark palette — so every visitor got a cream
+      status bar over a near-black page until the bundle parsed. These match --page-bg in index.css.
+      The script below narrows them further once a stored choice is known.
+    -->
+    <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <!-- PNG fallback for surfaces that don't render SVG favicons (some share sheets, link
          unfurlers, older browsers) — without it those show no icon at all. -->
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!--
+      Sets the palette before the first paint.
+
+      The stylesheet's :root is the dark palette, so without this a warm visitor sees a near-black
+      page for as long as it takes the bundle to parse and call initTheme() — the exact flash this
+      whole arrangement exists to avoid. Inline and synchronous on purpose: a deferred script or a
+      module import both run after the first paint, which is too late to matter.
+
+      Deliberately a duplicate of storedTheme() in src/lib/theme.ts, which cannot help here because
+      it lives in the bundle. Same two rules: a stored choice wins, otherwise follow the device.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('owewell:theme');
+          var name =
+            stored === 'dark' || stored === 'warm'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'warm';
+          document.documentElement.dataset.theme = name;
+          if (stored) {
+            var color = name === 'dark' ? '#0b0b0d' : '#faf7f2';
+            document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+              m.setAttribute('content', color);
+              m.removeAttribute('media');
+            });
+          }
+        } catch (e) {
+          /* Private mode, or no matchMedia. The stylesheet's own default still applies. */
+        }
+      })();
+    </script>
     <title>owewell · split bills, keep friends</title>
     <meta
       name="description"
