@@ -19,8 +19,6 @@ dinner when nobody wants to do the math and everybody remembers it differently.
 - **Two kinds of expense.** A simple "one payer, split evenly (or by weight)" expense, or an
   **itemized** one where each line goes to specific people (the classic "you got the steak, I got
   a salad" problem). Expenses can be backdated.
-- **Receipt OCR.** Snap a receipt and a vision model extracts the line items so you itemize by
-  tapping names instead of typing prices.
 - **Settle up, honestly.** Record payments with a method (Venmo, PayPal, Cash App, Zelle, cash,
   …), including **partial** and **manual** payments, and undo one if you fat-finger it. owewell
   suggests the **fewest transactions** that clear everyone's balance.
@@ -48,8 +46,7 @@ dinner when nobody wants to do the math and everybody remembers it differently.
         ║      ├─ D1 + Drizzle   groups, expenses,        ║
         ║      │                 splits, settlements      ║
         ║      ├─ @owewell/core  pure money/split math    ║
-        ║      ├─ GroupRoom (Durable Object) realtime     ║
-        ║      └─ OCR → vision model (itemize receipts)   ║
+        ║      └─ GroupRoom (Durable Object) realtime     ║
         ╚════════════════════════════════════════════════╝
 ```
 
@@ -85,8 +82,6 @@ stops you from renaming a real account as if it were one.
 
 ## Trade-offs
 
-- **OCR is best-effort.** A vision model reads most receipts well and mangles the occasional
-  faded one. It's a fast path to itemizing, not a guarantee: you can always edit the lines.
 - **Settlement suggests, it doesn't move money.** owewell computes the fewest transfers and tags
   the method; the actual payment happens in Venmo/cash/etc. Integrating a payments API is a
   whole different trust-and-compliance surface I deliberately stayed out of.
@@ -104,7 +99,7 @@ api/                          owewell Worker (Hono)
   src/settlements.ts          payments (methods, partial/manual) + min-cash-flow suggestions
   src/invites.ts              share-link group invites
   src/quicksplit.ts           anonymous one-shot split
-  src/ocr.ts                  receipt image → line items (vision)
+  src/ocr.ts                  receipt image → line items (vision; built, not enabled)
   src/realtime.ts + GroupRoom  Durable Object live fan-out
   src/db/                     Drizzle schema + client; migrations/
 web/                          React + Vite + Tailwind SPA
@@ -126,9 +121,9 @@ pnpm --filter @owewell/api dev
 pnpm --filter @owewell/web dev
 ```
 
-Apply D1 migrations locally with `pnpm --filter @owewell/api db:migrate:local`. Receipt OCR needs
-a vision API key set as a `wrangler secret`; without it, the rest of the app works and you itemize
-by hand. See [DEPLOY.md](DEPLOY.md) for the production runbook.
+Apply D1 migrations locally with `pnpm --filter @owewell/api db:migrate:local`. See
+[DEPLOY.md](DEPLOY.md) for the production runbook, including the optional extras that are built but
+not switched on.
 
 ## Data & database access
 
