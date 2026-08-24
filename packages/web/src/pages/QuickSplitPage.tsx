@@ -638,7 +638,7 @@ export function QuickSplitPage(): ReactNode {
         )}
 
         {/* People — shared across every item */}
-        <div className="glass mt-6 space-y-2 rounded-3xl p-5">
+        <div className="surface mt-6 space-y-2 rounded-3xl p-5">
           <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
           {people.map((person, index) => (
             <div key={person.id} className="flex items-center gap-2">
@@ -727,7 +727,7 @@ export function QuickSplitPage(): ReactNode {
             </label>
           </div>
           {items.map((item, index) => (
-            <div key={item.id} className="glass space-y-3 rounded-2xl p-4">
+            <div key={item.id} className="surface space-y-3 rounded-2xl p-4">
               <div className="flex items-center gap-2">
                 <input
                   value={item.description}
@@ -895,7 +895,7 @@ export function QuickSplitPage(): ReactNode {
                     className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm ${
                       t.fromUserId === effectiveYouId || t.toUserId === effectiveYouId
                         ? 'border border-accent/25 bg-accent-soft'
-                        : 'glass'
+                        : 'surface'
                     }`}
                   >
                     {/* min-w-0 so this is the item that gives when a name is long: a flex child
@@ -985,7 +985,7 @@ export function QuickSplitPage(): ReactNode {
               { icon: 'receipt' as const, title: 'Itemize the chaos', body: "Separate line items, because you didn't touch the calamari." },
               { icon: 'wallet' as const, title: 'Settle up', body: 'We boil tangled debts down to the fewest Venmos humanly possible.' },
             ].map((f) => (
-              <div key={f.title} className="glass rounded-2xl p-4">
+              <div key={f.title} className="surface rounded-2xl p-4">
                 <span className="inline-grid h-9 w-9 place-items-center rounded-xl bg-accent-soft text-accent">
                   <Icon name={f.icon} size={18} />
                 </span>

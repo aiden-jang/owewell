@@ -156,7 +156,7 @@ export function SharedGroupPage(): ReactNode {
               {summary.memberCount} {summary.memberCount === 1 ? 'person' : 'people'}
             </p>
 
-            <div className="glass mt-5 rounded-3xl p-6 sm:p-7">
+            <div className="surface mt-5 rounded-3xl p-6 sm:p-7">
               <p className="text-sm font-medium text-muted">Spent together</p>
               <p className="mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl">
                 {fmt(summary.totalSpentCents)}

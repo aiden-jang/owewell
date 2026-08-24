@@ -375,7 +375,7 @@ export function DashboardPage(): ReactNode {
         {/* Nothing to total before there is a group: an account on its first day was being shown a
             $0.00 the size of a headline, above an empty state that already says the same thing. */}
         {activeGroups.length > 0 && (
-        <section className="glass rounded-3xl p-6 sm:p-7">
+        <section className="surface rounded-3xl p-6 sm:p-7">
           <p className="text-sm font-medium text-muted">
             {totals.mixed
               ? 'Across all your groups'

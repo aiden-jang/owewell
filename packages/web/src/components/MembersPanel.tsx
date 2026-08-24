@@ -127,7 +127,9 @@ export function MembersPanel({
      */
     <section>
       <div>
-          <ul className="space-y-2">
+          {/* Same treatment as the ledger: one panel, hairline rows. A roster is a list of the
+              same kind of thing, and three floating cards said otherwise. */}
+          <ul className="panel">
             {members.map((member) => {
               const label = balanceLabel(netOf[member.userId] ?? 0, hasActivity, fmt);
               const bal = balanceOf[member.userId];
@@ -139,7 +141,7 @@ export function MembersPanel({
               return (
                 <li
                   key={member.userId}
-                  className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                  className="flex items-center justify-between gap-3 px-4 py-3"
                 >
                   {renamingId === member.userId ? (
                     <span className="flex w-full items-center gap-2">
