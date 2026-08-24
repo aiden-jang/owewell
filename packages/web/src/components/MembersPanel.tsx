@@ -10,8 +10,8 @@ import { useMoney } from '../lib/currency';
  * The member list, and the three small editors hiding inside it.
  *
  * Nine pieces of state came out of the group page with this: which row is being renamed, which row
- * is editing payment handles, three handle drafts, the add-someone field and its error, and whether
- * the list is expanded at all. None of it was read anywhere else on the page.
+ * is editing payment handles, three handle drafts, and the add-someone field with its error. None of
+ * it is read anywhere else.
  *
  * The division of labour with the page: the page's handlers do the work and say so (they call the
  * API, refetch the group, and toast on success), and they throw when it fails. This panel decides
@@ -65,15 +65,6 @@ export function MembersPanel({
 }): ReactNode {
   const fmt = useMoney();
   const toast = useToast();
-  /*
-   * A one-person group's only useful next step is adding people, and that lives in here, so it
-   * starts expanded when the group still needs someone.
-   *
-   * Initial state rather than an effect: the page keys this panel on the group id, so switching
-   * groups remounts it and re-asks the question once, instead of an effect that has to be told not
-   * to fight the toggle the person just pressed.
-   */
-  const [open, setOpen] = useState(members.length < 2);
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -129,29 +120,13 @@ export function MembersPanel({
   }
 
   return (
-    <section className="mt-8">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between"
-      >
-        <span className="text-sm font-medium text-muted">
-          Members · {members.length}
-        </span>
-        <span className="flex items-center gap-1 text-sm text-muted">
-          <span className="flex -space-x-2">
-            {members.slice(0, 4).map((m) => (
-              <span key={m.userId} className="ring-2 ring-canvas rounded-full">
-                <Avatar name={m.displayName} size="sm" />
-              </span>
-            ))}
-          </span>
-          <Icon name="chevron-right" size={16} className={`transition ${open ? 'rotate-90' : ''}`} />
-        </span>
-      </button>
-
-      {open && (
-        <div className="mt-3 animate-fade">
+    /*
+     * No heading and no collapse: this lives in a sheet the person opened by choosing "Members",
+     * so the sheet's own title says what it is, and folding away the thing you just asked for
+     * would be the most pointless tap in the app.
+     */
+    <section>
+      <div>
           <ul className="space-y-2">
             {members.map((member) => {
               const label = balanceLabel(netOf[member.userId] ?? 0, hasActivity, fmt);
@@ -236,13 +211,20 @@ export function MembersPanel({
                     </span>
                   ) : (
                     <>
-                      <span className="flex min-w-0 items-center gap-3 font-medium">
+                      {/*
+                       * Two lines, because one could not hold them. The name, the balance and the
+                       * paid/share detail were competing for a single row, and since the money is
+                       * shrink-0 the name was the only thing that could give — a members list was
+                       * rendering "Ali..." and "B...". Now the name owns the top line and the two
+                       * figures share the second.
+                       */}
+                      <span className="flex min-w-0 flex-1 items-center gap-3">
                         <Avatar name={member.displayName} />
-                        <span className="flex min-w-0 flex-col">
-                          <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="flex min-w-0 items-center gap-1.5 font-medium">
                             <span className="truncate">{member.displayName}</span>
                             {member.role === 'OWNER' && (
-                              <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs text-muted">
+                              <span className="shrink-0 rounded bg-surface2 px-1.5 py-0.5 text-xs font-normal text-muted">
                                 owner
                               </span>
                             )}
@@ -260,16 +242,19 @@ export function MembersPanel({
                               </button>
                             )}
                           </span>
-                          {/* One line: "paid $172.40 · share $57.00" was wrapping mid-phrase on
-                              a phone and pushing the balance out of line. */}
-                          {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
-                            <span className="tnum block truncate text-xs font-normal text-faint">
-                              paid {fmt(bal.paidCents)} · share {fmt(bal.owedCents)}
+                          <span className="flex items-baseline justify-between gap-3 text-xs">
+                            <span className="tnum truncate text-faint">
+                              {bal && (bal.paidCents > 0 || bal.owedCents > 0)
+                                ? `paid ${fmt(bal.paidCents)} · share ${fmt(bal.owedCents)}`
+                                : ''}
                             </span>
-                          )}
+                            {label.text && (
+                              <span className={`tnum shrink-0 text-sm font-medium ${label.tone}`}>{label.text}</span>
+                            )}
+                          </span>
                         </span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-3">
+                      <span className="flex shrink-0 items-center gap-1">
                         {(isSelf || member.isPlaceholder) && (
                           <button
                             type="button"
@@ -280,9 +265,6 @@ export function MembersPanel({
                           >
                             <Icon name="wallet" size={14} />
                           </button>
-                        )}
-                        {label.text && (
-                          <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
                         )}
                         {canRemove && (
                           <button
@@ -328,8 +310,7 @@ export function MembersPanel({
               Members can&rsquo;t be removed once a payment has been recorded.
             </p>
           )}
-        </div>
-      )}
+      </div>
     </section>
   );
 }

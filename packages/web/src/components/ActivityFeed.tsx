@@ -45,6 +45,7 @@ export function ActivityFeed({
   onOpenExpense,
   onUndoSettlement,
   onAddExpense,
+  breakdown,
 }: {
   expenses: Expense[];
   settlements: Settlement[];
@@ -62,6 +63,13 @@ export function ActivityFeed({
   onOpenExpense: (expenseId: string) => void;
   onUndoSettlement: (settlementId: string) => Promise<void>;
   onAddExpense: () => void;
+  /**
+   * The spend breakdown, rendered under the filters.
+   *
+   * A slot rather than an import: the feed should not know what a donut is, and the chart it sits
+   * above happens to drive the same category filter. Passing it in keeps that a page decision.
+   */
+  breakdown?: ReactNode;
 }): ReactNode {
   const fmt = useMoney();
   const [personFilter, setPersonFilter] = useState<string | null>(null);
@@ -246,6 +254,8 @@ export function ActivityFeed({
             )}
           </div>
         )}
+
+        {activity.length > 0 && breakdown}
 
         <section className="mt-6">
           <div className="flex items-baseline justify-end gap-3">
