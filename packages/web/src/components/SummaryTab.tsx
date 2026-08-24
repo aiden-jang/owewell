@@ -49,8 +49,11 @@ export function SummaryTab({
   isOwner: boolean;
   /** Which slice is already driving the feed. Owned by the page, since both tabs read it. */
   categoryFilter: string | null;
-  /** Drills from the chart into the feed, which means switching tabs. The page owns both. */
-  onSelectCategory: (key: string) => void;
+  /**
+   * Drills from the chart into the feed, which means switching tabs. Called with null when the
+   * active slice is picked again: the label on that button says it clears the filter, so it has to.
+   */
+  onSelectCategory: (key: string | null) => void;
   onSaveBudget: (budgetCents: number | null) => Promise<void>;
 }): ReactNode {
   const fmt = useMoney();
@@ -217,7 +220,7 @@ export function SummaryTab({
                   <li key={meta.key}>
                     <button
                       type="button"
-                      onClick={() => onSelectCategory(meta.key)}
+                      onClick={() => onSelectCategory(active ? null : meta.key)}
                       aria-pressed={active}
                       aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
                       className={`-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
