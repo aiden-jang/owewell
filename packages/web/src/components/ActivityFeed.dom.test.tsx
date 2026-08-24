@@ -358,3 +358,36 @@ describe('acting on a row', () => {
     expect(onUndoSettlement).toHaveBeenCalledWith('s1');
   });
 });
+
+/*
+ * The figure above the list has to be the list.
+ *
+ * It used to be `lensTotal(expenses, person, relation)`, which knows about the person filter and
+ * nothing else. Filter to Transport and the one $24.00 row appeared beneath a heading that still
+ * read "$104.00 spent" — the whole ledger. Search did the same. A wrong total is worse than no
+ * total, and this one was wrong quietly.
+ */
+describe('the total above the list', () => {
+  it('counts the whole ledger when nothing is filtered', async () => {
+    await open();
+    expect(screen.getByText(/\$104\.00/)).toBeInTheDocument();
+  });
+
+  it('follows a category drill-down', async () => {
+    await open({ categoryFilter: 'transport' });
+    expect(screen.getByText(/\$24\.00 spent/)).toBeInTheDocument();
+    expect(screen.queryByText(/\$104\.00/)).not.toBeInTheDocument();
+  });
+
+  it('follows the search box', async () => {
+    const user = await open();
+    await user.type(search(), 'Nopa');
+    expect(screen.getByText(/\$80\.00 spent/)).toBeInTheDocument();
+  });
+
+  // A whole-ledger average beside a filtered total is two numbers that do not belong together.
+  it('drops the per-person average once anything is filtered', async () => {
+    await open({ categoryFilter: 'transport' });
+    expect(screen.queryByText(/avg\/person/)).not.toBeInTheDocument();
+  });
+});
