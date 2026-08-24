@@ -9,7 +9,6 @@ import {
   type MoneyFormatter,
 } from '@owewell/shared';
 import {
-  PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   categoryMeta,
   type PaymentMethod,
@@ -30,13 +29,13 @@ import { Sheet } from '../components/Sheet';
 import { AddExpenseForm } from '../components/AddExpenseForm';
 import { AddItemizedExpenseForm } from '../components/AddItemizedExpenseForm';
 import { RecordPaymentForm } from '../components/RecordPaymentForm';
+import { SettleUpPanel } from '../components/SettleUpPanel';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupDetail, type GroupMember, type GroupSummary } from '../lib/groups';
 import { expensesApi, receiptUrl, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
-import { payLinks } from '../lib/payLinks';
 import { ApiError } from '../lib/api';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { play } from '../lib/sound';
@@ -57,15 +56,11 @@ import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { SettledMark } from '../components/SettledMark';
-import { SettlementDeadline } from '../components/SettlementDeadline';
 import { TripBudget } from '../components/TripBudget';
 import { tripBudget } from '../lib/tripBudget';
 import { FrontingInsight } from '../components/FrontingInsight';
-import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
-import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { buildGroupRecap } from '../lib/groupRecap';
 import { timeAgoShort as timeAgo } from '../lib/relativeTime';
-import { renderSettleCard } from '../lib/settleCard';
 
 /** How much of the feed renders before asking. Deep enough that most groups never see the button. */
 const ACTIVITY_PAGE = 50;
@@ -79,12 +74,6 @@ function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatte
   return netCents > 0
     ? { text: `is owed ${amount}`, tone: 'text-pos' }
     : { text: `owes ${amount}`, tone: 'text-neg' };
-}
-
-function balanceStateLabel(netCents: number, fmt: MoneyFormatter): string {
-  if (netCents === 0) return 'square';
-  const amount = fmt(Math.abs(netCents));
-  return netCents > 0 ? `is owed ${amount}` : `owes ${amount}`;
 }
 
 function csvCell(value: string | number): string {
@@ -200,18 +189,10 @@ export function GroupDetailPage(): ReactNode {
     () => new Set(pending.filter(isEdit).map((e) => e.expenseId)),
     [pending],
   );
-  const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
-  const [settleShareStatus, setSettleShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
-  const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
   const [recapShareStatus, setRecapShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [balanceShareStatus, setBalanceShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
-  const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
-  const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
-  const [paymentNudge, setPaymentNudge] = useState<string | null>(null);
-  const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
-  const [nudgeShareStatus, setNudgeShareStatus] = useState<'sharing' | 'shared' | 'copied' | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
   async function load(): Promise<void> {
@@ -343,13 +324,14 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-  async function markPaid(payment: SuggestedPayment): Promise<void> {
+  /** Resolves true when the payment reached the ledger, which is the panel's cue to reset the row. */
+  async function markPaid(payment: SuggestedPayment, method: PaymentMethod): Promise<boolean> {
     const ok = await confirm({
       title: `Mark ${payment.fromName}'s payment as paid?`,
       body: 'This records the payment in owewell and updates everyone’s balances. It does not move money.',
       confirmLabel: 'Mark paid',
     });
-    if (!ok) return;
+    if (!ok) return false;
     setSettling(true);
     try {
       const beforeBalances = balances;
@@ -357,7 +339,7 @@ export function GroupDetailPage(): ReactNode {
         fromUserId: payment.fromUserId,
         toUserId: payment.toUserId,
         amountCents: payment.amountCents,
-        method: settleMethod,
+        method,
       });
       const latest = await refreshLedger();
       if (latest) {
@@ -370,13 +352,24 @@ export function GroupDetailPage(): ReactNode {
       toast.success(
         allSettled
           ? 'Everyone is settled up.'
-                    : `Recorded a ${PAYMENT_METHOD_LABELS[settleMethod].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
+          : `Recorded a ${PAYMENT_METHOD_LABELS[method].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
       );
-      setPaymentInFlight(null);
+      return true;
     } catch {
       toast.error('Could not record that payment.');
+      return false;
     } finally {
       setSettling(false);
+    }
+  }
+
+  async function saveSettlementDeadline(settleBy: string | null): Promise<void> {
+    try {
+      setGroup(await groupsApi.setSettlementDeadline(id, settleBy));
+      toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
+      throw error;
     }
   }
 
@@ -389,129 +382,6 @@ export function GroupDetailPage(): ReactNode {
     const allSettled = latest?.suggested.length === 0;
     play(allSettled ? 'allSettled' : 'settled');
     toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
-  }
-
-  async function shareSettlePlan(): Promise<void> {
-    if (!group || suggested.length === 0) return;
-    const lines = suggested.map(
-      (payment) => `• ${payment.fromName} pays ${payment.toName} ${fmt(payment.amountCents)}`,
-    );
-    const total = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
-    const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
-    const deadline = group.settleBy
-      ? `\nSettle by ${new Date(group.settleBy).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-      : '';
-    const text = `${group.name} settle-up\n${fmt(total)} across ${suggested.length} ${transferLabel}${deadline}\n\n${lines.join('\n')}`;
-    const finish = (status: 'shared' | 'copied'): void => {
-      setSettleShareStatus(status);
-      window.setTimeout(() => setSettleShareStatus(null), 2200);
-    };
-    setSettleShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${group.name} settle-up`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setSettleShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setSettleShareStatus(null);
-      toast.error('Could not share the settle-up plan.');
-    }
-  }
-
-  async function shareSettleCard(): Promise<void> {
-    if (!group || suggested.length === 0 || settleCardStatus) return;
-    setSettleCardStatus('making');
-    try {
-      const blob = await renderSettleCard(group.name, suggested, fmt);
-      if (!blob) {
-        setSettleCardStatus(null);
-        toast.error('Could not make the settle-up card.');
-        return;
-      }
-      const slug = group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'group';
-      const file = new File([blob], `${slug}-settle-up.png`, { type: 'image/png' });
-      const canShare = typeof navigator.share === 'function' &&
-        (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] }));
-      if (canShare) {
-        try {
-          await navigator.share({ title: `${group.name} settle-up`, files: [file] });
-          setSettleCardStatus('shared');
-          window.setTimeout(() => setSettleCardStatus(null), 2200);
-          return;
-        } catch (error) {
-          if (error instanceof Error && error.name === 'AbortError') {
-            setSettleCardStatus(null);
-            return;
-          }
-        }
-      }
-      const href = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = href;
-      link.download = file.name;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(href), 0);
-      setSettleCardStatus('saved');
-      window.setTimeout(() => setSettleCardStatus(null), 2200);
-    } catch {
-      setSettleCardStatus(null);
-      toast.error('Could not make the settle-up card.');
-    }
-  }
-
-  async function sharePaymentNudge(payment: SuggestedPayment): Promise<void> {
-    if (!group || nudgeShareStatus) return;
-    const recipient = group.members.find(member => member.userId === payment.toUserId) ?? {
-      venmoHandle: null,
-      cashappCashtag: null,
-      paypalHandle: null,
-    };
-    const payUrl = payLinks(recipient, payment.amountCents, `owewell: ${group.name}`)[0]?.url;
-    const text = paymentNudgeText(
-      {
-        fromName: payment.fromName,
-        toName: payment.toName,
-        amountCents: payment.amountCents,
-        groupName: group.name,
-        payUrl,
-      },
-      nudgeTone,
-      fmt,
-    );
-    const finish = (status: 'shared' | 'copied'): void => {
-      setNudgeShareStatus(status);
-      window.setTimeout(() => setNudgeShareStatus(null), 2200);
-    };
-    setNudgeShareStatus('sharing');
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${group.name} payment reminder`, text });
-        finish('shared');
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          setNudgeShareStatus(null);
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      finish('copied');
-    } catch {
-      setNudgeShareStatus(null);
-      toast.error('Could not share that reminder.');
-    }
   }
 
   // The final payment is a natural handoff point: someone usually wants to tell the group that
@@ -1040,20 +910,6 @@ export function GroupDetailPage(): ReactNode {
   // would make an otherwise valid ledger look broken.
   const settlementJourney = totalSettled + totalUnsettled;
   const settlementProgress = settlementJourney > 0 ? Math.min(100, Math.round((totalSettled / settlementJourney) * 100)) : 0;
-  const settlePlanTotal = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
-  const bestSettleStep = bestSettlementStep(balances, suggested);
-  const recommendedPaymentKey = bestSettleStep
-    ? `${bestSettleStep.payment.fromUserId}-${bestSettleStep.payment.toUserId}`
-    : null;
-  const orderedSuggestions = recommendedPaymentKey
-    ? [...suggested].sort((a, b) =>
-        `${a.fromUserId}-${a.toUserId}` === recommendedPaymentKey
-          ? -1
-          : `${b.fromUserId}-${b.toUserId}` === recommendedPaymentKey
-            ? 1
-            : 0,
-      )
-    : suggested;
   const perPersonCents = group.members.length ? Math.round(totalSpent / group.members.length) : 0;
   // A brand-new group has no expenses or payments yet — show a "nothing yet" hero, not "settled".
   const hasActivity = expenses.length > 0 || settlements.length > 0;
@@ -1499,288 +1355,15 @@ export function GroupDetailPage(): ReactNode {
         )}
 
         {suggested.length > 0 && (
-          <section className="mt-6 rounded-2xl border border-line bg-surface p-4">
-            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Icon name="wallet" size={16} /> Settle up
-              </h2>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <button
-                  type="button"
-                  onClick={() => void shareSettlePlan()}
-                  disabled={settleShareStatus !== null}
-                  aria-label={
-                    settleShareStatus === 'sharing'
-                      ? 'Opening settle-up plan sharing'
-                      : settleShareStatus === 'shared'
-                        ? 'Settle-up plan shared'
-                        : settleShareStatus === 'copied'
-                          ? 'Settle-up plan copied'
-                          : 'Share settle-up plan'
-                  }
-                  className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
-                >
-                  <Icon name="share" size={13} />
-                  {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void shareSettleCard()}
-                  disabled={settleCardStatus !== null}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
-                >
-                  <Icon name="sparkles" size={13} />
-                  {settleCardStatus === 'making' ? 'Making…' : settleCardStatus === 'shared' ? 'Card shared' : settleCardStatus === 'saved' ? 'Card saved' : 'Share card'}
-                </button>
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  paid via
-                  <select
-                    value={settleMethod}
-                    onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
-                    aria-label="Payment method"
-                    className="rounded-lg border border-line bg-field px-2 py-1 text-xs outline-none focus:border-accent"
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {PAYMENT_METHOD_LABELS[m]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-muted">
-              Pay in your usual app, then mark it here so the group stays in sync.
-            </p>
-            <SettlementDeadline
-              groupName={group.name}
-              settleBy={group.settleBy}
-              suggestions={suggested}
-              isOwner={isOwner}
-              onSave={async (settleBy) => {
-                try {
-                  const updated = await groupsApi.setSettlementDeadline(group.id, settleBy);
-                  setGroup(updated);
-                  toast.success(settleBy ? 'Settle-by deadline shared.' : 'Settle-by deadline cleared.');
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : 'Could not update the deadline.');
-                  throw error;
-                }
-              }}
-            />
-            {bestSettleStep && (
-              <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
-                    <p className="mt-0.5 text-sm font-semibold text-ink">
-                      {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
-                      <span className="tnum text-ink">{fmt(bestSettleStep.payment.amountCents)}</span>
-                    </p>
-                  </div>
-                  <span className="tnum shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-muted">
-                    −{bestSettleStep.percentOfOutstanding}%
-                  </span>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted">
-                  {bestSettleStep.remainingTransfers === 0
-                    ? 'One payment settles the whole group.'
-                    : bestSettleStep.clearedNames.length > 0
-                      ? `Clears ${bestSettleStep.clearedNames.join(' and ')} from the list, with ${bestSettleStep.remainingTransfers} ${bestSettleStep.remainingTransfers === 1 ? 'transfer' : 'transfers'} left.`
-                      : `${fmt(bestSettleStep.remainingCents)} would remain after this.`}
-                </p>
-              </div>
-            )}
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
-              <span className="text-muted">
-                {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left
-              </span>
-              <span className="tnum font-semibold text-ink">{fmt(settlePlanTotal)} remaining</span>
-            </div>
-            <ul className="mt-3 space-y-2">
-              {orderedSuggestions.map((payment) => (
-                <li
-                  key={`${payment.fromUserId}-${payment.toUserId}`}
-                  className={`flex flex-col gap-2 rounded-xl px-2 py-1.5 transition sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${
-                    paymentInFlight === `${payment.fromUserId}-${payment.toUserId}`
-                      ? 'border border-accent/20 bg-accent-soft'
-                      : `${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey
-                        ? 'border border-line bg-surface2/40'
-                        : 'border border-transparent'
-                  }`}
-                >
-                  <span className="flex items-center gap-2 text-sm">
-                    <Avatar name={payment.fromName} size="sm" />
-                    <span>
-                      {`${payment.fromUserId}-${payment.toUserId}` === recommendedPaymentKey && suggested.length > 1 && (
-                        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
-                      )}
-                      <span className="font-medium">{payment.fromName}</span>
-                      <span className="text-muted"> pays </span>
-                      <span className="font-medium">{payment.toName}</span>{' '}
-                      <span className="tnum font-medium">
-                        {fmt(payment.amountCents)}
-                      </span>
-                    </span>
-                  </span>
-                  <div className="flex flex-wrap items-center justify-end gap-1.5 pl-9 sm:pl-0">
-                    {payLinks(
-                      group.members.find((m) => m.userId === payment.toUserId) ?? {
-                        venmoHandle: null,
-                        cashappCashtag: null,
-                        paypalHandle: null,
-                      },
-                      payment.amountCents,
-                      `owewell: ${group.name}`,
-                    ).map((link) => (
-                      <a
-                        key={link.label}
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => {
-                          setSettleMethod(link.method);
-                          setPaymentInFlight(`${payment.fromUserId}-${payment.toUserId}`);
-                          play('tick');
-                        }}
-                        title={`Pay ${payment.toName} via ${link.label}`}
-                        className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
-                      >
-                        {link.label}
-                      </a>
-                    ))}
-                    <button
-                      type="button"
-                      aria-expanded={paymentNudge === `${payment.fromUserId}-${payment.toUserId}`}
-                      onClick={() => {
-                        const key = `${payment.fromUserId}-${payment.toUserId}`;
-                        setPaymentNudge(current => current === key ? null : key);
-                        setPaymentPreview(null);
-                        setNudgeShareStatus(null);
-                      }}
-                      className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                    >
-                      {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` ? 'Close nudge' : 'Nudge'}
-                    </button>
-                    <button
-                      type="button"
-                      aria-expanded={paymentPreview === `${payment.fromUserId}-${payment.toUserId}`}
-                      onClick={() => {
-                        const key = `${payment.fromUserId}-${payment.toUserId}`;
-                        setPaymentPreview(current => current === key ? null : key);
-                        setPaymentNudge(null);
-                      }}
-                      className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                    >
-                      {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` ? 'Hide preview' : 'Preview'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={settling}
-                      onClick={() => void markPaid(payment)}
-                      title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                      /* The only filled control in the row. Nudge and Preview are text, the pay links
-                         are outlines, and this is the one that changes the ledger. */
-                      className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-                    >
-                      {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` ? 'Sent it, mark paid' : 'Mark paid'}
-                    </button>
-                    {paymentInFlight === `${payment.fromUserId}-${payment.toUserId}` && (
-                      <span className="basis-full text-right text-[11px] text-muted" role="status">
-                        Payment app opened. Record it here once it&rsquo;s sent.
-                      </span>
-                    )}
-                  </div>
-                  {paymentNudge === `${payment.fromUserId}-${payment.toUserId}` && (
-                    <div className="w-full basis-full rounded-xl border border-line bg-surface2/50 p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                          Make it sound like you
-                        </p>
-                        <div className="flex gap-1" role="group" aria-label="Reminder tone">
-                          {(['gentle', 'direct', 'playful'] as NudgeTone[]).map(tone => (
-                            <button
-                              key={tone}
-                              type="button"
-                              aria-pressed={nudgeTone === tone}
-                              onClick={() => setNudgeTone(tone)}
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize transition ${
-                                nudgeTone === tone
-                                  ? 'border-accent bg-accent-soft text-accent'
-                                  : 'border-line bg-field text-muted hover:text-ink'
-                              }`}
-                            >
-                              {tone}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="mt-2 whitespace-pre-line rounded-lg border border-line bg-field/70 px-3 py-2.5 text-xs leading-relaxed text-ink">
-                        {paymentNudgeText(
-                          {
-                            fromName: payment.fromName,
-                            toName: payment.toName,
-                            amountCents: payment.amountCents,
-                            groupName: group.name,
-                            payUrl: payLinks(
-                              group.members.find(member => member.userId === payment.toUserId) ?? {
-                                venmoHandle: null,
-                                cashappCashtag: null,
-                                paypalHandle: null,
-                              },
-                              payment.amountCents,
-                              `owewell: ${group.name}`,
-                            )[0]?.url,
-                          },
-                          nudgeTone,
-                          fmt,
-                        )}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <span className="text-[11px] text-muted">Nothing is sent automatically.</span>
-                        <button
-                          type="button"
-                          disabled={nudgeShareStatus !== null}
-                          onClick={() => void sharePaymentNudge(payment)}
-                          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
-                        >
-                          {nudgeShareStatus === 'sharing'
-                            ? 'Opening…'
-                            : nudgeShareStatus === 'shared'
-                              ? 'Reminder shared'
-                              : nudgeShareStatus === 'copied'
-                                ? 'Reminder copied'
-                                : 'Send reminder'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {paymentPreview === `${payment.fromUserId}-${payment.toUserId}` && (
-                    <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                        After this payment
-                      </p>
-                      <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
-                        {projectBalancesAfterPayment(payment, balances).map(projected => (
-                          <p key={projected.userId} className="text-xs text-muted">
-                            <span className="font-medium text-ink">{projected.displayName}</span>{' '}
-                            <span className="tnum">{balanceStateLabel(projected.beforeCents, fmt)}</span>
-                            <span aria-hidden> → </span>
-                            <span className={`tnum font-medium ${projected.becomesSettled ? 'text-pos' : 'text-ink'}`}>
-                              {balanceStateLabel(projected.afterCents, fmt)}
-                            </span>
-                          </p>
-                        ))}
-                      </div>
-                      <p className="mt-1.5 text-[11px] text-muted">
-                        Preview only. Nothing changes until you mark it paid.
-                      </p>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <SettleUpPanel
+            group={group}
+            suggested={suggested}
+            balances={balances}
+            isOwner={isOwner}
+            settling={settling}
+            onMarkPaid={markPaid}
+            onSaveDeadline={saveSettlementDeadline}
+          />
         )}
 
         {activity.length > 0 && (
