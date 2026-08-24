@@ -12,7 +12,8 @@
     "gen:icons": "node scripts/gen-icons.mjs",
     "gen:og": "node scripts/gen-og.mjs",
     "test:watch": "vitest",
-    "og": "node scripts/og.mjs"
+    "og": "node scripts/og.mjs",
+    "dead-classes": "node scripts/dead-classes.mjs"
   },
   "dependencies": {
     "@aidenjang/auth-client": "^0.1.0",
