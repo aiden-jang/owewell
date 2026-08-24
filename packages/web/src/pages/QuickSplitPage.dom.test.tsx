@@ -12,7 +12,6 @@ import { MemoryRouter } from 'react-router-dom';
  * number somebody sends to a friend.
  */
 
-vi.mock('../lib/sound', () => ({ play: vi.fn() }));
 vi.mock('../components/AppHeader', () => ({ AppHeader: () => null }));
 
 const authStub = {

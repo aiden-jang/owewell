@@ -29,7 +29,6 @@ import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
 import { useMoney } from '../lib/currency';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
-import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
 import {
   drop as dropWrite,
@@ -132,7 +131,6 @@ export function GroupDetailPage(): ReactNode {
       // Clearing the last debt in the group is a different event from clearing one of five, and the
       // same fetch that redraws the list already knows which just happened.
       const allSettled = latest?.suggested.length === 0;
-      play(allSettled ? 'allSettled' : 'settled');
       toast.success(
         allSettled
           ? 'Everyone is settled up.'
@@ -164,7 +162,6 @@ export function GroupDetailPage(): ReactNode {
       setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
     }
     const allSettled = latest?.suggested.length === 0;
-    play(allSettled ? 'allSettled' : 'settled');
     toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
   }
 
@@ -230,7 +227,6 @@ export function GroupDetailPage(): ReactNode {
     try {
       const restored = await expensesApi.restore(id, expenseId);
       showSavedExpense(restored);
-      play('tick');
       void refreshLedger();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not put that back.');
@@ -260,7 +256,6 @@ export function GroupDetailPage(): ReactNode {
     try {
       await settlementsApi.remove(id, settlementId);
       await refreshLedger();
-      play('undo');
       toast.success('Payment undone.');
     } catch {
       toast.error('Could not undo that payment.');
@@ -588,7 +583,6 @@ export function GroupDetailPage(): ReactNode {
         members={group.members}
         onCreated={(saved, mode) => {
           setSheetOpen(false);
-          play('add');
           toast.success(mode === 'itemized' ? 'Receipt added to the tab.' : 'Added to the tab.');
           showSavedExpense(saved);
           void refreshLedger();
@@ -663,7 +657,6 @@ export function GroupDetailPage(): ReactNode {
               editing={editingExpense}
               onCreated={(saved) => {
                 setEditingExpense(null);
-                play('tick');
                 toast.success('Receipt updated.');
                 showSavedExpense(saved);
                 void refreshLedger();
@@ -682,7 +675,6 @@ export function GroupDetailPage(): ReactNode {
               editing={editingExpense}
               onCreated={(saved) => {
                 setEditingExpense(null);
-                play('tick');
                 toast.success('Expense updated.');
                 showSavedExpense(saved);
                 void refreshLedger();
@@ -714,7 +706,6 @@ export function GroupDetailPage(): ReactNode {
                 template={duplicatingExpense}
                 onCreated={(saved) => {
                   setDuplicatingExpense(null);
-                  play('add');
                   toast.success('Added the receipt again.');
                   showSavedExpense(saved);
                   void refreshLedger();
@@ -728,7 +719,6 @@ export function GroupDetailPage(): ReactNode {
                 template={duplicatingExpense}
                 onCreated={(saved) => {
                   setDuplicatingExpense(null);
-                  play('add');
                   toast.success('Added it again.');
                   showSavedExpense(saved);
                   void refreshLedger();

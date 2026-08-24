@@ -15,7 +15,6 @@ import {
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { useOutboxSync } from './useOutboxSync';
 import { useToast } from '../components/Toast';
-import { play } from './sound';
 
 /*
  * One group's ledger: what it is, and every reason it changes.
@@ -151,10 +150,8 @@ export function useGroupLedger(groupId: string): GroupLedger {
     void load();
   }, [load]);
 
-  // Somebody else changed something. The sound is the only notice you get, since the numbers just
-  // move underneath you.
+  // Somebody else changed something: refetch so the numbers on screen are theirs, not ours.
   useGroupRealtime(groupId, () => {
-    play('nudge');
     void refreshLedger();
   });
 
@@ -168,7 +165,6 @@ export function useGroupLedger(groupId: string): GroupLedger {
   useOutboxSync({
     groupId,
     onChanged: () => {
-      play('add');
       void refreshLedger();
     },
     onQueueChanged: refreshPending,
