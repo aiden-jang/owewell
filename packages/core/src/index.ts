@@ -295,3 +295,29 @@ export function receiptRejection(file: { type: string; size: number }): string |
   }
   return null;
 }
+
+/*
+ * What the vision model can read, which is not the same as what we will store.
+ *
+ * A strict subset of RECEIPT_TYPES, and it has to stay one: scanning something we would then refuse
+ * to store would be a dead end. So no HEIC, because the model has no decoder for it and an iPhone
+ * shoots it by default — and no GIF either, which the model does read but no camera produces. The client converts before sending — see `prepareForScan` — so this is the
+ * backstop for whatever arrives anyway, and it refuses rather than relabelling. Relabelling HEIC as
+ * JPEG is what it used to do, and the model answered with a generic failure the person could do
+ * nothing about.
+ */
+export const SCAN_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+/** The model's own per-image ceiling. Smaller than a receipt we would store. */
+export const MAX_SCAN_BYTES = 5 * 1024 * 1024;
+
+/** Why this image cannot be scanned, or null if it can. */
+export function scanRejection(file: { type: string; size: number }): string | null {
+  if (!(SCAN_TYPES as readonly string[]).includes(file.type)) {
+    return "That image isn't one we can scan. A JPEG or PNG works.";
+  }
+  if (file.size > MAX_SCAN_BYTES) {
+    return 'That photo is too big to scan. Try a smaller one, or add the items by hand.';
+  }
+  return null;
+}
