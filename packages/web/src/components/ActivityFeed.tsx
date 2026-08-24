@@ -9,7 +9,7 @@ import { timeAgoShort as timeAgo } from '../lib/relativeTime';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 import type { Settlement } from '../lib/settlements';
-import type { QueuedWrite } from '../lib/outbox';
+import type { QueuedCreate, QueuedSettlement } from '../lib/outbox';
 
 /*
  * The ledger, and the controls for narrowing it.
@@ -29,8 +29,8 @@ type Activity =
 
 type Relation = 'involved' | 'owes' | 'paid';
 
-/** A queued create or settlement, which carries enough to draw a row before the server has it. */
-export type PendingRow = QueuedWrite & { description: string; amountCents: number };
+/** A queued create or settlement: the two kinds that carry enough to draw a row of their own. */
+export type PendingRow = QueuedCreate | QueuedSettlement;
 
 export function ActivityFeed({
   expenses,
