@@ -438,6 +438,42 @@ input[type='checkbox'] {
 
 
 /*
+ * A finger-sized hit area, without a finger-sized control.
+ *
+ * Measured on a group page at 375px: 30 of 35 controls were under 44px and 13 were under 24, which
+ * is the floor WCAG 2.2 asks for. The offenders are the small ones by design — footer links at 16px
+ * tall, the bars/donut and warm/dark toggles at 20, the pay chips at 30, icon buttons at 36.
+ *
+ * Growing them to 44px each would add roughly 200px of vertical padding to the group page and turn
+ * a dense ledger into a form. So the target grows and the control does not: a centred pseudo-element
+ * at least 44x44, absolutely positioned, contributing nothing to layout. The button looks identical
+ * and the tap lands from 14px away.
+ *
+ * Coarse pointers only. A mouse is precise and does not need it, and invisible overlapping boxes
+ * around every small control is not a thing to inflict on a cursor.
+ *
+ * Two things it cannot help, which pay for their targets in real padding instead: a <select>, which
+ * is a replaced element and renders no pseudo-element, and anything inside an `overflow-hidden`
+ * parent, which clips the box away. Both were found by measuring rather than by reasoning.
+ */
+@media (pointer: coarse) {
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: 100%;
+    height: 100%;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/*
  * Press feedback for the two controls the base layer does not cover.
  *
  * Buttons already press: there is a shared `scale(0.97)` on :active down in @layer base. Links and

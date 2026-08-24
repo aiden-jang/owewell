@@ -12,14 +12,14 @@ export function AppHeader(): ReactNode {
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
         <Link
           to="/"
-          className="flex items-center gap-2 font-display text-lg font-semibold tracking-tight"
+          className="tap flex items-center gap-2 font-display text-lg font-semibold tracking-tight"
         >
           <BrandMark /> owewell
         </Link>
         <div className="flex items-center gap-1.5">
           <a
             href={accountUrl}
-            className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
+            className="tap flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
             aria-label="Account"
           >
             {user && <Avatar name={user.displayName} size="sm" />}
@@ -29,7 +29,7 @@ export function AppHeader(): ReactNode {
             type="button"
             onClick={() => void logout()}
             aria-label="Log out"
-            className="grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
+            className="tap grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
           >
             <Icon name="logout" size={18} />
           </button>
