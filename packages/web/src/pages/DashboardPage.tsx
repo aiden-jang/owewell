@@ -12,7 +12,8 @@ import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
-import { stillQueued, useOutboxSync } from '../lib/useOutboxSync';
+import { queued } from '../lib/outbox';
+import { useOutboxSync } from '../lib/useOutboxSync';
 import { timeAgo } from '../lib/relativeTime.js';
 
 function perGroupLabel(
@@ -38,7 +39,7 @@ export function DashboardPage(): ReactNode {
   const confirm = useConfirm();
   const toast = useToast();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
-  const [waiting, setWaiting] = useState(() => stillQueued().length);
+  const [waiting, setWaiting] = useState(() => queued().length);
   // Distinguish a failed load from a genuinely empty account: null = loading, [] = empty,
   // loadError = the fetch failed (show a retry, not the cheerful "no groups" state).
   const [loadError, setLoadError] = useState(false);
@@ -166,7 +167,7 @@ export function DashboardPage(): ReactNode {
    */
   useOutboxSync({
     onChanged: () => loadGroups(),
-    onQueueChanged: () => setWaiting(stillQueued().length),
+    onQueueChanged: () => setWaiting(queued().length),
   });
 
   const totals = useMemo(() => {
