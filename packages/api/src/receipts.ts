@@ -1,3 +1,4 @@
+import { MAX_RECEIPT_BYTES, RECEIPT_TYPES } from '@owewell/core';
 import { and, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
@@ -18,11 +19,9 @@ import { expenses } from './db/schema.js';
  * ledger, never public URLs, and they are deleted with the group.
  */
 
-/** What a phone camera actually produces. HEIC included: iOS shoots it by default. */
-const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
-
-/** Comfortably above a phone photo, far below anything that would hurt. */
-export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
+// The limits live in core because the client checks them too, before it spends a minute uploading
+// something this is going to refuse. This check stays the authoritative one.
+const ALLOWED = new Set<string>(RECEIPT_TYPES);
 
 export type ReceiptErrorCode = 'UNSUPPORTED_TYPE' | 'TOO_LARGE';
 
