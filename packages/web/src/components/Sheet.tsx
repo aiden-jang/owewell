@@ -10,11 +10,14 @@ export function Sheet({
   onClose,
   title,
   children,
+  autoFocusField = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /** Put the cursor in the first field on open. Only for sheets you opened in order to type. */
+  autoFocusField?: boolean;
 }): ReactNode {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -31,17 +34,23 @@ export function Sheet({
       );
 
     /*
-     * Open on the first field, not the first focusable thing.
+     * Focus the sheet itself, and only reach for a field when the sheet asks.
      *
-     * The first focusable thing is the close button in the header, so every sheet used to open with
-     * "Close" highlighted, and on a phone the keyboard stayed shut until you tapped the field anyway.
-     * Buttons are skipped rather than merely deprioritised: a sheet whose body starts with an action
-     * (the expense detail starts with Duplicate) should not open with that action under the cursor.
+     * This used to focus the first input in every sheet, which is right for one of them and wrong
+     * for the rest: on a phone, focusing a field slides the keyboard up over the sheet the moment it
+     * opens. Members was the worst of it — its only input is "Add someone by name", the last thing
+     * in the panel, so opening the roster covered the roster with a keyboard to type into a field
+     * nobody had asked for. Typing is the point of exactly one sheet, so exactly one sheet opts in.
+     *
+     * Never the close button, which is the first focusable thing in the header: a sheet that opens
+     * with "Close" under the cursor is offering to undo itself.
      */
-    const firstField = dialogRef.current?.querySelector<HTMLElement>(
-      'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
-    );
-    (firstField ?? dialogRef.current)?.focus();
+    const field = autoFocusField
+      ? dialogRef.current?.querySelector<HTMLElement>(
+          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
+        )
+      : null;
+    (field ?? dialogRef.current)?.focus();
 
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
@@ -77,7 +86,7 @@ export function Sheet({
       document.body.style.overflow = prev;
       previouslyFocused?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, autoFocusField]);
 
   if (!open) return null;
 

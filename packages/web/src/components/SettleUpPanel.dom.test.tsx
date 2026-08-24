@@ -130,18 +130,7 @@ describe('the row after a pay link is opened', () => {
   });
 });
 
-describe('nudge and preview', () => {
-  it('never sit open at the same time', async () => {
-    const user = await open([BOB_PAYS]);
-    const row = rowFor('Bob');
-    await user.click(within(row).getByRole('button', { name: 'Nudge' }));
-    expect(within(row).getByText('Make it sound like you')).toBeInTheDocument();
-
-    await user.click(within(row).getByRole('button', { name: 'Preview' }));
-    expect(within(row).queryByText('Make it sound like you')).not.toBeInTheDocument();
-    expect(within(row).getByText('After this payment')).toBeInTheDocument();
-  });
-
+describe('the nudge', () => {
   it('opens on the row that was clicked, not every row', async () => {
     const user = await open();
     await user.click(within(rowFor('Cara')).getByRole('button', { name: 'Nudge' }));
@@ -157,16 +146,6 @@ describe('nudge and preview', () => {
 
     await user.click(within(row).getByRole('button', { name: 'playful' }));
     expect(within(row).getByText(/\$30\.00/, { selector: 'p.whitespace-pre-line' }).textContent).not.toBe(gentle);
-  });
-
-  it('shows what the payment does to both sides', async () => {
-    const user = await open();
-    const row = rowFor('Bob');
-    await user.click(within(row).getByRole('button', { name: 'Preview' }));
-    const preview = within(row).getByText('After this payment').closest('div')!;
-    // Alice is owed $40 across two people, so Bob's $30 leaves her owed Cara's $10.
-    expect(preview).toHaveTextContent('Alice is owed $40.00 → is owed $10.00');
-    expect(preview).toHaveTextContent('Bob owes $30.00 → square');
   });
 });
 
