@@ -13,12 +13,19 @@ export function InviteLink({
   onCopy,
   headline,
   hint,
+  isOwner,
+  onRotate,
+  onRevoke,
 }: {
   link: string;
   copied: boolean;
   onCopy: () => void;
   headline?: string;
   hint?: string;
+  /** Only the owner can break a link everybody already has. The server enforces it too. */
+  isOwner?: boolean;
+  onRotate?: () => void;
+  onRevoke?: () => void;
 }): ReactNode {
   return (
     <div className="mt-4 rounded-2xl border border-accent/25 bg-accent-soft p-4">
@@ -45,6 +52,29 @@ export function InviteLink({
           <Icon name={copied ? 'check' : 'copy'} size={15} /> {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
+      {/*
+        * Taking the link back, which for a long time was not possible at all.
+        *
+        * A token was minted once and never changed, so the only way to stop a link that had been
+        * forwarded on was deleting the group. These two sit under the field rather than in the ⋯
+        * menu because this panel is the only place the link itself is on screen, and the decision
+        * to kill it is one you make while looking at it.
+        */}
+      {isOwner && (onRotate || onRevoke) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          {onRotate && (
+            <button type="button" onClick={onRotate} className="tap font-medium text-muted transition hover:text-ink hover:underline">
+              New link
+            </button>
+          )}
+          {onRevoke && (
+            <button type="button" onClick={onRevoke} className="tap font-medium text-muted transition hover:text-neg hover:underline">
+              Turn off
+            </button>
+          )}
+          <span className="text-faint">Either one stops every copy already sent.</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,8 @@ import {
   deleteGroup,
   getGroup,
   getOrCreateShareToken,
+  revokeShareToken,
+  rotateShareToken,
   getSharedSummary,
   listGroups,
   renameGroup,
@@ -185,6 +187,68 @@ describe('groups', () => {
 
     // An unknown token resolves to nothing, not someone else's group.
     expect(await getSharedSummary(db, 'not-a-real-token')).toBeNull();
+  });
+
+  /*
+   * Taking a link back, which until now was impossible.
+   *
+   * A token was minted once and returned forever, so a link forwarded somewhere it should not have
+   * been could only be stopped by deleting the group. These two are the remedy, and what matters
+   * about them is the blast radius: the old URL has to actually stop resolving, and a member who
+   * joined through it has to keep their membership, because a claimed seat is a real membership and
+   * not a lease on the token that introduced it.
+   */
+  test('a rotated link stops resolving and the new one takes over', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    const before = await getOrCreateShareToken(db, alice, group.id);
+    expect(await getSharedSummary(db, before)).not.toBeNull();
+
+    const after = await rotateShareToken(db, alice, group.id);
+    expect(after).not.toBe(before);
+    expect(await getSharedSummary(db, before)).toBeNull();
+    expect(await getSharedSummary(db, after)).not.toBeNull();
+  });
+
+  test('a revoked link leaves the group with no public view', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    const token = await getOrCreateShareToken(db, alice, group.id);
+
+    await revokeShareToken(db, alice, group.id);
+    expect(await getSharedSummary(db, token)).toBeNull();
+    // And an empty token must not match the now-null column and hand out the group.
+    expect(await getSharedSummary(db, '')).toBeNull();
+  });
+
+  test('a fresh link can be minted after revoking', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    const first = await getOrCreateShareToken(db, alice, group.id);
+    await revokeShareToken(db, alice, group.id);
+
+    const second = await getOrCreateShareToken(db, alice, group.id);
+    expect(second).not.toBe(first);
+    expect(await getSharedSummary(db, second)).not.toBeNull();
+  });
+
+  /*
+   * Owner-only, where minting is members-only. Turning off a link everybody has already sent out is
+   * a different kind of act from creating one, and the UI hides both from non-owners — but the UI is
+   * not a permission system.
+   */
+  test('only the owner can rotate or revoke', async () => {
+    const db = testDb();
+    const group = await createGroup(db, alice, 'Trip');
+    const memberId = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
+    await getOrCreateShareToken(db, alice, group.id);
+
+    await expect(rotateShareToken(db, memberId, group.id)).rejects.toMatchObject({ code: 'NOT_OWNER' });
+    await expect(revokeShareToken(db, memberId, group.id)).rejects.toMatchObject({ code: 'NOT_OWNER' });
+
+    // A stranger gets NOT_FOUND rather than NOT_OWNER, the same convention as everywhere else.
+    const stranger = await seedPerson(db, 'Nosy');
+    await expect(rotateShareToken(db, stranger, group.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   test('claiming a placeholder seat merges its history into the caller', async () => {
