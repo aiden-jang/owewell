@@ -202,3 +202,40 @@ describe('the date on each row', () => {
     expect(within(row).getByText(/1 person/)).toBeInTheDocument();
   });
 });
+
+/*
+ * The headline is the net. The chips are its two halves, and they only earn a line when the halves
+ * are not just the headline again.
+ *
+ * They used to render whenever either side was non-zero, which is most accounts: owed in every group
+ * and owing in none printed the same figure twice, once as a headline and once as a chip under it.
+ */
+describe('the overall total and its breakdown', () => {
+  test('shows both halves when you are owed in one group and owing in another', async () => {
+    await open([
+      group({ id: 'a', name: 'Tahoe', netCents: 5_200 }),
+      group({ id: 'b', name: 'Flat', netCents: -1_000 }),
+    ]);
+    expect(screen.getByText('owed to you')).toBeInTheDocument();
+    expect(screen.getByText('you owe')).toBeInTheDocument();
+  });
+
+  test('drops them when they would only repeat the headline', async () => {
+    await open([
+      group({ id: 'a', name: 'Tahoe', netCents: 3_000 }),
+      group({ id: 'b', name: 'Flat', netCents: 1_200 }),
+    ]);
+    expect(screen.queryByText('owed to you')).not.toBeInTheDocument();
+    expect(screen.queryByText('you owe')).not.toBeInTheDocument();
+  });
+
+  // Square overall is the case where the halves say the most: the net hides both of them.
+  test('keeps them when you are square but not clear', async () => {
+    await open([
+      group({ id: 'a', name: 'Tahoe', netCents: 2_500 }),
+      group({ id: 'b', name: 'Flat', netCents: -2_500 }),
+    ]);
+    expect(screen.getByText('owed to you')).toBeInTheDocument();
+    expect(screen.getByText('you owe')).toBeInTheDocument();
+  });
+});
