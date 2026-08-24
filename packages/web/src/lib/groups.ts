@@ -40,6 +40,12 @@ export const groupsApi = {
   // Create (or fetch) the group's public read-only share token. Members only.
   createShareLink: (id: string): Promise<string> =>
     api.post<{ token: string }>(`/groups/${id}/share`, {}).then((r) => r.token),
+  // Owner-only. Mints a replacement so every copy of the old link stops resolving.
+  rotateShare: (id: string): Promise<string> =>
+    api.post<{ token: string }>(`/groups/${id}/share/rotate`, {}).then((r) => r.token),
+  // Owner-only. Removes the public view; sharing again mints a fresh token.
+  revokeShare: (id: string): Promise<void> =>
+    api.del(`/groups/${id}/share`).then(() => undefined),
   // Public: fetch a group's read-only summary by share token (works signed-out).
   sharedSummary: (token: string): Promise<SharedGroupSummary> =>
     api.get<{ summary: SharedGroupSummary }>(`/shared/${token}`).then((r) => r.summary),

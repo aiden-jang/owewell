@@ -13,6 +13,8 @@ import {
   deleteGroup,
   getGroup,
   getOrCreateShareToken,
+  revokeShareToken,
+  rotateShareToken,
   getSharedSummary,
   listGroups,
   renameGroup,
@@ -175,6 +177,18 @@ app.delete('/owewell/groups/:id', async (c) => {
 app.post('/owewell/groups/:id/share', async (c) => {
   const token = await getOrCreateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
   return c.json({ token });
+});
+
+// Mint a replacement, killing every copy of the old link. Owner-only.
+app.post('/owewell/groups/:id/share/rotate', async (c) => {
+  const token = await rotateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
+  return c.json({ token });
+});
+
+// Remove the public view entirely. Owner-only.
+app.delete('/owewell/groups/:id/share', async (c) => {
+  await revokeShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
+  return c.json({ ok: true });
 });
 
 // Add a member: a name-only placeholder seat. Real people join by claiming their seat via the

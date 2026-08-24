@@ -177,16 +177,46 @@ export interface SharedGroupSummary {
   breakdown: { category: string; cents: number }[];
 }
 
+/** Two UUIDs' worth of entropy, hex only, so the link isn't guessable. */
+function mintShareToken(): string {
+  return (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
+}
+
 /** Create (once) or return the group's public share token. Members only. */
 export async function getOrCreateShareToken(db: DB, personId: string, groupId: string): Promise<string> {
   await requireMembership(db, personId, groupId);
   const g = await db.select({ shareToken: groups.shareToken }).from(groups).where(eq(groups.id, groupId)).get();
   if (!g) throw new GroupError('NOT_FOUND', 'Group not found.');
   if (g.shareToken) return g.shareToken;
-  // Two UUIDs' worth of entropy, hex only, so the link isn't guessable.
-  const token = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
+  const token = mintShareToken();
   await db.update(groups).set({ shareToken: token }).where(eq(groups.id, groupId));
   return token;
+}
+
+/*
+ * Taking a share link back.
+ *
+ * There was no way to. A token was minted once and returned forever, so the only remedy for a link
+ * that had been forwarded somewhere it shouldn't be was deleting the group, which takes the ledger
+ * with it. Anyone who had ever been sent the URL could watch the balances indefinitely.
+ *
+ * Owner-only, matching rename and delete: it is one shared thing that changes what everybody outside
+ * the group can see, not a personal preference. Members are unaffected either way — a claimed seat is
+ * a real membership and does not depend on the token that introduced it.
+ */
+
+/** Replace the token, so every copy of the old link stops resolving. Returns the new one. */
+export async function rotateShareToken(db: DB, personId: string, groupId: string): Promise<string> {
+  await requireOwner(db, personId, groupId);
+  const token = mintShareToken();
+  await db.update(groups).set({ shareToken: token }).where(eq(groups.id, groupId));
+  return token;
+}
+
+/** Clear the token, so the group has no public view at all until somebody makes a new link. */
+export async function revokeShareToken(db: DB, personId: string, groupId: string): Promise<void> {
+  await requireOwner(db, personId, groupId);
+  await db.update(groups).set({ shareToken: null }).where(eq(groups.id, groupId));
 }
 
 /** Resolve a share token to its read-only summary. No auth: anyone with the link may view.

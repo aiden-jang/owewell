@@ -107,6 +107,30 @@ export function GroupDetailPage(): ReactNode {
    * Tapping a slice is a question about the feed ("what was all that lodging?"), so it answers it
    * where the answer lives instead of filtering a list on the tab you can't see.
    */
+  /*
+   * Both of these break a link other people already have, and neither is undoable in the sense that
+   * matters: the old token is gone and cannot be put back. So both ask, and both say what survives —
+   * the thing people worry about is whether this also throws out the people who joined through it.
+   */
+  async function newShareLink(): Promise<void> {
+    const ok = await confirm({
+      title: 'Make a new link?',
+      body: 'Every copy of the current link stops working, including ones you have already sent. Members stay members.',
+      confirmLabel: 'New link',
+    });
+    if (ok) await invite.rotate();
+  }
+
+  async function turnOffShareLink(): Promise<void> {
+    const ok = await confirm({
+      title: 'Turn the link off?',
+      body: 'Nobody can open the group from a link until you make a new one. Members stay members.',
+      confirmLabel: 'Turn off',
+      tone: 'danger',
+    });
+    if (ok) await invite.revoke();
+  }
+
   /** Resolves true when the payment reached the ledger, which is the panel's cue to reset the row. */
   async function markPaid(payment: SuggestedPayment, method: PaymentMethod): Promise<boolean> {
     const ok = await confirm({
@@ -496,6 +520,9 @@ export function GroupDetailPage(): ReactNode {
           link={invite.link}
           copied={invite.copied}
           onCopy={() => void invite.copy()}
+          isOwner={isOwner}
+          onRotate={() => void newShareLink()}
+          onRevoke={() => void turnOffShareLink()}
           {...(invite.needsPeople
             ? {
                 headline:
