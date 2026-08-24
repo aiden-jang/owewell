@@ -263,21 +263,25 @@ export function SharedGroupPage(): ReactNode {
                   {summary.breakdown.map(({ category, cents }) => {
                     const meta = categoryMeta(category);
                     return (
-                      <li key={category} className="flex items-center gap-3">
-                        <span className="w-28 shrink-0 truncate text-sm">
-                          <CategoryDot categoryKey={meta.key} />{' '}
-                          {meta.label}
+                      // Same shape as the signed-in breakdown: figure above, bar across the row.
+                      <li key={category}>
+                        <span className="flex items-baseline justify-between gap-3 text-sm">
+                          <span className="min-w-0 truncate">
+                            <CategoryDot categoryKey={meta.key} />{' '}
+                            {meta.label}
+                          </span>
+                          <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
                         </span>
-                        <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
+                        {/* The category's own hue, not the accent. This bar was the one place in
+                            the app where a category changed colour depending on who was looking. */}
+                        <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
                           <span
-                            className="block h-full rounded-full bg-accent"
+                            className="block h-full rounded-full"
                             style={{
                               width: `${Math.max(3, Math.round((cents / summary.totalSpentCents) * 100))}%`,
+                              background: `var(--p-cat-${meta.key}, var(--p-accent))`,
                             }}
                           />
-                        </span>
-                        <span className="tnum w-20 shrink-0 text-right text-sm text-muted">
-                          {fmt(cents)}
                         </span>
                       </li>
                     );
