@@ -56,6 +56,14 @@ export interface GroupLedger {
   dropExpense: (expenseId: string) => void;
   /** Re-read the outbox after enqueuing or dropping a write. */
   refreshPending: () => void;
+  /**
+   * Everything queued for this group, however it will land.
+   *
+   * The three sets above tell the feed which rows to mark. This is the count for the page to say
+   * out loud: a row marked "waiting" only explains itself if you happen to be looking at that row,
+   * and the balances above it are wrong in a way nothing else accounts for.
+   */
+  pendingCount: number;
 }
 
 export function useGroupLedger(groupId: string): GroupLedger {
@@ -190,5 +198,6 @@ export function useGroupLedger(groupId: string): GroupLedger {
     pendingRows, pendingDeletes, pendingEdits,
     load, refreshLedger, setGroup,
     showSavedExpense, dropExpense, refreshPending,
+    pendingCount: pending.length,
   };
 }
