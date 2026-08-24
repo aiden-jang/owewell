@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   correctionLine,
@@ -12,8 +12,6 @@ import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   categoryMeta,
-  type CreateExpensePayload,
-  type CreateItemizedPayload,
   type PaymentMethod,
 } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
@@ -47,16 +45,14 @@ import { CurrencyProvider } from '../lib/currency';
 import {
   drop as dropWrite,
   enqueue as enqueueWrite,
-  flush as flushOutboxWrites,
-  isAlreadyDone,
   isDelete,
   isEdit,
   isPendingRow,
   isOffline,
   queued as outboxQueued,
-  subscribe as outboxSubscribe,
   type QueuedWrite,
 } from '../lib/outbox';
+import { useOutboxSync } from '../lib/useOutboxSync';
 import { pulseLabel, spendingPulse } from '../lib/spendingPulse';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
@@ -300,105 +296,20 @@ export function GroupDetailPage(): ReactNode {
   }
 
   /*
-   * Send whatever is waiting, then say what happened to it.
+   * Sending what is waiting.
    *
-   * Called on mount, whenever the browser says it is back online, and after any successful write
-   * (a write getting through is the most reliable evidence there is that the network is back —
-   * `navigator.onLine` only means "attached to a network", which a captive portal also satisfies).
+   * Scoped to this group, because this is the screen with the ledger on it to refresh. The dashboard
+   * runs the same hook unscoped, so a write queued here still goes out even if the next thing you
+   * open is a different group.
    */
-  const flushing = useRef(false);
-  const flushOutbox = useCallback(async (): Promise<void> => {
-    /*
-     * One flush at a time.
-     *
-     * A flaky connection fires `online` more than once, and mount plus a reconnect can overlap, so
-     * two passes would take the same entry off the queue twice and post it twice. The server's
-     * clientId check means that is not a duplicate expense — which is the whole reason it exists —
-     * but a wasted round trip and two identical toasts are still wrong.
-     */
-    if (flushing.current) return;
-    flushing.current = true;
-    try {
-      await runFlush();
-    } finally {
-      flushing.current = false;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const runFlush = async (): Promise<void> => {
-    const { sent, rejected, conflicted } = await flushOutboxWrites(
-      (entry) =>
-        entry.kind === 'settlement'
-          ? settlementsApi.record(entry.groupId, entry.payload)
-          : entry.kind === 'edit'
-          ? expensesApi.update(entry.groupId, entry.expenseId, entry.payload as CreateExpensePayload)
-          : entry.kind === 'edit-itemized'
-            ? expensesApi.updateItemized(entry.groupId, entry.expenseId, entry.payload as CreateItemizedPayload)
-            : entry.kind === 'delete'
-          ? // A queued delete finding nothing to delete got what it wanted, so it leaves the queue
-            // rather than being reported as a failure the person has to do something about.
-            expensesApi.remove(entry.groupId, entry.expenseId).catch((err: unknown) => {
-              if (!isAlreadyDone(err)) throw err;
-                })
-              : entry.kind === 'itemized'
-                ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
-                    : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
-      id,
-    );
-    setPending(outboxQueued(id));
-    if (sent > 0) {
+  useOutboxSync({
+    groupId: id,
+    onChanged: () => {
       play('add');
-      toast.success(sent === 1 ? 'Sent the change that was waiting.' : `Sent ${sent} waiting changes.`);
       void refreshLedger();
-    }
-    for (const { entry, message } of rejected) {
-      // Named, because it is gone from the queue and the person has to know which one to retype.
-      toast.error(`"${entry.description}" could not be saved: ${message}`);
-    }
-
-    /*
-     * A conflict is a question, not an error.
-     *
-     * The row changed while this edit sat in the queue, so applying it silently would erase whatever
-     * happened in between. Asked one at a time and in order, because answering "keep mine" on the
-     * first can be what makes the second one make sense.
-     */
-    for (const entry of conflicted) {
-      const keepMine = await confirm({
-        title: `"${entry.description}" changed while you were offline`,
-        body: 'Somebody else edited it after you did. Apply your version anyway, or drop yours and keep theirs?',
-        confirmLabel: 'Apply mine',
-        cancelLabel: 'Keep theirs',
-      });
-      if (!keepMine) continue;
-      try {
-        // Without expectedVersion, so it overwrites rather than conflicting with the change it was
-        // just told about.
-        const { expectedVersion: _dropped, ...forced } = entry.payload as { expectedVersion?: number };
-        const saved =
-          entry.kind === 'edit-itemized'
-            ? await expensesApi.updateItemized(id, entry.expenseId, forced as CreateItemizedPayload)
-            : await expensesApi.update(id, entry.expenseId, forced as CreateExpensePayload);
-        showSavedExpense(saved);
-        void refreshLedger();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Could not apply your version.');
-      }
-    }
-  };
-
-  useEffect(() => {
-    setPending(outboxQueued(id));
-    void flushOutbox();
-    const onOnline = (): void => void flushOutbox();
-    window.addEventListener('online', onOnline);
-    const unsubscribe = outboxSubscribe(() => setPending(outboxQueued(id)));
-    return () => {
-      window.removeEventListener('online', onOnline);
-      unsubscribe();
-    };
-  }, [id, flushOutbox]);
+    },
+    onQueueChanged: () => setPending(outboxQueued(id)),
+  });
 
   /*
    * Photos on an expense that already exists.
