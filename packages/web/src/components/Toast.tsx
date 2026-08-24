@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Icon } from './Icon';
 
 type ToastTone = 'success' | 'error';
 
@@ -64,8 +65,16 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
       tone === 'error' ? 'text-rose-300' : 'text-ink'
     }`;
 
-  // Non-color cue so tone reads without relying on color alone.
-  const glyph = (tone: ToastTone): ReactNode => <span aria-hidden="true">{tone === 'error' ? '⚠️' : '✓'}</span>;
+  /*
+   * Non-colour cue so tone reads without relying on colour alone.
+   *
+   * Drawn rather than ⚠️ and ✓: the warning was a full-colour emoji, so the one element in the app
+   * that has to read instantly was also the one drawn differently on every platform — and at 14px
+   * a platform emoji is a smudge. These inherit the toast's own text colour.
+   */
+  const glyph = (tone: ToastTone): ReactNode => (
+    <Icon name={tone === 'error' ? 'alert' : 'check'} size={14} className="shrink-0" />
+  );
 
   const renderToast = (toast: Toast): ReactNode =>
     toast.action ? (

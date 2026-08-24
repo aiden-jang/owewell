@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Icon } from './Icon';
 
 interface Props {
   children: ReactNode;
@@ -48,9 +49,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) return this.props.children;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
-        <p className="text-5xl" aria-hidden>
-          🫠
-        </p>
+        {/* Drawn, like the 404 and the empty states. Muted rather than accent: this is the one
+            screen where nothing worked, and a cheerful brand colour would be the wrong note. */}
+        <span aria-hidden className="grid h-14 w-14 place-items-center rounded-2xl bg-surface2 text-muted">
+          <Icon name="alert" size={26} />
+        </span>
         <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight">
           Well, that broke.
         </h1>
