@@ -55,6 +55,8 @@ export function SettleUpPanel({
   const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
 
   const settlePlanTotal = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
+  // Only for the "Start here" flag on the top row. This used to also feed a "Best next move" card
+  // above the list, which named the same payment the top row already names and labels.
   const bestSettleStep = bestSettlementStep(balances, suggested);
   const recommendedPaymentKey = bestSettleStep
     ? `${bestSettleStep.payment.fromUserId}-${bestSettleStep.payment.toUserId}`
@@ -170,29 +172,6 @@ export function SettleUpPanel({
       <p className="mt-1 text-xs leading-relaxed text-muted">
         Pay in your usual app, then mark it here so the group stays in sync.
       </p>
-      {bestSettleStep && (
-        <div className="mt-3 rounded-xl border border-line bg-surface2/60 px-3 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">Best next move</p>
-              <p className="mt-0.5 text-sm font-semibold text-ink">
-                {bestSettleStep.payment.fromName} pays {bestSettleStep.payment.toName}{' '}
-                <span className="tnum text-ink">{fmt(bestSettleStep.payment.amountCents)}</span>
-              </p>
-            </div>
-            <span className="tnum shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-muted">
-              −{bestSettleStep.percentOfOutstanding}%
-            </span>
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted">
-            {bestSettleStep.remainingTransfers === 0
-              ? 'One payment settles the whole group.'
-              : bestSettleStep.clearedNames.length > 0
-                ? `Clears ${bestSettleStep.clearedNames.join(' and ')} from the list, with ${bestSettleStep.remainingTransfers} ${bestSettleStep.remainingTransfers === 1 ? 'transfer' : 'transfers'} left.`
-                : `${fmt(bestSettleStep.remainingCents)} would remain after this.`}
-          </p>
-        </div>
-      )}
       <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
         <span className="text-muted">
           {suggested.length} {suggested.length === 1 ? 'transfer' : 'transfers'} left

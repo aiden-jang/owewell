@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  PAYMENT_METHOD_LABELS,
   type PaymentMethod,
 } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
@@ -127,15 +126,11 @@ export function GroupDetailPage(): ReactNode {
       const latest = await refreshLedger();
       if (latest) {
         setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
+      } else {
+        // No refetch, so no receipt to render. The toast is the fallback confirmation, not the
+        // normal one: see `finishManualPayment`.
+        toast.success('Payment logged.');
       }
-      // Clearing the last debt in the group is a different event from clearing one of five, and the
-      // same fetch that redraws the list already knows which just happened.
-      const allSettled = latest?.suggested.length === 0;
-      toast.success(
-        allSettled
-          ? 'Everyone is settled up.'
-          : `Recorded a ${PAYMENT_METHOD_LABELS[method].toLowerCase()} payment from ${payment.fromName} to ${payment.toName}.`,
-      );
       return true;
     } catch {
       toast.error('Could not record that payment.');
@@ -147,12 +142,20 @@ export function GroupDetailPage(): ReactNode {
 
   async function finishManualPayment(settlement: Settlement, beforeBalances: Balance[]): Promise<void> {
     setPaymentOpen(false);
+    /*
+     * No toast on the way out, on purpose.
+     *
+     * Recording a payment used to say the same thing three times: a toast, a redrawn ledger, and the
+     * receipt card below. The card is the one that earns it — it names the amount, both sides, what
+     * each balance was and became, and whether that cleared the group. A toast on top was a summary
+     * of the thing sitting directly underneath it.
+     */
     const latest = await refreshLedger();
     if (latest) {
       setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
+    } else {
+      toast.success('Payment logged.');
     }
-    const allSettled = latest?.suggested.length === 0;
-    toast.success(allSettled ? 'Everyone is settled up.' : 'Payment logged.');
   }
 
   useEffect(() => {
