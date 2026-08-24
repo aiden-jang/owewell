@@ -20,14 +20,17 @@ export function ThemeSwitch(): ReactNode {
   useEffect(() => onThemeChange(setLocal), []);
 
   return (
-    <span className="inline-flex overflow-hidden rounded-full border border-line" role="group" aria-label="Palette">
+    /* p-0.5 with rounded children, matching the bars/donut toggle. The previous shape —
+       overflow-hidden on a rounded-full wrapper — clipped each button's corners, which cut the
+       tappable height at the centre column to 23px even after the button itself grew to 32. */
+    <span className="inline-flex rounded-full border border-line p-0.5" role="group" aria-label="Palette">
       {(['warm', 'dark'] as const).map((name) => (
         <button
           key={name}
           type="button"
           onClick={() => setTheme(name)}
           aria-pressed={theme === name}
-          className={`px-2.5 py-0.5 capitalize transition ${
+          className={`tap rounded-full px-2.5 py-1.5 capitalize transition ${
             theme === name ? 'bg-accent-soft font-medium text-accent' : 'text-muted hover:text-ink'
           }`}
         >

@@ -147,7 +147,7 @@ export function SettleUpPanel({
                     ? 'Settle-up plan copied'
                     : 'Share settle-up plan'
             }
-            className="inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
+            className="tap inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
           >
             <Icon name="share" size={13} />
             {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
@@ -178,7 +178,7 @@ export function SettleUpPanel({
           value={settleMethod}
           onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
           aria-label="Payment method"
-          className="rounded-lg border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+          className="rounded-lg border border-line bg-field px-2 py-2 text-xs text-ink outline-none focus:border-accent"
         >
           {PAYMENT_METHODS.map((m) => (
             <option key={m} value={m}>
@@ -231,7 +231,7 @@ export function SettleUpPanel({
                   title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
                   /* The only filled control in the row. Nudge is text, the pay links are outlines,
                      and this is the one that changes the ledger. */
-                  className="shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                  className="tap shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
                 >
                   {paymentInFlight === key ? 'Sent it, mark paid' : 'Mark paid'}
                 </button>
@@ -250,7 +250,7 @@ export function SettleUpPanel({
                       setPaymentInFlight(key);
                     }}
                     title={`Pay ${payment.toName} via ${link.label}`}
-                    className="rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
+                    className="tap rounded-full border border-line-strong bg-surface2 px-3 py-1.5 text-xs font-medium transition hover:border-accent active:scale-[0.98]"
                   >
                     {link.label}
                   </a>
@@ -272,7 +272,7 @@ export function SettleUpPanel({
                    * is one set; the hairline border and muted text keep it below the pay links,
                    * which are the ones that actually move money.
                    */
-                  className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink active:scale-[0.98]"
+                  className="tap rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink active:scale-[0.98]"
                 >
                   {paymentNudge === key ? 'Close nudge' : 'Nudge'}
                 </button>

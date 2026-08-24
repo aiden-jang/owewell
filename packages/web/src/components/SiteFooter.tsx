@@ -16,7 +16,7 @@ export function SiteFooter(): ReactNode {
           <a
             href={link.href}
             {...(link.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-            className="hover:text-accent hover:underline"
+            className="tap hover:text-accent hover:underline"
           >
             {link.label}
           </a>

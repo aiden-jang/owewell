@@ -272,7 +272,7 @@ export function MembersPanel({
                             onClick={() => startHandles(member)}
                             aria-label={`Payment handles for ${member.displayName}`}
                             title="Payment handles"
-                            className="grid h-7 w-7 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
+                            className="tap grid h-7 w-7 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
                           >
                             <Icon name="wallet" size={14} />
                           </button>
@@ -283,7 +283,7 @@ export function MembersPanel({
                             onClick={() => void onRemove(member.userId, netOf[member.userId] ?? 0)}
                             aria-label={`Remove ${member.displayName}`}
                             title={`Remove ${member.displayName}`}
-                            className="grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-neg"
+                            className="tap grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-neg"
                           >
                             <Icon name="x" size={16} />
                           </button>
