@@ -29,11 +29,24 @@ export interface InviteLink {
   /** Mint it, put it on screen, and offer the share sheet where there is one. */
   reveal: () => Promise<void>;
   copy: () => Promise<void>;
+  /** Swap in a new token. Every copy of the old link stops working. Owner-only on the server. */
+  rotate: () => Promise<void>;
+  /** Turn the public view off entirely. Owner-only on the server. */
+  revoke: () => Promise<void>;
 }
 
 export function useInviteLink(group: GroupDetail | null): InviteLink {
   const toast = useToast();
   const [link, setLink] = useState<string | null>(null);
+  /*
+   * Blocks the auto-mint below after a deliberate revoke.
+   *
+   * That effect mints whenever the group still needs people and there is no link in hand — which is
+   * exactly the state revoking produces. Without this, turning the link off immediately created a
+   * replacement and the button appeared to do nothing at all. Session-only: reopening the group is a
+   * fresh decision, and the group genuinely does still need people.
+   */
+  const [revoked, setRevoked] = useState(false);
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<number | undefined>(undefined);
 
@@ -52,7 +65,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   // Fetched on its own when the group needs people, so the block has something to show without
   // waiting for a tap. Gated on needsPeople because minting is a write; see the note above.
   useEffect(() => {
-    if (!needsPeople || link) return;
+    if (!needsPeople || link || revoked) return;
     let alive = true;
     void mint()
       .then((url) => {
@@ -62,7 +75,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     return () => {
       alive = false;
     };
-  }, [needsPeople, link, mint]);
+  }, [needsPeople, link, mint, revoked]);
 
   const reveal = useCallback(async (): Promise<void> => {
     let url: string | null;
@@ -74,6 +87,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     }
     if (!url) return;
     // On screen no matter what the browser supports, before anything else is attempted.
+    setRevoked(false);
     setLink(url);
     /*
      * Then the share sheet, on the phones that have one. Title and url only, never a text body:
@@ -89,6 +103,37 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     }
   }, [group?.name, mint, toast]);
 
+  /*
+   * Both of these break links other people already hold, which is the point of them, so both say so
+   * plainly afterwards rather than succeeding in silence.
+   *
+   * Rotating keeps the panel open on the replacement, because the next thing you want is to send it.
+   * Revoking clears it, because there is nothing left to send.
+   */
+  const rotate = useCallback(async (): Promise<void> => {
+    if (!groupId) return;
+    try {
+      const token = await groupsApi.rotateShare(groupId);
+      setRevoked(false);
+      setLink(`${window.location.origin}/s/${token}`);
+      toast.success('New link ready. The old one stopped working.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not make a new link.');
+    }
+  }, [groupId, toast]);
+
+  const revoke = useCallback(async (): Promise<void> => {
+    if (!groupId) return;
+    try {
+      await groupsApi.revokeShare(groupId);
+      setRevoked(true);
+      setLink(null);
+      toast.success('Link turned off. Members keep their access.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not turn the link off.');
+    }
+  }, [groupId, toast]);
+
   const copy = useCallback(async (): Promise<void> => {
     if (!link) return;
     try {
@@ -100,5 +145,5 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     }
   }, [link, toast]);
 
-  return { link, copied, needsPeople, unclaimed, reveal, copy };
+  return { link, copied, needsPeople, unclaimed, reveal, copy, rotate, revoke };
 }

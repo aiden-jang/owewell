@@ -11,7 +11,15 @@ import type { GroupDetail, GroupMember } from './groups';
  */
 
 const createShareLink = vi.fn<(id: string) => Promise<string>>();
-vi.mock('./groups', () => ({ groupsApi: { createShareLink: (id: string) => createShareLink(id) } }));
+const rotateShare = vi.fn<(id: string) => Promise<string>>();
+const revokeShare = vi.fn<(id: string) => Promise<void>>();
+vi.mock('./groups', () => ({
+  groupsApi: {
+    createShareLink: (id: string) => createShareLink(id),
+    rotateShare: (id: string) => rotateShare(id),
+    revokeShare: (id: string) => revokeShare(id),
+  },
+}));
 
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../components/Toast', () => ({ useToast: () => toastStub }));
@@ -49,7 +57,10 @@ async function open(g: GroupDetail | null) {
 
 beforeEach(() => {
   createShareLink.mockReset().mockResolvedValue('tok123');
+  rotateShare.mockReset().mockResolvedValue('tok999');
+  revokeShare.mockReset().mockResolvedValue(undefined);
   toastStub.error.mockReset();
+  toastStub.success?.mockReset?.();
 });
 
 afterEach(() => {
@@ -212,5 +223,60 @@ describe('copying it', () => {
     expect(vi.getTimerCount()).toBe(1);
     unmount();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+/*
+ * Taking the link back.
+ *
+ * The trap here is the auto-mint above: it fires whenever the group still needs people and there is
+ * no link in hand, which is precisely the state revoking creates. The first version of this turned
+ * the link off and then immediately minted a replacement, so the button looked broken while quietly
+ * doing the opposite of what it said.
+ */
+describe('turning the link off', () => {
+  it('does not immediately mint a replacement', async () => {
+    const { result } = await open(HAS_PLACEHOLDER);
+    await waitFor(() => expect(result.current.link).toContain('tok123'));
+    createShareLink.mockClear();
+
+    await act(() => result.current.revoke());
+
+    expect(revokeShare).toHaveBeenCalledWith('g1');
+    expect(result.current.link).toBeNull();
+    // The group still needs people, so the auto-mint would fire if nothing held it back.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(createShareLink).not.toHaveBeenCalled();
+  });
+
+  it('lets you deliberately ask for a link again afterwards', async () => {
+    const { result } = await open(HAS_PLACEHOLDER);
+    await waitFor(() => expect(result.current.link).toContain('tok123'));
+    await act(() => result.current.revoke());
+
+    createShareLink.mockResolvedValue('tok456');
+    await act(() => result.current.reveal());
+    expect(result.current.link).toContain('tok456');
+  });
+});
+
+describe('replacing the link', () => {
+  it('swaps in the new token', async () => {
+    const { result } = await open(HAS_PLACEHOLDER);
+    await waitFor(() => expect(result.current.link).toContain('tok123'));
+
+    await act(() => result.current.rotate());
+    expect(rotateShare).toHaveBeenCalledWith('g1');
+    expect(result.current.link).toContain('tok999');
+  });
+
+  it('keeps the link on screen when the server refuses', async () => {
+    const { result } = await open(HAS_PLACEHOLDER);
+    await waitFor(() => expect(result.current.link).toContain('tok123'));
+
+    rotateShare.mockRejectedValue(new Error('Only the owner can do that.'));
+    await act(() => result.current.rotate());
+    expect(result.current.link).toContain('tok123');
+    expect(toastStub.error).toHaveBeenCalled();
   });
 });
