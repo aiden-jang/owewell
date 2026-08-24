@@ -4,14 +4,7 @@ import { expensesApi } from './expenses';
 import { settlementsApi } from './settlements';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
-import {
-  flush,
-  isAlreadyDone,
-  queued,
-  subscribe,
-  type QueuedEdit,
-  type QueuedWrite,
-} from './outbox';
+import { flush, isAlreadyDone, subscribe, type QueuedEdit, type QueuedWrite } from './outbox';
 
 /*
  * Draining the outbox, wherever you happen to be standing.
@@ -48,11 +41,6 @@ export function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
   }
 }
 
-export interface OutboxSync {
-  /** Runs on mount, on reconnect, and whenever the caller asks. */
-  sync: () => Promise<void>;
-}
-
 export function useOutboxSync({
   groupId,
   onChanged,
@@ -64,7 +52,7 @@ export function useOutboxSync({
   onChanged: () => void;
   /** The queue itself moved, for screens that render what is still waiting. */
   onQueueChanged?: () => void;
-}): OutboxSync {
+}): void {
   const toast = useToast();
   const confirm = useConfirm();
   const flushing = useRef(false);
@@ -148,9 +136,4 @@ export function useOutboxSync({
       unsubscribe();
     };
   }, [run]);
-
-  return { sync: run };
 }
-
-/** Whatever is still waiting, for a screen that wants to say so. */
-export const stillQueued = queued;
