@@ -76,7 +76,7 @@ export function WrappedRecap({
           <div className="rounded-2xl border border-line/70 bg-surface/70 p-3">
             <span className="block text-2xs font-medium uppercase tracking-wide text-faint">Top category</span>
             <strong className="mt-1 block text-sm text-ink">
-              {recap.topCategory ? `${recap.topCategory.emoji} ${recap.topCategory.label}` : 'nothing yet'}
+              {recap.topCategory ? recap.topCategory.label : 'nothing yet'}
             </strong>
             {recap.topCategory && (
               <span className="mt-0.5 block text-xs text-muted">{fmt(recap.topCategory.amountCents)}</span>

@@ -102,7 +102,6 @@ export function SpendDonut({
           const inner = (
             <>
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: a.color }} aria-hidden />
-              <span aria-hidden>{a.meta.emoji}</span>
               <span className={`truncate ${active ? 'font-medium text-accent' : ''}`}>{a.meta.label}</span>
               <span className="tnum ml-auto shrink-0 text-faint">{a.pct}%</span>
               <span className="tnum w-20 shrink-0 text-right text-muted">{fmt(a.cents)}</span>

@@ -119,7 +119,14 @@ export function BalanceHero({
             <MoneyText cents={Math.abs(myNet)} />
           )}
         </p>
-        {totalUnsettled > 0 && (
+        {/*
+          * Only when the group's outstanding total is not just your own figure again.
+          *
+          * Whenever you are the sole creditor these two lines print the same number one under the
+          * other, which reads as a rendering fault rather than as context. It is only telling you
+          * something when other people owe each other too.
+          */}
+        {totalUnsettled > 0 && totalUnsettled !== Math.abs(myNet) && (
           <p className="mt-2 text-xs text-faint">
             {fmt(totalUnsettled)} still unsettled across the group
           </p>

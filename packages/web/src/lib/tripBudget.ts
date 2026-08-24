@@ -80,6 +80,25 @@ export function budgetTone(budget: TripBudget): BudgetTone {
 }
 
 /** Past the number it states the amount and stops: no "over budget", no suggestion anybody act on it. */
+/*
+ * The headline figure and its caption, split apart.
+ *
+ * `budgetLine` renders all three numbers in one sentence at one weight, which wraps to two lines on
+ * a phone and buries the only one you act on. The decision a budget card supports is "how much is
+ * left", so that number gets the size and the rest becomes support.
+ *
+ * The sentence is still built below, because a progress bar's aria-valuetext wants the whole thing.
+ */
+export function budgetFigure(budget: TripBudget, fmt: MoneyFormatter): string {
+  return budget.remainingCents < 0 ? `${fmt(-budget.remainingCents)} over` : fmt(budget.remainingCents);
+}
+
+export function budgetCaption(budget: TripBudget, fmt: MoneyFormatter): string {
+  return budget.remainingCents < 0
+    ? `${fmt(budget.spentCents)} spent of ${fmt(budget.budgetCents)}`
+    : `left of ${fmt(budget.budgetCents)}`;
+}
+
 export function budgetLine(budget: TripBudget, fmt: MoneyFormatter): string {
   const spent = fmt(budget.spentCents);
   const total = fmt(budget.budgetCents);
