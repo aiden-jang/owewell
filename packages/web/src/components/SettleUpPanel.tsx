@@ -179,7 +179,7 @@ export function SettleUpPanel({
   }
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-4">
+    <section className="rounded-2xl border border-line bg-card p-4">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
           <Icon name="wallet" size={16} /> Settle up

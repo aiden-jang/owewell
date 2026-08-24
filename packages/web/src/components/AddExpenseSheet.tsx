@@ -68,7 +68,7 @@ export function AddExpenseSheet({
             aria-pressed={mode === option}
             onClick={() => setMode(option)}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-              mode === option ? 'bg-surface shadow-sm text-ink' : 'text-muted hover:text-ink'
+              mode === option ? 'bg-surface2 shadow-sm text-ink' : 'text-muted hover:text-ink'
             }`}
           >
             {LABEL[option]}

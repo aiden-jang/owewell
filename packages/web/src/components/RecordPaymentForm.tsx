@@ -295,7 +295,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
             )}
             <div className="grid gap-2 sm:grid-cols-2">
               {preview.touched.map(person => (
-                <div key={person.userId} className="rounded-xl border border-line bg-surface/70 p-2.5">
+                <div key={person.userId} className="rounded-xl border border-line bg-surface2/70 p-2.5">
                   <strong className="block text-xs text-ink">{person.displayName}</strong>
                   <span className="mt-1 block text-2xs text-muted">
                     <span className="tnum line-through">{balanceCopy(person.beforeCents, fmt)}</span>
