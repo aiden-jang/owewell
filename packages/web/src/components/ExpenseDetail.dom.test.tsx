@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { Expense, GroupMember } from '@owewell/core';
+import { MAX_RECEIPT_BYTES, type Expense, type GroupMember } from '@owewell/core';
 import { ExpenseDetail } from './ExpenseDetail';
 
 /**
@@ -179,6 +179,38 @@ describe('the receipt photo', () => {
     render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
     expect(screen.getByRole('button', { name: /Add a photo/ })).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  /** A File of a given size without allocating it: jsdom reports whatever `size` says. */
+  function fakeFile(name: string, type: string, size: number): File {
+    const f = new File(['x'], name, { type });
+    Object.defineProperty(f, 'size', { value: size });
+    return f;
+  }
+
+  /*
+   * This upload starts the moment you choose, so a file the server will refuse costs a real wait.
+   * The server is still the authority; checking here only means finding out before the upload.
+   */
+  it('refuses a photo past the size limit without uploading it', async () => {
+    const onAttachReceipt = vi.fn();
+    const user = userEvent.setup();
+    render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
+
+    await user.upload(screen.getByLabelText('Receipt photo'), fakeFile('huge.jpg', 'image/jpeg', MAX_RECEIPT_BYTES + 1));
+    expect(onAttachReceipt).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('8MB');
+  });
+
+  it('uploads one that fits', async () => {
+    const onAttachReceipt = vi.fn();
+    const user = userEvent.setup();
+    render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
+
+    const ok = fakeFile('receipt.jpg', 'image/jpeg', 1024);
+    await user.upload(screen.getByLabelText('Receipt photo'), ok);
+    expect(onAttachReceipt).toHaveBeenCalledWith(ok);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows the photo, and offers to replace or remove it', () => {
