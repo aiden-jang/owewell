@@ -184,7 +184,8 @@ describe('the date on each row', () => {
       }),
     ]);
     const row = screen.getByText('Tahoe trip').closest('li')!;
-    expect(within(row).getByText(/2 days ago/)).toBeInTheDocument();
+    // Short form, as in the feed: the long one did not fit beside the amount at phone width.
+    expect(within(row).getByText(/2d ago/)).toBeInTheDocument();
     // 300 days ago would render as a month name; it must not appear.
     expect(within(row).queryByText(/^in /)).not.toBeInTheDocument();
   });
@@ -193,7 +194,7 @@ describe('the date on each row', () => {
     // Calling an empty group's creation date "activity" would be a lie.
     await open([group({ totalSpentCents: 0, createdAt: new Date(Date.now() - 3 * DAY).toISOString() })]);
     const row = screen.getByText('Tahoe trip').closest('li')!;
-    expect(within(row).getByText(/started 3 days ago/)).toBeInTheDocument();
+    expect(within(row).getByText(/started 3d ago/)).toBeInTheDocument();
   });
 
   test('keeps the member count alongside it', async () => {
