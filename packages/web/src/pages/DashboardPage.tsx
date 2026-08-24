@@ -14,7 +14,7 @@ import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
-import { timeAgo } from '../lib/relativeTime.js';
+import { timeAgoShort as timeAgo } from '../lib/relativeTime.js';
 
 function perGroupLabel(
   netCents: number,
@@ -265,6 +265,10 @@ export function DashboardPage(): ReactNode {
     const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0, fmt);
     // Last activity, not creation date: it answers "is this still going on", which is the only date
     // question a dashboard row raises. A group with no expenses yet says when it was started.
+    //
+    // Short form, as in the feed. "3 people · 4 days ago" did not fit beside the amount at 375px and
+    // truncated to "3 people · 4 d...", which spends a line saying nothing. Four characters shorter
+    // is the whole fix.
     const activity = group.totalSpentCents > 0 ? timeAgo(group.lastActivityAt) : `started ${timeAgo(group.createdAt)}`;
     const isSel = selected.has(group.id);
     const selecting = selectMode && selectable;
@@ -278,22 +282,28 @@ export function DashboardPage(): ReactNode {
             </span>
           )}
         </span>
+        {/*
+          * Primary facts on the first line, every secondary fact together on the second.
+          *
+          * The name and the meta line used to sit in one column against a two-line amount column,
+          * so the two of them fought over the same width and the meta line always lost — "3 people ·
+          * 4 d..." tells you nothing. With the balance lifted alongside the name, the detail line
+          * gets the full row. Same shape as a member row, deliberately.
+          */}
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{group.name}</span>
-          {/* Truncated like the group name above it: on a narrow phone "3 people · 23 hours ago"
-              wrapped to two lines and shoved the amount column out of alignment. */}
+          <span className="flex items-baseline justify-between gap-3">
+            <span className="truncate font-medium">{group.name}</span>
+            <span className={`tnum shrink-0 text-sm font-semibold ${label.className}`}>{label.text}</span>
+          </span>
           <span className="block truncate text-sm text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
             {activity && <span className="text-faint"> &middot; {activity}</span>}
+            {/* Dropped when it is only your own figure again, which is what it is whenever you are
+                the group's sole creditor. */}
+            {group.totalUnsettledCents > 0 && group.totalUnsettledCents !== Math.abs(group.netCents) && (
+              <span className="tnum text-faint"> &middot; {fmt(group.totalUnsettledCents)} unsettled</span>
+            )}
           </span>
-        </span>
-        <span className="flex shrink-0 flex-col items-end leading-tight">
-          <span className={`tnum text-sm font-semibold ${label.className}`}>{label.text}</span>
-          {group.totalUnsettledCents > 0 && (
-            <span className="tnum whitespace-nowrap text-xs text-faint">
-              {fmt(group.totalUnsettledCents)} unsettled
-            </span>
-          )}
         </span>
         {/*
           The chevron's SLOT is always here, even in select mode. Hiding the icon outright reflowed
