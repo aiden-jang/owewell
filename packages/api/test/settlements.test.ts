@@ -115,3 +115,50 @@ describe('settlements', () => {
     await expect(deleteSettlement(db, alice, groupId, s.id)).rejects.toBeInstanceOf(SettlementError);
   });
 });
+
+/*
+ * Recording the same payment twice, which is what a replay from the outbox would otherwise do.
+ *
+ * A settlement is a fact about the past rather than a projection: "Bob handed Alice $30" stays true
+ * however much the balances moved while it sat in a queue, so replaying it late is correct. Logging
+ * it twice is not, and that is the only thing the client id has to prevent.
+ */
+describe('a payment that gets retried', () => {
+  test('is logged once, however many times it is sent', async () => {
+    const db = testDb();
+    const alice = await seedPerson(db, 'Alice');
+    const group = await createGroup(db, alice, 'Trip');
+    const bob = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
+    await createExpense(db, alice, group.id, {
+      description: 'Dinner',
+      amountCents: 4_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+
+    const pay = () =>
+      recordSettlement(db, alice, group.id, {
+        fromUserId: bob,
+        toUserId: alice,
+        amountCents: 2_000,
+        clientId: 'outbox-pay-1',
+      });
+
+    const first = await pay();
+    expect((await pay()).id).toBe(first.id);
+    expect(await listSettlements(db, alice, group.id)).toHaveLength(1);
+    // The thing that matters: Bob is square, not owed 2000 back.
+    expect((await getBalances(db, alice, group.id)).find((b) => b.userId === bob)!.netCents).toBe(0);
+  });
+
+  test('a different payment with its own id is its own payment', async () => {
+    const db = testDb();
+    const alice = await seedPerson(db, 'Alice');
+    const group = await createGroup(db, alice, 'Trip');
+    const bob = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
+    await recordSettlement(db, alice, group.id, { fromUserId: bob, toUserId: alice, amountCents: 500, clientId: 'pay-a' });
+    await recordSettlement(db, alice, group.id, { fromUserId: bob, toUserId: alice, amountCents: 500, clientId: 'pay-b' });
+    expect(await listSettlements(db, alice, group.id)).toHaveLength(2);
+  });
+});

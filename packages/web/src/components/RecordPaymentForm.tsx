@@ -7,6 +7,7 @@ import type { GroupMember } from '../lib/groups';
 import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
 import { useMoney } from '../lib/currency';
+import { enqueue, isOffline } from '../lib/outbox';
 
 interface Props {
   groupId: string;
@@ -18,6 +19,8 @@ interface Props {
   /** Live balances used only for the local what-if preview. */
   balances: Balance[];
   onRecorded: (settlement: Settlement) => void;
+  /** Called instead of onRecorded when the payment could not leave the device and was queued. */
+  onQueued?: (summary: string) => void;
 }
 
 function balanceCopy(cents: number, fmt: MoneyFormatter): string {
@@ -27,9 +30,10 @@ function balanceCopy(cents: number, fmt: MoneyFormatter): string {
 
 /** Record an arbitrary payment between two members — any amount (incl. partial), any method.
  *  Complements the one-tap "Settle" buttons, which only clear the full suggested amount. */
-export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], balances, onRecorded }: Props): ReactNode {
+export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], balances, onRecorded, onQueued }: Props): ReactNode {
   const fmt = useMoney();
   const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
+  const nameOf = (id: string): string => memberOf(id)?.displayName ?? 'Someone';
   const firstFrom = defaultFromId ?? members[0]?.userId ?? '';
   const firstTo = members.find((m) => m.userId !== firstFrom)?.userId ?? '';
   const [fromUserId, setFromUserId] = useState(firstFrom);
@@ -117,10 +121,32 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
       return;
     }
     setSubmitting(true);
+    const clientId = crypto.randomUUID();
+    const payload = { fromUserId, toUserId, amountCents, method, clientId };
     try {
-      const settlement = await settlementsApi.record(groupId, { fromUserId, toUserId, amountCents, method });
-      onRecorded(settlement);
+      onRecorded(await settlementsApi.record(groupId, payload));
     } catch (err) {
+      if (onQueued && isOffline(err)) {
+        /*
+         * Queued, and safe to send whenever.
+         *
+         * Handing somebody cash already happened; the record of it is not a guess about the balances,
+         * so it stays true however long this waits. The client id is what stops the replay logging
+         * the same handover twice.
+         */
+        const summary = `${nameOf(fromUserId)} → ${nameOf(toUserId)}`;
+        enqueue({
+          clientId,
+          groupId,
+          kind: 'settlement',
+          description: summary,
+          amountCents,
+          queuedAt: Date.now(),
+          payload,
+        });
+        onQueued(summary);
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Could not record that payment.');
     } finally {
       setSubmitting(false);

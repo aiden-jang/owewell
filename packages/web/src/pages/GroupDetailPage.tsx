@@ -49,9 +49,9 @@ import {
   enqueue as enqueueWrite,
   flush as flushOutboxWrites,
   isAlreadyDone,
-  isCreate,
   isDelete,
   isEdit,
+  isPendingRow,
   isOffline,
   queued as outboxQueued,
   subscribe as outboxSubscribe,
@@ -185,7 +185,9 @@ export function GroupDetailPage(): ReactNode {
   // open sheet has to follow it. A deleted expense drops out of the list, which closes the sheet.
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
   const [pending, setPending] = useState<QueuedWrite[]>(() => outboxQueued(id));
-  const pendingCreates = pending.filter(isCreate);
+  // Creates and recorded payments both show as a row waiting to go out; edits and deletes change
+  // rows that already exist, so they mark or hide those instead.
+  const pendingRows = pending.filter(isPendingRow);
   // Memoised: a fresh Set every render would defeat the activity memo below that depends on it.
   const pendingDeletes = useMemo(
     () => new Set(pending.filter(isDelete).map((e) => e.expenseId)),
@@ -327,7 +329,9 @@ export function GroupDetailPage(): ReactNode {
   const runFlush = async (): Promise<void> => {
     const { sent, rejected, conflicted } = await flushOutboxWrites(
       (entry) =>
-        entry.kind === 'edit'
+        entry.kind === 'settlement'
+          ? settlementsApi.record(entry.groupId, entry.payload)
+          : entry.kind === 'edit'
           ? expensesApi.update(entry.groupId, entry.expenseId, entry.payload as CreateExpensePayload)
           : entry.kind === 'edit-itemized'
             ? expensesApi.updateItemized(entry.groupId, entry.expenseId, entry.payload as CreateItemizedPayload)
@@ -339,7 +343,7 @@ export function GroupDetailPage(): ReactNode {
                 })
               : entry.kind === 'itemized'
                 ? expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload)
-                : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
+                    : expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload),
       id,
     );
     setPending(outboxQueued(id));
@@ -2012,7 +2016,7 @@ export function GroupDetailPage(): ReactNode {
                 * say so: showing them as normal rows would mean the feed and the number at the top
                 * of the page disagreed, with nothing on screen to explain why.
                 */}
-              {pendingCreates.map((entry) => (
+              {pendingRows.map((entry) => (
                 <li
                   key={entry.clientId}
                   className="animate-rise flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line-strong px-4 py-3 opacity-70"
@@ -2589,6 +2593,11 @@ export function GroupDetailPage(): ReactNode {
           balances={balances}
           defaultFromId={user?.id}
           suggestions={suggested}
+          onQueued={(summary) => {
+            setPaymentOpen(false);
+            setPending(outboxQueued(id));
+            toast.success(`Kept the payment ${summary}. It goes out when you have signal.`);
+          }}
           onRecorded={(settlement) => {
             const beforeBalances = paymentBeforeRef.current ?? balances;
             paymentBeforeRef.current = null;
