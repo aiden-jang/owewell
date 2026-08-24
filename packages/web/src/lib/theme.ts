@@ -13,6 +13,19 @@ import type { ThemeName } from './contrast.js';
 const KEY = 'owewell:theme';
 
 /**
+ * The palette the static assets are built against.
+ *
+ * A favicon, a PWA splash and an OG card are all fetched once, by a crawler or an installer, with no
+ * person and no localStorage behind them — they cannot follow a device and they cannot follow a
+ * choice. Something has to be committed to a file, and this names which palette that is.
+ *
+ * `scripts/og.mjs` reads this identifier straight out of this file so the share card can never
+ * disagree with the app. It also backstops `preferredTheme()` on the rare browser with no
+ * matchMedia, which keeps it load-bearing rather than a constant only a build script cares about.
+ */
+export const SHIPPED_THEME: ThemeName = 'warm';
+
+/**
  * What a first visit gets, when the device has an opinion and the person has not expressed one.
  *
  * Shipping 'warm' unconditionally meant someone whose phone is in dark mode got a white app until
@@ -21,9 +34,9 @@ const KEY = 'owewell:theme';
  */
 function preferredTheme(): ThemeName {
   try {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'warm';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : SHIPPED_THEME;
   } catch {
-    return 'warm';
+    return SHIPPED_THEME;
   }
 }
 

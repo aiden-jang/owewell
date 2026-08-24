@@ -23,8 +23,8 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 /** Read the default and the palettes out of source, so this can never disagree with the app. */
 function palette() {
   const theme = readFileSync(resolve(HERE, '../src/lib/theme.ts'), 'utf8');
-  const name = /DEFAULT_THEME: ThemeName = '(\w+)'/.exec(theme)?.[1];
-  if (!name) throw new Error('Could not find DEFAULT_THEME in src/lib/theme.ts');
+  const name = /SHIPPED_THEME: ThemeName = '(\w+)'/.exec(theme)?.[1];
+  if (!name) throw new Error('Could not find SHIPPED_THEME in src/lib/theme.ts');
 
   const src = readFileSync(resolve(HERE, '../src/lib/contrast.ts'), 'utf8');
   const constName = name === 'warm' ? 'WARM' : 'DARK';
