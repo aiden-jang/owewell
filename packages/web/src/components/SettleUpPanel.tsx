@@ -15,6 +15,7 @@ import { renderSettleCard } from '../lib/settleCard';
 import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { play } from '../lib/sound';
+import { CONFIRM_MS } from '../lib/timing';
 import { useShareAction } from '../lib/useShareAction';
 import type { Balance, GroupDetail } from '../lib/groups';
 import type { SuggestedPayment } from '../lib/settlements';
@@ -122,7 +123,7 @@ export function SettleUpPanel({
         try {
           await navigator.share({ title: `${group.name} settle-up`, files: [file] });
           setSettleCardStatus('shared');
-          window.setTimeout(() => setSettleCardStatus(null), 2200);
+          window.setTimeout(() => setSettleCardStatus(null), CONFIRM_MS);
           return;
         } catch (error) {
           if (error instanceof Error && error.name === 'AbortError') {
@@ -138,7 +139,7 @@ export function SettleUpPanel({
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(href), 0);
       setSettleCardStatus('saved');
-      window.setTimeout(() => setSettleCardStatus(null), 2200);
+      window.setTimeout(() => setSettleCardStatus(null), CONFIRM_MS);
     } catch {
       setSettleCardStatus(null);
       toast.error('Could not make the settle-up card.');

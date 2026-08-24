@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SuggestedPayment } from '../lib/settlements';
 import { deadlinePresets, deadlineState, settlementDeadlineCalendar } from '../lib/settleDeadline';
+import { CONFIRM_MS } from '../lib/timing';
 
 function localInput(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -48,7 +49,7 @@ export function SettlementDeadline({
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(href), 0);
     setSavedCalendar(true);
-    window.setTimeout(() => setSavedCalendar(false), 2200);
+    window.setTimeout(() => setSavedCalendar(false), CONFIRM_MS);
   }
 
   if (!settleBy && !isOwner) return null;

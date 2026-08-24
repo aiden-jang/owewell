@@ -4,7 +4,7 @@ import type {
   Expense,
   ExtractedReceipt,
 } from '@owewell/core';
-import { api, API_BASE } from './api';
+import { api, ApiError, API_BASE } from './api';
 
 // Re-export the shared contract so components can keep importing expense types from here.
 export type {
@@ -27,7 +27,14 @@ export async function ocrReceipt(groupId: string, file: File): Promise<Extracted
     body: form,
   });
   if (!res.ok) {
-    throw new Error('Could not read that receipt.');
+    // Carries the server's own words, because a refusal it can explain ("that image isn't one we
+    // can scan") is worth more than the caller's fallback. Hand-rolled rather than going through
+    // `request` because this posts FormData, not JSON.
+    const message = await res
+      .json()
+      .then((body: { message?: string }) => body.message)
+      .catch(() => undefined);
+    throw new ApiError(res.status, message ?? 'Could not read that receipt.');
   }
   return (await res.json()).receipt as ExtractedReceipt;
 }
