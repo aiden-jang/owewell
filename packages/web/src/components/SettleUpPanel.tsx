@@ -4,14 +4,13 @@ import {
   PAYMENT_METHOD_LABELS,
   type PaymentMethod,
 } from '@owewell/core';
-import type { MoneyFormatter } from '@owewell/shared';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 import { payLinks } from '../lib/payLinks';
 import { renderSettleCard } from '../lib/settleCard';
-import { bestSettlementStep, projectBalancesAfterPayment } from '../lib/settlementGuide';
+import { bestSettlementStep } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
 import { CONFIRM_MS } from '../lib/timing';
 import { useShareAction } from '../lib/useShareAction';
@@ -22,20 +21,13 @@ import type { SuggestedPayment } from '../lib/settlements';
  * Who pays whom, and everything you can do about it.
  *
  * Lifted out of the group page, which had grown past 2,600 lines. Almost all the state in here is
- * state nobody else wanted: which reminder tone is selected, whether a preview row is open, whether
- * a share button is mid-share. The page was keeping eight hooks alive for a section that renders
- * only when somebody owes somebody.
+ * state nobody else wanted: which reminder tone is selected, and whether a share button is
+ * mid-share. The page was keeping eight hooks alive for a section that renders only when somebody
+ * owes somebody.
  *
  * Marking a payment deliberately stays outside: it moves the ledger, builds a receipt and refetches
  * balances, so the page owns it and this panel only says which payment and by what method.
  */
-
-/** "is owed $12.00" / "owes $8.00" / "square", for the before-and-after preview. */
-function balanceStateLabel(netCents: number, fmt: MoneyFormatter): string {
-  if (netCents === 0) return 'square';
-  const amount = fmt(Math.abs(netCents));
-  return netCents > 0 ? `is owed ${amount}` : `owes ${amount}`;
-}
 
 export function SettleUpPanel({
   group,
@@ -62,7 +54,6 @@ export function SettleUpPanel({
   const { status: nudgeShareStatus, share: shareNudge, reset: resetNudgeShare } = useShareAction(toast.error);
   const [settleCardStatus, setSettleCardStatus] = useState<'making' | 'shared' | 'saved' | null>(null);
   const [paymentInFlight, setPaymentInFlight] = useState<string | null>(null);
-  const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
   const [paymentNudge, setPaymentNudge] = useState<string | null>(null);
   const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
 
@@ -310,23 +301,11 @@ export function SettleUpPanel({
                   aria-expanded={paymentNudge === key}
                   onClick={() => {
                     setPaymentNudge((current) => (current === key ? null : key));
-                    setPaymentPreview(null);
                     resetNudgeShare();
                   }}
                   className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
                 >
                   {paymentNudge === key ? 'Close nudge' : 'Nudge'}
-                </button>
-                <button
-                  type="button"
-                  aria-expanded={paymentPreview === key}
-                  onClick={() => {
-                    setPaymentPreview((current) => (current === key ? null : key));
-                    setPaymentNudge(null);
-                  }}
-                  className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                >
-                  {paymentPreview === key ? 'Hide preview' : 'Preview'}
                 </button>
                 <button
                   type="button"
@@ -389,28 +368,6 @@ export function SettleUpPanel({
                             : 'Send reminder'}
                     </button>
                   </div>
-                </div>
-              )}
-              {paymentPreview === key && (
-                <div className="w-full basis-full rounded-lg border border-line bg-field/70 px-3 py-2.5" role="status">
-                  <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-faint">
-                    After this payment
-                  </p>
-                  <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
-                    {projectBalancesAfterPayment(payment, balances).map((projected) => (
-                      <p key={projected.userId} className="text-xs text-muted">
-                        <span className="font-medium text-ink">{projected.displayName}</span>{' '}
-                        <span className="tnum">{balanceStateLabel(projected.beforeCents, fmt)}</span>
-                        <span aria-hidden> → </span>
-                        <span className={`tnum font-medium ${projected.becomesSettled ? 'text-pos' : 'text-ink'}`}>
-                          {balanceStateLabel(projected.afterCents, fmt)}
-                        </span>
-                      </p>
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-2xs text-muted">
-                    Preview only. Nothing changes until you mark it paid.
-                  </p>
                 </div>
               )}
             </li>

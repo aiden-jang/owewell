@@ -59,7 +59,7 @@ export function AddExpenseSheet({
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Add to the tab">
+    <Sheet open={open} onClose={onClose} title="Add to the tab" autoFocusField>
       <div className="mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
         {(['simple', 'itemized'] as const).map((option) => (
           <button
