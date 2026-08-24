@@ -162,6 +162,20 @@ describe('the order of the list', () => {
     expect(rows[1]).not.toHaveTextContent('Start here');
   });
 
+  /*
+   * The label is the whole treatment. A "Best next move" card used to sit above the list naming the
+   * same payment the top row names and flags, ten pixels apart, so the panel recommended once and
+   * then recommended again.
+   */
+  it('names that move once, not twice', async () => {
+    await open([CARA_PAYS, BOB_PAYS]);
+    expect(screen.queryByText('Best next move')).not.toBeInTheDocument();
+    // Counted on textContent: the row splits the sentence across three elements, so a text matcher
+    // finds none of them and would pass no matter how many copies were on screen.
+    const said = document.body.textContent?.match(/Bob pays Alice/g) ?? [];
+    expect(said).toHaveLength(1);
+  });
+
   it('does not say "start here" when there is only one thing to do', async () => {
     await open([BOB_PAYS]);
     expect(screen.queryByText('Start here')).not.toBeInTheDocument();
