@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { categoryMeta, PAYMENT_METHOD_LABELS } from '@owewell/core';
-import { correctionLine, type CorrectionField } from '@owewell/shared';
 import { CategoryGlyph } from './CategoryMark';
 import { EmptyState } from './EmptyState';
 import { Avatar } from './Avatar';
@@ -392,19 +391,19 @@ export function ActivityFeed({
                               <> · {item.expense.splits.length} ways</>
                             )}
                           </p>
-                          {/* A correction, said plainly. Almost every one is somebody fixing their own
-                              typo, so this is muted text and not a warning colour. */}
+                          {/*
+                            * A queued edit says so; a landed one does not.
+                            *
+                            * "Alice changed the amount from $40.00" used to print here too, which put
+                            * a third line of history on every row somebody had ever corrected — on
+                            * the one screen you scan rather than read. It is still on the expense
+                            * itself, which is where you go when you want to know what happened to it.
+                            *
+                            * This line is not history. It explains why the row disagrees with what
+                            * you typed, so it has to stay where the wrong number is.
+                            */}
                           {pendingEdits.has(item.expense.id) && (
-                          <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
-                        )}
-                        {item.expense.lastEdit && (
-                            <p className="truncate text-xs text-faint">
-                              {correctionLine(
-                                item.expense.lastEdit.fields as CorrectionField[],
-                                nameOf(item.expense.lastEdit.byId),
-                                fmt(item.expense.lastEdit.formerAmountCents),
-                              )}
-                            </p>
+                            <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
                           )}
                         </div>
                       </div>
