@@ -383,22 +383,27 @@ export function DashboardPage(): ReactNode {
                 <MoneyText cents={Math.abs(totals.net)} />
             )}
           </p>
-          {(totals.owed > 0 || totals.owe > 0) && (
+          {/*
+            * Only when the two sides actually differ from the headline.
+            *
+            * These break the net figure into its gross halves, which is worth a line when you are
+            * owed in one group and owing in another. It was rendering whenever either side was
+            * non-zero, which is most accounts: owed everywhere and owing nowhere printed "$42.00"
+            * as a headline and then "owed to you $42.00" as a chip directly beneath it. Same rule
+            * the group hero already uses for its unsettled line.
+            */}
+          {totals.owed > 0 && totals.owe > 0 && (
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              {totals.owed > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-pos" />
-                  <span className="text-muted">owed to you</span>
-                  <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
-                </span>
-              )}
-              {totals.owe > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-neg" />
-                  <span className="text-muted">you owe</span>
-                  <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-pos" />
+                <span className="text-muted">owed to you</span>
+                <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-neg" />
+                <span className="text-muted">you owe</span>
+                <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
+              </span>
             </div>
           )}
         </section>
