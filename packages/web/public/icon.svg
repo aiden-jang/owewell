@@ -1,19 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- owewell mark: a minimal receipt on the purple→cyan gradient. Font-free
-       (pure shapes) so it rasterizes cleanly to the PWA PNG sizes. -->
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#a78bfa" />
-      <stop offset="1" stop-color="#22d3ee" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="120" fill="url(#g)" />
+  <!--
+    owewell mark: a receipt on the accent tile.
+
+    Same glyph and colours as BrandMark and og.svg. It was a violet-to-cyan gradient with a
+    near-black receipt, which is the palette the app left behind; the component and the share card
+    were both moved over and this one was missed, so every browser tab still advertised the old
+    design.
+
+    Colours are WARM from src/lib/contrast.ts. A favicon is fetched once with no user and no
+    localStorage behind it, so it cannot follow a per-person palette; the shipped default is the
+    honest ceiling. Re-run the gen:icons script after editing, or the committed PNGs keep showing
+    whatever this used to be. Font-free so it rasterizes cleanly at every size.
+  -->
+  <rect width="512" height="512" rx="120" fill="#1f6f4f" />
   <path
     d="M150 96 h212 v300 l-30 -20 -30 20 -30 -20 -30 20 -30 -20 -32 20 z"
-    fill="#0a0a12"
-    fill-opacity="0.92"
+    fill="#ffffff"
+    fill-opacity="0.95"
   />
-  <g stroke="#a78bfa" stroke-width="26" stroke-linecap="round">
+  <g stroke="#1f6f4f" stroke-width="26" stroke-linecap="round">
     <line x1="196" y1="178" x2="316" y2="178" />
     <line x1="196" y1="238" x2="316" y2="238" />
     <line x1="196" y1="298" x2="282" y2="298" />
