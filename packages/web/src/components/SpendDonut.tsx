@@ -35,7 +35,8 @@ export function SpendDonut({
   total: number;
   /** Omit both to render read-only (e.g. the public share page has no feed to filter). */
   activeKey?: string | null;
-  onSelect?: (key: string) => void;
+  /** Called with null when the active slice is picked again, which is how you clear it from here. */
+  onSelect?: (key: string | null) => void;
 }): ReactNode {
   const fmt = useMoney();
   const interactive = typeof onSelect === 'function';
@@ -73,7 +74,8 @@ export function SpendDonut({
           aria-label="Spending by category"
         >
           {arcs.map((a) => {
-            const dim = activeKey !== null && activeKey !== a.meta.key;
+            const active = activeKey === a.meta.key;
+            const dim = activeKey !== null && !active;
             return (
               <circle
                 key={a.meta.key}
@@ -85,7 +87,7 @@ export function SpendDonut({
                 strokeWidth={stroke}
                 strokeDasharray={`${a.len} ${circ - a.len}`}
                 strokeDashoffset={a.offset}
-                onClick={interactive ? () => onSelect(a.meta.key) : undefined}
+                onClick={interactive ? () => onSelect(active ? null : a.meta.key) : undefined}
                 className={interactive ? 'cursor-pointer transition-opacity' : 'transition-opacity'}
                 style={{ opacity: dim ? 0.25 : 1 }}
               >
@@ -116,7 +118,7 @@ export function SpendDonut({
               {interactive ? (
                 <button
                   type="button"
-                  onClick={() => onSelect(a.meta.key)}
+                  onClick={() => onSelect(active ? null : a.meta.key)}
                   aria-pressed={active}
                   aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${a.meta.label}`}
                   className={`-mx-2 flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-sm transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
