@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ExtractedReceipt } from '@owewell/core';
+import { SCAN_TYPES, type ExtractedReceipt } from '@owewell/core';
 import type { Env } from './env.js';
 
 const MOCK: ExtractedReceipt = {
@@ -23,8 +23,15 @@ Respond with ONLY a JSON object, no prose and no code fences, shaped exactly lik
 {"items":[{"name":"string","amountCents":integer}],"taxCents":integer,"tipCents":integer}
 All amounts are integer cents (e.g. $12.50 is 1250). If tax or tip is not shown, use 0.`;
 
+/*
+ * Send the type the bytes actually are.
+ *
+ * This used to fall back to 'image/jpeg' for anything it did not recognise, which meant HEIC — what
+ * an iPhone shoots — went to the model as JPEG and came back as a failure nobody could act on. The
+ * route refuses unsupported types now, so this only has to be honest about the ones that get through.
+ */
 function mediaType(mimeType: string): string {
-  return ['image/png', 'image/gif', 'image/webp'].includes(mimeType) ? mimeType : 'image/jpeg';
+  return (SCAN_TYPES as readonly string[]).includes(mimeType) ? mimeType : 'image/jpeg';
 }
 
 function toBase64(buf: ArrayBuffer): string {

@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { expensesApi, ocrReceipt, type Expense } from '../lib/expenses';
-import { ocrEnabled } from '../lib/api';
+import { ApiError, ocrEnabled } from '../lib/api';
 import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { ReceiptPicker } from './ReceiptPicker';
 import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
+import { prepareForScan } from '../lib/prepareForScan';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -85,7 +86,9 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
     setScanning(true);
     setError(null);
     try {
-      const receipt = await ocrReceipt(groupId, file);
+      // Converted and shrunk first: an iPhone hands over HEIC, which the model cannot read, and a
+      // full-size photo is megabytes the model does not use. See `prepareForScan`.
+      const receipt = await ocrReceipt(groupId, await prepareForScan(file));
       if (receipt.items.length > 0) {
         setItems(
           receipt.items.map((it) => ({
@@ -98,8 +101,14 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
       }
       setTax(receipt.taxCents ? centsToInput(receipt.taxCents) : '');
       setTip(receipt.tipCents ? centsToInput(receipt.tipCents) : '');
-    } catch {
-      setError('Could not read that receipt. Add the items by hand below.');
+    } catch (err) {
+      // The server's reason when it has one — "that image isn't one we can scan" is actionable in a
+      // way that the generic line is not.
+      setError(
+        err instanceof ApiError && err.status === 400
+          ? err.message
+          : 'Could not read that receipt. Add the items by hand below.',
+      );
     } finally {
       setScanning(false);
     }

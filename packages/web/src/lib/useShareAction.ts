@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CONFIRM_MS } from './timing';
 
 /*
  * Handing a line of text to whoever is standing next to you.
@@ -17,9 +18,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Null between shares. Drives the button label, which is why 'shared' and 'copied' stay distinct. */
 export type ShareStatus = 'sharing' | 'shared' | 'copied' | null;
-
-/** How long the button admits to what it just did before going back to its resting label. */
-const SETTLE_BACK_MS = 2200;
 
 export function useShareAction(reportFailure: (message: string) => void): {
   status: ShareStatus;
@@ -42,7 +40,7 @@ export function useShareAction(reportFailure: (message: string) => void): {
 
   const settleBack = useCallback((landed: 'shared' | 'copied'): void => {
     setStatus(landed);
-    timer.current = window.setTimeout(() => setStatus(null), SETTLE_BACK_MS);
+    timer.current = window.setTimeout(() => setStatus(null), CONFIRM_MS);
   }, []);
 
   const share = useCallback(

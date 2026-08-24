@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_RECEIPT_BYTES, RECEIPT_ACCEPT, RECEIPT_TYPES, receiptRejection } from './index.js';
+import {
+  MAX_RECEIPT_BYTES,
+  MAX_SCAN_BYTES,
+  RECEIPT_ACCEPT,
+  RECEIPT_TYPES,
+  SCAN_TYPES,
+  receiptRejection,
+  scanRejection,
+} from './index.js';
 
 /**
  * What counts as a receipt photo.
@@ -58,5 +66,42 @@ describe('what does not', () => {
 describe('the accept filter', () => {
   it('offers exactly the types that are allowed', () => {
     expect(RECEIPT_ACCEPT.split(',')).toEqual([...RECEIPT_TYPES]);
+  });
+});
+
+/*
+ * Scanning is a narrower question than storing.
+ *
+ * The model has no HEIC decoder and an iPhone shoots HEIC, so the two lists genuinely differ and the
+ * gap between them is where the bug lived: HEIC used to be relabelled as JPEG and sent anyway.
+ */
+describe('what can be scanned', () => {
+  it('is narrower than what can be stored', () => {
+    expect(SCAN_TYPES.length).toBeLessThan(RECEIPT_TYPES.length);
+    expect(MAX_SCAN_BYTES).toBeLessThan(MAX_RECEIPT_BYTES);
+  });
+
+  // The whole point. Storing an iPhone photo is fine; handing it to the model is not.
+  it('refuses HEIC even though a receipt may be HEIC', () => {
+    expect(receiptRejection(file('image/heic', 1024))).toBeNull();
+    expect(scanRejection(file('image/heic', 1024))).not.toBeNull();
+  });
+
+  it('accepts what the model actually reads', () => {
+    for (const type of SCAN_TYPES) {
+      expect(scanRejection(file(type, 1024))).toBeNull();
+    }
+  });
+
+  it('refuses an image too big to send', () => {
+    expect(scanRejection(file('image/jpeg', MAX_SCAN_BYTES + 1))).not.toBeNull();
+    expect(scanRejection(file('image/jpeg', MAX_SCAN_BYTES))).toBeNull();
+  });
+
+  // Every scannable type is also storable, or a scan could produce a receipt we would then refuse.
+  it('never allows something the upload would turn away', () => {
+    for (const type of SCAN_TYPES) {
+      expect(receiptRejection(file(type, 1024))).toBeNull();
+    }
   });
 });

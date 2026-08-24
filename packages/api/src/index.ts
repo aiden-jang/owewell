@@ -39,7 +39,7 @@ import {
   updateExpense,
   updateItemizedExpense,
 } from './expenses.js';
-import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS } from '@owewell/core';
+import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS, scanRejection } from '@owewell/core';
 import {
   SettlementError,
   deleteSettlement,
@@ -498,6 +498,14 @@ app.post('/owewell/groups/:id/ocr', async (c) => {
   const form = await c.req.formData();
   const file = form.get('file') as File | string | null;
   if (!file || typeof file === 'string') return c.json({ error: 'NoFile', message: 'Attach a receipt image.' }, 400);
+  /*
+   * Checked here rather than only in the model call. Without it an unreadable image became a 502
+   * "could not read that receipt", which reads as "your receipt is unclear" when the real answer is
+   * "that file type will never work". Size too: base64 inflates by a third, and there was nothing
+   * stopping a 40MB photo becoming a 53MB request.
+   */
+  const why = scanRejection(file);
+  if (why) return c.json({ error: 'UnsupportedImage', message: why }, 400);
   try {
     const receipt = await extractReceipt(c.env, await file.arrayBuffer(), file.type);
     return c.json({ receipt });
