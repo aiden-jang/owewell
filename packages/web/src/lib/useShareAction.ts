@@ -11,9 +11,12 @@ import { CONFIRM_MS } from './timing';
  * check to be forgotten, which is the one that matters: without it, backing out of the share sheet
  * silently writes to your clipboard instead.
  *
- * Not every share fits here. The settle-up card shares a File and falls back to a download, and the
- * invite link deliberately passes a url with no text body so the sheet's own Copy copies the link.
- * Both are their own shape and stayed where they were.
+ * The invite link is the one share that does not come through here: it passes a url with no text
+ * body, so the sheet's own Copy copies the link rather than a sentence wrapped around it.
+ *
+ * Nothing here ever downloads. The clipboard is the fallback, which is the right one for text going
+ * into a group chat — a settle-up card that rendered a PNG and saved it to Downloads on any desktop
+ * without file sharing used to live beside this, and it is gone.
  */
 
 /** Null between shares. Drives the button label, which is why 'shared' and 'copied' stay distinct. */
