@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { currencyFormatter, DEFAULT_CURRENCY, type MoneyFormatter } from '@owewell/shared';
-import { CurrencyProvider } from '../lib/currency';
+import { type MoneyFormatter } from '@owewell/shared';
+import { useMoney } from '../lib/currency';
 import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
@@ -100,11 +100,9 @@ export function SharedGroupPage(): ReactNode {
     // gate anything: the ref above makes this a once-per-mount effect whatever their identities do.
   }, [claimSeat, navigate, searchParams, setSearchParams, status, summary, user, viewerIsMember]);
 
-  // The summary carries its group's currency; before it loads there is nothing priced to get wrong.
-  const fmt = currencyFormatter(summary?.currency ?? DEFAULT_CURRENCY);
+  const fmt = useMoney();
 
   return (
-    <CurrencyProvider code={summary?.currency ?? DEFAULT_CURRENCY}>
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
@@ -311,6 +309,5 @@ export function SharedGroupPage(): ReactNode {
         )}
       </main>
     </div>
-    </CurrencyProvider>
   );
 }

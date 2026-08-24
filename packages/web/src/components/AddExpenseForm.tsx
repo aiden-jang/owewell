@@ -8,7 +8,7 @@ import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
-import { useCurrencyCode, useMoney } from '../lib/currency';
+import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
 
 interface Props {
@@ -47,7 +47,7 @@ function initialValues(editing: Expense | undefined): Record<string, string> {
 
 export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoFailed, editing, template }: Props): ReactNode {
   const fmt = useMoney();
-  const symbol = currencySymbol(useCurrencyCode());
+  const symbol = currencySymbol();
   const source = editing ?? template;
   const sourcePayer = source && members.some((member) => member.userId === source.payerId)
     ? source.payerId

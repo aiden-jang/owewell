@@ -62,8 +62,6 @@ export interface GroupSummary {
   lastActivityAt: string;
   /** Whether the viewer owns this group (only owners can delete it). */
   isOwner: boolean;
-  /** ISO 4217 code this group counts in. Per group: the dashboard can list several at once. */
-  currency: string;
 }
 
 export interface GroupDetail {
@@ -76,8 +74,6 @@ export interface GroupDetail {
   settleBy: string | null;
   /** Shared owner-set spending target for the group, in cents. Null for the groups that never set one. */
   budgetCents: number | null;
-  /** ISO 4217 code the group counts in. Amounts are integer minor units of it. */
-  currency: string;
   members: GroupMember[];
 }
 
@@ -250,7 +246,6 @@ export interface SuggestedPayment {
 export interface SharedGroupSummary {
   groupId: string;
   groupName: string;
-  currency: string;
   memberCount: number;
   totalSpentCents: number;
   perPersonCents: number;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CURRENCIES, currencyFormatter, DEFAULT_CURRENCY, type MoneyFormatter } from '@owewell/shared';
-import { CurrencyProvider } from '../lib/currency';
+import { type MoneyFormatter } from '@owewell/shared';
+import { useMoney } from '../lib/currency';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
@@ -43,9 +43,8 @@ export function DashboardPage(): ReactNode {
   // Distinguish a failed load from a genuinely empty account: null = loading, [] = empty,
   // loadError = the fetch failed (show a retry, not the cheerful "no groups" state).
   const [loadError, setLoadError] = useState(false);
+  const fmt = useMoney();
   const [name, setName] = useState('');
-  // Sticky across the session would be wrong: most people have one currency and one odd trip.
-  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
   const [creatingOpen, setCreatingOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,14 +149,6 @@ export function DashboardPage(): ReactNode {
     loadGroups();
   }, [loadGroups]);
 
-  // Archived groups drop out of the overall totals and the main list.
-  /*
-   * Totals per currency, never across them.
-   *
-   * Groups each count in their own currency, so one summed figure would be euros added to dollars
-   * presented as a number somebody might act on. Almost everybody has one currency and sees exactly
-   * what they saw before; anybody with two gets two lines rather than one wrong one.
-   */
   /*
    * The whole queue, not one group's worth.
    *
@@ -170,26 +161,16 @@ export function DashboardPage(): ReactNode {
     onQueueChanged: () => setWaiting(queued().length),
   });
 
+  // One pair of totals, over the unarchived groups. This used to bucket by each group's own
+  // currency and stack a line per bucket, because adding euros to dollars is not a number.
   const totals = useMemo(() => {
-    const byCurrency = new Map<string, { owed: number; owe: number; net: number }>();
+    let owed = 0;
+    let owe = 0;
     for (const g of (groups ?? []).filter((x) => !x.archived)) {
-      const t = byCurrency.get(g.currency) ?? { owed: 0, owe: 0, net: 0 };
-      if (g.netCents > 0) t.owed += g.netCents;
-      if (g.netCents < 0) t.owe -= g.netCents;
-      t.net = t.owed - t.owe;
-      byCurrency.set(g.currency, t);
+      if (g.netCents > 0) owed += g.netCents;
+      if (g.netCents < 0) owe -= g.netCents;
     }
-    const codes = [...byCurrency.keys()].sort();
-    const only = codes.length === 1 ? byCurrency.get(codes[0]!)! : null;
-    return {
-      byCurrency,
-      codes,
-      mixed: codes.length > 1,
-      owed: only?.owed ?? 0,
-      owe: only?.owe ?? 0,
-      net: only?.net ?? 0,
-      fmt: currencyFormatter(codes.length === 1 ? codes[0]! : DEFAULT_CURRENCY),
-    };
+    return { owed, owe, net: owed - owe };
   }, [groups]);
 
   async function savePending(): Promise<void> {
@@ -221,7 +202,7 @@ export function DashboardPage(): ReactNode {
     setCreating(true);
     setError(null);
     try {
-      const group = await groupsApi.create(name.trim(), currency);
+      const group = await groupsApi.create(name.trim());
       setGroups((prev) => [
         {
           id: group.id,
@@ -234,7 +215,6 @@ export function DashboardPage(): ReactNode {
           totalSpentCents: 0,
           lastActivityAt: group.createdAt,
           isOwner: true,
-          currency: group.currency,
         },
         ...(prev ?? []),
       ]);
@@ -246,7 +226,7 @@ export function DashboardPage(): ReactNode {
     }
   }
 
-  const settled = !totals.mixed && totals.net === 0;
+  const settled = totals.net === 0;
   const owed = totals.net > 0;
   const activeGroups = (groups ?? []).filter((g) => !g.archived);
   const archivedGroups = (groups ?? []).filter((g) => g.archived);
@@ -261,7 +241,6 @@ export function DashboardPage(): ReactNode {
 
   // `selectable` rows become tap-to-select in select mode; archived rows stay plain links.
   const groupRow = (group: GroupSummary, selectable = true): ReactNode => {
-    const fmt = currencyFormatter(group.currency);
     const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0, fmt);
     // Last activity, not creation date: it answers "is this still going on", which is the only date
     // question a dashboard row raises. A group with no expenses yet says when it was started.
@@ -387,57 +366,37 @@ export function DashboardPage(): ReactNode {
         {activeGroups.length > 0 && (
         <section className="surface rounded-3xl p-6 sm:p-7">
           <p className="text-sm font-medium text-muted">
-            {totals.mixed
-              ? 'Across all your groups'
-              : settled
-                ? 'Across all your groups'
-                : owed
-                  ? "You're owed, overall"
-                  : 'You owe, overall'}
+            {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
           </p>
           <p
             className={`mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl ${
               settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
             }`}
           >
-            {totals.mixed ? (
-              <span className="flex flex-col gap-1 text-3xl sm:text-4xl">
-                {totals.codes.map((code) => {
-                  const t = totals.byCurrency.get(code)!;
-                  const f = currencyFormatter(code);
-                  return (
-                    <span key={code} className={t.net > 0 ? 'text-pos' : t.net < 0 ? 'text-neg' : 'text-ink'}>
-                      {t.net === 0 ? `${code} square` : `${t.net > 0 ? '+' : '−'}${f(Math.abs(t.net))}`}
-                    </span>
-                  );
-                })}
-              </span>
-            ) : settled && hasAnySpend ? (
+            {settled && hasAnySpend ? (
               othersStillOwe ? (
                 "You're square"
               ) : (
                 'All settled'
               )
             ) : (
-              <CurrencyProvider code={totals.codes[0] ?? DEFAULT_CURRENCY}>
                 <MoneyText cents={Math.abs(totals.net)} />
-              </CurrencyProvider>
             )}
           </p>
-          {!totals.mixed && (totals.owed > 0 || totals.owe > 0) && (
+          {(totals.owed > 0 || totals.owe > 0) && (
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
               {totals.owed > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-pos" />
                   <span className="text-muted">owed to you</span>
-                  <span className="tnum font-medium text-pos">{totals.fmt(totals.owed)}</span>
+                  <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
                 </span>
               )}
               {totals.owe > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-neg" />
                   <span className="text-muted">you owe</span>
-                  <span className="tnum font-medium text-neg">{totals.fmt(totals.owe)}</span>
+                  <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
                 </span>
               )}
             </div>
@@ -498,18 +457,6 @@ export function DashboardPage(): ReactNode {
               />
               {/* Right here rather than buried in settings: it is a two-second choice when the group
                   is a trip, and an annoying correction once the first expense is in. */}
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                aria-label="Currency"
-                className="rounded-xl border border-line bg-field px-2.5 py-2.5 text-sm outline-none transition focus:border-accent"
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code}
-                  </option>
-                ))}
-              </select>
               <button
                 type="submit"
                 disabled={creating || !name.trim()}

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { currencyFormatter } from '@owewell/shared';
+import { formatMoney } from '@owewell/shared';
 import { activityCsv, csvCell, csvFileName } from './activityCsv';
 import type { Expense } from './expenses';
 
-const fmt = currencyFormatter('USD');
+const fmt = formatMoney;
 const nameOf = (id: string) => ({ a: 'Alice', b: 'Bob' })[id] ?? 'Someone';
 
 const expense = (over: Partial<Expense> & { id: string; description: string; amountCents: number }): Expense => ({

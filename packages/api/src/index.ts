@@ -19,7 +19,6 @@ import {
   requireMembership,
   setGroupArchived,
   setGroupBudget,
-  setGroupCurrency,
   setSettlementDeadline,
 } from './groups.js';
 import {
@@ -152,10 +151,10 @@ app.use('/owewell/*', async (c, next) => {
 
 app.post('/owewell/groups', async (c) => {
   const parsed = z
-    .object({ name: z.string().trim().min(1).max(80), currency: z.string().min(3).max(3).optional() })
+    .object({ name: z.string().trim().min(1).max(80) })
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const group = await createGroup(createDb(c.env), c.get('person').id, parsed.data.name, parsed.data.currency);
+  const group = await createGroup(createDb(c.env), c.get('person').id, parsed.data.name);
   return c.json({ group }, 201);
 });
 
@@ -199,14 +198,6 @@ app.patch('/owewell/groups/:id/budget', async (c) => {
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const group = await setGroupBudget(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.budgetCents);
-  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
-  return c.json({ group });
-});
-
-app.patch('/owewell/groups/:id/currency', async (c) => {
-  const parsed = z.object({ currency: z.string().min(3).max(3) }).safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const group = await setGroupCurrency(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.currency);
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ group });
 });
@@ -613,7 +604,7 @@ app.onError((err, c) => {
           ? 403
           : // A rejected value is not a conflict with anything, and 409 sends the client looking for a
             // race that never happened.
-            err.code === 'INVALID_BUDGET' || err.code === 'INVALID_CURRENCY'
+            err.code === 'INVALID_BUDGET'
             ? 422
             : 409;
     return c.json({ error: err.code, message: err.message }, status);

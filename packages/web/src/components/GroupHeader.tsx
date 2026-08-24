@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { CURRENCIES } from '@owewell/shared';
 import { Icon } from './Icon';
 import type { GroupSummary } from '../lib/groups';
 
@@ -17,12 +16,10 @@ export function GroupHeader({
   groupId,
   groupName,
   archived,
-  currency,
   isOwner,
   groups,
   onSwitchGroup,
   onRename,
-  onChangeCurrency,
   onToggleArchive,
   onDelete,
   onInvite,
@@ -32,13 +29,11 @@ export function GroupHeader({
   groupId: string;
   groupName: string;
   archived: boolean;
-  currency: string;
   isOwner: boolean;
   /** For the switcher. Fewer than two, or none matching groupId, and it stays hidden. */
   groups: GroupSummary[];
   onSwitchGroup: (id: string) => void;
   onRename: (name: string) => Promise<void>;
-  onChangeCurrency: (code: string) => Promise<void>;
   onToggleArchive: () => Promise<void>;
   onDelete: () => Promise<void>;
   onInvite: () => void;
@@ -200,36 +195,6 @@ export function GroupHeader({
                         >
                           <Icon name="pencil" size={15} /> Rename
                         </button>
-                      )}
-                      {isOwner && (
-                        <label
-                          /*
-                           * The only menu item you interact with rather than press.
-                           *
-                           * Everything else here fires and the menu closes behind it, which is what
-                           * the document listener above is for. Opening this select is a click too,
-                           * so without stopping it the menu vanished the instant you reached for the
-                           * currency and there was no way to change it at all.
-                           */
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex w-full items-center justify-between gap-2.5 px-4 py-2.5 text-left text-sm"
-                        >
-                          <span className="flex items-center gap-2.5">
-                            <Icon name="wallet" size={15} /> Currency
-                          </span>
-                          <select
-                            value={currency}
-                            onChange={(e) => runAndClose(() => onChangeCurrency(e.target.value))()}
-                            aria-label="Group currency"
-                            className="rounded-lg border border-line bg-field px-2 py-1 text-sm outline-none focus:border-accent"
-                          >
-                            {CURRENCIES.map((c) => (
-                              <option key={c.code} value={c.code}>
-                                {c.code}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
                       )}
                       {/* Per-member: archiving hides the group from your own list only. */}
                       <button
