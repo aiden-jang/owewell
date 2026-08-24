@@ -38,13 +38,19 @@ function preferredTheme(): ThemeName {
  */
 function applyTheme(name: ThemeName): void {
   document.documentElement.dataset.theme = name;
-  // The address-bar / status-bar colour has to follow, or a light theme gets a black notch on iOS.
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    meta.setAttribute(
-      'content',
-      getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim() || '#0b0b0d',
-    );
+  /*
+   * The address-bar / status-bar colour has to follow, or a light theme gets a black notch on iOS.
+   *
+   * All of them, and their `media` stripped. index.html ships two of these scoped to
+   * prefers-color-scheme so the bar is right before any of this runs; the moment the palette is a
+   * choice rather than a guess, the device's opinion stops being relevant and a scoped tag would
+   * keep overriding this one.
+   */
+  const color =
+    getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim() || '#0b0b0d';
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute('content', color);
+    meta.removeAttribute('media');
   }
 }
 
