@@ -93,8 +93,6 @@ export const expenses = sqliteTable(
     // the row has moved on, which is the difference between "your change won" and "your change
     // silently erased somebody else's".
     version: integer('version').notNull().default(1),
-    // R2 object name for the receipt photo, or null. See the receipt routes in index.ts.
-    receiptKey: text('receipt_key'),
     deletedAt: integer('deleted_at', { mode: 'timestamp' }), // soft delete; keeps balances auditable
   },
   (t) => ({

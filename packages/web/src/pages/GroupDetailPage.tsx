@@ -26,9 +26,8 @@ import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
-import { receiptsEnabled } from '../lib/api';
 import { useMoney } from '../lib/currency';
-import { expensesApi, receiptUrl, type Expense } from '../lib/expenses';
+import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
@@ -76,7 +75,7 @@ export function GroupDetailPage(): ReactNode {
     notFound, loadFailed,
     pendingRows, pendingDeletes, pendingEdits,
     load, refreshLedger, setGroup,
-    showSavedExpense, patchExpense, dropExpense, refreshPending,
+    showSavedExpense, dropExpense, refreshPending,
   } = useGroupLedger(id);
   const [settling, setSettling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -109,34 +108,6 @@ export function GroupDetailPage(): ReactNode {
    * Tapping a slice is a question about the feed ("what was all that lodging?"), so it answers it
    * where the answer lives instead of filtering a list on the tab you can't see.
    */
-  /*
-   * Photos on an expense that already exists.
-   *
-   * Not gated on the settle-up lock: a picture of a receipt does not move anybody's balance, so the
-   * rule that stops the ledger changing after a payment has nothing to say about it. Archived groups
-   * are read-only in the UI, which is why the sheet only gets these handlers when the group is live.
-   */
-  async function attachReceipt(expenseId: string, file: File): Promise<void> {
-    try {
-      await expensesApi.putReceipt(id, expenseId, file);
-      patchExpense(expenseId, { hasReceipt: true });
-      play('tick');
-      toast.success('Photo attached.');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save that photo.');
-    }
-  }
-
-  async function removeReceipt(expenseId: string): Promise<void> {
-    try {
-      await expensesApi.removeReceipt(id, expenseId);
-      patchExpense(expenseId, { hasReceipt: false });
-      toast.success('Photo removed.');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not remove that photo.');
-    }
-  }
-
   /** Resolves true when the payment reached the ledger, which is the panel's cue to reset the row. */
   async function markPaid(payment: SuggestedPayment, method: PaymentMethod): Promise<boolean> {
     const ok = await confirm({
@@ -627,7 +598,6 @@ export function GroupDetailPage(): ReactNode {
           refreshPending();
           toast.success(`Kept "${description}". It goes out when you have signal.`);
         }}
-        onPhotoFailed={(message) => toast.error(`Saved, but the photo didn't: ${message}`)}
       />
 
       <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Log a payment">
@@ -658,7 +628,6 @@ export function GroupDetailPage(): ReactNode {
         {detailExpense && (
           <ExpenseDetail
             expense={detailExpense}
-            {...(receiptsEnabled ? { receiptSrc: receiptUrl(id, detailExpense.id) } : {})}
             members={group.members}
             viewerId={user?.id}
             locked={settlements.length > 0}
@@ -671,15 +640,6 @@ export function GroupDetailPage(): ReactNode {
               setDetailExpenseId(null);
               setDuplicatingExpense(detailExpense);
             }}
-            {...(
-              // Withheld while receipts are off, and while the group is archived (read-only).
-              receiptsEnabled && !group.archived
-                ? {
-                    onAttachReceipt: (file: File) => void attachReceipt(detailExpense.id, file),
-                    onRemoveReceipt: () => void removeReceipt(detailExpense.id),
-                  }
-                : {}
-            )}
             onDelete={() => {
               // The sheet stays open behind the confirm and closes on its own when the expense
               // leaves the list, so a cancelled delete puts you back where you were.

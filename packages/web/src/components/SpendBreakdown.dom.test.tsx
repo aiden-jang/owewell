@@ -15,8 +15,7 @@ import { SpendBreakdown } from './SpendBreakdown';
 
 const expense = (id: string, amountCents: number, category: string): Expense => ({
   id, description: id, amountCents, payerId: 'a', splitMethod: 'EQUAL', category: category as never,
-  createdAt: '2026-08-10T12:00:00.000Z', date: '2026-08-10T12:00:00.000Z', note: null,
-  hasReceipt: false, version: 1, splits: [{ userId: 'a', owedCents: amountCents }],
+  createdAt: '2026-08-10T12:00:00.000Z', date: '2026-08-10T12:00:00.000Z', note: null, version: 1, splits: [{ userId: 'a', owedCents: amountCents }],
 });
 
 const EXPENSES = [

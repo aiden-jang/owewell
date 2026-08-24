@@ -51,10 +51,10 @@ vi.mock('./outbox', async (importOriginal) => ({
   queued: () => outbox,
 }));
 
-const expense = (id: string, description: string, hasReceipt = false): Expense => ({
+const expense = (id: string, description: string): Expense => ({
   id, description, amountCents: 1_000, payerId: 'a', splitMethod: 'EQUAL', category: 'food',
   createdAt: '2026-08-10T12:00:00.000Z', date: '2026-08-10T12:00:00.000Z', note: null,
-  hasReceipt, version: 1, splits: [{ userId: 'a', owedCents: 1_000 }],
+  version: 1, splits: [{ userId: 'a', owedCents: 1_000 }],
 });
 
 const GROUP = { id: 'g1', name: 'Tahoe', members: [], archived: false } as never;
@@ -214,14 +214,6 @@ describe('showing a change before the server confirms it', () => {
 
     act(() => result.current.showSavedExpense(expense('e1', 'Dinner at Nopa')));
     expect(result.current.expenses.map((e) => e.description)).toEqual(['Dinner at Nopa', 'Cab home']);
-  });
-
-  it('patches one field on one row', async () => {
-    const { result } = await open();
-    await waitFor(() => expect(result.current.expenses).toHaveLength(1));
-
-    act(() => result.current.patchExpense('e1', { hasReceipt: true }));
-    expect(result.current.expenses[0]).toMatchObject({ id: 'e1', description: 'Dinner', hasReceipt: true });
   });
 
   it('drops a row on the same tick as the toast', async () => {

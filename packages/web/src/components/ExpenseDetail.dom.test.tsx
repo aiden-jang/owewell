@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_RECEIPT_BYTES, type Expense, type GroupMember } from '@owewell/core';
+import { type Expense, type GroupMember } from '@owewell/core';
 import { ExpenseDetail } from './ExpenseDetail';
 
 /**
@@ -37,7 +37,6 @@ const expense = (over: Partial<Expense> = {}): Expense => ({
   createdAt: '2026-08-11T18:00:00.000Z',
   date: '2026-08-11T18:00:00.000Z',
   note: null,
-  hasReceipt: false,
   version: 1,
   splits: [
     { userId: 'u1', owedCents: 3_000 },
@@ -161,89 +160,6 @@ describe('what the sheet says', () => {
     expect(receipt.getByText(/Pasta/)).toHaveTextContent('shared');
     expect(screen.getByText('Tip')).toBeInTheDocument();
     expect(screen.getByText('$10.00')).toBeInTheDocument();
-  });
-});
-
-/*
- * The photo, which is the one thing here that is not part of the ledger.
- *
- * That distinction drives the rules: it can be attached and removed after a payment has been
- * recorded, because a picture of a receipt does not move anybody's balance, and it disappears
- * entirely in an archived group, which is read-only.
- */
-describe('the receipt photo', () => {
-  const withPhoto = { ...props, receiptSrc: '/owewell/groups/g1/expenses/e1/receipt' };
-
-  it('offers to attach one when there is none', async () => {
-    const onAttachReceipt = vi.fn();
-    render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
-    expect(screen.getByRole('button', { name: /Add a photo/ })).toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
-  });
-
-  /** A File of a given size without allocating it: jsdom reports whatever `size` says. */
-  function fakeFile(name: string, type: string, size: number): File {
-    const f = new File(['x'], name, { type });
-    Object.defineProperty(f, 'size', { value: size });
-    return f;
-  }
-
-  /*
-   * This upload starts the moment you choose, so a file the server will refuse costs a real wait.
-   * The server is still the authority; checking here only means finding out before the upload.
-   */
-  it('refuses a photo past the size limit without uploading it', async () => {
-    const onAttachReceipt = vi.fn();
-    const user = userEvent.setup();
-    render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
-
-    await user.upload(screen.getByLabelText('Receipt photo'), fakeFile('huge.jpg', 'image/jpeg', MAX_RECEIPT_BYTES + 1));
-    expect(onAttachReceipt).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent('8MB');
-  });
-
-  it('uploads one that fits', async () => {
-    const onAttachReceipt = vi.fn();
-    const user = userEvent.setup();
-    render(<ExpenseDetail {...withPhoto} onAttachReceipt={onAttachReceipt} expense={expense()} />);
-
-    const ok = fakeFile('receipt.jpg', 'image/jpeg', 1024);
-    await user.upload(screen.getByLabelText('Receipt photo'), ok);
-    expect(onAttachReceipt).toHaveBeenCalledWith(ok);
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('shows the photo, and offers to replace or remove it', () => {
-    render(
-      <ExpenseDetail
-        {...withPhoto}
-        onAttachReceipt={vi.fn()}
-        onRemoveReceipt={vi.fn()}
-        expense={expense({ hasReceipt: true })}
-      />,
-    );
-    const img = screen.getByRole('img', { name: 'Receipt for Dinner' });
-    expect(img).toHaveAttribute('src', withPhoto.receiptSrc);
-    // Lazy: a receipt is a phone photo, and the sheet mounts for whichever row you opened.
-    expect(img).toHaveAttribute('loading', 'lazy');
-    expect(screen.getByRole('button', { name: 'Remove photo' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Replace' })).toBeInTheDocument();
-  });
-
-  it('still lets you attach one on a locked ledger', () => {
-    render(
-      <ExpenseDetail {...withPhoto} locked onAttachReceipt={vi.fn()} expense={expense()} />,
-    );
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Add a photo/ })).toBeInTheDocument();
-  });
-
-  it('offers nothing when the caller withholds the handlers', () => {
-    // How an archived group renders: read-only, so no file input at all.
-    render(<ExpenseDetail {...withPhoto} expense={expense({ hasReceipt: true })} />);
-    expect(screen.getByRole('img', { name: 'Receipt for Dinner' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Receipt photo')).not.toBeInTheDocument();
   });
 });
 

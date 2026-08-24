@@ -37,7 +37,6 @@ export function AddExpenseSheet({
   members,
   onCreated,
   onQueued,
-  onPhotoFailed,
 }: {
   open: boolean;
   onClose: () => void;
@@ -46,8 +45,6 @@ export function AddExpenseSheet({
   onCreated: (saved: Expense, mode: ExpenseMode) => void;
   /** It could not be sent, so it is in the outbox under this description. */
   onQueued: (description: string) => void;
-  /** The expense saved but its photo did not, which is worth saying on its own. */
-  onPhotoFailed: (message: string) => void;
 }): ReactNode {
   const [mode, setMode] = useState<ExpenseMode>('simple');
 
@@ -59,7 +56,6 @@ export function AddExpenseSheet({
     members,
     onCreated: (saved: Expense) => onCreated(saved, mode),
     onQueued,
-    onPhotoFailed,
   };
 
   return (

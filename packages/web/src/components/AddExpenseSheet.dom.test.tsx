@@ -52,7 +52,6 @@ async function open(over: Record<string, unknown> = {}) {
       members={[member('a'), member('b')]}
       onCreated={onCreated}
       onQueued={onQueued}
-      onPhotoFailed={vi.fn()}
       {...over}
       {...props}
     />

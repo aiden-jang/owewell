@@ -10,11 +10,4 @@ export interface Env {
   // The built web SPA (apps/owewell/web/dist), served from this same Worker so the UI and
   // the /owewell/* API share one origin.
   ASSETS: Fetcher;
-  // Receipt photos, keyed "<groupId>/<expenseId>" so the key is derivable from the expense and
-  // nothing is ever stored for a form somebody abandoned. Optional because the binding is currently
-  // commented out in wrangler.toml — see the note there. Everything that touches it must cope with
-  // it being absent rather than assume a deploy without R2 is impossible.
-  RECEIPTS?: R2Bucket;
-  // Receipt OCR via Claude vision. Unset = zero-cost mock extractor.
-  ANTHROPIC_API_KEY?: string;
 }

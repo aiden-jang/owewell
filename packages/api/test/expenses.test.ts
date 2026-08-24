@@ -864,10 +864,4 @@ describe('an edit that names the version it was based on', () => {
     await dinnerAt(5_000, 1);
     expect((await dinnerAt(9_000)).amountCents).toBe(9_000);
   });
-
-  test('an edit does not disturb the receipt photo', async () => {
-    // The update path used to return hasReceipt: false regardless, which blanked the photo in the
-    // sheet until the next refetch.
-    expect((await dinnerAt(5_000, 1)).hasReceipt).toBe(false);
-  });
 });
