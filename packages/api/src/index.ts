@@ -8,7 +8,6 @@ import { createDb } from './db/client.js';
 import { getOrCreatePerson, type Person } from './people.js';
 import {
   GroupError,
-  addPlaceholderMember,
   claimPlaceholder,
   createGroup,
   deleteGroup,
@@ -16,16 +15,19 @@ import {
   getOrCreateShareToken,
   getSharedSummary,
   listGroups,
-  removeMember,
   renameGroup,
+  requireMembership,
+  setGroupArchived,
   setGroupBudget,
   setGroupCurrency,
   setSettlementDeadline,
-  renameMember,
-  requireMembership,
-  setGroupArchived,
-  setPaymentHandles,
 } from './groups.js';
+import {
+  addPlaceholderMember,
+  removeMember,
+  renameMember,
+  setPaymentHandles,
+} from './members.js';
 import {
   ExpenseError,
   createExpense,

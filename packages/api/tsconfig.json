@@ -2,8 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["@cloudflare/workers-types"],
+    // vitest-pool-workers supplies the `cloudflare:test` module declaration the tests import.
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"],
     "lib": ["ES2022"]
   },
-  "include": ["src"]
+  // `test` is not optional here. It was left out once, and a rename that broke every test import
+  // still passed `pnpm typecheck` — the failure only showed up as 62 red tests.
+  "include": ["src", "test", "drizzle.config.ts", "vitest.config.ts"]
 }
