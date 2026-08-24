@@ -12,6 +12,7 @@ import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
+import { stillQueued, useOutboxSync } from '../lib/useOutboxSync';
 import { timeAgo } from '../lib/relativeTime.js';
 
 function perGroupLabel(
@@ -37,6 +38,7 @@ export function DashboardPage(): ReactNode {
   const confirm = useConfirm();
   const toast = useToast();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
+  const [waiting, setWaiting] = useState(() => stillQueued().length);
   // Distinguish a failed load from a genuinely empty account: null = loading, [] = empty,
   // loadError = the fetch failed (show a retry, not the cheerful "no groups" state).
   const [loadError, setLoadError] = useState(false);
@@ -155,6 +157,18 @@ export function DashboardPage(): ReactNode {
    * presented as a number somebody might act on. Almost everybody has one currency and sees exactly
    * what they saw before; anybody with two gets two lines rather than one wrong one.
    */
+  /*
+   * The whole queue, not one group's worth.
+   *
+   * This is the screen you land on, and the group page can only drain its own group. Without this,
+   * an expense added to one tab on a train would sit in localStorage for as long as you kept opening
+   * a different tab, while the totals above quietly left it out.
+   */
+  useOutboxSync({
+    onChanged: () => loadGroups(),
+    onQueueChanged: () => setWaiting(stillQueued().length),
+  });
+
   const totals = useMemo(() => {
     const byCurrency = new Map<string, { owed: number; owe: number; net: number }>();
     for (const g of (groups ?? []).filter((x) => !x.archived)) {
@@ -346,6 +360,15 @@ export function DashboardPage(): ReactNode {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Said here because the totals below do not include it: a queued write is not in anybody's
+            balance until it lands. */}
+        {waiting > 0 && (
+          <p className="mb-4 flex items-center justify-center gap-2 rounded-full border border-dashed border-line-strong py-2 text-sm text-muted">
+            <Icon name="share" size={14} />
+            {waiting === 1 ? 'One change is waiting for signal' : `${waiting} changes are waiting for signal`}
+          </p>
         )}
 
         {/* Nothing to total before there is a group: an account on its first day was being shown a
