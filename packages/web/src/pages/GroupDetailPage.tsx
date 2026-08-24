@@ -236,9 +236,11 @@ export function GroupDetailPage(): ReactNode {
    * Tapping a slice is a question about the feed ("what was all that lodging?"), so it answers it
    * where the answer lives instead of filtering a list on the tab you can't see.
    */
-  function filterByCategory(key: string): void {
+  function filterByCategory(key: string | null): void {
     setCategoryFilter(key);
-    setTab('activity');
+    // Picking a category is a request to go and look at it. Clearing one is not, so it leaves you
+    // on the chart you cleared it from.
+    if (key) setTab('activity');
   }
 
   /*

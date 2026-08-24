@@ -195,6 +195,24 @@ describe('where it went', () => {
     expect(onSelectCategory).toHaveBeenCalledWith('food');
   });
 
+  /*
+   * The button says "Clear filter Food" once Food is the active one, so it has to clear it. It used
+   * to re-apply the same filter instead, which is invisible if you can see the highlight and a
+   * plain lie if you are being read the label.
+   */
+  it('clears the filter when the active category is picked again', async () => {
+    const user = await open({ categoryFilter: 'food' });
+    await user.click(screen.getByRole('button', { name: 'Clear filter Food & Drink' }));
+    expect(onSelectCategory).toHaveBeenCalledWith(null);
+  });
+
+  it('clears from the donut too', async () => {
+    const user = await open({ categoryFilter: 'food' });
+    await user.click(screen.getByRole('button', { name: 'donut' }));
+    await user.click(screen.getByRole('button', { name: 'Clear filter Food & Drink' }));
+    expect(onSelectCategory).toHaveBeenCalledWith(null);
+  });
+
   it('marks the slice that is already driving the feed', async () => {
     await open({ categoryFilter: 'food' });
     expect(screen.getByRole('button', { name: /Food/ })).toHaveAttribute('aria-pressed', 'true');
