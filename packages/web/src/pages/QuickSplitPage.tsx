@@ -183,7 +183,7 @@ function PublicHeader(): ReactNode {
   const { login, signup } = useAuth();
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
+      <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
         <Link to="/split" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
           <BrandMark /> owewell
         </Link>
@@ -579,7 +579,7 @@ export function QuickSplitPage(): ReactNode {
   return (
     <div className="flex-1">
       {user ? <AppHeader /> : <PublicHeader />}
-      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-xl animate-rise px-4 py-10">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl animate-rise px-4 py-10">
         {user ? (
           <>
             <h1 className="font-display text-4xl font-semibold tracking-tight">Split a bill</h1>
