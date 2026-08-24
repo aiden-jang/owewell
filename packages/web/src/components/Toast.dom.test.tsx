@@ -1,0 +1,52 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { ToastProvider, useToast } from './Toast';
+
+/**
+ * The toast, and the one thing about it that broke silently.
+ *
+ * It carried `glass` for a while after `glass` was deleted from index.css in favour of `surface`.
+ * Nothing failed: TypeScript does not read CSS, eslint does not read CSS, and an undefined class is
+ * legal HTML. The toast just rendered as bare text with a transparent background, which nobody
+ * noticed until one fired on top of a sheet and looked like a rendering fault.
+ *
+ * So the pairing is asserted from both ends: the element wears the class, and the stylesheet defines
+ * it. Either half alone would have passed while the bug was live.
+ */
+
+const CSS = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+
+function Fire(): null {
+  const toast = useToast();
+  toast.success('Removed them from the group.');
+  return null;
+}
+
+describe('the toast pill', () => {
+  it('wears the class, and the stylesheet defines it', () => {
+    render(
+      <ToastProvider>
+        <Fire />
+      </ToastProvider>,
+    );
+    const pill = screen.getByText('Removed them from the group.').closest('[class]')!;
+    // Named, not "some class that happens to be defined": the broken version carried four Tailwind
+    // utilities and one dead name, and a looser check passes on the strength of the utilities.
+    expect(pill.className.split(/\s+/)).toContain('toast');
+    expect(CSS).toMatch(/^\.toast\s*\{/m);
+  });
+
+  /*
+   * A toast is the only surface that lands on top of another surface, so it cannot be the card
+   * colour: fired from inside a sheet it would be #121215 on #121215 behind a hairline. This is why
+   * it has its own role rather than reusing `.surface`.
+   */
+  it('is a different surface from the cards it covers', () => {
+    const rule = /\.toast\s*\{([^}]*)\}/.exec(CSS);
+    expect(rule, '.toast is not defined in index.css').not.toBeNull();
+    expect(rule![1]).toContain('--color-surface2');
+    expect(rule![1]).toContain('--float');
+  });
+});
