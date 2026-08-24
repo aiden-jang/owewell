@@ -262,7 +262,17 @@ export function SettleUpPanel({
                     setPaymentNudge((current) => (current === key ? null : key));
                     resetNudgeShare();
                   }}
-                  className="px-1.5 py-1.5 text-xs font-medium text-muted underline-offset-2 transition hover:text-ink hover:underline"
+                  /*
+                   * A chip, like the pay links beside it, but a quieter one.
+                   *
+                   * This was a bare underlined text button, which read fine back when the actions
+                   * sat right-aligned in a header-ish row. Once they became a left-aligned chip row
+                   * it was the only square, borderless, transparent thing in a line of pills — 28px
+                   * and radius 0 against their 30px and fully round. Same geometry now so the row
+                   * is one set; the hairline border and muted text keep it below the pay links,
+                   * which are the ones that actually move money.
+                   */
+                  className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink active:scale-[0.98]"
                 >
                   {paymentNudge === key ? 'Close nudge' : 'Nudge'}
                 </button>
