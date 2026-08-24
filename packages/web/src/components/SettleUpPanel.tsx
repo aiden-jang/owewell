@@ -152,21 +152,6 @@ export function SettleUpPanel({
             <Icon name="share" size={13} />
             {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
           </button>
-          <label className="flex items-center gap-1.5 text-xs text-muted">
-            paid via
-            <select
-              value={settleMethod}
-              onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
-              aria-label="Payment method"
-              className="rounded-lg border border-line bg-field px-2 py-1 text-xs outline-none focus:border-accent"
-            >
-              {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {PAYMENT_METHOD_LABELS[m]}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-muted">
@@ -178,6 +163,30 @@ export function SettleUpPanel({
         </span>
         <span className="tnum font-semibold text-ink">{fmt(settlePlanTotal)} remaining</span>
       </div>
+      {/*
+        * Directly above the buttons it governs, not up in the header beside "Share plan".
+        *
+        * It sets the method every Mark paid in the list records, but sitting in the share row it
+        * read as an option for the share — and it was the one form control in a header of text
+        * links, which is its own kind of wrong. It stays one control rather than one per row: the
+        * answer is the same for every transfer in a plan, and eight identical selects would be
+        * eight chances to record the wrong one.
+        */}
+      <label className="mt-2 flex items-center justify-end gap-1.5 text-xs text-muted">
+        mark paid via
+        <select
+          value={settleMethod}
+          onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
+          aria-label="Payment method"
+          className="rounded-lg border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+        >
+          {PAYMENT_METHODS.map((m) => (
+            <option key={m} value={m}>
+              {PAYMENT_METHOD_LABELS[m]}
+            </option>
+          ))}
+        </select>
+      </label>
       <ul className="mt-3 space-y-2">
         {orderedSuggestions.map((payment) => {
           const key = `${payment.fromUserId}-${payment.toUserId}`;
