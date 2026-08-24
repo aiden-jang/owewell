@@ -56,7 +56,7 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
         * Anything that needs a different distance from its neighbour is saying it belongs to that
         * neighbour, and should be nested inside it rather than adjusting the gap.
         */}
-      <main className="mx-auto flex w-full max-w-2xl animate-rise flex-col gap-5 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
+      <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-2xl animate-rise flex-col gap-5 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
         {children}
       </main>
     </div>

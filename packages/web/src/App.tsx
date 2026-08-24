@@ -9,6 +9,7 @@ import { SharedGroupPage } from './pages/SharedGroupPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { BrandMark } from './components/BrandMark';
 import { SiteFooter } from './components/SiteFooter';
+import { SkipLink } from './components/SkipLink';
 
 export function App(): ReactNode {
   const { loading } = useAuth();
@@ -28,6 +29,8 @@ export function App(): ReactNode {
   // only redirects out to them (see AuthContext).
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Before the routes, so it is before every page's sticky header in the tab order. */}
+      <SkipLink />
       <div className="flex flex-1 flex-col">
         <Routes>
           <Route path="/s/:token" element={<SharedGroupPage />} />

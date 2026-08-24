@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export function NotFoundPage(): ReactNode {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
+    <main id="main" tabIndex={-1} className="flex flex-1 flex-col items-center justify-center px-4 text-center">
       <p className="text-5xl" aria-hidden>
         🧾
       </p>
@@ -15,6 +15,6 @@ export function NotFoundPage(): ReactNode {
       >
         Take me home
       </Link>
-    </div>
+    </main>
   );
 }
