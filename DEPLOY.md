@@ -23,7 +23,13 @@ pnpm exec wrangler d1 create owewell
 # 2. Apply migrations to the remote D1.
 pnpm exec wrangler d1 migrations apply owewell --remote
 
-# 3. Custom-domain two-step: a Worker needs a deployment before a custom domain attaches.
+# 3. Create the R2 bucket for receipt photos. CI does NOT do this: `pnpm run deploy` applies D1
+#    migrations, but nothing creates a bucket, and `wrangler deploy` fails on an [[r2_buckets]]
+#    binding whose bucket does not exist. The CI token (Workers Scripts:Edit + D1:Edit) could not
+#    create one anyway.
+pnpm exec wrangler r2 bucket create owewell-receipts
+
+# 4. Custom-domain two-step: a Worker needs a deployment before a custom domain attaches.
 #    - Comment out the [[routes]] custom_domain block in wrangler.toml.
 pnpm run deploy            # builds owewell-web, applies migrations, then wrangler deploy
 #    - Uncomment the [[routes]] block.
@@ -66,6 +72,8 @@ leave the flag off and the button stays hidden. Uses the cheapest vision model
 
 ## Gotchas (from the auth deploy; expect the same here)
 
+- **`The specified bucket does not exist`** on deploy → step 3 above was skipped. Buckets are not
+  created by the deploy; only D1 migrations are.
 - **`Cannot attach custom domain: Worker has no deployments`** → the two-step in first deploy:
   deploy once with `[[routes]]` commented, then uncomment and deploy again.
 - **Changing `database_id` orphans the local D1** (miniflare keys local storage by id). After

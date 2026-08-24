@@ -8,5 +8,8 @@ build/
 .DS_Store
 coverage/
 .vite/
+# Vite transpiles the config to one of these when it needs to; it normally deletes it again,
+# but a crash leaves it behind and one got committed once.
+vite.config.ts.timestamp-*
 .wrangler/
 packages/worker/.wrangler/
