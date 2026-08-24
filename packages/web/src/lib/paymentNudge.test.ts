@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { paymentNudgeText } from './paymentNudge';
-import { currencyFormatter } from '@owewell/shared';
+import { formatMoney } from '@owewell/shared';
 
-/** Every assertion here is about the sentence, not the currency, so the formatter is a fixture. */
-const usd = currencyFormatter('USD');
+const usd = formatMoney;
 
 const details = {
   fromName: 'Alex',

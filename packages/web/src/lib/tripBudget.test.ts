@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { todayStr } from './format';
 import { budgetDetail, budgetLine, budgetTone, tripBudget } from './tripBudget';
-import { currencyFormatter } from '@owewell/shared';
+import { formatMoney } from '@owewell/shared';
 
-/** Every assertion here is about the sentence, not the currency, so the formatter is a fixture. */
-const usd = currencyFormatter('USD');
+const usd = formatMoney;
 
 /* Half arithmetic, half tone. A budget bar that scolds is the easiest way to make this app feel
  * transactional, so the copy is asserted against its rules rather than exact strings. */

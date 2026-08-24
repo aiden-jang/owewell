@@ -23,7 +23,7 @@ import {
  * Who is in a group, and what happens to the ledger when that changes.
  *
  * Split out of groups.ts, which had grown to cover two jobs. The group functions next door are about
- * the group as a thing — its name, currency, deadline, share link — and none of them touch the
+ * the group as a thing — its name, deadline, share link — and none of them touch the
  * ledger. Everything here does: adding or removing somebody re-splits the expenses they were part
  * of, and getting that wrong moves money that people have already agreed on.
  *

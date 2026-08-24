@@ -35,9 +35,6 @@ export const groups = sqliteTable('groups', {
   // Optional owner-set spending target for the whole group, in cents. Null means the group never set
   // one, which is most groups: a budget is a trip thing, not a flatshare thing.
   budgetCents: integer('budget_cents'),
-  // ISO 4217 code the group counts in. Amounts stay integer minor units either way; this only decides
-  // how they read. Validated in the app layer against @owewell/shared CURRENCIES.
-  currency: text('currency').notNull().default('USD'),
 });
 
 export const groupMembers = sqliteTable(

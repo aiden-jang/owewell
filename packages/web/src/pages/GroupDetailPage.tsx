@@ -1,9 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  currencyFormatter,
-  DEFAULT_CURRENCY,
-} from '@owewell/shared';
 import {
   PAYMENT_METHOD_LABELS,
   type PaymentMethod,
@@ -33,11 +29,11 @@ import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
 import { receiptsEnabled } from '../lib/api';
+import { useMoney } from '../lib/currency';
 import { expensesApi, receiptUrl, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { play } from '../lib/sound';
 import { ExpenseDetail } from '../components/ExpenseDetail';
-import { CurrencyProvider } from '../lib/currency';
 import {
   drop as dropWrite,
   enqueue as enqueueWrite,
@@ -282,23 +278,6 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-  /*
-   * Relabel, not convert.
-   *
-   * Stored amounts are integer minor units and stay exactly as they are, so a $40 dinner reads as
-   * €40 afterwards. Converting would need a rate and a date for that rate, and would quietly rewrite
-   * numbers people already agreed on. The toast says so rather than leaving it to be discovered.
-   */
-  async function changeCurrency(currency: string): Promise<void> {
-    if (!group || currency === group.currency) return;
-    try {
-      const updated = await groupsApi.setCurrency(id, currency);
-      setGroup(updated);
-      toast.success(`Now counting in ${currency}. Amounts were relabelled, not converted.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not change the currency.');
-    }
-  }
 
   async function toggleArchive(): Promise<void> {
     if (!group) return;
@@ -410,7 +389,7 @@ export function GroupDetailPage(): ReactNode {
    * the search memo below formats amounts to match them against the query. A `const` further down the
    * function body is in its temporal dead zone when that callback runs, so searching would have thrown.
    */
-  const fmt = useMemo(() => currencyFormatter(group?.currency ?? DEFAULT_CURRENCY), [group?.currency]);
+  const fmt = useMoney();
 
   const invite = useInviteLink(group);
 
@@ -508,18 +487,15 @@ export function GroupDetailPage(): ReactNode {
   }
 
   return (
-    <CurrencyProvider code={group.currency}>
     <Shell>
       <GroupHeader
         groupId={id}
         groupName={group.name}
         archived={group.archived}
-        currency={group.currency}
         isOwner={isOwner}
         groups={allGroups}
         onSwitchGroup={(next) => navigate(`/groups/${next}`)}
         onRename={renameGroup}
-        onChangeCurrency={changeCurrency}
         onToggleArchive={toggleArchive}
         onDelete={deleteGroup}
         onInvite={() => void invite.reveal()}
@@ -823,6 +799,5 @@ export function GroupDetailPage(): ReactNode {
         )}
       </Sheet>
     </Shell>
-    </CurrencyProvider>
   );
 }
