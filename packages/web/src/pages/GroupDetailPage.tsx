@@ -38,6 +38,7 @@ import {
   isOffline,
 } from '../lib/outbox';
 import { useGroupLedger } from '../lib/useGroupLedger';
+import { useInviteLink } from '../lib/useInviteLink';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { buildGroupRecap } from '../lib/groupRecap';
@@ -98,8 +99,6 @@ export function GroupDetailPage(): ReactNode {
       { replace: true },
     );
   };
-  const [shareLink, setShareLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
   // Held by id, not by value: an edit or a realtime refetch replaces the object in `expenses`, and the
@@ -425,40 +424,7 @@ export function GroupDetailPage(): ReactNode {
    */
   const fmt = useMemo(() => currencyFormatter(group?.currency ?? DEFAULT_CURRENCY), [group?.currency]);
 
-  /**
-   * The invite link is a one-time action on a permanent surface, so it does not belong pinned to the
-   * top forever: the balance does. But it is the obvious next step while a group has nobody in it yet,
-   * or while people added by name still have not claimed their spot.
-   *
-   * So: promoted above the balances exactly while it is the answer, and back to the header button
-   * afterwards. Same component either way.
-   *
-   * This has to live ABOVE the early returns below. It used to sit further down, next to the markup it
-   * feeds, which meant the first render (group still null) bailed out before reaching this hook and the
-   * render after it ran one hook more. That is React error #310, "rendered more hooks than during the
-   * previous render", and it took out every group page the instant its data arrived. The `group?.` and
-   * `!!group` guards here are what let it move up safely, and they were always the tell that this block
-   * had been written as if it ran before the group existed.
-   */
-  const unclaimed = (group?.members ?? []).filter((m) => m.isPlaceholder).length;
-  const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
-
-  // Fetch the token on its own when the group needs people, so the promoted block has something to
-  // show without waiting for a tap. Deliberately gated on needsPeople: createShareLink is a write (it
-  // mints the token if absent), and minting one for every group anyone ever opens would be wrong.
-  useEffect(() => {
-    if (!needsPeople || shareLink || !group) return;
-    let alive = true;
-    void groupsApi
-      .createShareLink(group.id)
-      .then((token) => {
-        if (alive) setShareLink(`${window.location.origin}/s/${token}`);
-      })
-      .catch(() => undefined); // the header Invite button still works
-    return () => {
-      alive = false;
-    };
-  }, [needsPeople, shareLink, group]);
+  const invite = useInviteLink(group);
 
   if (loadFailed) {
     return (
@@ -531,32 +497,6 @@ export function GroupDetailPage(): ReactNode {
     : null;
 
 
-  /** Mint the invite link, reveal it below, and offer the share sheet where there is one. */
-  async function createAndRevealInvite(): Promise<void> {
-    if (!group) return;
-    let url: string;
-    try {
-      const token = await groupsApi.createShareLink(group.id);
-      url = `${window.location.origin}/s/${token}`;
-    } catch {
-      toast.error('Could not create a share link.');
-      return;
-    }
-    // Always reveal the link on screen so it's visible no matter what the browser supports.
-    setShareLink(url);
-    // On phones, offer the native share sheet (a dismissed sheet is not an error). Desktop just
-    // uses the visible link + Copy button below. Pass only title + url, never a text body: this is
-    // an invite, so the sheet's "Copy" must copy the link itself — a text body makes iOS copy that
-    // instead of the link.
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Join "${group.name}" on owewell`, url });
-      } catch {
-        /* dismissed — the link stays visible below */
-      }
-    }
-  }
-
   function exportActivity(): void {
     if (!group) return;
     const href = URL.createObjectURL(
@@ -571,17 +511,6 @@ export function GroupDetailPage(): ReactNode {
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(href), 0);
     toast.success('Activity exported as a CSV.');
-  }
-
-  async function copyShareLink(): Promise<void> {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      toast.error('Copy failed. Select the link and copy it manually.');
-    }
   }
 
   return (
@@ -599,7 +528,7 @@ export function GroupDetailPage(): ReactNode {
         onChangeCurrency={changeCurrency}
         onToggleArchive={toggleArchive}
         onDelete={deleteGroup}
-        onInvite={() => void createAndRevealInvite()}
+        onInvite={() => void invite.reveal()}
         onExport={exportActivity}
       />
 
@@ -644,29 +573,29 @@ export function GroupDetailPage(): ReactNode {
           <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
         )}
 
-        {/* Promoted while the group still needs people: this is the obvious next thing to do, so it should
-            not require finding the Invite button first. */}
-        {needsPeople && shareLink && (
+        {/*
+          * One block, two readings. While the group still needs people this is the obvious next
+          * thing to do and says so; once they are in, it is just the link, kept around because
+          * somebody always needs it again.
+          */}
+        {invite.link && (
           <InviteLink
-            link={shareLink}
-            copied={copied}
-            onCopy={() => void copyShareLink()}
-            headline={
-              unclaimed > 0
-                ? `Send this to ${unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
-                : "Send this to the people you're splitting with"
-            }
-            hint={
-              unclaimed > 0
-                ? `${unclaimed === 1 ? 'One person is' : `${unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
-                : "It's just you in here so far. Anyone with the link can see the group and claim their spot."
-            }
+            link={invite.link}
+            copied={invite.copied}
+            onCopy={() => void invite.copy()}
+            {...(invite.needsPeople
+              ? {
+                  headline:
+                    invite.unclaimed > 0
+                      ? `Send this to ${invite.unclaimed === 1 ? 'them' : 'them all'} so they can claim their spot`
+                      : "Send this to the people you're splitting with",
+                  hint:
+                    invite.unclaimed > 0
+                      ? `${invite.unclaimed === 1 ? 'One person is' : `${invite.unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
+                      : "It's just you in here so far. Anyone with the link can see the group and claim their spot.",
+                }
+              : {})}
           />
-        )}
-
-        {/* And tucked back down here once they are in. */}
-        {shareLink && !needsPeople && (
-          <InviteLink link={shareLink} copied={copied} onCopy={() => void copyShareLink()} />
         )}
 
         {suggested.length > 0 && (
