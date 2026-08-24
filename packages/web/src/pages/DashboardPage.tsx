@@ -580,7 +580,7 @@ export function DashboardPage(): ReactNode {
                 onClick={() => void onBulkDelete()}
                 disabled={!allOwned || bulkBusy}
                 title={allOwned ? undefined : 'You can only delete groups you own'}
-                className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-full bg-neg-solid px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Icon name="trash" size={15} /> Delete
               </button>
