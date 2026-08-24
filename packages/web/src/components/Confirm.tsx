@@ -6,7 +6,9 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type Ref,
 } from 'react';
+import { useDialogFocus } from '../lib/useDialogFocus';
 
 interface ConfirmOptions {
   title: string;
@@ -44,11 +46,26 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
     [],
   );
 
-  // Let Escape cancel and Enter confirm while the dialog is open.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  /*
+   * The same trap, restore and scroll lock the sheet has.
+   *
+   * This was Escape plus a focused button and nothing else: Tab walked out into the page behind, on
+   * the dialog that guards Delete group and Turn off link. Closing it also dropped focus at the top
+   * of the document rather than back where you were.
+   *
+   * Opens on the confirm button rather than the dialog, unlike a sheet — a confirm has two buttons
+   * and one obvious answer, and the point of it is that the answer is one keypress away.
+   */
+  const cancel = useCallback(() => settle(false), [settle]);
+  useDialogFocus(dialogRef, pending !== null, cancel, () => confirmRef.current);
+
+  // Enter confirms. Escape is handled by the hook above, along with everything else it owns.
   useEffect(() => {
     if (!pending) return;
     function onKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') settle(false);
       if (event.key === 'Enter') settle(true);
     }
     window.addEventListener('keydown', onKey);
@@ -61,12 +78,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
       {pending && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label={pending.title}
+          role="presentation"
           onClick={() => settle(false)}
         >
+          {/* The dialog is the panel, not the backdrop: a trap that includes the backdrop would
+              have nothing to trap against, and aria-modal belongs on the thing being modal. */}
           <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={pending.title}
+            tabIndex={-1}
             className="surface w-full max-w-sm animate-rise rounded-3xl p-6 shadow-xl shadow-black/40"
             onClick={(e) => e.stopPropagation()}
           >
@@ -80,7 +102,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
               >
                 {pending.cancelLabel ?? 'Cancel'}
               </button>
-              <ConfirmButton tone={pending.tone} onClick={() => settle(true)}>
+              <ConfirmButton buttonRef={confirmRef} tone={pending.tone} onClick={() => settle(true)}>
                 {pending.confirmLabel ?? 'Confirm'}
               </ConfirmButton>
             </div>
@@ -95,23 +117,22 @@ function ConfirmButton({
   tone,
   onClick,
   children,
+  buttonRef,
 }: {
   tone: 'danger' | 'default' | undefined;
   onClick: () => void;
   children: ReactNode;
+  /** Handed up so the dialog can open with the answer under the cursor. Not named `ref`: on a
+   *  React 18 function component that is a reserved prop and arrives as undefined. */
+  buttonRef: Ref<HTMLButtonElement>;
 }): ReactNode {
-  const ref = useRef<HTMLButtonElement>(null);
-  // Focus the confirm button when the dialog opens.
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
   const base = 'rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition active:scale-[0.98]';
   const color =
     tone === 'danger'
       ? 'bg-rose-500 text-white hover:bg-rose-600'
       : 'btn-gradient hover:opacity-90';
   return (
-    <button ref={ref} type="button" onClick={onClick} className={`${base} ${color}`}>
+    <button ref={buttonRef} type="button" onClick={onClick} className={`${base} ${color}`}>
       {children}
     </button>
   );
