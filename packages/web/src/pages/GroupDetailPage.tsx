@@ -22,7 +22,7 @@ import { FrontingInsight } from '../components/FrontingInsight';
 import { GroupHeader } from '../components/GroupHeader';
 import { EmptyState } from '../components/EmptyState';
 import { activityCsv, csvFileName } from '../lib/activityCsv';
-import { Skeleton, SkeletonList } from '../components/Skeleton';
+import { Skeleton, SkeletonPanel } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
 import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
@@ -411,12 +411,50 @@ export function GroupDetailPage(): ReactNode {
   if (!group) {
     return (
       <Shell>
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="mt-3 h-9 w-48" />
-        <Skeleton className="mt-5 h-32 w-full rounded-3xl" />
-        <Skeleton className="mt-8 h-4 w-20" />
-        <div className="mt-3">
-          <SkeletonList rows={3} />
+        {/*
+          * The same blocks the loaded page has, at the heights it has them.
+          *
+          * This drew a label, a title, one 128px card and three floating rows, against a real page
+          * of back link, title, a 338px hero, a 310px settle-up panel and a divided feed panel. So
+          * the placeholder was shorter than the thing it stood in for and in a different order, and
+          * everything jumped on arrival — which is the one job a skeleton has.
+          *
+          * The Shell's own gap-5 does the spacing, as it does for the loaded page. No margins here.
+          */}
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="mt-3 h-9 w-40" />
+        {/*
+          * Card-shaped, not slab-shaped.
+          *
+          * Matching the heights alone left two 300px rectangles of flat grey stacked on each other,
+          * which reads as a broken page rather than an arriving one. The bars inside are the pieces
+          * that actually land there: the member strip and the one big figure in the hero, a heading
+          * and two transfer rows in the settle-up panel.
+          */}
+        <div className="surface flex h-[338px] flex-col items-center rounded-3xl p-6">
+          <Skeleton className="h-9 w-32 rounded-full" />
+          <Skeleton className="mt-5 h-4 w-28" />
+          <Skeleton className="mt-3 h-12 w-48" />
+          <Skeleton className="mt-6 h-1.5 w-full max-w-xs rounded-full" />
+          <Skeleton className="mt-6 h-5 w-36" />
+        </div>
+        <div className="h-[310px] rounded-2xl border border-line bg-card p-4">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="mt-3 h-4 w-2/3" />
+          <Skeleton className="mt-4 h-9 w-full rounded-xl" />
+          <Skeleton className="mt-4 h-[76px] w-full rounded-xl" />
+          <Skeleton className="mt-2 h-[76px] w-full rounded-xl" />
+        </div>
+        {/* The fronting insight and the filter bar. Both are conditional on the loaded page, so this
+            is a bet — and the right way to bet, because a skeleton that comes up short shoves the
+            page down while somebody is already reading it. */}
+        <Skeleton className="h-[66px] w-full rounded-2xl" />
+        <Skeleton className="h-[35px] w-full rounded-full" />
+        <div>
+          <Skeleton className="ml-auto h-5 w-40" />
+          <div className="mt-3">
+            <SkeletonPanel rows={3} />
+          </div>
         </div>
       </Shell>
     );
