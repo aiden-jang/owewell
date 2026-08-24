@@ -23,7 +23,7 @@ const balance = (userId: string, displayName: string, netCents: number): Balance
 
 const expense = (id: string, amountCents: number, date = '2026-08-10T12:00:00.000Z'): Expense => ({
   id, description: 'Dinner', amountCents, payerId: 'a', splitMethod: 'EQUAL', category: 'food',
-  createdAt: date, date, note: null, hasReceipt: false, version: 1,
+  createdAt: date, date, note: null, version: 1,
   splits: [{ userId: 'a', owedCents: 0 }, { userId: 'b', owedCents: 0 }],
 });
 

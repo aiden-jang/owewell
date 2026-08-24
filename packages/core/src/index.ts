@@ -137,12 +137,10 @@ export interface Expense {
   date: string;
   /** A line of context from whoever entered it. Null when they didn't write one. */
   note: string | null;
-  /** Whether a receipt photo is attached. The image comes from its own endpoint, not this payload. */
-  hasReceipt: boolean;
   /** Bumped on every edit. Send it back with an edit to be told when the row has moved on. */
   version: number;
   splits: ExpenseSplit[];
-  /** Present only for ITEMIZED expenses, so the edit form can prefill the receipt. */
+  /** Present only for ITEMIZED expenses, so the edit form can prefill them. */
   taxCents?: number;
   tipCents?: number;
   items?: ExpenseItemInput[];
@@ -205,13 +203,6 @@ export interface CreateItemizedPayload {
   date?: string;
 }
 
-/** Receipt OCR result: line items plus tax and tip, all in integer cents. */
-export interface ExtractedReceipt {
-  items: { name: string; amountCents: number }[];
-  taxCents: number;
-  tipCents: number;
-}
-
 // --- Settlements ------------------------------------------------------------
 
 export interface Settlement {
@@ -254,63 +245,3 @@ export interface SharedGroupSummary {
   breakdown: { category: string; cents: number }[];
 }
 
-/*
- * What a receipt photo is allowed to be.
- *
- * Shared because the server has to enforce it and the client should not make somebody wait out an
- * upload to be told no. The server check is the real one — the client's is a courtesy, and skipping
- * it would only ever cost time, never correctness.
- */
-
-/** What a phone camera actually produces. HEIC included: iOS shoots it by default. */
-export const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] as const;
-
-/** Comfortably above a phone photo, far below anything that would hurt. */
-export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
-
-/** For the file input's accept filter, which is a hint rather than a guarantee. */
-export const RECEIPT_ACCEPT = RECEIPT_TYPES.join(',');
-
-/**
- * Why this file cannot be a receipt, or null if it can.
- *
- * Returns the sentence to show rather than a code: there are two reasons and both are things a
- * person fixes by picking a different photo, so a caller has nothing to decide.
- */
-export function receiptRejection(file: { type: string; size: number }): string | null {
-  if (!(RECEIPT_TYPES as readonly string[]).includes(file.type)) {
-    return "That file isn't a photo we can read. Try a JPEG, PNG, or the one your camera took.";
-  }
-  if (file.size > MAX_RECEIPT_BYTES) {
-    // Number() drops the trailing zero, so a 12MB photo is not reported as "12.0MB".
-    const mb = Number((file.size / 1024 / 1024).toFixed(1));
-    return `That photo is ${mb}MB, and the limit is ${MAX_RECEIPT_BYTES / 1024 / 1024}MB. Try a smaller one.`;
-  }
-  return null;
-}
-
-/*
- * What the vision model can read, which is not the same as what we will store.
- *
- * A strict subset of RECEIPT_TYPES, and it has to stay one: scanning something we would then refuse
- * to store would be a dead end. So no HEIC, because the model has no decoder for it and an iPhone
- * shoots it by default — and no GIF either, which the model does read but no camera produces. The client converts before sending — see `prepareForScan` — so this is the
- * backstop for whatever arrives anyway, and it refuses rather than relabelling. Relabelling HEIC as
- * JPEG is what it used to do, and the model answered with a generic failure the person could do
- * nothing about.
- */
-export const SCAN_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-
-/** The model's own per-image ceiling. Smaller than a receipt we would store. */
-export const MAX_SCAN_BYTES = 5 * 1024 * 1024;
-
-/** Why this image cannot be scanned, or null if it can. */
-export function scanRejection(file: { type: string; size: number }): string | null {
-  if (!(SCAN_TYPES as readonly string[]).includes(file.type)) {
-    return "That image isn't one we can scan. A JPEG or PNG works.";
-  }
-  if (file.size > MAX_SCAN_BYTES) {
-    return 'That photo is too big to scan. Try a smaller one, or add the items by hand.';
-  }
-  return null;
-}

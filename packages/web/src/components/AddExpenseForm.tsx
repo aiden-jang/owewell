@@ -1,9 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
-import { ReceiptPicker } from './ReceiptPicker';
 import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
-import { receiptsEnabled } from '../lib/api';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput, todayStr } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
@@ -28,7 +26,6 @@ interface Props {
    */
   onQueued?: (description: string) => void;
   /** The expense saved but its photo did not. Worth saying out loud; not worth failing the save. */
-  onPhotoFailed?: (message: string) => void;
 }
 
 /** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
@@ -45,7 +42,7 @@ function initialValues(editing: Expense | undefined): Record<string, string> {
   return out;
 }
 
-export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoFailed, editing, template }: Props): ReactNode {
+export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
   const fmt = useMoney();
   const symbol = currencySymbol();
   const source = editing ?? template;
@@ -69,7 +66,6 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoF
     source?.category ?? DEFAULT_EXPENSE_CATEGORY,
   );
   const [note, setNote] = useState(source?.note ?? '');
-  const [receipt, setReceipt] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -179,17 +175,6 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoF
       } else {
         saved = await expensesApi.create(groupId, payload);
         clearAfterCreate();
-      }
-      if (receipt) {
-        // The ledger write already succeeded, so a photo that fails is a warning, not a rollback.
-        // Attaching it later from the detail sheet is one tap.
-        try {
-          await expensesApi.putReceipt(groupId, saved.id, receipt);
-          saved = { ...saved, hasReceipt: true };
-        } catch (photoErr) {
-          onPhotoFailed?.(photoErr instanceof Error ? photoErr.message : 'The photo did not save.');
-        }
-        setReceipt(null);
       }
       onCreated(saved);
     } catch (err) {
@@ -386,7 +371,6 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, onPhotoF
         className={inputClass}
       />
 
-      {!editing && receiptsEnabled && <ReceiptPicker file={receipt} onChange={setReceipt} disabled={submitting} />}
 
       <select
         value={method}

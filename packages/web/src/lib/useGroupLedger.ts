@@ -53,8 +53,6 @@ export interface GroupLedger {
   setGroup: (group: GroupDetail) => void;
   /** Put a just-saved expense on screen, replacing the old version of it if there is one. */
   showSavedExpense: (saved: Expense) => void;
-  /** Change one field on one row, for things the refetch would only confirm (a receipt photo). */
-  patchExpense: (expenseId: string, patch: Partial<Expense>) => void;
   /** Take a row off the list on the same tick as the toast, rather than one refetch later. */
   dropExpense: (expenseId: string) => void;
   /** Re-read the outbox after enqueuing or dropping a write. */
@@ -145,10 +143,6 @@ export function useGroupLedger(groupId: string): GroupLedger {
     });
   }, []);
 
-  const patchExpense = useCallback((expenseId: string, patch: Partial<Expense>) => {
-    setExpenses((current) => current.map((e) => (e.id === expenseId ? { ...e, ...patch } : e)));
-  }, []);
-
   const dropExpense = useCallback((expenseId: string) => {
     setExpenses((current) => current.filter((e) => e.id !== expenseId));
   }, []);
@@ -199,6 +193,6 @@ export function useGroupLedger(groupId: string): GroupLedger {
     notFound, loadFailed,
     pendingRows, pendingDeletes, pendingEdits,
     load, refreshLedger, setGroup,
-    showSavedExpense, patchExpense, dropExpense, refreshPending,
+    showSavedExpense, dropExpense, refreshPending,
   };
 }

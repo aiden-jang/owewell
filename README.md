@@ -99,7 +99,6 @@ api/                          owewell Worker (Hono)
   src/settlements.ts          payments (methods, partial/manual) + min-cash-flow suggestions
   src/invites.ts              share-link group invites
   src/quicksplit.ts           anonymous one-shot split
-  src/ocr.ts                  receipt image → line items (vision; built, not enabled)
   src/realtime.ts + GroupRoom  Durable Object live fan-out
   src/db/                     Drizzle schema + client; migrations/
 web/                          React + Vite + Tailwind SPA
