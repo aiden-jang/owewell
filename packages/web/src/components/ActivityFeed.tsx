@@ -305,7 +305,15 @@ export function ActivityFeed({
               </button>
             </div>
           ) : (
-            <ul className="mt-3 space-y-2">
+            /*
+             * One panel, hairline rows, rather than a stack of separate cards.
+             *
+             * Every row used to carry its own border and shadow, which gave a receipt for coffee the
+             * same visual weight as the panel it sat in — the ledger read as a pile of objects
+             * instead of a list. Hairlines say "these are the same kind of thing, in order", which
+             * is what a ledger is.
+             */
+            <ul className="panel mt-3">
               {/*
                 * Queued writes sit above the ledger, dimmed and inert.
                 *
@@ -316,7 +324,7 @@ export function ActivityFeed({
               {pendingRows.map((entry) => (
                 <li
                   key={entry.clientId}
-                  className="animate-rise flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line-strong px-4 py-3 opacity-70"
+                  className="animate-rise flex items-center justify-between gap-3 border-b border-dashed border-line-strong px-4 py-3 opacity-70"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
@@ -336,7 +344,7 @@ export function ActivityFeed({
                 item.kind === 'expense' ? (
                   <li
                     key={`e-${item.expense.id}`}
-                    className="animate-rise surface rounded-2xl"
+                    className="animate-rise"
                     style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
                   >
                     {/*
@@ -350,7 +358,7 @@ export function ActivityFeed({
                       type="button"
                       onClick={() => onOpenExpense(item.expense.id)}
                       aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
-                      className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-surface2 active:scale-[0.99]"
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface2"
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <Avatar name={payerSummary(item.expense).avatar} size="sm" />
@@ -396,7 +404,7 @@ export function ActivityFeed({
                 ) : (
                   <li
                     key={`s-${item.settlement.id}`}
-                    className="animate-rise group flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3"
+                    className="animate-rise group flex items-center justify-between gap-3 px-4 py-3"
                     style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
                   >
                     <div className="flex min-w-0 items-center gap-3">

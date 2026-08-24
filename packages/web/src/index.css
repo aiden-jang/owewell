@@ -327,7 +327,13 @@ input[type='checkbox'] {
   background: var(--color-accent-hover);
 }
 
-/* Solid elevated surface. */
+/*
+ * The elevated surface: one card, one border, one shadow.
+ *
+ * `.glass` used to sit beside this with byte-identical declarations — a leftover from when it was a
+ * frosted translucency, which turns to mud on a light canvas. Two names for one appearance meant the
+ * choice between them carried no information.
+ */
 .surface {
   background: var(--color-card);
   border: 1px solid var(--color-line);
@@ -357,15 +363,6 @@ input[type='checkbox'] {
   margin-bottom: 0.25rem;
 }
 
-/*
- * Was a frosted white-on-dark translucency, which turns to mud on a light canvas. Now just a surface
- * with the theme's own elevation, so it reads the same either way.
- */
-.glass {
-  background: var(--color-card);
-  border: 1px solid var(--color-line);
-  box-shadow: var(--elevate);
-}
 
 /* Interactive rows: a gentle lift and accent hairline on hover. */
 .row-interactive {
