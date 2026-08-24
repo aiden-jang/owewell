@@ -40,6 +40,8 @@ export interface RecordSettlementInput {
   toUserId: string;
   amountCents: number;
   method?: PaymentMethod;
+  /** Client-chosen id, so a payment recorded offline and sent later is logged exactly once. */
+  clientId?: string | undefined;
 }
 
 /**
@@ -62,6 +64,31 @@ export async function recordSettlement(
   input: RecordSettlementInput,
 ): Promise<SettlementView> {
   await requireMembership(db, personId, groupId);
+
+  /*
+   * A payment is a fact about the past, so replaying one is only ever a duplicate risk.
+   *
+   * Unlike an edit, this appends rather than overwrites: "Bob handed Alice $30" stays true however
+   * much the balances moved while it sat in an outbox. The one thing that must not happen is logging
+   * the same handover twice, which is what the client id prevents.
+   */
+  if (input.clientId) {
+    const already = await db
+      .select()
+      .from(settlements)
+      .where(and(eq(settlements.groupId, groupId), eq(settlements.clientId, input.clientId)))
+      .get();
+    if (already) {
+      return {
+        id: already.id,
+        fromUserId: already.fromPersonId,
+        toUserId: already.toPersonId,
+        amountCents: already.amountCents,
+        method: (already.method as PaymentMethod | null) ?? null,
+        createdAt: already.createdAt,
+      };
+    }
+  }
 
   if (input.fromUserId === input.toUserId) {
     throw new SettlementError('SAME_PARTY', 'A payment needs two different people.');
@@ -87,6 +114,7 @@ export async function recordSettlement(
     method: input.method ?? null,
     createdById: personId,
     createdAt,
+    clientId: input.clientId ?? null,
   });
   return {
     id,

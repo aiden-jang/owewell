@@ -1,4 +1,4 @@
-import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
+import type { CreateExpensePayload, CreateItemizedPayload, RecordSettlementPayload } from '@owewell/core';
 import { ApiError } from './api';
 
 /*
@@ -8,10 +8,13 @@ import { ApiError } from './api';
  * Losing a six-person itemized receipt to a failed POST is the worst thing this app can do short of
  * getting the arithmetic wrong, so a create that cannot reach the server is kept here and sent later.
  *
- * Creates and deletes, not edits or settlements. Those two are not merely unbuilt: an edit replayed
- * an hour later silently overwrites whatever happened in between, and a settlement recorded offline
- * lands against balances that have since moved. Both want a "this changed while you were away"
- * conversation rather than a queue that quietly wins.
+ * Creates, deletes, edits and recorded payments — every write the group page makes.
+ *
+ * Each is here on its own terms. A create carries an idempotency key so a replay is recognised. A
+ * delete needs none, being repeatable by nature. An edit carries the version it was based on, so one
+ * that would erase somebody else's change is refused and comes back as a question rather than quietly
+ * winning. A payment is a fact about the past — "Bob handed Alice $30" stays true however much the
+ * balances moved while it waited — so it only needs the key that stops it being logged twice.
  *
  * Not the Background Sync API, which would be the textbook answer: Safari does not implement it, and
  * a bill splitter that only works offline on Android is not offline support.
@@ -60,7 +63,24 @@ export interface QueuedEdit extends QueuedBase {
   payload: CreateExpensePayload | CreateItemizedPayload;
 }
 
-export type QueuedWrite = QueuedCreate | QueuedDelete | QueuedEdit;
+/**
+ * A recorded payment that could not be sent.
+ *
+ * The safest of the four to replay late, because it appends rather than overwrites: nothing it lands
+ * on can be wrong, only duplicated, and the client id handles that.
+ */
+export interface QueuedSettlement extends QueuedBase {
+  kind: 'settlement';
+  amountCents: number;
+  payload: RecordSettlementPayload;
+}
+
+export type QueuedWrite = QueuedCreate | QueuedDelete | QueuedEdit | QueuedSettlement;
+
+export const isSettlement = (entry: QueuedWrite): entry is QueuedSettlement => entry.kind === 'settlement';
+/** Everything that appears in the feed as a row waiting to be sent. */
+export const isPendingRow = (entry: QueuedWrite): entry is QueuedCreate | QueuedSettlement =>
+  isCreate(entry) || isSettlement(entry);
 
 const CREATE_KINDS = new Set(['expense', 'itemized']);
 export const isCreate = (entry: QueuedWrite): entry is QueuedCreate => CREATE_KINDS.has(entry.kind);

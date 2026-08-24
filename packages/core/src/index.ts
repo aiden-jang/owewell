@@ -234,6 +234,8 @@ export interface RecordSettlementPayload {
   toUserId: string;
   amountCents: number;
   method?: PaymentMethod;
+  /** Client-chosen id, so a payment recorded offline and sent later is logged exactly once. */
+  clientId?: string;
 }
 
 export interface SuggestedPayment {
