@@ -75,7 +75,19 @@ async function renderPanel(over: Record<string, unknown> = {}) {
   );
 }
 
-const rowFor = (name: string) => screen.getByText(name, { selector: 'span.truncate' }).closest('li')!;
+const rowFor = (name: string) =>
+  screen.getByText(name, { selector: 'span.truncate.font-medium' }).closest('li')!;
+
+/*
+ * Roster editing lives behind one "Options" button per member rather than a scatter of bare icons.
+ * Every test that reaches Rename, Payment handles or Remove opens that first, which doubles as the
+ * assertion that the button is offered at all: a member you may do nothing to has no Options
+ * button, so this throws rather than quietly finding nothing.
+ */
+async function openActions(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(rowFor(name)).getByRole('button', { name: `Options for ${name}` }));
+  return within(rowFor(name));
+}
 
 beforeEach(() => {
   for (const fn of [onRename, onSaveHandles, onAdd, onRemove]) fn.mockReset().mockResolvedValue(undefined);
@@ -98,18 +110,25 @@ describe('what it shows', () => {
 
 describe('who can be removed', () => {
   it('offers the owner a way to remove another member', async () => {
-    await open();
-    await expect(within(rowFor('Cara')).findByRole('button', { name: 'Remove Cara' })).resolves.toBeInTheDocument();
+    const user = await open();
+    const row = await openActions(user, 'Cara');
+    expect(row.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
   });
 
   it('never offers it for the owner or for yourself', async () => {
-    await open();
-    expect(within(rowFor('Alice')).queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
+    const user = await open();
+    const row = await openActions(user, 'Alice');
+    expect(row.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
   });
 
-  it('offers a plain member nothing to remove', async () => {
-    await open({ isOwner: false, currentUserId: 'c' });
-    expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
+  // A plain member gets their own payment handles and nothing else. Someone they may do nothing to
+  // has no Options button at all, rather than one that opens onto an empty menu.
+  it('offers a plain member their own handles and no way to remove anyone', async () => {
+    const user = await open({ isOwner: false, currentUserId: 'c' });
+    const self = await openActions(user, 'Cara');
+    expect(self.getByRole('button', { name: 'Payment handles' })).toBeInTheDocument();
+    expect(self.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Options for Alice' })).not.toBeInTheDocument();
   });
 
   /*
@@ -118,34 +137,36 @@ describe('who can be removed', () => {
    * frozen, and the panel says why rather than just hiding the button.
    */
   it('freezes the roster once a payment has been recorded', async () => {
-    await open({ paymentsRecorded: true });
-    expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
+    const user = await open({ paymentsRecorded: true });
+    const row = await openActions(user, 'Bob');
+    expect(row.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
     expect(screen.getByText(/can’t be removed once a payment has been recorded/)).toBeInTheDocument();
   });
 
   it('passes the net position along, because the warning depends on it', async () => {
     const user = await open();
-    await user.click(within(rowFor('Cara')).getByRole('button', { name: 'Remove Cara' }));
+    const row = await openActions(user, 'Cara');
+    await user.click(row.getByRole('button', { name: 'Remove' }));
     expect(onRemove).toHaveBeenCalledWith('c', 0);
   });
 });
 
 describe('renaming', () => {
   it('is offered for placeholders only', async () => {
-    await open();
-    expect(within(rowFor('Bob')).getByRole('button', { name: 'Rename Bob' })).toBeInTheDocument();
-    expect(within(rowFor('Cara')).queryByRole('button', { name: /Rename/ })).not.toBeInTheDocument();
+    const user = await open();
+    expect((await openActions(user, 'Bob')).getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect((await openActions(user, 'Cara')).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
   });
 
   it('starts from the name they already have', async () => {
     const user = await open();
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'Rename Bob' }));
+    await user.click((await openActions(user, 'Bob')).getByRole('button', { name: 'Rename' }));
     expect(screen.getByLabelText('Member name')).toHaveValue('Bob');
   });
 
   it('sends the trimmed name and closes the editor', async () => {
     const user = await open();
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'Rename Bob' }));
+    await user.click((await openActions(user, 'Bob')).getByRole('button', { name: 'Rename' }));
     await user.clear(screen.getByLabelText('Member name'));
     await user.type(screen.getByLabelText('Member name'), '  Bobby  ');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -156,7 +177,7 @@ describe('renaming', () => {
   it('keeps the editor open and says so when it fails', async () => {
     onRename.mockRejectedValue(new Error('Name already taken.'));
     const user = await open();
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'Rename Bob' }));
+    await user.click((await openActions(user, 'Bob')).getByRole('button', { name: 'Rename' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(toastStub.error).toHaveBeenCalledWith('Name already taken.');
     expect(screen.getByLabelText('Member name')).toBeInTheDocument();
@@ -166,7 +187,7 @@ describe('renaming', () => {
 describe('payment handles', () => {
   it('prefills from the member and sends all three', async () => {
     const user = await open();
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'Payment handles for Bob' }));
+    await user.click((await openActions(user, 'Bob')).getByRole('button', { name: 'Payment handles' }));
     expect(screen.getByLabelText('Venmo username')).toHaveValue('bobby');
 
     await user.type(screen.getByLabelText('Cash App cashtag'), 'bobbucks');
@@ -181,10 +202,12 @@ describe('payment handles', () => {
   // Your own handles are yours to set; everyone else's are theirs, except placeholders who have
   // nobody to set them.
   it('is offered for yourself and for placeholders, not for other real members', async () => {
-    await open();
-    expect(within(rowFor('Alice')).getByRole('button', { name: /Payment handles/ })).toBeInTheDocument();
-    expect(within(rowFor('Bob')).getByRole('button', { name: /Payment handles/ })).toBeInTheDocument();
-    expect(within(rowFor('Cara')).queryByRole('button', { name: /Payment handles/ })).not.toBeInTheDocument();
+    const user = await open();
+    expect((await openActions(user, 'Alice')).getByRole('button', { name: 'Payment handles' })).toBeInTheDocument();
+    expect((await openActions(user, 'Bob')).getByRole('button', { name: 'Payment handles' })).toBeInTheDocument();
+    expect(
+      (await openActions(user, 'Cara')).queryByRole('button', { name: 'Payment handles' }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -224,11 +247,33 @@ describe('adding someone', () => {
 });
 
 describe('what each row says about the money', () => {
-  it('names the position and what it is made of', async () => {
+  it('names the position on the row itself', async () => {
     await open();
     expect(within(rowFor('Bob')).getByText('owes $30.00')).toBeInTheDocument();
     expect(within(rowFor('Alice')).getByText('is owed $40.00')).toBeInTheDocument();
-    expect(within(rowFor('Cara')).getByText('paid $10.00 · share $10.00')).toBeInTheDocument();
+  });
+
+  /*
+   * The breakdown waits until you open the row.
+   *
+   * Position, breakdown and name could not share the width: an eight-person roster on a 375px phone
+   * was rendering "Tomas" as "T…". The name is the one thing a member list exists to show, so it
+   * keeps the first line and "paid X · share Y" moves down — where it also stops competing with the
+   * fronting breakdown, which answers the same question with a bar.
+   */
+  it('keeps the breakdown out of the row until the row is opened', async () => {
+    const user = await open();
+    expect(screen.queryByText('paid $10.00 · share $10.00')).not.toBeInTheDocument();
+    const row = await openActions(user, 'Cara');
+    expect(row.getByText('paid $10.00 · share $10.00')).toBeInTheDocument();
+  });
+
+  it('shows no breakdown for someone who has neither paid nor owed anything', async () => {
+    const user = await open({
+      balances: [balance('a', 'Alice', 0), balance('b', 'Bob', 0), balance('c', 'Cara', 0)],
+    });
+    const row = await openActions(user, 'Cara');
+    expect(row.queryByText(/paid \$/)).not.toBeInTheDocument();
   });
 
   it('calls a zero balance settled up, but only once there is something to settle', async () => {

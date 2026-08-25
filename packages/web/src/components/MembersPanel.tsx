@@ -9,9 +9,9 @@ import { useMoney } from '../lib/currency';
 /*
  * The member list, and the three small editors hiding inside it.
  *
- * Nine pieces of state came out of the group page with this: which row is being renamed, which row
- * is editing payment handles, three handle drafts, and the add-someone field with its error. None of
- * it is read anywhere else.
+ * Ten pieces of state came out of the group page with this: which row has its actions open, which
+ * row is being renamed, which row is editing payment handles, three handle drafts, and the
+ * add-someone field with its error. None of it is read anywhere else.
  *
  * The division of labour with the page: the page's handlers do the work and say so (they call the
  * API, refetch the group, and toast on success), and they throw when it fails. This panel decides
@@ -35,6 +35,31 @@ function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatte
   return netCents > 0
     ? { text: `is owed ${amount}`, tone: 'text-pos' }
     : { text: `owes ${amount}`, tone: 'text-neg' };
+}
+
+/** One of the small pill buttons under a row, once its actions are open. */
+function RowAction({
+  onClick,
+  label,
+  icon,
+  danger = false,
+}: {
+  onClick: () => void;
+  label: string;
+  icon: 'pencil' | 'wallet' | 'x';
+  danger?: boolean;
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`tap inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-medium transition hover:border-line-strong hover:bg-surface2 ${
+        danger ? 'text-neg' : 'text-muted hover:text-ink'
+      }`}
+    >
+      <Icon name={icon} size={13} /> {label}
+    </button>
+  );
 }
 
 export function MembersPanel({
@@ -67,6 +92,7 @@ export function MembersPanel({
   const toast = useToast();
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
+  const [actionsId, setActionsId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [handlesId, setHandlesId] = useState<string | null>(null);
@@ -88,7 +114,14 @@ export function MembersPanel({
     }
   }
 
+  function startRename(member: GroupMember): void {
+    setActionsId(null);
+    setRenamingId(member.userId);
+    setRenameDraft(member.displayName);
+  }
+
   function startHandles(member: GroupMember): void {
+    setActionsId(null);
     setHandlesId(member.userId);
     setVenmo(member.venmoHandle ?? '');
     setCashapp(member.cashappCashtag ?? '');
@@ -134,10 +167,20 @@ export function MembersPanel({
               const label = balanceLabel(netOf[member.userId] ?? 0, hasActivity, fmt);
               const bal = balanceOf[member.userId];
               const isSelf = member.userId === currentUserId;
+              const canRename = member.isPlaceholder;
+              // Your own handles are yours to set and everyone else's are theirs, except
+              // placeholders, who have nobody to set them.
+              const canSetHandles = isSelf || member.isPlaceholder;
               // The owner can remove a non-owner member only before any payment is recorded
               // (removal re-splits expenses, which would break a logged settlement). There's no
               // "leave" — to get a group off your list you archive it.
               const canRemove = isOwner && !isSelf && member.role !== 'OWNER' && !paymentsRecorded;
+              const hasActions = canRename || canSetHandles || canRemove;
+              const open = actionsId === member.userId;
+              const detail =
+                bal && (bal.paidCents > 0 || bal.owedCents > 0)
+                  ? `paid ${fmt(bal.paidCents)} · share ${fmt(bal.owedCents)}`
+                  : '';
               return (
                 <li
                   key={member.userId}
@@ -212,84 +255,99 @@ export function MembersPanel({
                       </span>
                     </span>
                   ) : (
-                    <>
-                      {/*
-                       * Two lines, because one could not hold them. The name, the balance and the
-                       * paid/share detail were competing for a single row, and since the money is
-                       * shrink-0 the name was the only thing that could give — a members list was
-                       * rendering "Ali..." and "B...". Now the name owns the top line and the two
-                       * figures share the second.
-                       */}
-                      <span className="flex min-w-0 flex-1 items-center gap-3">
-                        <Avatar name={member.displayName} />
-                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="flex items-baseline justify-between gap-3">
-                            <span className="flex min-w-0 items-center gap-1.5 font-medium">
-                              <span className="truncate">{member.displayName}</span>
-                              {member.isPlaceholder && (
-                                <button
-                                  type="button"
+                    <span className="flex min-w-0 flex-1 items-start gap-3">
+                      <Avatar name={member.displayName} />
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        {/*
+                         * The name gets the first line to itself, and the money moves to the second.
+                         *
+                         * Everything used to compete for one row: the name, a rename pencil, the
+                         * balance, then a wallet and a remove button. The figures are shrink-0 so the
+                         * name was the only thing that could give, and an eight-person roster on a
+                         * 375px phone rendered "Tomas" as "T…" and "Nadia" as "N…". A member list
+                         * whose whole job is telling you who is in the group was the one thing on
+                         * screen not doing it.
+                         *
+                         * "owner" stays up here because it is a fact about who someone is rather
+                         * than about what they owe, and only ever one row carries it.
+                         */}
+                        <span className="flex items-baseline gap-1.5">
+                          <span className="truncate font-medium">{member.displayName}</span>
+                          {member.role === 'OWNER' && (
+                            <span className="shrink-0 text-2xs text-faint">owner</span>
+                          )}
+                        </span>
+                        {label.text && (
+                          /*
+                           * The position, and only the position.
+                           *
+                           * "paid X · share Y" used to ride along here and there was never room for
+                           * all three: it clipped to "share $…" on every row, and letting it wrap
+                           * made every row two lines and pushed the add-someone field off the
+                           * screen. It also answers a question the page already answers better, in
+                           * the fronting breakdown, with a bar. It moves into the open row below.
+                           */
+                          <span className={`tnum truncate text-xs font-medium ${label.tone}`}>{label.text}</span>
+                        )}
+                        {open && (
+                          /*
+                           * Roster editing, in one place per member instead of scattered across the row.
+                           *
+                           * Rename and payment handles were bare icons that appeared on some rows and
+                           * not others, which is a puzzle rather than an affordance — you had to know
+                           * that a pencil means "this one is a placeholder". Labelled, and opened
+                           * deliberately, they can say what they do. Inline rather than a popup menu
+                           * because this list scrolls inside a sheet, and an absolutely positioned
+                           * menu on the last row has nowhere to go.
+                           */
+                          <span className="flex flex-col gap-2 pt-2">
+                            {detail && <span className="tnum text-xs text-faint">{detail}</span>}
+                            {/*
+                             * Wide vertical gaps, narrow horizontal ones. The pills are 30px tall, so
+                             * once they stack their 44px hit areas would overlap — with Remove at the
+                             * bottom of the stack. Side by side they are far wider than 44px, so
+                             * nothing needs the room horizontally.
+                             */}
+                            <span className="flex flex-wrap gap-x-2 gap-y-3.5">
+                              {canRename && (
+                                <RowAction icon="pencil" label="Rename" onClick={() => startRename(member)} />
+                              )}
+                              {canSetHandles && (
+                                <RowAction
+                                  icon="wallet"
+                                  label="Payment handles"
+                                  onClick={() => startHandles(member)}
+                                />
+                              )}
+                              {canRemove && (
+                                <RowAction
+                                  icon="x"
+                                  label="Remove"
+                                  danger
                                   onClick={() => {
-                                    setRenamingId(member.userId);
-                                    setRenameDraft(member.displayName);
+                                    setActionsId(null);
+                                    void onRemove(member.userId, netOf[member.userId] ?? 0);
                                   }}
-                                  aria-label={`Rename ${member.displayName}`}
-                                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
-                                >
-                                  <Icon name="pencil" size={13} />
-                                </button>
+                                />
                               )}
                             </span>
-                            {label.text && (
-                              <span className={`tnum shrink-0 text-sm font-medium ${label.tone}`}>{label.text}</span>
-                            )}
                           </span>
-                          {/* Its own line, with nothing to compete against. Sharing a line with the
-                              balance is what truncated it to "paid $0.00 · sha..." — and a detail
-                              cut mid-fact says less than no detail at all. */}
-                          {/*
-                           * Everything secondary on one line, owner badge included.
-                           *
-                           * Name, badge, balance and the actions are four things and they do not fit
-                           * a 375px row — something has to lose, and the badge is the one nobody
-                           * scans for. It said who can delete the group; the name says who this is.
-                           */}
-                          <span className="truncate text-xs text-faint">
-                            {member.role === 'OWNER' && <span className="text-muted">owner</span>}
-                            {member.role === 'OWNER' && bal && (bal.paidCents > 0 || bal.owedCents > 0) && ' · '}
-                            {bal && (bal.paidCents > 0 || bal.owedCents > 0) && (
-                              <span className="tnum">
-                                paid {fmt(bal.paidCents)} · share {fmt(bal.owedCents)}
-                              </span>
-                            )}
-                          </span>
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1">
-                        {(isSelf || member.isPlaceholder) && (
-                          <button
-                            type="button"
-                            onClick={() => startHandles(member)}
-                            aria-label={`Payment handles for ${member.displayName}`}
-                            title="Payment handles"
-                            className="tap grid h-7 w-7 place-items-center rounded-full text-faint transition hover:bg-surface2 hover:text-ink"
-                          >
-                            <Icon name="wallet" size={14} />
-                          </button>
-                        )}
-                        {canRemove && (
-                          <button
-                            type="button"
-                            onClick={() => void onRemove(member.userId, netOf[member.userId] ?? 0)}
-                            aria-label={`Remove ${member.displayName}`}
-                            title={`Remove ${member.displayName}`}
-                            className="tap grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-neg"
-                          >
-                            <Icon name="x" size={16} />
-                          </button>
                         )}
                       </span>
-                    </>
+                      {hasActions && (
+                        <button
+                          type="button"
+                          onClick={() => setActionsId(open ? null : member.userId)}
+                          aria-label={`Options for ${member.displayName}`}
+                          aria-expanded={open}
+                          className={`tap grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:bg-surface2 hover:text-ink ${
+                            open ? 'bg-surface2 text-ink' : 'text-faint'
+                          }`}
+                        >
+                          <Icon name="more" size={16} />
+                        </button>
+                      )}
+                    </span>
                   )}
                 </li>
               );
