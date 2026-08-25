@@ -221,7 +221,7 @@ Or use the Cloudflare dashboard: **Workers & Pages → D1 → owewell → Consol
 ## Tests
 
 ```bash
-pnpm -r test    # 710 tests: 108 API, 546 web, 56 shared
+pnpm -r test    # 749 tests: 147 API, 546 web, 56 shared
 ```
 
 Three registers, deliberately:
@@ -232,7 +232,15 @@ Three registers, deliberately:
 - **`web`** — mostly behaviour, not markup: the outbox drain, the focus trap, the session's
   person-id remapping, the forms' reconciliation guards, the realtime socket's reconnect.
 
-Two things the suite does that are worth copying:
+Four things the suite does that are worth copying:
+
+**Authorisation is tested as a property, not per route.** Authentication is middleware and covers
+everything; authorisation is a hand-written `requireMembership(...)` inside each of 26 service
+functions, so a new one that forgets it compiles, lints, and passes every other test. One suite
+walks every mutation and every group read as a signed-in stranger and asserts each is refused —
+including that the refusal is identical for a group that does not exist, so ids stay unguessable.
+The same checks are asserted on the _edit_ paths, not just create: an edit rewrites money already
+in the ledger.
 
 **It asserts the palette against the stylesheet.** `contrast.test.ts` parses `index.css` and checks
 every colour matches its TypeScript copy, then measures the contrast ratios. A colour regression is
@@ -242,10 +250,17 @@ otherwise invisible until somebody complains.
 so every bug in handling it is invisible from UTC — and CI runs in UTC. Pinning one zone means the
 date tests assert the same thing everywhere, and the zone they assert in is one real users are in.
 
-There's also `pnpm --filter @owewell/web dead-classes`, which diffs the class names in the source
-against the CSS the build actually emitted. A Tailwind class that never gets generated produces no
-CSS and no error; nothing else catches it. It caught a `@custom-variant` shorthand that silently
-deleted all 114 hover styles while typecheck, lint and the whole suite stayed green.
+**The API runs as two vitest projects.** The D1 tests need isolated storage: each starts from the
+post-migration snapshot and rolls its own writes back. The Durable Object tests cannot have it — a
+room holding an accepted WebSocket cannot be snapshotted, and the pool fails with "Isolated storage
+failed" without naming the cause. Turning it off globally would have quietly let the D1 tests
+contaminate each other, so realtime gets its own project instead.
+
+CI runs `typecheck`, `lint`, `format:check`, `build`, `dead-classes` and `test`, in that order.
+`dead-classes` diffs the class names in the source against the CSS the build actually emitted: a
+Tailwind class that never gets generated produces no CSS and no error, and it once caught a
+`@custom-variant` shorthand that silently deleted all 114 hover styles while typecheck, lint and the
+whole suite stayed green. It runs after `build` because it needs the emitted stylesheet.
 
 ## Talking about this
 
@@ -275,11 +290,13 @@ no test failed, and the edit form was quietly right the whole time because it re
 instead of parsing. Two things came out of it: dates are a calendar day and are read as strings, and
 the test suite is pinned to a non-UTC zone so the class of bug can't hide again.
 
-**What I'd tell you about testing.** I try to make a test fail on purpose before I trust it. Twice
-that changed the outcome. A test asserting the outbox reuses its idempotency key passed against a
+**What I'd tell you about testing.** I try to make a test fail on purpose before I trust it, and it
+keeps changing the outcome. A test asserting the outbox reuses its idempotency key passed against a
 deliberately broken retry, because the UUID stub returned the same value every call — it couldn't
-tell a reused id from a fresh one. And a focus-trap test covered tabbing forward out of a dialog but
-not backward, which I only found by breaking each guard one at a time instead of all at once.
+tell a reused id from a fresh one. A focus-trap test covered tabbing forward out of a dialog but not
+backward, which only showed up by breaking each guard one at a time instead of all at once. And a
+sabotage that breaks the file's syntax makes vitest report "Tests: no tests", which reads exactly
+like a pass if you only skim the summary.
 
 **What breaks first.** D1 write throughput on a single very active group, since every expense is a
 write and the Durable Object fans out the change. Realistic groups are under twenty people, so this
