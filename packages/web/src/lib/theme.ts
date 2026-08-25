@@ -43,11 +43,9 @@ function preferredTheme(): ThemeName {
 /*
  * Paint it. Deliberately does NOT remember it.
  *
- * This used to write to localStorage on every call, which was harmless while the only caller was a
- * console command. It stopped being harmless the moment boot started deriving a theme from the
- * device: the first paint persisted that derivation as though it were a decision, so someone who
- * later switched their phone to dark stayed on the palette their phone had the day they first
- * opened the app. Remembering is `setTheme`, and only a person calls that.
+ * Boot derives a theme from the device, so persisting here would record that derivation as a
+ * decision — and someone who later switched their phone to dark would stay on the palette their
+ * phone had the day they installed. Remembering is `setTheme`, and only a person calls that.
  */
 function applyTheme(name: ThemeName): void {
   document.documentElement.dataset.theme = name;

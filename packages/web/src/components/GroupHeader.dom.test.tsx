@@ -95,10 +95,7 @@ describe('what a member is offered', () => {
 });
 
 describe('the menu getting out of the way', () => {
-  /*
-   * Only Export used to close it. Archiving or deleting left it hanging open over a
-   * page that had already changed underneath it.
-   */
+  // A menu left open sits over a page that has already changed underneath it.
   it.each([
     ['Export activity', 'onExport'],
     ['Archive (hide from my list)', 'onToggleArchive'],

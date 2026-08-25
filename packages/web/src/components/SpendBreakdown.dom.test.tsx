@@ -5,11 +5,8 @@ import type { Expense } from '../lib/expenses';
 import { SpendBreakdown } from './SpendBreakdown';
 
 /**
- * Where the money went, now sitting above the list it filters.
- *
- * Tapping a category used to set a filter and throw you to another tab to see the result. The
- * interaction is local now, so what is worth pinning is that selecting round-trips through the page
- * — the filter is shared with the feed, so this component reports rather than decides.
+ * Where the money went, sitting above the list it filters. Selecting round-trips through the page:
+ * the filter is shared with the feed, so this component reports rather than decides.
  */
 
 const expense = (id: string, amountCents: number, category: string): Expense => ({

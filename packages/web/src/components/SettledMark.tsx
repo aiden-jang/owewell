@@ -1,14 +1,11 @@
 import type { ReactNode } from 'react';
 
 /*
- * The check that says the tab is over.
+ * The check that says the tab is over. The ring scales in and the tick draws itself, once, when the
+ * state flips. Deliberately not confetti: this is somebody's money settling, and the feeling is
+ * relief rather than a party.
  *
- * The whole promise of the app is that a shared tab ends, and the end of it used to be a sentence in
- * the corner of a card. So the ring scales in and the tick draws itself, once, when the state flips.
- * It is deliberately not confetti: this is somebody's money settling, and the good version of that
- * feeling is relief, not a party.
- *
- * `tone` separates the two endings. "square" is only your own column being clear while other people
+ * `tone` separates the two endings. "square" is your own column being clear while other people
  * still owe each other, which is quieter than the whole group being done.
  */
 export function SettledMark({ tone = 'settled' }: { tone?: 'settled' | 'square' }): ReactNode {

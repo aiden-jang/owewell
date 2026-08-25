@@ -72,9 +72,8 @@ export function DashboardPage(): ReactNode {
     setSelected(new Set());
   };
 
-  // Select mode and the create form are mutually exclusive. Opening one closes the other: they used to
-  // coexist, which left the name field sitting under the selection UI while the footer bar pushed the
-  // page around, and select mode hides the New button so there was no way back to it.
+  // Select mode and the create form are mutually exclusive: select mode hides the New button, so
+  // leaving both open strands the name field under the selection UI with no way back.
   const openCreate = (): void => {
     setSelectMode(false);
     setSelected(new Set());
@@ -162,8 +161,7 @@ export function DashboardPage(): ReactNode {
     onQueueChanged: () => setWaiting(queued().length),
   });
 
-  // One pair of totals, over the unarchived groups. This used to bucket by each group's own
-  // currency and stack a line per bucket, because adding euros to dollars is not a number.
+  // One pair of totals, over the unarchived groups.
   const totals = useMemo(() => {
     let owed = 0;
     let owe = 0;
@@ -268,14 +266,9 @@ export function DashboardPage(): ReactNode {
             </span>
           )}
         </span>
-        {/*
-         * Primary facts on the first line, every secondary fact together on the second.
-         *
-         * The name and the meta line used to sit in one column against a two-line amount column,
-         * so the two of them fought over the same width and the meta line always lost — "3 people ·
-         * 4 d..." tells you nothing. With the balance lifted alongside the name, the detail line
-         * gets the full row. Same shape as a member row, deliberately.
-         */}
+        {/* Primary facts on the first line, secondary facts together on the second. Sharing a
+            column with the amount, the meta line always loses: "3 people · 4 d…" tells you nothing.
+            Same shape as a member row, deliberately. */}
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
             <span className="truncate font-medium">{group.name}</span>

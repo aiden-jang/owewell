@@ -17,17 +17,11 @@ import { useOutboxSync } from './useOutboxSync';
 import { useToast } from '../components/Toast';
 
 /*
- * One group's ledger: what it is, and every reason it changes.
+ * One group's ledger: five endpoints that are only ever fetched together.
  *
- * Five endpoints that are only ever fetched together, plus the three things that can make them
- * stale behind your back — your own writes, somebody else's writes arriving over the socket, and a
- * queued write finally reaching the server. Held together because a page holding seven pieces of
- * state that always move at the same time is really holding one.
- *
- * The mutators are deliberately narrow rather than handing back the setters. Each exists because
- * something has to show on screen before the refetch catches up: a saved row, a deleted row, a
- * photo. Anything wider and the page could start computing balances itself, which is the server's
- * job and a rounding difference waiting to happen.
+ * The mutators are narrow on purpose. Each exists so something can show before the refetch lands.
+ * Don't widen them: the client must never compute balances, or its rounding will disagree with the
+ * server's.
  */
 
 export interface GroupLedger {
@@ -58,10 +52,8 @@ export interface GroupLedger {
   refreshPending: () => void;
   /**
    * Everything queued for this group, however it will land.
-   *
-   * The three sets above tell the feed which rows to mark. This is the count for the page to say
-   * out loud: a row marked "waiting" only explains itself if you happen to be looking at that row,
-   * and the balances above it are wrong in a way nothing else accounts for.
+   * The sets above mark individual rows; this is the count the page says out loud, because the
+   * balances are wrong in a way no single row explains.
    */
   pendingCount: number;
 }
@@ -111,14 +103,9 @@ export function useGroupLedger(groupId: string): GroupLedger {
   }, [fetchAll]);
 
   /*
-   * Refetches the group too, not just the ledger.
-   *
-   * If it was archived, renamed, or had a member change in another tab, `group.archived` (which
-   * drives read-only) and the member list must stay current, or stale gates keep edit controls live.
-   *
-   * Callers fire this as `void refreshLedger()`, so a failed refetch would otherwise be a swallowed
-   * rejection leaving a just-succeeded change showing over stale data. Keep the current view — it is
-   * still valid — but say it may be behind.
+   * Refetches the group, not just the ledger: `archived` drives read-only, so a stale copy leaves
+   * edit controls live. Callers use `void refreshLedger()`, so a failure here would be swallowed —
+   * keep the view but say it may be behind.
    */
   const refreshLedger = useCallback(async () => {
     try {
@@ -132,13 +119,8 @@ export function useGroupLedger(groupId: string): GroupLedger {
   const refreshPending = useCallback(() => setPending(queued(groupId)), [groupId]);
 
   /*
-   * Put a saved expense on screen now, and let the ledger catch up behind it.
-   *
-   * The refetch pulls five endpoints, so waiting for it meant the row a person just typed appeared a
-   * whole extra round trip after the save. Balances are deliberately NOT recomputed here: netting
-   * paid against owed (per-item payers, tax and tip apportioned across shares) is the server's job,
-   * and a second implementation of it on the client is a rounding difference waiting to happen. The
-   * hero number counts up over 650ms anyway, so it landing a beat later reads as the animation.
+   * Show a saved expense now; let the refetch catch up. Don't recompute balances here — netting
+   * paid against owed is the server's job, and a second implementation would drift from it.
    */
   const showSavedExpense = useCallback((saved: Expense) => {
     setExpenses((current) => {
@@ -163,13 +145,7 @@ export function useGroupLedger(groupId: string): GroupLedger {
     void refreshLedger();
   });
 
-  /*
-   * Sending what is waiting.
-   *
-   * Scoped to this group, because this is the screen with the ledger on it to refresh. The dashboard
-   * runs the same hook unscoped, so a write queued here still goes out even if the next thing you
-   * open is a different group.
-   */
+  // Scoped to this group; the dashboard runs the same hook unscoped so nothing gets stranded.
   useOutboxSync({
     groupId,
     onChanged: () => {
@@ -184,11 +160,8 @@ export function useGroupLedger(groupId: string): GroupLedger {
   // Memoised: a fresh Set every render would defeat the memos in the feed that depend on it.
   const pendingDeletes = useMemo(() => new Set(pending.filter(isDelete).map((e) => e.expenseId)), [pending]);
   /*
-   * Rows with an edit still in the queue.
-   *
-   * The row keeps showing what the server has, because the queued payload is a set of form values
-   * rather than a computed split: pretending otherwise would mean a total that disagreed with the
-   * per-person amounts underneath it. So it says the change is waiting instead of faking it.
+   * The row keeps the server's values: the queued payload is form input, not a computed split, so
+   * showing it would put a total next to per-person amounts that disagree with it.
    */
   const pendingEdits = useMemo(() => new Set(pending.filter(isEdit).map((e) => e.expenseId)), [pending]);
 

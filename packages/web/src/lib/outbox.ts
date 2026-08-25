@@ -2,22 +2,9 @@ import type { CreateExpensePayload, CreateItemizedPayload, RecordSettlementPaylo
 import { ApiError } from './api';
 
 /*
- * Writes that were typed while the network was not there.
+ * Writes queued in localStorage when the network is missing, replayed later.
  *
- * The app gets used in restaurants, which is exactly where a phone has one bar and a captive portal.
- * Losing a six-person itemized receipt to a failed POST is the worst thing this app can do short of
- * getting the arithmetic wrong, so a create that cannot reach the server is kept here and sent later.
- *
- * Creates, deletes, edits and recorded payments — every write the group page makes.
- *
- * Each is here on its own terms. A create carries an idempotency key so a replay is recognised. A
- * delete needs none, being repeatable by nature. An edit carries the version it was based on, so one
- * that would erase somebody else's change is refused and comes back as a question rather than quietly
- * winning. A payment is a fact about the past — "Bob handed Alice $30" stays true however much the
- * balances moved while it waited — so it only needs the key that stops it being logged twice.
- *
- * Not the Background Sync API, which would be the textbook answer: Safari does not implement it, and
- * a bill splitter that only works offline on Android is not offline support.
+ * Not the Background Sync API: Safari doesn't implement it.
  */
 
 const KEY = 'owewell:outbox';
@@ -37,24 +24,15 @@ export interface QueuedCreate extends QueuedBase {
   payload: CreateExpensePayload | CreateItemizedPayload;
 }
 
-/**
- * A delete that could not be sent.
- *
- * Safe to queue for the same reason it needed no idempotency key: deleting is naturally repeatable,
- * and an expense that is already gone is the outcome this was asking for. Which is also why the
- * caller has to treat a 404 on replay as success rather than as a rejection — see `isAlreadyDone`.
- */
+/** Deleting is repeatable, so no idempotency key. A 404 on replay is success; see `isAlreadyDone`. */
 export interface QueuedDelete extends QueuedBase {
   kind: 'delete';
   expenseId: string;
 }
 
 /**
- * An edit that could not be sent.
- *
- * Carries the version it was written against, so the server can refuse it if the row moved on while
- * this sat in the queue. That refusal is the whole point: an edit replayed an hour later would
- * otherwise erase whatever happened in between without anybody being told.
+ * Carries the version it was written against. Without it, an edit replayed an hour later silently
+ * erases whatever happened in between.
  */
 export interface QueuedEdit extends QueuedBase {
   kind: 'edit' | 'edit-itemized';
@@ -63,12 +41,7 @@ export interface QueuedEdit extends QueuedBase {
   payload: CreateExpensePayload | CreateItemizedPayload;
 }
 
-/**
- * A recorded payment that could not be sent.
- *
- * The safest of the four to replay late, because it appends rather than overwrites: nothing it lands
- * on can be wrong, only duplicated, and the client id handles that.
- */
+/** Appends rather than overwrites, so replaying it late can only duplicate — which the id prevents. */
 export interface QueuedSettlement extends QueuedBase {
   kind: 'settlement';
   amountCents: number;
@@ -88,24 +61,12 @@ export const isDelete = (entry: QueuedWrite): entry is QueuedDelete => entry.kin
 export const isEdit = (entry: QueuedWrite): entry is QueuedEdit =>
   entry.kind === 'edit' || entry.kind === 'edit-itemized';
 
-/**
- * A replayed edit landing on a row that has since changed.
- *
- * Distinct from a plain rejection: the change is still wanted, it just cannot be applied blindly. The
- * caller has to ask a person, which is why this leaves the queue and comes back as a conflict rather
- * than an error message.
- */
+/** Not a rejection: the edit is still wanted, but a person has to choose. Ask, don't report. */
 export function isConflict(err: unknown): boolean {
   return err instanceof ApiError && err.status === 409;
 }
 
-/**
- * A replayed delete landing on something already deleted.
- *
- * The server answers 404, which everywhere else means "this failed". Here it means the queue can
- * stop carrying it: somebody else deleted it, or an earlier attempt got through before the
- * connection dropped and the browser never heard the answer.
- */
+/** 404 means failure everywhere else. On a replayed delete it means done — stop carrying it. */
 export function isAlreadyDone(err: unknown): boolean {
   return err instanceof ApiError && err.status === 404;
 }
@@ -119,8 +80,7 @@ function read(): QueuedWrite[] {
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? (parsed as QueuedWrite[]) : [];
   } catch {
-    // Storage disabled, or somebody hand-edited it. An unreadable queue is an empty one; the
-    // alternative is throwing on every render of the group page.
+    // An unreadable queue is an empty one. Throwing here would break every render of the group page.
     return [];
   }
 }
@@ -154,11 +114,8 @@ export function drop(clientId: string): void {
 }
 
 /**
- * A failure the network caused, rather than one the request did.
- *
- * The distinction decides whether a write is worth keeping: a dropped connection is temporary and
- * the same request will succeed later, while a 422 will be a 422 forever. `fetch` rejects with a
- * TypeError for the former, which is the only signal the browser gives us.
+ * Worth retrying, or not: a dropped connection succeeds later, a 422 never will. A TypeError from
+ * `fetch` is the only signal the browser gives for the first.
  */
 export function isOffline(err: unknown): boolean {
   return err instanceof TypeError || !navigator.onLine;
@@ -173,11 +130,8 @@ export interface FlushResult {
 }
 
 /**
- * Try the queue, oldest first.
- *
- * Stops at the first network failure rather than marching through the rest: if one request cannot
- * reach the server, neither can the next, and hammering a dead connection just burns battery. A
- * server *rejection* is different — that entry can never succeed, so it is dropped and reported.
+ * Oldest first. Stops at the first network failure — if one request can't reach the server, neither
+ * can the next. A rejection is different: that entry can never succeed, so drop it and report it.
  */
 export async function flush(
   send: (entry: QueuedWrite) => Promise<unknown>,

@@ -2,16 +2,12 @@ import { type ReactNode } from 'react';
 import { useMoney } from '../lib/currency';
 
 /**
- * Part-to-whole view of spend by category: a dependency-free SVG donut plus a legend, both
- * tappable to filter the activity feed. Colour is categorical identity, one fixed hue per category
- * so a category keeps its colour across groups — but never the only carrier of it: every legend row
- * pairs the swatch with a label.
+ * Part-to-whole spend by category: a dependency-free SVG donut plus a legend, both tappable to
+ * filter the feed. One fixed hue per category, so it keeps its colour across groups — but never as
+ * the only carrier: every legend row pairs the swatch with a label.
  *
- * The hues come from `--color-cat-*` rather than from literals in here. They used to be eight hexes
- * in this file, which meant the warm theme inherited colours picked against a dark canvas, the
- * contrast test could not see them, and the bar chart could not reach them — so the two views of the
- * same data were coloured differently. Referencing the variables means both read one source and the
- * theme swap applies to charts too.
+ * Hues come from `--color-cat-*`, not literals here, so the bars and the donut cannot colour the
+ * same data differently and the contrast test can see them.
  */
 const hueOf = (key: string): string => `var(--p-cat-${key}, var(--p-faint))`;
 

@@ -11,17 +11,11 @@ import type { Expense } from '../lib/expenses';
 import type { Settlement, SuggestedPayment } from '../lib/settlements';
 
 /*
- * Where you stand, before anything else on the page.
+ * Where you stand, before anything else on the page. Everything here is derived from the four
+ * ledger arrays rather than passed in, because none of it is read anywhere else.
  *
- * One number and the smallest amount of context that keeps it honest: your position, what the group
- * still owes around you, how far the settling has got, and this month against last. Everything here
- * is derived from the four ledger arrays rather than passed in pre-chewed, because every one of
- * those numbers was only ever read here.
- *
- * Left-aligned while there is a number, centred once there isn't. A left edge is a column for
- * figures to line up on, and "You're square" is not a figure. Set in the same place at the same
- * size it read as a sentence abandoned in the corner, so the ending gets its own composition: the
- * mark, then the words, centred under it.
+ * Left-aligned while there is a number, centred once there isn't: a left edge is a column for
+ * figures to line up on, and "You're square" is not a figure.
  */
 
 export function BalanceHero({
@@ -124,22 +118,14 @@ export function BalanceHero({
           <MoneyText cents={Math.abs(myNet)} />
         )}
       </p>
-      {/*
-       * Only when the group's outstanding total is not just your own figure again.
-       *
-       * Whenever you are the sole creditor these two lines print the same number one under the
-       * other, which reads as a rendering fault rather than as context. It is only telling you
-       * something when other people owe each other too.
-       */}
+      {/* Skipped when you are the sole creditor: this and the figure above print the same number,
+          which reads as a rendering fault rather than as context. */}
       {totalUnsettled > 0 && totalUnsettled !== Math.abs(myNet) && (
         <p className="mt-2 text-xs text-faint">{fmt(totalUnsettled)} still unsettled across the group</p>
       )}
       {totalSettled > 0 && <p className="mt-1 text-xs text-faint">{fmt(totalSettled)} settled so far</p>}
-      {/*
-       * Only once there is progress. The gate used to be "any money is in play", which is true
-       * of almost every group almost all the time, so the hero carried a permanently empty
-       * track and the word 0% — a whole row spent saying nothing has happened yet.
-       */}
+      {/* Only once there is progress: gated on "money is in play", the hero carried a permanently
+          empty track reading 0%. */}
       {totalSettled > 0 && (
         <div className={`mt-4 max-w-xs ${settled ? 'mx-auto' : ''}`}>
           <div className="mb-1.5 flex items-center justify-between text-xs text-faint">

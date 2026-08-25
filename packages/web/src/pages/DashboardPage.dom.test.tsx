@@ -209,11 +209,8 @@ describe('the date on each row', () => {
 });
 
 /*
- * The headline is the net. The chips are its two halves, and they only earn a line when the halves
- * are not just the headline again.
- *
- * They used to render whenever either side was non-zero, which is most accounts: owed in every group
- * and owing in none printed the same figure twice, once as a headline and once as a chip under it.
+ * The headline is the net; the chips are its two halves. They only earn a line when the halves are
+ * not just the headline again — owed in every group and owing in none prints the same figure twice.
  */
 describe('the overall total and its breakdown', () => {
   test('shows both halves when you are owed in one group and owing in another', async () => {

@@ -1,4 +1,4 @@
-import { computeSplit, dollarsToCents, Money, quickSplitSeed, simplifyDebts } from '@owewell/shared';
+import { computeSplit, dollarsToCents, quickSplitSeed, simplifyDebts } from '@owewell/shared';
 import type { Transfer } from '@owewell/shared';
 import type { DraftItem, DraftPerson } from './quickSplitDraft';
 import { serverValue } from './splitValues';
@@ -122,6 +122,3 @@ export function computeQuickSplit(input: {
     return empty;
   }
 }
-
-/** The total as it reads in the share text and the running header. */
-export const formatTotal = (cents: number): string => Money.fromCents(cents).format();
