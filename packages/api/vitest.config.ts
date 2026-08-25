@@ -6,6 +6,9 @@ const migrations = await readD1Migrations('./migrations');
 
 export default defineWorkersConfig({
   test: {
+    name: 'api',
+    // realtime.test.ts runs in its own project; see vitest.workspace.ts.
+    exclude: ['test/realtime.test.ts', '**/node_modules/**'],
     setupFiles: ['./test/apply-migrations.ts'],
     poolOptions: {
       workers: {
