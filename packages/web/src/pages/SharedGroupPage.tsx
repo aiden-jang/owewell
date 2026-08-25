@@ -205,16 +205,20 @@ export function SharedGroupPage(): ReactNode {
               ) : (
                 <ul className="mt-3 space-y-2 text-sm">
                   {summary.suggested.map((p, i) => (
-                    <li key={i} className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2">
-                        <Avatar name={p.fromName} size="sm" />
-                        <span>
-                          <span className="font-medium">{p.fromName}</span>
-                          <span className="text-muted"> pays </span>
-                          <span className="font-medium">{p.toName}</span>
+                    /*
+                     * The amount on its own line above the names, the same shape the group page's
+                     * settle-up rows use. Two real names run "X pays Y" to three lines, and with the
+                     * figure off to the right it ends up floating against the middle of them.
+                     */
+                    <li key={i} className="flex items-start gap-2.5">
+                      <Avatar name={p.fromName} size="sm" />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="tnum font-semibold">{fmt(p.amountCents)}</span>
+                        <span className="text-xs text-muted">
+                          <span className="font-medium text-ink">{p.fromName}</span> pays{' '}
+                          <span className="font-medium text-ink">{p.toName}</span>
                         </span>
                       </span>
-                      <span className="tnum font-medium">{fmt(p.amountCents)}</span>
                     </li>
                   ))}
                 </ul>
@@ -236,25 +240,32 @@ export function SharedGroupPage(): ReactNode {
                       key={i}
                       className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
                     >
-                      <span className="flex min-w-0 items-center gap-3 font-medium">
+                      {/*
+                       * Name on the first line, money on the second, as on the group page's roster.
+                       * The balance and the claim button are both shrink-0, so on a phone the name
+                       * was the only thing that could give and a four-person list rendered "Mari…".
+                       */}
+                      <span className="flex min-w-0 flex-1 items-center gap-3">
                         <Avatar name={m.displayName} />
-                        <span className="truncate">{m.displayName}</span>
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate font-medium">{m.displayName}</span>
+                          {label.text && (
+                            <span className={`tnum truncate text-xs font-medium ${label.tone}`}>
+                              {label.text}
+                            </span>
+                          )}
+                        </span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-3">
-                        {label.text && (
-                          <span className={`tnum text-sm font-medium ${label.tone}`}>{label.text}</span>
-                        )}
-                        {claimable && (
-                          <button
-                            type="button"
-                            onClick={() => void claimSeat(m.userId)}
-                            disabled={claiming === m.userId}
-                            className="rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
-                          >
-                            {claiming === m.userId ? 'Claiming…' : 'This is me'}
-                          </button>
-                        )}
-                      </span>
+                      {claimable && (
+                        <button
+                          type="button"
+                          onClick={() => void claimSeat(m.userId)}
+                          disabled={claiming === m.userId}
+                          className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
+                        >
+                          {claiming === m.userId ? 'Claiming…' : 'This is me'}
+                        </button>
+                      )}
                     </li>
                   );
                 })}
