@@ -3,6 +3,7 @@ import type { MoneyFormatter } from '@owewell/shared';
 import type { Balance } from './groups';
 import type { Expense } from './expenses';
 import type { Settlement } from './settlements';
+import { fullDay } from './relativeTime';
 
 /*
  * The ledger as a spreadsheet.
@@ -39,6 +40,12 @@ export function activityCsv({
   const rows = [
     ...expenses.map((expense) => ({
       date: expense.date || expense.createdAt,
+      /*
+       * An expense's date is a calendar day stored at UTC midnight, so it has to be printed in UTC;
+       * a settlement's is a real instant and is printed locally. Formatting both the same way is
+       * what put every expense a day early for anyone west of UTC.
+       */
+      dateLabel: fullDay(expense.date || expense.createdAt, {}),
       type: 'Expense',
       description: expense.description,
       amount: fmt(expense.amountCents),
@@ -46,6 +53,7 @@ export function activityCsv({
     })),
     ...settlements.map((settlement) => ({
       date: settlement.createdAt,
+      dateLabel: new Date(settlement.createdAt).toLocaleDateString(),
       type: 'Payment',
       description: `${nameOf(settlement.fromUserId)} → ${nameOf(settlement.toUserId)}`,
       amount: fmt(settlement.amountCents),
@@ -53,6 +61,7 @@ export function activityCsv({
     })),
     ...balances.map((balance) => ({
       date: '',
+      dateLabel: '',
       type: 'Current balance',
       description: nameOf(balance.userId),
       amount: fmt(Math.abs(balance.netCents)),
@@ -69,13 +78,7 @@ export function activityCsv({
 
   return [
     ['Date', 'Type', 'Description', 'Amount', 'Details'],
-    ...rows.map((row) => [
-      row.date ? new Date(row.date).toLocaleDateString() : '',
-      row.type,
-      row.description,
-      row.amount,
-      row.details,
-    ]),
+    ...rows.map((row) => [row.dateLabel, row.type, row.description, row.amount, row.details]),
   ]
     .map((row) => row.map(csvCell).join(','))
     .join('\r\n');
