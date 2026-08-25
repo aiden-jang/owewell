@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMoney } from '../lib/currency';
 
 const REDUCED =
-  typeof window !== 'undefined' &&
-  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /**
  * Money that counts up to its value when it first appears or changes. Purely

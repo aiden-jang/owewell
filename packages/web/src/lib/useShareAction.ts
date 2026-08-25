@@ -47,7 +47,15 @@ export function useShareAction(reportFailure: (message: string) => void): {
   }, []);
 
   const share = useCallback(
-    async ({ title, text, failureMessage }: { title: string; text: string; failureMessage: string }): Promise<void> => {
+    async ({
+      title,
+      text,
+      failureMessage,
+    }: {
+      title: string;
+      text: string;
+      failureMessage: string;
+    }): Promise<void> => {
       if (busy.current) return;
       busy.current = true;
       setStatus('sharing');

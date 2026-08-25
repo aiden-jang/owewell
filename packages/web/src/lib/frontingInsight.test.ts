@@ -12,11 +12,10 @@ const balance = (userId: string, displayName: string, paidCents: number, owedCen
 
 describe('frontingInsight', () => {
   test('spots a repeated fronter and suggests the least-used payer', () => {
-    const insight = frontingInsight([
-      balance('a', 'Alex', 8000),
-      balance('b', 'Blair', 2000),
-      balance('c', 'Casey', 0),
-    ], 5);
+    const insight = frontingInsight(
+      [balance('a', 'Alex', 8000), balance('b', 'Blair', 2000), balance('c', 'Casey', 0)],
+      5,
+    );
 
     expect(insight?.leader).toMatchObject({ displayName: 'Alex', percent: 80 });
     expect(insight?.concentrated).toBe(true);
@@ -30,10 +29,7 @@ describe('frontingInsight', () => {
   });
 
   test('recognizes an evenly shared tab', () => {
-    const insight = frontingInsight([
-      balance('a', 'Alex', 5000),
-      balance('b', 'Blair', 5000),
-    ], 6);
+    const insight = frontingInsight([balance('a', 'Alex', 5000), balance('b', 'Blair', 5000)], 6);
     expect(insight?.concentrated).toBe(false);
     expect(insight?.shares.map((share) => share.percent)).toEqual([50, 50]);
   });

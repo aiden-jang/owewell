@@ -11,13 +11,7 @@ import {
   people,
   settlements,
 } from './db/schema.js';
-import {
-  GroupError,
-  memberView,
-  requireMembership,
-  requireOwner,
-  type GroupMemberView,
-} from './groups.js';
+import { GroupError, memberView, requireMembership, requireOwner, type GroupMemberView } from './groups.js';
 
 /*
  * Who is in a group, and what happens to the ledger when that changes.
@@ -59,7 +53,10 @@ export async function renameMember(
     .where(eq(people.id, targetPersonId))
     .get();
   if (!person || !person.isPlaceholder || person.authUserId) {
-    throw new GroupError('NOT_PLACEHOLDER', 'Only name-only members can be renamed; real accounts manage their own name.');
+    throw new GroupError(
+      'NOT_PLACEHOLDER',
+      'Only name-only members can be renamed; real accounts manage their own name.',
+    );
   }
   await db.update(people).set({ displayName: name }).where(eq(people.id, targetPersonId));
   return memberView(db, groupId, targetPersonId);
@@ -130,14 +127,21 @@ export async function setPaymentHandles(
  * / SHARES expenses (their per-person allocations have no defined value for a newcomer). Those
  * stay manual.
  */
-async function replaceSplits(db: DB, expenseId: string, shares: { userId: string; owedCents: number }[]): Promise<void> {
+async function replaceSplits(
+  db: DB,
+  expenseId: string,
+  shares: { userId: string; owedCents: number }[],
+): Promise<void> {
   await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await db.insert(expenseSplits).values(
-    shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-  );
+  await db
+    .insert(expenseSplits)
+    .values(
+      shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
+    );
 }
 
-const sameSet = (ids: string[], set: Set<string>): boolean => ids.length === set.size && ids.every((id) => set.has(id));
+const sameSet = (ids: string[], set: Set<string>): boolean =>
+  ids.length === set.size && ids.every((id) => set.has(id));
 
 /** Internal: the roster changed, so everybody's share of the shared expenses did too. */
 async function resplitSharedExpenses(
@@ -151,7 +155,13 @@ async function resplitSharedExpenses(
   const everyone = [...priorMemberIds, newMemberId];
 
   const rows = await db
-    .select({ id: expenses.id, amountCents: expenses.amountCents, splitMethod: expenses.splitMethod, taxCents: expenses.taxCents, tipCents: expenses.tipCents })
+    .select({
+      id: expenses.id,
+      amountCents: expenses.amountCents,
+      splitMethod: expenses.splitMethod,
+      taxCents: expenses.taxCents,
+      tipCents: expenses.tipCents,
+    })
     .from(expenses)
     .where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
     .all();
@@ -159,10 +169,23 @@ async function resplitSharedExpenses(
   for (const e of rows) {
     if (e.splitMethod === 'EQUAL') {
       const parts = (
-        await db.select({ personId: expenseSplits.personId }).from(expenseSplits).where(eq(expenseSplits.expenseId, e.id)).all()
+        await db
+          .select({ personId: expenseSplits.personId })
+          .from(expenseSplits)
+          .where(eq(expenseSplits.expenseId, e.id))
+          .all()
       ).map((r) => r.personId);
       if (!sameSet(parts, priorSet)) continue; // subset splits stay as-is
-      await replaceSplits(db, e.id, computeSplit('EQUAL', e.amountCents, everyone.map((userId) => ({ userId })), e.id));
+      await replaceSplits(
+        db,
+        e.id,
+        computeSplit(
+          'EQUAL',
+          e.amountCents,
+          everyone.map((userId) => ({ userId })),
+          e.id,
+        ),
+      );
     } else if (e.splitMethod === 'ITEMIZED') {
       const itemRows = await db
         .select({ id: expenseItems.id, amountCents: expenseItems.amountCents })
@@ -172,14 +195,22 @@ async function resplitSharedExpenses(
       const shareRows = await db
         .select({ itemId: expenseItemShares.itemId, personId: expenseItemShares.personId })
         .from(expenseItemShares)
-        .where(inArray(expenseItemShares.itemId, itemRows.map((i) => i.id)))
+        .where(
+          inArray(
+            expenseItemShares.itemId,
+            itemRows.map((i) => i.id),
+          ),
+        )
         .all();
       const partsByItem = new Map<string, string[]>();
-      for (const s of shareRows) partsByItem.set(s.itemId, [...(partsByItem.get(s.itemId) ?? []), s.personId]);
+      for (const s of shareRows)
+        partsByItem.set(s.itemId, [...(partsByItem.get(s.itemId) ?? []), s.personId]);
       // Only receipts where *every* item was shared by everyone.
       if (!itemRows.every((i) => sameSet(partsByItem.get(i.id) ?? [], priorSet))) continue;
       for (const i of itemRows) {
-        await db.insert(expenseItemShares).values({ id: crypto.randomUUID(), itemId: i.id, personId: newMemberId });
+        await db
+          .insert(expenseItemShares)
+          .values({ id: crypto.randomUUID(), itemId: i.id, personId: newMemberId });
       }
       const shares = computeItemizedSplit({
         items: itemRows.map((i) => ({ amountCents: i.amountCents, participantIds: everyone })),
@@ -193,14 +224,25 @@ async function resplitSharedExpenses(
 }
 
 /** Add a name-only person (no account) to the group, backed by a placeholder people row. */
-export async function addPlaceholderMember(db: DB, personId: string, groupId: string, name: string): Promise<GroupMemberView> {
+export async function addPlaceholderMember(
+  db: DB,
+  personId: string,
+  groupId: string,
+  name: string,
+): Promise<GroupMemberView> {
   await requireMembership(db, personId, groupId);
   const priorMemberIds = (
-    await db.select({ id: groupMembers.personId }).from(groupMembers).where(eq(groupMembers.groupId, groupId)).all()
+    await db
+      .select({ id: groupMembers.personId })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId))
+      .all()
   ).map((r) => r.id);
   const newPersonId = crypto.randomUUID();
   await db.insert(people).values({ id: newPersonId, displayName: name, isPlaceholder: true });
-  await db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId, personId: newPersonId, role: 'MEMBER' });
+  await db
+    .insert(groupMembers)
+    .values({ id: crypto.randomUUID(), groupId, personId: newPersonId, role: 'MEMBER' });
   await resplitSharedExpenses(db, groupId, priorMemberIds, newPersonId);
   return {
     userId: newPersonId,
@@ -266,7 +308,11 @@ async function unaddFromLedger(db: DB, groupId: string, personId: string, ownerI
 
     // Drop them from itemized item shares (detail cleanup; balances come from the splits above).
     const itemIds = (
-      await db.select({ id: expenseItems.id }).from(expenseItems).where(eq(expenseItems.expenseId, e.id)).all()
+      await db
+        .select({ id: expenseItems.id })
+        .from(expenseItems)
+        .where(eq(expenseItems.expenseId, e.id))
+        .all()
     ).map((i) => i.id);
     if (itemIds.length) {
       await db
@@ -279,7 +325,10 @@ async function unaddFromLedger(db: DB, groupId: string, personId: string, ownerI
   await db
     .delete(settlements)
     .where(
-      and(eq(settlements.groupId, groupId), or(eq(settlements.fromPersonId, personId), eq(settlements.toPersonId, personId))),
+      and(
+        eq(settlements.groupId, groupId),
+        or(eq(settlements.fromPersonId, personId), eq(settlements.toPersonId, personId)),
+      ),
     );
 }
 
@@ -288,7 +337,12 @@ async function unaddFromLedger(db: DB, groupId: string, personId: string, ownerI
  * expenses, which would invalidate settlements already logged — so once anyone's been marked
  * paid, removal is blocked. In the allowed case their share re-splits among the people who
  * remain and anything they paid is handed to the owner; no settlements are invented. */
-export async function removeMember(db: DB, actingPersonId: string, groupId: string, targetPersonId: string): Promise<void> {
+export async function removeMember(
+  db: DB,
+  actingPersonId: string,
+  groupId: string,
+  targetPersonId: string,
+): Promise<void> {
   await requireMembership(db, actingPersonId, groupId);
   const target = await db
     .select({ role: groupMembers.role })
@@ -305,7 +359,11 @@ export async function removeMember(db: DB, actingPersonId: string, groupId: stri
 
   // Removal re-splits expenses, which would break any payment already recorded against the old
   // split. So it's only allowed while the group has no settlements yet.
-  const settled = await db.select({ c: count() }).from(settlements).where(eq(settlements.groupId, groupId)).get();
+  const settled = await db
+    .select({ c: count() })
+    .from(settlements)
+    .where(eq(settlements.groupId, groupId))
+    .get();
   if ((settled?.c ?? 0) > 0) {
     throw new GroupError(
       'HAS_ACTIVITY',
@@ -320,6 +378,8 @@ export async function removeMember(db: DB, actingPersonId: string, groupId: stri
     .get();
   await unaddFromLedger(db, groupId, targetPersonId, owner?.personId ?? actingPersonId);
 
-  await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, targetPersonId)));
+  await db
+    .delete(groupMembers)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, targetPersonId)));
   await pruneOrphanPlaceholders(db);
 }

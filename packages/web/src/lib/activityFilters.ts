@@ -44,7 +44,11 @@ export interface CategorySpend {
 }
 
 /** Spend grouped by category under the lens, biggest first, for the "Where it went" breakdown. */
-export function spendByCategory(expenses: Expense[], personId: string | null, relation: Relation): CategorySpend[] {
+export function spendByCategory(
+  expenses: Expense[],
+  personId: string | null,
+  relation: Relation,
+): CategorySpend[] {
   const totals = new Map<string, number>();
   for (const e of expenses) {
     if (!matchesPersonLens(e, personId, relation)) continue;

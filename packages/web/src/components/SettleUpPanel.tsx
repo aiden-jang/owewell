@@ -1,9 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import {
-  PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
-  type PaymentMethod,
-} from '@owewell/core';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
@@ -152,7 +148,13 @@ export function SettleUpPanel({
             className="tap inline-flex items-center gap-1 text-xs font-medium text-muted transition hover:text-ink hover:underline disabled:cursor-default disabled:opacity-70"
           >
             <Icon name="share" size={13} />
-            {settleShareStatus === 'sharing' ? 'Opening…' : settleShareStatus === 'shared' ? 'Plan shared' : settleShareStatus === 'copied' ? 'Plan copied' : 'Share plan'}
+            {settleShareStatus === 'sharing'
+              ? 'Opening…'
+              : settleShareStatus === 'shared'
+                ? 'Plan shared'
+                : settleShareStatus === 'copied'
+                  ? 'Plan copied'
+                  : 'Share plan'}
           </button>
         </div>
       </div>
@@ -166,14 +168,14 @@ export function SettleUpPanel({
         <span className="tnum font-semibold text-ink">{fmt(settlePlanTotal)} remaining</span>
       </div>
       {/*
-        * Directly above the buttons it governs, not up in the header beside "Share plan".
-        *
-        * It sets the method every Mark paid in the list records, but sitting in the share row it
-        * read as an option for the share — and it was the one form control in a header of text
-        * links, which is its own kind of wrong. It stays one control rather than one per row: the
-        * answer is the same for every transfer in a plan, and eight identical selects would be
-        * eight chances to record the wrong one.
-        */}
+       * Directly above the buttons it governs, not up in the header beside "Share plan".
+       *
+       * It sets the method every Mark paid in the list records, but sitting in the share row it
+       * read as an option for the share — and it was the one form control in a header of text
+       * links, which is its own kind of wrong. It stays one control rather than one per row: the
+       * answer is the same for every transfer in a plan, and eight identical selects would be
+       * eight chances to record the wrong one.
+       */}
       <label className="mt-2 flex items-center justify-between gap-1.5 text-xs text-muted">
         mark paid via
         <select
@@ -204,25 +206,27 @@ export function SettleUpPanel({
               }`}
             >
               {/*
-                * The sentence and the one button that acts on it, on one line.
-                *
-                * Everything used to share a wrapping row: on a phone that put the actions on a
-                * second line pushed to the right edge while the sentence started at the left, so
-                * Mark paid — the only control that touches the ledger — sat as far from its own
-                * sentence as the row allowed. Pinning the two together and dropping the rest
-                * underneath is one layout that holds at every width, which is also why the sm:
-                * variants are gone: two arrangements meant two things to keep right.
-                *
-                * The amount is its own line above the names, not the tail of the sentence. Two real
-                * names ("Maria-Fernanda Villanueva pays Konstantinos Papadopoulos-Herrera") ran the
-                * sentence to five lines on a 375px phone and left $2,143.78 stranded at the bottom,
-                * furthest from the button that records it. Names may still wrap, since they are the
-                * part you read, but the figure you act on now sits level with Mark paid.
-                */}
+               * The sentence and the one button that acts on it, on one line.
+               *
+               * Everything used to share a wrapping row: on a phone that put the actions on a
+               * second line pushed to the right edge while the sentence started at the left, so
+               * Mark paid — the only control that touches the ledger — sat as far from its own
+               * sentence as the row allowed. Pinning the two together and dropping the rest
+               * underneath is one layout that holds at every width, which is also why the sm:
+               * variants are gone: two arrangements meant two things to keep right.
+               *
+               * The amount is its own line above the names, not the tail of the sentence. Two real
+               * names ("Maria-Fernanda Villanueva pays Konstantinos Papadopoulos-Herrera") ran the
+               * sentence to five lines on a 375px phone and left $2,143.78 stranded at the bottom,
+               * furthest from the button that records it. Names may still wrap, since they are the
+               * part you read, but the figure you act on now sits level with Mark paid.
+               */}
               {/* Above the row, not inside the name column: it labels the whole transfer, and from
                   in there it pushed the avatar out of line with the amount. */}
               {key === recommendedPaymentKey && suggested.length > 1 && (
-                <span className="block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
+                <span className="block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">
+                  Start here
+                </span>
               )}
               <span className="flex items-start justify-between gap-3 text-sm">
                 <span className="flex min-w-0 items-start gap-2.5">

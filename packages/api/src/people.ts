@@ -84,5 +84,7 @@ export async function pruneOrphanPlaceholders(db: DB): Promise<void> {
 
   const keepIds = [...referenced];
   const base = and(eq(people.isPlaceholder, true));
-  await db.delete(people).where(keepIds.length ? and(base, notInArray(people.id, keepIds)) : and(base, isNull(people.authUserId)));
+  await db
+    .delete(people)
+    .where(keepIds.length ? and(base, notInArray(people.id, keepIds)) : and(base, isNull(people.authUserId)));
 }

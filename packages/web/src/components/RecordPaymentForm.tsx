@@ -31,7 +31,15 @@ function balanceCopy(cents: number, fmt: MoneyFormatter): string {
 
 /** Record an arbitrary payment between two members — any amount (incl. partial), any method.
  *  Complements the one-tap "Settle" buttons, which only clear the full suggested amount. */
-export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions = [], balances, onRecorded, onQueued }: Props): ReactNode {
+export function RecordPaymentForm({
+  groupId,
+  members,
+  defaultFromId,
+  suggestions = [],
+  balances,
+  onRecorded,
+  onQueued,
+}: Props): ReactNode {
   const fmt = useMoney();
   const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
   const nameOf = (id: string): string => memberOf(id)?.displayName ?? 'Someone';
@@ -73,21 +81,27 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
       return 0;
     }
   }, [amount]);
-  const fromBalance = balances.find(balance => balance.userId === fromUserId);
-  const toBalance = balances.find(balance => balance.userId === toUserId);
-  const usefulLimit = fromBalance && toBalance
-    ? Math.min(Math.max(0, -fromBalance.netCents), Math.max(0, toBalance.netCents))
-    : 0;
-  const quickAmounts = [...new Set([0.25, 0.5, 0.75, 1].map(ratio => Math.max(1, Math.round(usefulLimit * ratio))))];
+  const fromBalance = balances.find((balance) => balance.userId === fromUserId);
+  const toBalance = balances.find((balance) => balance.userId === toUserId);
+  const usefulLimit =
+    fromBalance && toBalance
+      ? Math.min(Math.max(0, -fromBalance.netCents), Math.max(0, toBalance.netCents))
+      : 0;
+  const quickAmounts = [
+    ...new Set([0.25, 0.5, 0.75, 1].map((ratio) => Math.max(1, Math.round(usefulLimit * ratio)))),
+  ];
   const preview = useMemo(() => {
     if (!fromBalance || !toBalance || amountCents <= 0 || fromUserId === toUserId) return null;
-    return previewPaymentPlan({
-      fromUserId,
-      fromName: fromBalance.displayName,
-      toUserId,
-      toName: toBalance.displayName,
-      amountCents,
-    }, balances);
+    return previewPaymentPlan(
+      {
+        fromUserId,
+        fromName: fromBalance.displayName,
+        toUserId,
+        toName: toBalance.displayName,
+        amountCents,
+      },
+      balances,
+    );
   }, [amountCents, balances, fromBalance, fromUserId, toBalance, toUserId]);
 
   function chooseRecipient(id: string): void {
@@ -188,7 +202,12 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
                   <span className="block font-medium text-ink">
                     {suggestion.fromName} &rarr; {suggestion.toName}
                   </span>
-                  <span className="tnum">{(suggestion.amountCents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</span>
+                  <span className="tnum">
+                    {(suggestion.amountCents / 100).toLocaleString(undefined, {
+                      style: 'currency',
+                      currency: 'USD',
+                    })}
+                  </span>
                 </button>
               );
             })}
@@ -223,16 +242,16 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
         </select>
       </div>
       {/*
-        * The amount, at the rank it has in the add-expense sheet.
-        *
-        * It was a 16px box sharing a row with the method dropdown — the exact arrangement the note
-        * in AddExpenseForm describes moving away from, for the same reason: everything else in this
-        * form is a detail about this number, and it was styled as one more select.
-        *
-        * Also the only money input in the app that did not tidy itself on blur. Eight others call
-        * normalizeAmountInput, so "8.5" became "8.50" everywhere except the one form whose entire
-        * job is recording an amount somebody actually paid.
-        */}
+       * The amount, at the rank it has in the add-expense sheet.
+       *
+       * It was a 16px box sharing a row with the method dropdown — the exact arrangement the note
+       * in AddExpenseForm describes moving away from, for the same reason: everything else in this
+       * form is a detail about this number, and it was styled as one more select.
+       *
+       * Also the only money input in the app that did not tidy itself on blur. Eight others call
+       * normalizeAmountInput, so "8.5" became "8.50" everywhere except the one form whose entire
+       * job is recording an amount somebody actually paid.
+       */}
       <div className="rounded-2xl border border-line bg-field px-4 py-4 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
         <div className="flex items-baseline justify-center gap-1">
           <span aria-hidden className="font-display text-xl font-semibold text-faint">
@@ -297,9 +316,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
           aria-live="polite"
           aria-label="Payment preview"
           className={`overflow-hidden rounded-2xl border ${
-            preview.direction === 'helpful'
-              ? 'border-accent/25 bg-accent-soft/45'
-              : 'border-neg/30 bg-neg/5'
+            preview.direction === 'helpful' ? 'border-accent/25 bg-accent-soft/45' : 'border-neg/30 bg-neg/5'
           }`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line/70 px-3.5 py-2.5">
@@ -317,7 +334,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
               </p>
             )}
             <div className="grid gap-2 sm:grid-cols-2">
-              {preview.touched.map(person => (
+              {preview.touched.map((person) => (
                 <div key={person.userId} className="rounded-xl border border-line bg-surface2/70 p-2.5">
                   <strong className="block text-xs text-ink">{person.displayName}</strong>
                   <span className="mt-1 block text-2xs text-muted">
@@ -340,15 +357,22 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
             </div>
             {preview.remaining.length > 0 && (
               <ul className="mt-2 space-y-1 rounded-xl border border-line bg-field/70 p-2.5">
-                {preview.remaining.map(transfer => (
-                  <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="flex items-center justify-between gap-3 text-2xs text-muted">
-                    <span><strong className="text-ink">{transfer.fromName}</strong> → {transfer.toName}</span>
+                {preview.remaining.map((transfer) => (
+                  <li
+                    key={`${transfer.fromUserId}-${transfer.toUserId}`}
+                    className="flex items-center justify-between gap-3 text-2xs text-muted"
+                  >
+                    <span>
+                      <strong className="text-ink">{transfer.fromName}</strong> → {transfer.toName}
+                    </span>
                     <span className="tnum shrink-0 font-semibold text-ink">{fmt(transfer.amountCents)}</span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-2 text-2xs text-muted">Preview only. Nothing changes until you log the payment.</p>
+            <p className="mt-2 text-2xs text-muted">
+              Preview only. Nothing changes until you log the payment.
+            </p>
           </div>
         </section>
       )}

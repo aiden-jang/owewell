@@ -15,7 +15,11 @@ import { Icon } from '../components/Icon';
 import { SpendDonut } from '../components/SpendDonut';
 import { useToast } from '../components/Toast';
 
-function balanceLabel(netCents: number, hasActivity: boolean, fmt: MoneyFormatter): { text: string; tone: string } {
+function balanceLabel(
+  netCents: number,
+  hasActivity: boolean,
+  fmt: MoneyFormatter,
+): { text: string; tone: string } {
   // With no expenses yet, nobody is settled OR owing — there's just nothing to settle.
   if (!hasActivity) return { text: '', tone: 'text-muted' };
   if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
@@ -44,23 +48,26 @@ export function SharedGroupPage(): ReactNode {
 
   // Claim a seat. Signed out → sign in and come back with ?claim=<seat> so we finish
   // automatically. Signed in → merge the seat and drop into the now-editable group.
-  const claimSeat = useCallback(async (seatId: string): Promise<void> => {
-    if (!token) return;
-    if (!user) {
-      login(`${window.location.origin}/s/${token}?claim=${seatId}`);
-      return;
-    }
-    setClaiming(seatId);
-    try {
-      const { groupId } = await groupsApi.claimSeat(token, seatId);
-      navigate(`/groups/${groupId}`);
-    } catch (err) {
-      // Surfaces the server's reason, e.g. "You're already in this group." for a member, or a
-      // taken/invalid seat.
-      toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
-      setClaiming(null);
-    }
-  }, [login, navigate, toast, token, user]);
+  const claimSeat = useCallback(
+    async (seatId: string): Promise<void> => {
+      if (!token) return;
+      if (!user) {
+        login(`${window.location.origin}/s/${token}?claim=${seatId}`);
+        return;
+      }
+      setClaiming(seatId);
+      try {
+        const { groupId } = await groupsApi.claimSeat(token, seatId);
+        navigate(`/groups/${groupId}`);
+      } catch (err) {
+        // Surfaces the server's reason, e.g. "You're already in this group." for a member, or a
+        // taken/invalid seat.
+        toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
+        setClaiming(null);
+      }
+    },
+    [login, navigate, toast, token, user],
+  );
 
   const viewerIsMember = !!user && !!summary && summary.members.some((m) => m.userId === user.id);
   const hasOpenSeats = !!summary && summary.members.some((m) => m.isPlaceholder);
@@ -117,13 +124,13 @@ export function SharedGroupPage(): ReactNode {
 
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 animate-rise px-4 py-8">
         {/*
-          * A shape, not a sentence.
-          *
-          * This was centred grey text reading "Loading the tab…", which is the first thing anybody
-          * who is not a user ever sees of owewell, on whatever connection they happen to be on. It
-          * read as a page that had failed rather than one that was arriving. These blocks match the
-          * ready state below: label, name, member count, the spend card, then who-owes-who.
-          */}
+         * A shape, not a sentence.
+         *
+         * This was centred grey text reading "Loading the tab…", which is the first thing anybody
+         * who is not a user ever sees of owewell, on whatever connection they happen to be on. It
+         * read as a page that had failed rather than one that was arriving. These blocks match the
+         * ready state below: label, name, member count, the spend card, then who-owes-who.
+         */}
         {status === 'loading' && (
           <div aria-busy="true" aria-label="Loading the tab">
             <Skeleton className="h-5 w-28" />
@@ -183,8 +190,7 @@ export function SharedGroupPage(): ReactNode {
               </p>
               <p className="mt-2 text-xs text-faint">
                 {fmt(summary.perPersonCents)} avg/person
-                {summary.totalSettledCents > 0 &&
-                  ` · ${fmt(summary.totalSettledCents)} settled so far`}
+                {summary.totalSettledCents > 0 && ` · ${fmt(summary.totalSettledCents)} settled so far`}
               </p>
             </div>
 
@@ -226,7 +232,10 @@ export function SharedGroupPage(): ReactNode {
                   );
                   const claimable = m.isPlaceholder && !viewerIsMember;
                   return (
-                    <li key={i} className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3">
+                    <li
+                      key={i}
+                      className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                    >
                       <span className="flex min-w-0 items-center gap-3 font-medium">
                         <Avatar name={m.displayName} />
                         <span className="truncate">{m.displayName}</span>
@@ -280,34 +289,33 @@ export function SharedGroupPage(): ReactNode {
                     total={summary.totalSpentCents}
                   />
                 ) : (
-                <ul className="mt-3 space-y-2.5">
-                  {summary.breakdown.map(({ category, cents }) => {
-                    const meta = categoryMeta(category);
-                    return (
-                      // Same shape as the signed-in breakdown: figure above, bar across the row.
-                      <li key={category}>
-                        <span className="flex items-baseline justify-between gap-3 text-sm">
-                          <span className="min-w-0 truncate">
-                            <CategoryDot categoryKey={meta.key} />{' '}
-                            {meta.label}
+                  <ul className="mt-3 space-y-2.5">
+                    {summary.breakdown.map(({ category, cents }) => {
+                      const meta = categoryMeta(category);
+                      return (
+                        // Same shape as the signed-in breakdown: figure above, bar across the row.
+                        <li key={category}>
+                          <span className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className="min-w-0 truncate">
+                              <CategoryDot categoryKey={meta.key} /> {meta.label}
+                            </span>
+                            <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
                           </span>
-                          <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
-                        </span>
-                        {/* The category's own hue, not the accent. This bar was the one place in
+                          {/* The category's own hue, not the accent. This bar was the one place in
                             the app where a category changed colour depending on who was looking. */}
-                        <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
-                          <span
-                            className="block h-full rounded-full"
-                            style={{
-                              width: `${Math.max(3, Math.round((cents / summary.totalSpentCents) * 100))}%`,
-                              background: `var(--p-cat-${meta.key}, var(--p-accent))`,
-                            }}
-                          />
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                          <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{
+                                width: `${Math.max(3, Math.round((cents / summary.totalSpentCents) * 100))}%`,
+                                background: `var(--p-cat-${meta.key}, var(--p-accent))`,
+                              }}
+                            />
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </section>
             )}

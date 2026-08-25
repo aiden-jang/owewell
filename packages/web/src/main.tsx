@@ -17,7 +17,6 @@ if (!rootEl) {
   throw new Error('Root element #root not found');
 }
 
-
 createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
@@ -44,8 +43,6 @@ if ('serviceWorker' in navigator) {
       });
     });
   } else {
-    void navigator.serviceWorker
-      .getRegistrations()
-      .then((regs) => regs.forEach((r) => void r.unregister()));
+    void navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => void r.unregister()));
   }
 }

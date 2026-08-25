@@ -19,9 +19,7 @@ describe('cache headers', () => {
   it.each(paths)('%s is never cacheable', async (path) => {
     const res = await SELF.fetch(`https://x${path}`);
     const cc = res.headers.get('cache-control') ?? '';
-    expect(cc, `${path} returned ${res.status} with cache-control: ${cc || '(none)'}`).toContain(
-      'no-store',
-    );
+    expect(cc, `${path} returned ${res.status} with cache-control: ${cc || '(none)'}`).toContain('no-store');
   });
 
   /*

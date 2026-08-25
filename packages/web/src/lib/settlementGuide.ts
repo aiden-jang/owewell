@@ -31,25 +31,27 @@ export function previewPaymentPlan(
   payment: SuggestedPayment,
   balances: Balance[],
 ): PaymentPlanPreview | null {
-  const from = balances.find(balance => balance.userId === payment.fromUserId);
-  const to = balances.find(balance => balance.userId === payment.toUserId);
+  const from = balances.find((balance) => balance.userId === payment.fromUserId);
+  const to = balances.find((balance) => balance.userId === payment.toUserId);
   if (!from || !to || from.userId === to.userId || payment.amountCents <= 0) return null;
 
-  const projected = balances.map(balance => ({
+  const projected = balances.map((balance) => ({
     ...balance,
-    netCents: balance.userId === from.userId
-      ? balance.netCents + payment.amountCents
-      : balance.userId === to.userId
-        ? balance.netCents - payment.amountCents
-        : balance.netCents,
+    netCents:
+      balance.userId === from.userId
+        ? balance.netCents + payment.amountCents
+        : balance.userId === to.userId
+          ? balance.netCents - payment.amountCents
+          : balance.netCents,
   }));
-  const names = new Map(balances.map(balance => [balance.userId, balance.displayName]));
-  const remaining = simplifyDebts(projected.map(balance => ({ userId: balance.userId, netCents: balance.netCents })))
-    .map(transfer => ({
-      ...transfer,
-      fromName: names.get(transfer.fromUserId) ?? 'Someone',
-      toName: names.get(transfer.toUserId) ?? 'Someone',
-    }));
+  const names = new Map(balances.map((balance) => [balance.userId, balance.displayName]));
+  const remaining = simplifyDebts(
+    projected.map((balance) => ({ userId: balance.userId, netCents: balance.netCents })),
+  ).map((transfer) => ({
+    ...transfer,
+    fromName: names.get(transfer.fromUserId) ?? 'Someone',
+    toName: names.get(transfer.toUserId) ?? 'Someone',
+  }));
   const usefulLimit = Math.min(Math.max(0, -from.netCents), Math.max(0, to.netCents));
 
   return {
@@ -57,11 +59,7 @@ export function previewPaymentPlan(
     remaining,
     outstandingBeforeCents: balances.reduce((sum, balance) => sum + Math.max(0, balance.netCents), 0),
     outstandingAfterCents: projected.reduce((sum, balance) => sum + Math.max(0, balance.netCents), 0),
-    direction: usefulLimit === 0
-      ? 'wrong-way'
-      : payment.amountCents > usefulLimit
-        ? 'overpay'
-        : 'helpful',
+    direction: usefulLimit === 0 ? 'wrong-way' : payment.amountCents > usefulLimit ? 'overpay' : 'helpful',
   };
 }
 
@@ -71,11 +69,12 @@ export function projectBalancesAfterPayment(
   balances: Balance[],
 ): ProjectedBalance[] {
   return balances
-    .filter(balance => balance.userId === payment.fromUserId || balance.userId === payment.toUserId)
-    .map(balance => {
-      const afterCents = balance.userId === payment.fromUserId
-        ? balance.netCents + payment.amountCents
-        : balance.netCents - payment.amountCents;
+    .filter((balance) => balance.userId === payment.fromUserId || balance.userId === payment.toUserId)
+    .map((balance) => {
+      const afterCents =
+        balance.userId === payment.fromUserId
+          ? balance.netCents + payment.amountCents
+          : balance.netCents - payment.amountCents;
       return {
         userId: balance.userId,
         displayName: balance.displayName,
@@ -103,15 +102,17 @@ export function settlementStepImpact(
       ? { name: to.displayName, role: 'recipient' }
       : null,
   ].filter((entry): entry is { name: string; role: string } => entry !== null);
-  const duplicateNames = clears.length > 1 && new Set(clears.map((entry) => entry.name)).size !== clears.length;
+  const duplicateNames =
+    clears.length > 1 && new Set(clears.map((entry) => entry.name)).size !== clears.length;
   const outstanding = balances.reduce((sum, balance) => sum + Math.max(0, balance.netCents), 0);
 
   return {
     payment,
-    clearedNames: clears.map((entry) => duplicateNames ? `${entry.name} (${entry.role})` : entry.name),
+    clearedNames: clears.map((entry) => (duplicateNames ? `${entry.name} (${entry.role})` : entry.name)),
     remainingCents: Math.max(0, outstanding - payment.amountCents),
     remainingTransfers: Math.max(0, suggestions.length - 1),
-    percentOfOutstanding: outstanding > 0 ? Math.min(100, Math.round((payment.amountCents / outstanding) * 100)) : 0,
+    percentOfOutstanding:
+      outstanding > 0 ? Math.min(100, Math.round((payment.amountCents / outstanding) * 100)) : 0,
   };
 }
 

@@ -101,7 +101,10 @@ describe('the split itself', () => {
     await user.click(screen.getByLabelText('different people paid'));
     await user.click(screen.getByRole('button', { name: /Add item/i }));
     await fillItem(user, 2, 'Drinks', '40.00');
-    await user.selectOptions(screen.getByLabelText('Item 2 paid by'), screen.getByLabelText('Item 2 paid by').querySelectorAll('option')[1]!);
+    await user.selectOptions(
+      screen.getByLabelText('Item 2 paid by'),
+      screen.getByLabelText('Item 2 paid by').querySelectorAll('option')[1]!,
+    );
 
     expect(screen.getByText('All settled up. Nobody owes anybody.')).toBeInTheDocument();
   });
@@ -266,7 +269,9 @@ describe('who paid for which line', () => {
           { id: 'alice', name: 'Alice' },
           { id: 'bob', name: 'Bob' },
         ],
-        items: [{ id: 'i1', description: 'Dinner', amount: '60.00', method: 'EQUAL', values: {}, payerId: 'ghost' }],
+        items: [
+          { id: 'i1', description: 'Dinner', amount: '60.00', method: 'EQUAL', values: {}, payerId: 'ghost' },
+        ],
         payerId: 'alice',
         splitPayers: true,
         youId: 'alice',

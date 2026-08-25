@@ -13,11 +13,7 @@ import {
   renameGroup,
   setGroupArchived,
 } from '../src/groups.js';
-import {
-  addPlaceholderMember,
-  removeMember,
-  renameMember,
-} from '../src/members.js';
+import { addPlaceholderMember, removeMember, renameMember } from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
 import { listSettlements, recordSettlement } from '../src/settlements.js';
 import { testDb, seedPerson } from './helpers.js';
@@ -148,7 +144,9 @@ describe('groups', () => {
 
     // The payment is handed to the owner and Bob's share re-splits to Alice: it's now Alice's
     // own $100 expense → she nets zero, and no settlement was invented.
-    const byId = Object.fromEntries((await getBalances(db, alice, group.id)).map((b) => [b.userId, b.netCents]));
+    const byId = Object.fromEntries(
+      (await getBalances(db, alice, group.id)).map((b) => [b.userId, b.netCents]),
+    );
     expect(byId[alice]).toBe(0);
     expect(await listSettlements(db, alice, group.id)).toHaveLength(0);
   });
@@ -278,15 +276,21 @@ describe('groups', () => {
     expect(fetched.members).toHaveLength(3);
 
     // The seat's debt carried over.
-    const bal = Object.fromEntries((await getBalances(db, realBob, group.id)).map((b) => [b.userId, b.netCents]));
+    const bal = Object.fromEntries(
+      (await getBalances(db, realBob, group.id)).map((b) => [b.userId, b.netCents]),
+    );
     expect(bal[realBob]).toBe(-500);
     expect(bal[alice]).toBe(500);
 
     // Guards: the claimed seat can't be taken again, a current member can't claim, bad token fails.
     const nate = await seedPerson(db, 'Nate');
     await expect(claimPlaceholder(db, nate, token, bobSeat)).rejects.toMatchObject({ code: 'NOT_FOUND' });
-    await expect(claimPlaceholder(db, alice, token, carolSeat)).rejects.toMatchObject({ code: 'ALREADY_MEMBER' });
-    await expect(claimPlaceholder(db, nate, 'not-a-token', carolSeat)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(claimPlaceholder(db, alice, token, carolSeat)).rejects.toMatchObject({
+      code: 'ALREADY_MEMBER',
+    });
+    await expect(claimPlaceholder(db, nate, 'not-a-token', carolSeat)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   test('unknown group is NOT_FOUND', async () => {
@@ -333,7 +337,9 @@ describe('groups', () => {
       splitMethod: 'EQUAL',
       participants: [{ userId: alice }, { userId: bob }],
     });
-    const bal = Object.fromEntries((await getBalances(db, alice, group.id)).map((b) => [b.userId, b.netCents]));
+    const bal = Object.fromEntries(
+      (await getBalances(db, alice, group.id)).map((b) => [b.userId, b.netCents]),
+    );
     expect(bal[bob]).toBe(-500);
   });
 

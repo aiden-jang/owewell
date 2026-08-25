@@ -131,7 +131,6 @@ describe.each(Object.entries(CATEGORY_THEMES))('%s category hues', (name, cats) 
    *
    * So it is checked by looking. Transport moved from green to teal because groceries owns green.
    */
-
 });
 
 describe('the palettes match the stylesheet', () => {

@@ -21,7 +21,14 @@ const RECAP: GroupRecap = {
   daysOpen: 3,
 };
 const SETTLEMENTS: Settlement[] = [
-  { id: 's1', fromUserId: 'b', toUserId: 'a', amountCents: 4_000, method: 'venmo', createdAt: '2026-08-11T12:00:00.000Z' },
+  {
+    id: 's1',
+    fromUserId: 'b',
+    toUserId: 'a',
+    amountCents: 4_000,
+    method: 'venmo',
+    createdAt: '2026-08-11T12:00:00.000Z',
+  },
 ];
 
 /*
@@ -123,7 +130,10 @@ describe('sharing it', () => {
 
   it('says so when neither works', async () => {
     const user = await open();
-    stubNavigator({ share: undefined, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    stubNavigator({
+      share: undefined,
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    });
     await user.click(shareButton());
     await waitFor(() => expect(toastStub.error).toHaveBeenCalledWith('Could not share the settled recap.'));
   });

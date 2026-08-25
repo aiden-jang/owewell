@@ -53,8 +53,20 @@ const balance = (userId: string, displayName: string, netCents: number): Balance
 });
 
 // Bob owes Alice $30, Cara owes Alice $10. Paying Alice off clears Bob outright.
-const BOB_PAYS: SuggestedPayment = { fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 3_000 };
-const CARA_PAYS: SuggestedPayment = { fromUserId: 'c', fromName: 'Cara', toUserId: 'a', toName: 'Alice', amountCents: 1_000 };
+const BOB_PAYS: SuggestedPayment = {
+  fromUserId: 'b',
+  fromName: 'Bob',
+  toUserId: 'a',
+  toName: 'Alice',
+  amountCents: 3_000,
+};
+const CARA_PAYS: SuggestedPayment = {
+  fromUserId: 'c',
+  fromName: 'Cara',
+  toUserId: 'a',
+  toName: 'Alice',
+  amountCents: 1_000,
+};
 const BALANCES = [balance('a', 'Alice', 4_000), balance('b', 'Bob', -3_000), balance('c', 'Cara', -1_000)];
 
 const markPaid = vi.fn<(payment: SuggestedPayment, method: string) => Promise<boolean>>();
@@ -145,7 +157,9 @@ describe('the nudge', () => {
     const gentle = within(row).getByText(/\$30\.00/, { selector: 'p.whitespace-pre-line' }).textContent;
 
     await user.click(within(row).getByRole('button', { name: 'playful' }));
-    expect(within(row).getByText(/\$30\.00/, { selector: 'p.whitespace-pre-line' }).textContent).not.toBe(gentle);
+    expect(within(row).getByText(/\$30\.00/, { selector: 'p.whitespace-pre-line' }).textContent).not.toBe(
+      gentle,
+    );
   });
 });
 

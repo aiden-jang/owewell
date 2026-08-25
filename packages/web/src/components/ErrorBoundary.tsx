@@ -54,9 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <span aria-hidden className="grid h-14 w-14 place-items-center rounded-2xl bg-surface2 text-muted">
           <Icon name="alert" size={26} />
         </span>
-        <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight">
-          Well, that broke.
-        </h1>
+        <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight">Well, that broke.</h1>
         <p className="mt-2 text-sm text-muted">Probably our fault. Probably.</p>
         <a
           href="/"

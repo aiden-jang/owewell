@@ -47,10 +47,18 @@ export function payLinks(payee: Payee, amountCents: number, note: string): PayLi
     links.push({ label: 'Venmo', url: u.toString(), method: 'venmo' });
   }
   if (payee.cashappCashtag) {
-    links.push({ label: 'Cash App', url: `https://cash.app/$${encodeURIComponent(payee.cashappCashtag)}/${amt}`, method: 'cashapp' });
+    links.push({
+      label: 'Cash App',
+      url: `https://cash.app/$${encodeURIComponent(payee.cashappCashtag)}/${amt}`,
+      method: 'cashapp',
+    });
   }
   if (payee.paypalHandle) {
-    links.push({ label: 'PayPal', url: `https://paypal.me/${encodeURIComponent(payee.paypalHandle)}/${amt}`, method: 'paypal' });
+    links.push({
+      label: 'PayPal',
+      url: `https://paypal.me/${encodeURIComponent(payee.paypalHandle)}/${amt}`,
+      method: 'paypal',
+    });
   }
   return links;
 }

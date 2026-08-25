@@ -13,8 +13,17 @@ import { SpendBreakdown } from './SpendBreakdown';
  */
 
 const expense = (id: string, amountCents: number, category: string): Expense => ({
-  id, description: id, amountCents, payerId: 'a', splitMethod: 'EQUAL', category: category as never,
-  createdAt: '2026-08-10T12:00:00.000Z', date: '2026-08-10T12:00:00.000Z', note: null, version: 1, splits: [{ userId: 'a', owedCents: amountCents }],
+  id,
+  description: id,
+  amountCents,
+  payerId: 'a',
+  splitMethod: 'EQUAL',
+  category: category as never,
+  createdAt: '2026-08-10T12:00:00.000Z',
+  date: '2026-08-10T12:00:00.000Z',
+  note: null,
+  version: 1,
+  splits: [{ userId: 'a', owedCents: amountCents }],
 });
 
 const EXPENSES = [
@@ -49,7 +58,9 @@ describe('the chart', () => {
     show();
     expect(screen.getByRole('heading', { name: 'Where it went' })).toBeInTheDocument();
     for (const label of ['Food & Drink', 'Transport', 'Groceries']) {
-      expect(screen.getByRole('button', { name: new RegExp(`Filter activity by ${label}`) })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: new RegExp(`Filter activity by ${label}`) }),
+      ).toBeInTheDocument();
     }
   });
 

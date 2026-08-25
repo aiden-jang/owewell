@@ -1,7 +1,4 @@
-import {
-  computeItemizedPayers,
-  simplifyDebts,
-} from '@owewell/shared';
+import { computeItemizedPayers, simplifyDebts } from '@owewell/shared';
 import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { computeBalances } from './expenses.js';
@@ -154,7 +151,12 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
 
 /** Archive (or restore) a group in the caller's own view. Any member may do this; it's a
  *  personal "hide from my list", not a group-wide freeze — the group stays live for everyone. */
-export async function setGroupArchived(db: DB, personId: string, groupId: string, archived: boolean): Promise<GroupDetail> {
+export async function setGroupArchived(
+  db: DB,
+  personId: string,
+  groupId: string,
+  archived: boolean,
+): Promise<GroupDetail> {
   await requireMembership(db, personId, groupId);
   await db
     .update(groupMembers)
@@ -185,7 +187,11 @@ function mintShareToken(): string {
 /** Create (once) or return the group's public share token. Members only. */
 export async function getOrCreateShareToken(db: DB, personId: string, groupId: string): Promise<string> {
   await requireMembership(db, personId, groupId);
-  const g = await db.select({ shareToken: groups.shareToken }).from(groups).where(eq(groups.id, groupId)).get();
+  const g = await db
+    .select({ shareToken: groups.shareToken })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .get();
   if (!g) throw new GroupError('NOT_FOUND', 'Group not found.');
   if (g.shareToken) return g.shareToken;
   const token = mintShareToken();
@@ -228,11 +234,13 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
 
   const balances = await computeBalances(db, g.id);
   const nameByPerson = new Map(balances.map((b) => [b.userId, b.displayName]));
-  const suggested = simplifyDebts(balances.map((b) => ({ userId: b.userId, netCents: b.netCents }))).map((t) => ({
-    fromName: nameByPerson.get(t.fromUserId) ?? 'Someone',
-    toName: nameByPerson.get(t.toUserId) ?? 'Someone',
-    amountCents: t.amountCents,
-  }));
+  const suggested = simplifyDebts(balances.map((b) => ({ userId: b.userId, netCents: b.netCents }))).map(
+    (t) => ({
+      fromName: nameByPerson.get(t.fromUserId) ?? 'Someone',
+      toName: nameByPerson.get(t.toUserId) ?? 'Someone',
+      amountCents: t.amountCents,
+    }),
+  );
 
   const exps = await db
     .select({ amountCents: expenses.amountCents, category: expenses.category })
@@ -240,7 +248,11 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
     .where(and(eq(expenses.groupId, g.id), isNull(expenses.deletedAt)))
     .all();
   const totalSpentCents = exps.reduce((sum, e) => sum + e.amountCents, 0);
-  const setl = await db.select({ amountCents: settlements.amountCents }).from(settlements).where(eq(settlements.groupId, g.id)).all();
+  const setl = await db
+    .select({ amountCents: settlements.amountCents })
+    .from(settlements)
+    .where(eq(settlements.groupId, g.id))
+    .all();
   const totalSettledCents = setl.reduce((sum, s) => sum + s.amountCents, 0);
   const catTotals = new Map<string, number>();
   for (const e of exps) {
@@ -255,7 +267,12 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
   const flags = await db
     .select({ id: people.id, isPlaceholder: people.isPlaceholder })
     .from(people)
-    .where(inArray(people.id, balances.map((b) => b.userId)))
+    .where(
+      inArray(
+        people.id,
+        balances.map((b) => b.userId),
+      ),
+    )
     .all();
   const isPlaceholderById = new Map(flags.map((f) => [f.id, f.isPlaceholder]));
 
@@ -293,7 +310,8 @@ export async function claimPlaceholder(
   if (!g) throw new GroupError('NOT_FOUND', 'This share link is not valid.');
   const groupId = g.id;
 
-  if (placeholderId === callerPersonId) throw new GroupError('NOT_PLACEHOLDER', "That seat is already yours.");
+  if (placeholderId === callerPersonId)
+    throw new GroupError('NOT_PLACEHOLDER', 'That seat is already yours.');
 
   // The seat must be an unclaimed placeholder that belongs to this group.
   const seat = await db
@@ -303,7 +321,8 @@ export async function claimPlaceholder(
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, placeholderId)))
     .get();
   if (!seat) throw new GroupError('NOT_FOUND', 'That seat is not in this group.');
-  if (!seat.isPlaceholder) throw new GroupError('NOT_PLACEHOLDER', 'That seat already belongs to an account.');
+  if (!seat.isPlaceholder)
+    throw new GroupError('NOT_PLACEHOLDER', 'That seat already belongs to an account.');
 
   // The caller can't already be in the group (they'd end up with two seats).
   const already = await db
@@ -323,18 +342,28 @@ export async function claimPlaceholder(
   // The failure was not hypothetical either: expense_splits has a unique index on
   // (expense_id, person_id), so if the caller already had a split on an expense the placeholder was
   // also on, a plain repoint collides. Two rows for the same human have to be MERGED, not renamed.
-  const expIds = (await db.select({ id: expenses.id }).from(expenses).where(eq(expenses.groupId, groupId)).all()).map((e) => e.id);
+  const expIds = (
+    await db.select({ id: expenses.id }).from(expenses).where(eq(expenses.groupId, groupId)).all()
+  ).map((e) => e.id);
 
   const mine = expIds.length
     ? await db
-        .select({ id: expenseSplits.id, expenseId: expenseSplits.expenseId, owedCents: expenseSplits.owedCents })
+        .select({
+          id: expenseSplits.id,
+          expenseId: expenseSplits.expenseId,
+          owedCents: expenseSplits.owedCents,
+        })
         .from(expenseSplits)
         .where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, placeholderId)))
         .all()
     : [];
   const theirs = expIds.length
     ? await db
-        .select({ id: expenseSplits.id, expenseId: expenseSplits.expenseId, owedCents: expenseSplits.owedCents })
+        .select({
+          id: expenseSplits.id,
+          expenseId: expenseSplits.expenseId,
+          owedCents: expenseSplits.owedCents,
+        })
         .from(expenseSplits)
         .where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, callerPersonId)))
         .all()
@@ -342,7 +371,13 @@ export async function claimPlaceholder(
   const callerSplitByExpense = new Map(theirs.map((t) => [t.expenseId, t]));
 
   const itemIds = expIds.length
-    ? (await db.select({ id: expenseItems.id }).from(expenseItems).where(inArray(expenseItems.expenseId, expIds)).all()).map((i) => i.id)
+    ? (
+        await db
+          .select({ id: expenseItems.id })
+          .from(expenseItems)
+          .where(inArray(expenseItems.expenseId, expIds))
+          .all()
+      ).map((i) => i.id)
     : [];
   // expense_item_shares has its own unique (item_id, person_id), and shares carry no amount, so a
   // collision there is a plain duplicate to drop rather than a sum to merge.
@@ -350,7 +385,9 @@ export async function claimPlaceholder(
     ? await db
         .select({ id: expenseItemShares.id, itemId: expenseItemShares.itemId })
         .from(expenseItemShares)
-        .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, callerPersonId)))
+        .where(
+          and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, callerPersonId)),
+        )
         .all()
     : [];
   const dupShareIds = itemIds.length
@@ -358,12 +395,12 @@ export async function claimPlaceholder(
         await db
           .select({ id: expenseItemShares.id, itemId: expenseItemShares.itemId })
           .from(expenseItemShares)
-          .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)))
+          .where(
+            and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)),
+          )
           .all()
       )
-        .filter((ph) =>
-          theirsShares.some((t) => t.itemId === ph.itemId),
-        )
+        .filter((ph) => theirsShares.some((t) => t.itemId === ph.itemId))
         .map((ph) => ph.id)
     : [];
 
@@ -378,8 +415,14 @@ export async function claimPlaceholder(
 
   if (expIds.length) {
     writes.push(
-      db.update(expenses).set({ payerId: callerPersonId }).where(and(eq(expenses.groupId, groupId), eq(expenses.payerId, placeholderId))),
-      db.update(expenseItems).set({ payerId: callerPersonId }).where(and(inArray(expenseItems.expenseId, expIds), eq(expenseItems.payerId, placeholderId))),
+      db
+        .update(expenses)
+        .set({ payerId: callerPersonId })
+        .where(and(eq(expenses.groupId, groupId), eq(expenses.payerId, placeholderId))),
+      db
+        .update(expenseItems)
+        .set({ payerId: callerPersonId })
+        .where(and(inArray(expenseItems.expenseId, expIds), eq(expenseItems.payerId, placeholderId))),
     );
 
     for (const ph of mine) {
@@ -387,11 +430,16 @@ export async function claimPlaceholder(
       if (collision) {
         // Same human, two seats on one bill: add the shares together and drop the placeholder row.
         writes.push(
-          db.update(expenseSplits).set({ owedCents: collision.owedCents + ph.owedCents }).where(eq(expenseSplits.id, collision.id)),
+          db
+            .update(expenseSplits)
+            .set({ owedCents: collision.owedCents + ph.owedCents })
+            .where(eq(expenseSplits.id, collision.id)),
           db.delete(expenseSplits).where(eq(expenseSplits.id, ph.id)),
         );
       } else {
-        writes.push(db.update(expenseSplits).set({ personId: callerPersonId }).where(eq(expenseSplits.id, ph.id)));
+        writes.push(
+          db.update(expenseSplits).set({ personId: callerPersonId }).where(eq(expenseSplits.id, ph.id)),
+        );
       }
     }
 
@@ -403,14 +451,22 @@ export async function claimPlaceholder(
         db
           .update(expenseItemShares)
           .set({ personId: callerPersonId })
-          .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId))),
+          .where(
+            and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)),
+          ),
       );
     }
   }
 
   writes.push(
-    db.update(settlements).set({ fromPersonId: callerPersonId }).where(and(eq(settlements.groupId, groupId), eq(settlements.fromPersonId, placeholderId))),
-    db.update(settlements).set({ toPersonId: callerPersonId }).where(and(eq(settlements.groupId, groupId), eq(settlements.toPersonId, placeholderId))),
+    db
+      .update(settlements)
+      .set({ fromPersonId: callerPersonId })
+      .where(and(eq(settlements.groupId, groupId), eq(settlements.fromPersonId, placeholderId))),
+    db
+      .update(settlements)
+      .set({ toPersonId: callerPersonId })
+      .where(and(eq(settlements.groupId, groupId), eq(settlements.toPersonId, placeholderId))),
   );
 
   // D1 runs a batch as one implicit transaction, so a failure anywhere rolls the whole merge back and
@@ -422,11 +478,7 @@ export async function claimPlaceholder(
   return { groupId };
 }
 
-export async function createGroup(
-  db: DB,
-  personId: string,
-  name: string,
-): Promise<GroupDetail> {
+export async function createGroup(db: DB, personId: string, name: string): Promise<GroupDetail> {
   const id = crypto.randomUUID();
   await db.insert(groups).values({ id, name, createdById: personId });
   await db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: id, personId, role: 'OWNER' });
@@ -499,7 +551,11 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
   const itemsByExpense = new Map<string, { amountCents: number; payerId: string | null }[]>();
   if (itemizedIds.length) {
     const itemRows = await db
-      .select({ expenseId: expenseItems.expenseId, amountCents: expenseItems.amountCents, payerId: expenseItems.payerId })
+      .select({
+        expenseId: expenseItems.expenseId,
+        amountCents: expenseItems.amountCents,
+        payerId: expenseItems.payerId,
+      })
       .from(expenseItems)
       .where(inArray(expenseItems.expenseId, itemizedIds))
       .all();
@@ -527,9 +583,18 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
   // Debit side: everyone's owed shares.
   if (exps.length) {
     const splitRows = await db
-      .select({ expenseId: expenseSplits.expenseId, personId: expenseSplits.personId, owedCents: expenseSplits.owedCents })
+      .select({
+        expenseId: expenseSplits.expenseId,
+        personId: expenseSplits.personId,
+        owedCents: expenseSplits.owedCents,
+      })
       .from(expenseSplits)
-      .where(inArray(expenseSplits.expenseId, exps.map((e) => e.id)))
+      .where(
+        inArray(
+          expenseSplits.expenseId,
+          exps.map((e) => e.id),
+        ),
+      )
       .all();
     for (const s of splitRows) {
       const g = groupOfExpense.get(s.expenseId);
@@ -589,7 +654,12 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
   });
 }
 
-export async function renameGroup(db: DB, personId: string, groupId: string, name: string): Promise<GroupDetail> {
+export async function renameGroup(
+  db: DB,
+  personId: string,
+  groupId: string,
+  name: string,
+): Promise<GroupDetail> {
   await requireOwner(db, personId, groupId);
   await db.update(groups).set({ name }).where(eq(groups.id, groupId));
   return getGroup(db, personId, groupId);
@@ -602,7 +672,11 @@ export async function deleteGroup(db: DB, personId: string, groupId: string): Pr
   const exps = await db.select({ id: expenses.id }).from(expenses).where(eq(expenses.groupId, groupId)).all();
   const expIds = exps.map((e) => e.id);
   if (expIds.length) {
-    const items = await db.select({ id: expenseItems.id }).from(expenseItems).where(inArray(expenseItems.expenseId, expIds)).all();
+    const items = await db
+      .select({ id: expenseItems.id })
+      .from(expenseItems)
+      .where(inArray(expenseItems.expenseId, expIds))
+      .all();
     const itemIds = items.map((i) => i.id);
     if (itemIds.length) await db.delete(expenseItemShares).where(inArray(expenseItemShares.itemId, itemIds));
     await db.delete(expenseItems).where(inArray(expenseItems.expenseId, expIds));

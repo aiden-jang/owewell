@@ -85,7 +85,14 @@ export function computeSplit(
 
   switch (method) {
     case 'EQUAL':
-      return attach(participants, allocateCents(totalCents, participants.map(() => 1), seed));
+      return attach(
+        participants,
+        allocateCents(
+          totalCents,
+          participants.map(() => 1),
+          seed,
+        ),
+      );
 
     case 'SHARES': {
       const weights = participants.map((p) => requireValue(p, 'share'));

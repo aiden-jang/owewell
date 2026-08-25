@@ -23,7 +23,8 @@ beforeEach(() => {
   db = testDb();
 });
 
-const authUser = (id: string, displayName: string) => ({ id, displayName }) as Parameters<typeof getOrCreatePerson>[1];
+const authUser = (id: string, displayName: string) =>
+  ({ id, displayName }) as Parameters<typeof getOrCreatePerson>[1];
 
 describe('resolving an auth account to a person', () => {
   test('creates exactly one person, however many requests arrive together', async () => {

@@ -36,9 +36,7 @@ export function EmptyState({
   const invite = tone === 'invite';
   return (
     <div
-      className={`rounded-3xl p-10 text-center ${
-        invite ? 'surface' : 'border border-dashed border-line'
-      }`}
+      className={`rounded-3xl p-10 text-center ${invite ? 'surface' : 'border border-dashed border-line'}`}
     >
       <div
         className={`mx-auto grid h-12 w-12 place-items-center rounded-2xl ${

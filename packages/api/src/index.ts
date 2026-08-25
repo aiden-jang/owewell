@@ -21,12 +21,7 @@ import {
   requireMembership,
   setGroupArchived,
 } from './groups.js';
-import {
-  addPlaceholderMember,
-  removeMember,
-  renameMember,
-  setPaymentHandles,
-} from './members.js';
+import { addPlaceholderMember, removeMember, renameMember, setPaymentHandles } from './members.js';
 import {
   ExpenseError,
   createExpense,
@@ -97,10 +92,7 @@ const IMMUTABLE = /^\/(assets\/|fonts\/)/;
 app.use('*', async (c, next) => {
   await next();
   if (c.req.path.startsWith('/owewell') || c.req.path === '/health') return;
-  c.header(
-    'Cache-Control',
-    IMMUTABLE.test(c.req.path) ? 'public, max-age=31536000, immutable' : 'no-cache',
-  );
+  c.header('Cache-Control', IMMUTABLE.test(c.req.path) ? 'public, max-age=31536000, immutable' : 'no-cache');
 });
 
 app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
@@ -153,7 +145,9 @@ app.get('/owewell/groups/:id', async (c) => {
 });
 
 app.patch('/owewell/groups/:id', async (c) => {
-  const parsed = z.object({ name: z.string().trim().min(1).max(80) }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z
+    .object({ name: z.string().trim().min(1).max(80) })
+    .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const group = await renameGroup(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.name);
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
@@ -163,7 +157,12 @@ app.patch('/owewell/groups/:id', async (c) => {
 app.post('/owewell/groups/:id/archive', async (c) => {
   const parsed = z.object({ archived: z.boolean() }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const group = await setGroupArchived(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.archived);
+  const group = await setGroupArchived(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    parsed.data.archived,
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ group });
 });
@@ -197,7 +196,12 @@ const addMemberBody = z.object({ name: z.string().trim().min(1).max(80) });
 app.post('/owewell/groups/:id/members', async (c) => {
   const parsed = addMemberBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const member = await addPlaceholderMember(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.name);
+  const member = await addPlaceholderMember(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    parsed.data.name,
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ member }, 201);
 });
@@ -320,13 +324,19 @@ app.put('/owewell/groups/:id/expenses/:expenseId', async (c) => {
   const parsed = createExpenseBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const { date, participants, ...rest } = parsed.data;
-  const expense = await updateExpense(createDb(c.env), c.get('person').id, c.req.param('id'), c.req.param('expenseId'), {
-    ...rest,
-    participants: participants.map((p) =>
-      p.value === undefined ? { userId: p.userId } : { userId: p.userId, value: p.value },
-    ),
-    ...(date ? { date: new Date(date) } : {}),
-  });
+  const expense = await updateExpense(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+    {
+      ...rest,
+      participants: participants.map((p) =>
+        p.value === undefined ? { userId: p.userId } : { userId: p.userId, value: p.value },
+      ),
+      ...(date ? { date: new Date(date) } : {}),
+    },
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ expense });
 });
@@ -335,10 +345,16 @@ app.put('/owewell/groups/:id/expenses/:expenseId/itemized', async (c) => {
   const parsed = itemizedBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const { date, ...rest } = parsed.data;
-  const expense = await updateItemizedExpense(createDb(c.env), c.get('person').id, c.req.param('id'), c.req.param('expenseId'), {
-    ...rest,
-    ...(date ? { date: new Date(date) } : {}),
-  });
+  const expense = await updateItemizedExpense(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+    {
+      ...rest,
+      ...(date ? { date: new Date(date) } : {}),
+    },
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ expense });
 });
@@ -361,11 +377,15 @@ app.delete('/owewell/groups/:id/expenses/:expenseId', async (c) => {
 });
 
 app.get('/owewell/groups/:id/settlements', async (c) => {
-  return c.json({ settlements: await listSettlements(createDb(c.env), c.get('person').id, c.req.param('id')) });
+  return c.json({
+    settlements: await listSettlements(createDb(c.env), c.get('person').id, c.req.param('id')),
+  });
 });
 
 app.get('/owewell/groups/:id/settlements/suggested', async (c) => {
-  return c.json({ suggested: await getSuggestedPayments(createDb(c.env), c.get('person').id, c.req.param('id')) });
+  return c.json({
+    suggested: await getSuggestedPayments(createDb(c.env), c.get('person').id, c.req.param('id')),
+  });
 });
 
 const recordSettlementBody = z.object({
@@ -400,7 +420,12 @@ app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
 app.post('/owewell/shared/:token/claim', async (c) => {
   const parsed = z.object({ personId: z.string().min(1) }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const result = await claimPlaceholder(createDb(c.env), c.get('person').id, c.req.param('token'), parsed.data.personId);
+  const result = await claimPlaceholder(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('token'),
+    parsed.data.personId,
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, result.groupId));
   return c.json(result);
 });
