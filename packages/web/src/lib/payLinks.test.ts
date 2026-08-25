@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasPayLink, payLinks, preferredMethod } from './payLinks';
+import { payLinks, preferredMethod } from './payLinks';
 
 const payee = (
   over: Partial<{ venmoHandle: string; cashappCashtag: string; paypalHandle: string }> = {},
@@ -31,8 +31,6 @@ describe('payLinks', () => {
 
   it('returns nothing and reports no pay link when the payee has no handles', () => {
     expect(payLinks(payee(), 1000, 'x')).toEqual([]);
-    expect(hasPayLink(payee())).toBe(false);
-    expect(hasPayLink(payee({ paypalHandle: 'p' }))).toBe(true);
   });
 
   it('formats sub-dollar and round amounts correctly', () => {

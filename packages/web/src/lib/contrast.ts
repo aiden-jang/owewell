@@ -1,9 +1,8 @@
 /**
- * WCAG relative-contrast maths, plus the theme palettes as data.
+ * WCAG contrast maths, plus the theme palettes as data.
  *
- * The palettes live here as well as in index.css because a colour that fails contrast is a real defect
- * and defects deserve tests. This duplication is deliberate and checked: `contrast.test.ts` parses
- * index.css and asserts the two copies agree, so they cannot drift.
+ * The palettes are duplicated from index.css so they can be tested. `contrast.test.ts` parses the
+ * stylesheet and asserts the two copies agree, so they can't drift.
  */
 
 export type Hex = `#${string}`;
@@ -44,16 +43,11 @@ export interface Palette {
   pos: Hex;
   neg: Hex;
   /**
-   * A destructive control's fill, which `neg` cannot be.
+   * Fill for a destructive button. Don't use `neg` — it's a foreground, so in dark it's a light red
+   * and white on it measures 2.77:1.
    *
-   * `neg` is tuned as a foreground: it has to read as text on the page background, so in the dark
-   * theme it is a light red. White on it measures 2.77:1 — unreadable. Filled danger buttons were
-   * therefore hardcoded to Tailwind's rose-500 in three places, the only colours in the app not
-   * coming from a token, and the only ones that ignored the palette.
-   *
-   * Dark has a narrow window: light enough to read as a shape on a near-black page (3:1) and dark
-   * enough to carry white text (4.5:1), which is a luminance band about 0.06 wide. #c9342a sits in
-   * it at 3.34 and 5.24. Warm has no such squeeze and reuses `neg`.
+   * Dark has to clear 3:1 against the page and 4.5:1 against white text at once, a luminance band
+   * about 0.06 wide. Warm has no such squeeze and reuses `neg`.
    */
   negSolid: Hex;
 }
@@ -81,12 +75,8 @@ export const DARK: Palette = {
 /**
  * Direction B. Warm and light.
  *
- * `muted`, `faint` and `neg` are darker than the original mock. At #8a7f72, #8a7f72 and #b4442f they
- * failed AA against the warm canvas, and a light theme hides that far better than a dark one does.
- *
- * `neg` moved twice. #a83c28 passed AA but sat within 0.5% luminance of `pos`, so the two money states
- * were separated by hue alone — invisible to a red-green colourblind reader, in an app whose entire job
- * is telling you which way the money goes. #8a2b1a keeps the clay and adds a brightness gap.
+ * `neg` needs a brightness gap from `pos`, not just a different hue: separated by hue alone they are
+ * one colour to a red-green colourblind reader, in an app whose job is saying which way money goes.
  */
 export const WARM: Palette = {
   canvas: '#faf7f2',
@@ -110,12 +100,8 @@ export const WARM: Palette = {
 export const THEMES = { dark: DARK, warm: WARM } as const;
 
 /*
- * Categorical hues for the spend charts.
- *
- * Here rather than inside the chart component because they were eight hex literals in SpendDonut.tsx,
- * which meant three things: the warm theme never got its own set, the contrast test could not see
- * them, and the bar chart could not reach them — so bars and donut coloured the same data
- * differently. One source, two themes, both checked.
+ * Categorical hues for the spend charts. One source for both themes, so bars and donut can't colour
+ * the same data differently.
  *
  * A category keeps its hue across groups, and identity is never carried by colour alone: every
  * legend row pairs the swatch with a label.
@@ -150,18 +136,12 @@ export const CATEGORY_WARM: CategoryPalette = {
 };
 
 /*
- * Avatar discs, per theme.
+ * Avatar discs, per theme. Ten hues at one lightness; see `Avatar.tsx` for why, and for the dark ink.
  *
- * Ten hues evenly spaced around the wheel at one lightness; see `Avatar.tsx` for why even spacing
- * and one lightness, and why the ink is dark rather than white. Only lightness and the chroma cap
- * differ between the themes, so a person keeps their hue when the theme changes.
- *
- * Warm is calmer, and not as a matter of taste. Measured on the warm page the shipped discs were
- * the highest-chroma thing on screen at 0.157, above the hero figure at 0.132 and the accent at
- * 0.093 — a decorative initial outranking the money and the primary button. Warm caps chroma at
- * 0.10 to sit at the accent's level. That costs separation, since ten hues at one lightness
- * separate mostly by chroma: the closest warm pair is 0.061 apart against dark's 0.097, still well
- * above a just-noticeable difference at this size.
+ * Only lightness and the chroma cap differ, so a person keeps their hue across themes. Warm caps
+ * chroma at 0.10 so the discs don't outrank the money (0.132) and the accent (0.093) on a near-white
+ * page. That costs separation — ten hues at one lightness separate mostly by chroma — so the closest
+ * warm pair is 0.061 apart against dark's 0.097.
  */
 export type AvatarPalette = readonly [Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex];
 
@@ -192,8 +172,6 @@ export const AVATAR_WARM: AvatarPalette = [
   '#d0acf0',
   '#eca4ce',
 ];
-
-export const AVATAR_THEMES = { dark: AVATAR_DARK, warm: AVATAR_WARM } as const;
 
 /** Near-black rather than pure, so it belongs to the same world as the rest of the ink. */
 export const AVATAR_INK: Hex = '#1b1a1f';

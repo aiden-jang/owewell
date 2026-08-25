@@ -388,12 +388,9 @@ describe('acting on a row', () => {
 });
 
 /*
- * The figure above the list has to be the list.
- *
- * It used to be `lensTotal(expenses, person, relation)`, which knows about the person filter and
- * nothing else. Filter to Transport and the one $24.00 row appeared beneath a heading that still
- * read "$104.00 spent" — the whole ledger. Search did the same. A wrong total is worse than no
- * total, and this one was wrong quietly.
+ * The figure above the list has to be the list. `lensTotal` knows about the person filter and
+ * nothing else, so filtering to Transport showed one $24.00 row under a heading reading $104.00.
+ * A wrong total is worse than no total, and that one was wrong quietly.
  */
 describe('the total above the list', () => {
   it('counts the whole ledger when nothing is filtered', async () => {
@@ -421,11 +418,8 @@ describe('the total above the list', () => {
 });
 
 /*
- * A correction belongs to the expense, not to the list.
- *
- * "Alice changed the amount from $40.00" used to print on the feed row as well, so every row anybody
- * had ever fixed carried a third line of history on the one screen you scan rather than read. It
- * still shows on the expense itself.
+ * A correction belongs to the expense, not to the list. On the feed row it puts a third line of
+ * history on the one screen you scan rather than read.
  */
 describe('a correction someone already made', () => {
   const EDITED = expense({

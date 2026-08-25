@@ -3,46 +3,23 @@ import type { ReactNode } from 'react';
 /*
  * A person, as a coloured disc with their initial in it.
  *
- * ── The palette ──
+ * Ten hues evenly spaced around the OKLCH wheel at one lightness, generated rather than picked.
+ * Even spacing keeps neighbours distinguishable once MemberStrip puts five side by side; one
+ * lightness keeps any disc from looking heavier than the rest, since OKLCH's L is perceptual.
+ * Chroma is whatever each hue can hold there — sRGB can't make a vivid yellow as dark as a blue.
  *
- * Ten hues, evenly spaced around the OKLCH wheel at one fixed lightness, generated rather than
- * picked by hand. Two things came out of doing it that way.
- *
- * Even spacing, because the old eight were chosen individually and had near-duplicates in them: two
- * reds and two pinks, closer to each other than any pair here. That never showed while avatars sat
- * one per row, and became the first thing you noticed once `MemberStrip` put five of them shoulder
- * to shoulder. Colour still comes from the name, so a collision is always possible — with ten
- * buckets and five people it is likelier than not — but a collision now reads as two people sharing
- * a colour rather than as a smudge.
- *
- * One lightness, because OKLCH's L is perceptual: at a fixed L no disc is heavier than its
- * neighbour, which is the thing that made the old row look uneven. Chroma is whatever each hue can
- * hold at that lightness, since sRGB simply cannot make a vivid yellow as dark as a vivid blue.
- *
- * ── The ink ──
- *
- * Dark, not white, and that is the whole reason the discs can be this bright. White on a friendly
- * mid-tone colour is the default everywhere and it does not pass: every one of the old eight sat
- * between 2.45:1 and 3.61:1 against white, well under the 4.5:1 this initial needs. Dragging them
- * dark enough for white text turned the yellows and greens to olive. Flipping the ink instead keeps
- * the colour bright and clears 4.5:1 with room to spare. Checked in `Avatar.test.ts`.
+ * The ink is dark, not white, and that is what lets the discs stay bright: white on a friendly
+ * mid-tone fails 4.5:1, and darkening the discs enough to carry it turns the greens to olive.
+ * Checked in `Avatar.test.ts`.
  */
 
-/*
- * The hexes live in lib/contrast.ts with the rest of the palettes and are read here as CSS
- * variables, so a disc follows the theme without this component knowing which theme is on. Warm
- * runs the same hues at a lower chroma; AVATAR_WARM says why.
- */
+/* Hexes live in lib/contrast.ts, read here as CSS vars so a disc follows the theme by itself. */
 const BUCKETS = 10;
 
 /*
- * FNV-1a plus murmur3's finalizer, replacing the `hash * 31 + c` this used to run.
- *
- * The mixing step is not optional here, and leaving it out is a mistake you can see. Picking a
- * colour is `hash % 10`, which reads the low bits, and neither `* 31` nor FNV alone avalanches
- * those well on strings as short as a first name: across fifty names the raw version piled thirteen
- * onto one colour, and a preview of twelve came out five blues, three greens and no warm colour at
- * all. The finalizer costs four instructions and flattens the worst bucket from thirteen to eight.
+ * FNV-1a plus murmur3's finalizer. Don't drop the finalizer: picking a colour is `hash % 10`, which
+ * reads the low bits, and FNV alone doesn't avalanche those on strings as short as a first name —
+ * fifty names piled thirteen onto one colour.
  */
 function bucketFor(name: string): number {
   let hash = 0x811c9dc5;

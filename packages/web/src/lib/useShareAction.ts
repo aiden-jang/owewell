@@ -2,21 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CONFIRM_MS } from './timing';
 
 /*
- * Handing a line of text to whoever is standing next to you.
+ * Handing a line of text to whoever is standing next to you: try the share sheet, treat a dismissed
+ * sheet as a decision rather than a failure, fall back to the clipboard, and say where the text went.
  *
- * This was written five times — the settle-up plan, a payment nudge, the wrapped recap, your own
- * balance, a quick split — and all five said the same thing: try the share sheet, treat a dismissed
- * sheet as a decision rather than a failure, fall back to the clipboard, and let the button say
- * where the text went for a couple of seconds. Five copies meant five places for the AbortError
- * check to be forgotten, which is the one that matters: without it, backing out of the share sheet
- * silently writes to your clipboard instead.
+ * Don't drop the AbortError check. Without it, backing out of the share sheet silently writes to
+ * the clipboard instead.
  *
- * The invite link is the one share that does not come through here: it passes a url with no text
- * body, so the sheet's own Copy copies the link rather than a sentence wrapped around it.
- *
- * Nothing here ever downloads. The clipboard is the fallback, which is the right one for text going
- * into a group chat — a settle-up card that rendered a PNG and saved it to Downloads on any desktop
- * without file sharing used to live beside this, and it is gone.
+ * The invite link is the one share that skips this: it passes a url with no text body, so the
+ * sheet's own Copy copies the link rather than a sentence wrapped around it. Nothing here ever
+ * downloads — the clipboard is the right fallback for text going into a group chat.
  */
 
 /** Null between shares. Drives the button label, which is why 'shared' and 'copied' stay distinct. */

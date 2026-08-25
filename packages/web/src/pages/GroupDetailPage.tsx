@@ -40,15 +40,10 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
     <div className="flex-1">
       <AppHeader />
       {/*
-       * ── Rhythm ──
+       * One gap between blocks, owned here rather than by each block's own top margin — otherwise
+       * the distance between two peers is decided by whichever was written second.
        *
-       * One gap between blocks, owned here. Each block used to carry its own top margin, so the
-       * distance between two of them was decided by whichever was written second: the hero said
-       * mt-5, the settle-up panel mt-6, the recap mt-4. Three gaps between peers in
-       * one column, which is what made the spacing read as uneven.
-       *
-       * Anything that needs a different distance from its neighbour is saying it belongs to that
-       * neighbour, and should be nested inside it rather than adjusting the gap.
+       * Anything needing a different distance from its neighbour belongs inside that neighbour.
        */}
       <main
         id="main"
@@ -179,12 +174,9 @@ export function GroupDetailPage(): ReactNode {
   async function finishManualPayment(settlement: Settlement, beforeBalances: Balance[]): Promise<void> {
     setPaymentOpen(false);
     /*
-     * No toast on the way out, on purpose.
-     *
-     * Recording a payment used to say the same thing three times: a toast, a redrawn ledger, and the
-     * receipt card below. The card is the one that earns it — it names the amount, both sides, what
-     * each balance was and became, and whether that cleared the group. A toast on top was a summary
-     * of the thing sitting directly underneath it.
+     * No toast on the way out, on purpose. The receipt card below names the amount, both sides,
+     * what each balance was and became, and whether that cleared the group — a toast on top would
+     * summarise the thing sitting directly underneath it.
      */
     const latest = await refreshLedger();
     if (latest) {

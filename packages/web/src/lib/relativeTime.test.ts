@@ -71,11 +71,8 @@ describe('timeAgo', () => {
 });
 
 /*
- * The short register, which the activity feed uses.
- *
- * It exists because a feed row cannot spare "23 hours ago" next to a name, an amount and a chevron.
- * It used to be a second copy of this file living in the group page; these are the cases where the
- * two had quietly drifted, so they are the ones worth holding.
+ * The short register the activity feed uses: a row cannot spare "23 hours ago" next to a name, an
+ * amount and a chevron. These are the cases where a second copy of it had drifted.
  */
 describe('timeAgoShort', () => {
   const shortAgo = (ms: number): string => timeAgoShort(NOW - ms, NOW);

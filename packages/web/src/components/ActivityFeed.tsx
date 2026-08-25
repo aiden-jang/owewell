@@ -156,11 +156,8 @@ export function ActivityFeed({
   // Who actually paid an expense. For itemized receipts we read the per-item payers
   // (falling back to the expense payer), so a split-tab receipt reads honestly instead
   // of crediting one person.
-  /*
-   * `who` is kept apart from the word "paid" because only one of them can be allowed to truncate.
-   * A row reading "Konstantinos Papadopo…" had lost both the verb and the date; names are the part
-   * that varies without limit, so names are the part that yields.
-   */
+  // `who` is separate from " paid" so only the name truncates. Names vary without limit; the date
+  // has to survive.
   function payerSummary(e: Expense): { avatar: string; who: string } {
     const payers =
       e.splitMethod === 'ITEMIZED' && e.items && e.items.length > 0
@@ -179,12 +176,9 @@ export function ActivityFeed({
   // the Summary chart. The lens logic is pure and unit-tested in lib/activityFilters.
   const lensActive = personFilter !== null;
   /*
-   * Summed over what is on screen, not over what the person lens alone would match.
-   *
-   * This used to come from `lensTotal(expenses, person, relation)`, which knows about the person
-   * filter and nothing else — so filtering to Food & Drink showed one $80 row under a heading that
-   * still read "$1,344.00 spent", the whole ledger. Search had the same effect. Reading it off the
-   * rendered list is correct for every filter at once, including ones added later.
+   * Summed over what is on screen, not over what the person lens alone matches. `lensTotal` knows
+   * about the person filter and nothing else, so a category filter would leave the heading showing
+   * the whole ledger's total.
    */
   const visibleTotal = visibleActivity.reduce(
     (sum, item) =>
@@ -198,13 +192,7 @@ export function ActivityFeed({
   return (
     <>
       {activity.length > 0 && breakdown}
-      {/*
-       * Below the breakdown, not above it.
-       *
-       * These controls filter the list underneath, and they used to sit on the far side of the
-       * whole "Where it went" chart from it — a search field separated from its results by a page
-       * of bars. Nothing about the breakdown is filtered by them.
-       */}
+      {/* Below the breakdown: these filter the list underneath, not the chart. */}
       {activity.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
@@ -227,14 +215,8 @@ export function ActivityFeed({
               </button>
             )}
           </label>
-          {/*
-           * Capped, because a select is as wide as its longest option.
-           *
-           * One member called Konstantinos Papadopoulos-Herrera made this control 250px instead
-           * of 89px, which was enough on its own to push the search field onto its own line and
-           * leave the row looking broken. The group switcher already caps itself for the same
-           * reason; this one did not.
-           */}
+          {/* Capped: a select is as wide as its longest option, and one long name pushes the
+              search field onto its own line. */}
           <select
             value={personFilter ?? ''}
             onChange={(e) => setPersonFilter(e.target.value || null)}
@@ -345,14 +327,8 @@ export function ActivityFeed({
             </button>
           </div>
         ) : (
-          /*
-           * One panel, hairline rows, rather than a stack of separate cards.
-           *
-           * Every row used to carry its own border and shadow, which gave a receipt for coffee the
-           * same visual weight as the panel it sat in — the ledger read as a pile of objects
-           * instead of a list. Hairlines say "these are the same kind of thing, in order", which
-           * is what a ledger is.
-           */
+          /* One panel with hairline rows, not a stack of cards: a ledger is a list of the same
+             kind of thing, and per-row borders made it read as a pile of objects. */
           <ul className="panel mt-3">
             {/*
              * Queued writes sit above the ledger, dimmed and inert.
@@ -385,13 +361,8 @@ export function ActivityFeed({
                   className="animate-rise"
                   style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
                 >
-                  {/*
-                   * The whole row opens the detail sheet, and every action lives in there.
-                   *
-                   * The alternative was the four hover-revealed icons this used to carry, which are
-                   * invisible on a phone and, on a desktop, put delete a stray click away from the
-                   * amount you were reading.
-                   */}
+                  {/* The whole row opens the detail sheet; every action lives in there. Row-level
+                      icons are invisible on a phone and put delete next to the amount on desktop. */}
                   <button
                     type="button"
                     onClick={() => onOpenExpense(item.expense.id)}
@@ -407,9 +378,8 @@ export function ActivityFeed({
                         </p>
                         <p className="flex items-baseline text-sm text-muted">
                           <span className="truncate">{payerSummary(item.expense).who}</span>
-                          {/* The space is in the text, not a flex gap: a gap is invisible to a
-                                screen reader and to anything that copies the row, both of which
-                                would read "Alicepaid". */}
+                          {/* Real space, not a flex gap — a gap reads as "Alicepaid" to a screen
+                              reader. */}
                           <span className="shrink-0 whitespace-pre">
                             {' paid · '}
                             {dayAgo(item.expense.date)}
@@ -420,15 +390,8 @@ export function ActivityFeed({
                           </span>
                         </p>
                         {/*
-                         * A queued edit says so; a landed one does not.
-                         *
-                         * "Alice changed the amount from $40.00" used to print here too, which put
-                         * a third line of history on every row somebody had ever corrected — on
-                         * the one screen you scan rather than read. It is still on the expense
-                         * itself, which is where you go when you want to know what happened to it.
-                         *
-                         * This line is not history. It explains why the row disagrees with what
-                         * you typed, so it has to stay where the wrong number is.
+                         * Not history — that lives on the expense itself. This says why the row
+                         * disagrees with what you typed, so it belongs next to the wrong number.
                          */}
                         {pendingEdits.has(item.expense.id) && (
                           <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
@@ -452,9 +415,7 @@ export function ActivityFeed({
                       <Icon name="check" size={16} />
                     </span>
                     <div className="min-w-0">
-                      {/* Two lines, then it truncates. Two names and neither can afford to be the
-                            one cut off, but letting them wrap freely ran this row to four lines with
-                            the amount floating in the middle of it. */}
+                      {/* Two names, neither expendable, but free wrapping runs to four lines. */}
                       <p className="line-clamp-2 text-sm">
                         <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
                         <span className="text-muted"> paid </span>

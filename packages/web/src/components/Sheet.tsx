@@ -23,13 +23,9 @@ export function Sheet({
   const dialogRef = useRef<HTMLDivElement>(null);
 
   /*
-   * Focus the sheet itself, and only reach for a field when the sheet asks.
-   *
-   * This used to focus the first input in every sheet, which is right for one of them and wrong for
-   * the rest: on a phone, focusing a field slides the keyboard up over the sheet the moment it
-   * opens. Members was the worst of it — its only input is "Add someone by name", the last thing in
-   * the panel, so opening the roster covered the roster with a keyboard to type into a field nobody
-   * had asked for. Typing is the point of exactly one sheet, so exactly one sheet opts in.
+   * Focus the sheet itself; reach for a field only when the sheet asks. On a phone, focusing an
+   * input slides the keyboard up over the sheet the moment it opens, and typing is the point of
+   * exactly one sheet.
    *
    * Never the close button, which is the first focusable thing in the header: a sheet that opens
    * with "Close" under the cursor is offering to undo itself.
