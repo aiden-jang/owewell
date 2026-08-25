@@ -66,19 +66,16 @@ export function applySecurityHeaders(headers: Headers, opts: SecurityHeaderOptio
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * Defense-in-depth CSRF guard. The primary defense is already the `platform_session` cookie's
- * SameSite=Lax attribute, which stops the browser from attaching it to cross-site POSTs. This
- * adds a second gate: for a state-changing method, if the request carries an Origin header whose
- * host differs from the request's own host, reject it.
+ * Defense-in-depth CSRF guard. The primary defense is the session cookie's SameSite=Lax, which
+ * stops the browser attaching it to cross-site POSTs; this rejects a state-changing request whose
+ * Origin host differs from its own.
  *
- * We only reject on a *present, mismatched* Origin — same-origin fetches always send a matching
- * Origin, so legitimate traffic passes, while requests that genuinely omit Origin (rare, and
- * cookie-less cross-site anyway) are left to the SameSite gate rather than being hard-blocked.
+ * Only on a *present, mismatched* Origin. Same-origin fetches always send a matching one, and a
+ * request that genuinely omits it is cookie-less cross-site anyway, so it is left to SameSite.
  *
- * Localhost origins are always allowed: in `wrangler dev` a Worker with a custom-domain route sees
- * every request as that production host, so a genuine same-origin call from the local web app
- * (Origin `http://localhost:PORT`) would never match. A browser only sends a localhost Origin from
- * a page actually on localhost — an attacker's page can't forge it — so allowing it is safe.
+ * Localhost is always allowed: under `wrangler dev` a Worker with a custom-domain route sees every
+ * request as that production host, so a real local call would never match. A browser only sends a
+ * localhost Origin from a page actually on localhost, so an attacker cannot forge it.
  *
  * @returns a 403 Response to short-circuit with, or null when the request is allowed.
  */

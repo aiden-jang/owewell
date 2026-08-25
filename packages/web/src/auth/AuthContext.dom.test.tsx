@@ -5,18 +5,9 @@ import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 
 /**
- * The session, driven.
- *
- * Seventy lines that everything else sits on, and two of its rules are the silent kind:
- *
- *   1. `user.id` is the owewell PERSON id, not the auth service's user id. Every comparison in the
- *      app — isOwner, balances, "which one is me" — is against person ids, so getting this wrong
- *      does not throw anywhere. It just means nothing ever matches you.
- *   2. Sign-out returns to the origin; sign-in returns to where you were. Sending someone back to a
- *      group page they can no longer read is a redirect loop, not a courtesy.
- *
- * And one that is merely fatal: if `loading` never clears the whole app sits on a spinner, so the
- * failure path has to resolve it too.
+ * The session, driven. Seventy lines everything else sits on, and its failures are silent ones: a
+ * wrong id matches nobody rather than throwing, and a `loading` that never clears leaves the whole
+ * app on a spinner.
  */
 
 const get = vi.fn();

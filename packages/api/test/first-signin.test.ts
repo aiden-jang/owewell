@@ -7,13 +7,12 @@ import { testDb } from './helpers.js';
 /**
  * First sign-in.
  *
- * getOrCreatePerson runs in middleware on every /owewell/* request, and people.auth_user_id is UNIQUE.
- * It used to read, find nothing, and insert. A first sign-in means several requests land at once (the
- * SPA asks for the group list, the group, and opens the socket together), so all of them found nothing
- * and all of them inserted. One won and the rest hit the unique constraint, which nothing caught, so a
- * brand-new user's first page load returned {"error":"INTERNAL"} on some requests.
+ * getOrCreatePerson runs in middleware on every request and people.auth_user_id is UNIQUE. Read,
+ * find nothing, insert — and a first sign-in lands several requests at once (group list, group,
+ * socket), so all of them find nothing and all of them insert. One wins, the rest hit the constraint
+ * and return INTERNAL on a brand-new user's first page load.
  *
- * That matters beyond the 500: those are the requests a user retries, and retried writes are how a
+ * Worse than the 500: those are the requests a user retries, and retried writes are how a
  * multi-step operation ends up half-applied.
  */
 

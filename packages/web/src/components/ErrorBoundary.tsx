@@ -14,13 +14,10 @@ interface State {
 /**
  * Catches render-time crashes so a thrown component doesn't blank the whole app.
  *
- * It shows what broke, collapsed. The first version logged to console and displayed nothing, which
- * meant a crash reported as "this page says Well, that broke" carried no information at all: the
- * only way to learn anything was to have the person open devtools, which on a phone is not a thing
- * that happens. Everyone who uses this app can screenshot. So the screenshot has to be enough.
- *
- * Collapsed rather than inline, because the point of the friendly copy is that a crash shouldn't
- * feel like a stack trace. Open it and it is one.
+ * It shows what broke, collapsed. Logging to console only means a crash reported as "this page says
+ * Well, that broke" carries no information: reading it needs devtools, which on a phone does not
+ * happen. Everyone can screenshot, so the screenshot has to be enough. Collapsed, because the point
+ * of the friendly copy is that a crash shouldn't look like a stack trace until you ask.
  */
 export class ErrorBoundary extends Component<Props, State> {
   override state: State = { hasError: false, message: null, where: null };

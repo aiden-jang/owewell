@@ -4,14 +4,12 @@ import { describe, expect, it } from 'vitest';
 /**
  * A response whose body depends on who is asking must never be stored.
  *
- * /owewell/me shipped with no Cache-Control at all, and a GET with no directives is heuristically
- * cacheable, so the browser invents its own freshness lifetime and keeps it. The same omission in
- * accounts produced a real, reported bug: sign out, press back, the page re-checks the session, the
- * browser answers from its own cache, and you appear signed in until a refresh.
+ * A GET with no Cache-Control is heuristically cacheable, so the browser invents a freshness
+ * lifetime. The same omission in accounts was a reported bug: sign out, press back, the session
+ * re-check is answered from cache, and you appear signed in.
  *
- * This is the first HTTP-level test in this package. Every other test here calls the handlers or the
- * database directly, which is faster and better for logic, and is also precisely why a missing response
- * header could sit in production unnoticed: nothing was looking at the response.
+ * The first HTTP-level test in this package. Everything else calls handlers or the database
+ * directly, which is exactly why a missing response header sat unnoticed.
  */
 describe('cache headers', () => {
   const paths = ['/owewell/me', '/owewell/groups'];

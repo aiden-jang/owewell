@@ -5,15 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { ToastProvider, useToast } from './Toast';
 
 /**
- * The toast, and the one thing about it that broke silently.
+ * The toast, and the one thing about it that broke silently: it wore `glass` for a while after
+ * `glass` was deleted from index.css. TypeScript doesn't read CSS, eslint doesn't read CSS, and an
+ * undefined class is legal HTML, so it just rendered as bare text on nothing.
  *
- * It carried `glass` for a while after `glass` was deleted from index.css in favour of `surface`.
- * Nothing failed: TypeScript does not read CSS, eslint does not read CSS, and an undefined class is
- * legal HTML. The toast just rendered as bare text with a transparent background, which nobody
- * noticed until one fired on top of a sheet and looked like a rendering fault.
- *
- * So the pairing is asserted from both ends: the element wears the class, and the stylesheet defines
- * it. Either half alone would have passed while the bug was live.
+ * The pairing is asserted from both ends — the element wears the class, the stylesheet defines it.
+ * Either half alone passes while the bug is live.
  */
 
 const CSS = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
