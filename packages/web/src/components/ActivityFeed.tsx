@@ -155,18 +155,23 @@ export function ActivityFeed({
   // Who actually paid an expense. For itemized receipts we read the per-item payers
   // (falling back to the expense payer), so a split-tab receipt reads honestly instead
   // of crediting one person.
-  function payerSummary(e: Expense): { avatar: string; label: string } {
+  /*
+   * `who` is kept apart from the word "paid" because only one of them can be allowed to truncate.
+   * A row reading "Konstantinos Papadopo…" had lost both the verb and the date; names are the part
+   * that varies without limit, so names are the part that yields.
+   */
+  function payerSummary(e: Expense): { avatar: string; who: string } {
     const payers =
       e.splitMethod === 'ITEMIZED' && e.items && e.items.length > 0
         ? [...new Set(e.items.map((i) => i.payerId ?? e.payerId))]
         : [e.payerId];
-    const label =
+    const who =
       payers.length === 1
-        ? `${nameOf(payers[0]!)} paid`
+        ? nameOf(payers[0]!)
         : payers.length === 2
-          ? `${nameOf(payers[0]!)} & ${nameOf(payers[1]!)} paid`
-          : `${payers.length} people paid`;
-    return { avatar: nameOf(payers[0]!), label };
+          ? `${nameOf(payers[0]!)} & ${nameOf(payers[1]!)}`
+          : `${payers.length} people`;
+    return { avatar: nameOf(payers[0]!), who };
   }
 
   // The person lens scopes the feed and the total above it; the category filter is a drill-down from
@@ -212,11 +217,19 @@ export function ActivityFeed({
                 </button>
               )}
             </label>
+            {/*
+              * Capped, because a select is as wide as its longest option.
+              *
+              * One member called Konstantinos Papadopoulos-Herrera made this control 250px instead
+              * of 89px, which was enough on its own to push the search field onto its own line and
+              * leave the row looking broken. The group switcher already caps itself for the same
+              * reason; this one did not.
+              */}
             <select
               value={personFilter ?? ''}
               onChange={(e) => setPersonFilter(e.target.value || null)}
               aria-label="Filter by person"
-              className={`rounded-full border px-3 py-2 font-medium outline-none transition focus:border-accent ${
+              className={`max-w-[8.5rem] truncate rounded-full border px-3 py-2 font-medium outline-none transition focus:border-accent ${
                 personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
               }`}
             >
@@ -284,9 +297,11 @@ export function ActivityFeed({
               </span>
             )}
           </div>
+          {/* items-start, not items-center: the note runs to two lines on a phone and a centred
+              icon floats against the gap between them. */}
           {settlements.length > 0 && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-faint">
-              <Icon name="undo" size={13} />
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-faint">
+              <Icon name="undo" size={13} className="mt-0.5 shrink-0" />
               A payment&rsquo;s been recorded, so this is locked. Undo it below to edit or remove
               expenses.
             </p>
@@ -383,13 +398,19 @@ export function ActivityFeed({
                             <CategoryGlyph categoryKey={item.expense.category ?? 'other'} />{' '}
                             {item.expense.description}
                           </p>
-                          <p className="truncate text-sm text-muted">
-                            {payerSummary(item.expense).label} · {timeAgo(item.expense.date)}
-                            {/* Only flag when it wasn't shared with the whole group; "everyone" is the
-                                default, so printing it on every row would just be noise. */}
-                            {item.expense.splits.length < members.length && (
-                              <> · {item.expense.splits.length} ways</>
-                            )}
+                          <p className="flex items-baseline text-sm text-muted">
+                            <span className="truncate">{payerSummary(item.expense).who}</span>
+                            {/* The space is in the text, not a flex gap: a gap is invisible to a
+                                screen reader and to anything that copies the row, both of which
+                                would read "Alicepaid". */}
+                            <span className="shrink-0 whitespace-pre">
+                              {' paid · '}
+                              {timeAgo(item.expense.date)}
+                              {/* Only flag when it wasn't shared with the whole group; "everyone" is
+                                  the default, so printing it on every row would just be noise. */}
+                              {item.expense.splits.length < members.length &&
+                                ` · ${item.expense.splits.length} ways`}
+                            </span>
                           </p>
                           {/*
                             * A queued edit says so; a landed one does not.
@@ -426,7 +447,10 @@ export function ActivityFeed({
                         <Icon name="check" size={16} />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm">
+                        {/* Two lines, then it truncates. Two names and neither can afford to be the
+                            one cut off, but letting them wrap freely ran this row to four lines with
+                            the amount floating in the middle of it. */}
+                        <p className="line-clamp-2 text-sm">
                           <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
                           <span className="text-muted"> paid </span>
                           <span className="font-medium">{nameOf(item.settlement.toUserId)}</span>
