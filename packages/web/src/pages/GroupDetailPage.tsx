@@ -196,15 +196,12 @@ export function GroupDetailPage(): ReactNode {
   }, []);
 
   /*
-   * Delete, then offer it back. No modal.
+   * Delete, then offer it back. No modal: a confirm asks you to predict a mistake you have not made
+   * yet, so it costs a step every time and catches almost nothing. Undoing a recorded payment two
+   * sections up already works this way.
    *
-   * A confirm dialog asks you to predict a mistake you have not made yet, and everybody clicks
-   * through it, so it costs a step every time and catches almost nothing. Undo costs a step only
-   * when you were actually wrong. It is also what undoing a recorded payment already does two
-   * sections up, and the two destructive actions in this app should not disagree about that.
-   *
-   * The restore is honest because deletion is a soft delete: the same row comes back with the same
-   * id and the same splits, down to which person absorbed the odd cent.
+   * The restore is honest because deletion is soft: the same row returns with the same splits, down
+   * to which person absorbed the odd cent.
    */
   async function deleteExpense(expenseId: string): Promise<void> {
     const removed = expenses.find((e) => e.id === expenseId);
@@ -358,12 +355,9 @@ export function GroupDetailPage(): ReactNode {
   }
 
   /*
-   * One formatter for this group's money: used directly by the page and handed to everything under it
-   * through the provider at the bottom of the render.
-   *
-   * Declared up here with the other hooks rather than beside the derived values further down, because
-   * the search memo below formats amounts to match them against the query. A `const` further down the
-   * function body is in its temporal dead zone when that callback runs, so searching would have thrown.
+   * One formatter for this group's money. Declared up here with the other hooks, not beside the
+   * derived values below: the search memo formats amounts to match the query, and a `const` further
+   * down is in its temporal dead zone when that callback runs.
    */
   const fmt = useMoney();
 
@@ -415,26 +409,13 @@ export function GroupDetailPage(): ReactNode {
   if (!group) {
     return (
       <Shell>
-        {/*
-         * The same blocks the loaded page has, at the heights it has them.
-         *
-         * This drew a label, a title, one 128px card and three floating rows, against a real page
-         * of back link, title, a 338px hero, a 310px settle-up panel and a divided feed panel. So
-         * the placeholder was shorter than the thing it stood in for and in a different order, and
-         * everything jumped on arrival — which is the one job a skeleton has.
-         *
-         * The Shell's own gap-5 does the spacing, as it does for the loaded page. No margins here.
-         */}
+        {/* The same blocks the loaded page has, at the heights it has them — a placeholder that is
+            shorter or in a different order makes everything jump on arrival, which is the one job a
+            skeleton has. Spacing comes from the Shell's gap-5; no margins here. */}
         <Skeleton className="h-5 w-24" />
         <Skeleton className="mt-3 h-9 w-40" />
-        {/*
-         * Card-shaped, not slab-shaped.
-         *
-         * Matching the heights alone left two 300px rectangles of flat grey stacked on each other,
-         * which reads as a broken page rather than an arriving one. The bars inside are the pieces
-         * that actually land there: the member strip and the one big figure in the hero, a heading
-         * and two transfer rows in the settle-up panel.
-         */}
+        {/* Card-shaped, not slab-shaped: matched heights alone give two 300px rectangles of flat
+            grey, which reads as a broken page rather than an arriving one. */}
         <div className="surface flex h-[338px] flex-col items-center rounded-3xl p-6">
           <Skeleton className="h-9 w-32 rounded-full" />
           <Skeleton className="mt-5 h-4 w-28" />
@@ -508,15 +489,9 @@ export function GroupDetailPage(): ReactNode {
         onOpenMembers={() => setMembersOpen(true)}
       />
 
-      {/*
-       * Said above the balance, because the balance is the thing it makes wrong.
-       *
-       * The feed already marks individual rows as waiting, which only explains itself if you
-       * happen to be looking at that row — and it explains nothing about the figure at the top,
-       * which is computed by the server from writes that have not reached it. The dashboard has
-       * said this for every group since the outbox landed; the group page, which is the screen you
-       * are actually on when the signal goes, said nothing.
-       */}
+      {/* Above the balance, because the balance is what it makes wrong: the figure is computed by
+          the server from writes that have not reached it, and a row marked "waiting" further down
+          only explains itself if you happen to be looking at that row. */}
       {pendingCount > 0 && (
         <p
           role="status"
@@ -629,25 +604,15 @@ export function GroupDetailPage(): ReactNode {
       />
 
       {/*
-       * The floating add button appears only once there's a list to add to; the empty state owns
-       * the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons.
+       * Only once there's a list to add to — the empty state owns the first-expense CTA.
        *
-       * Bottom LEFT, which is not where a floating action button usually goes.
+       * Bottom LEFT, which is not where a floating action button usually goes. Every action in this
+       * app is right-aligned, so bottom-right is the one place a fixed control is guaranteed to
+       * land on something: measured, it covered 30px of Mark paid and the method select beside it.
+       * The cost is right-thumb reach, which beats making people scroll to reach the primary button.
        *
-       * Every action in this app is right-aligned — Mark paid, the row chevrons, the amounts, the
-       * sheet close buttons — so the bottom-right corner is the one place a fixed control is
-       * guaranteed to land on something. It did: on the shortest group page that still shows this
-       * button, at rest, it covered 30px of Mark paid and the payment-method select beside it.
-       * That was survivable while the page carried a budget card, a settle-by card and a monthly
-       * pulse to push the settle-up panel up the screen; with those gone it is the landing state.
-       *
-       * The cost is right-thumb reach, which on a 375px screen is a stretch rather than a problem.
-       * The alternative was making people scroll before they could press the primary button on the
-       * page, which is worse. The bottom padding on <main> still clears the end of the feed.
-       *
-       * It is not zero-overlap — nothing fixed over a scrolling page can be. What it now lands on
-       * is the row avatar, an aria-hidden disc with the same person's name in text beside it.
-       * Measured at the top, middle and end of the shortest page that renders this button.
+       * Not zero-overlap — nothing fixed over a scrolling page can be. What it lands on now is an
+       * aria-hidden avatar with the same name in text beside it.
        */}
       {ledgerHasRows && (
         <button

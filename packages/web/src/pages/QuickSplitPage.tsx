@@ -45,14 +45,9 @@ function newItem(): Item {
  * One dry line about the shape of the split, read off the numbers.
  *
  * Generated, not decorative: every branch is a fact the app already computed, so the line is only
- * ever true. That is the whole trick — "someone got the steak" lands because the split really is
- * lopsided, and a random quip in the same slot would be noise.
- *
- * Deliberately absent from the text you send to the group (see summaryText). The app can be funny
- * at your bill; a joke arriving in everyone else's chat reads as the sender being funny at them.
- *
- * Returns null far more often than not. A verdict on every ordinary split would stop being a
- * remark and become furniture.
+ * ever true. Deliberately absent from the text you send to the group (see summaryText) — the app
+ * can be funny at your bill, but a joke arriving in everyone else's chat reads as the sender being
+ * funny at them. Returns null far more often than not.
  */
 function splitVerdict(
   named: Person[],
@@ -401,28 +396,17 @@ export function QuickSplitPage(): ReactNode {
     <div className="flex-1">
       {user ? <AppHeader /> : <PublicHeader />}
       {/*
-       * Two widths on purpose, which is the one place in the app that has them.
-       *
-       * Everything else is max-w-2xl end to end. Here the page is also a landing page, and a
-       * headline plus a three-card row penned into 672px on a 1280px laptop reads as a phone
-       * screenshot someone centred. The pitch and the feature row get the wider column; the tool
-       * itself stays at 2xl, because it is a form and a form does not get better by getting wider.
-       *
-       * Signed in there is no marketing, so the page is just the form and stays narrow.
+       * Two widths, the only place in the app with them: everything else is max-w-2xl end to end.
+       * This page is also a landing page, and a headline penned into 672px on a laptop reads as a
+       * centred phone screenshot. The tool itself stays at 2xl — a form doesn't get better wider.
        */}
       <main
         id="main"
         tabIndex={-1}
         className={`mx-auto w-full animate-rise px-4 py-10 ${user ? 'max-w-2xl' : 'max-w-2xl lg:max-w-5xl'}`}
       >
-        {/*
-         * Pitch beside the tool once there is room for both.
-         *
-         * Stacked, the wider column gave the hero a left edge at 85px and the centred form one at
-         * 190px — two starts, and a lot of empty right-hand side. Side by side, the pitch stays
-         * visible while you use the thing it is pitching, which is the whole argument for a
-         * no-signup demo being on the landing page at all. Below lg it stacks as before.
-         */}
+        {/* Pitch beside the tool once there is room, so it stays visible while you use the thing it
+            is pitching. Below lg it stacks. */}
         <div
           className={
             user ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] lg:items-start lg:gap-12'
@@ -542,14 +526,8 @@ export function QuickSplitPage(): ReactNode {
 
             {/* Items — one expense per row, each split its own way among everyone above */}
             <div className="mt-6 space-y-3">
-              {/*
-               * The running total, at the size of the thing it is.
-               *
-               * The group's add sheet makes the amount the biggest thing on screen because every other
-               * field is a detail about it. The same is true here; it just cannot be an input, since
-               * this page is a list of items rather than one figure. So it is the sum, and it is the
-               * number you check against the printed receipt before you send anything to anybody.
-               */}
+              {/* The running total, at the size of the thing it is: the number you check against the
+                  printed receipt before sending anything to anybody. */}
               <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center">
                 <p className="tnum font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
                   {Money.fromCents(grandTotal).format()}
