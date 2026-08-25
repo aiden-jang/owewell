@@ -1,3 +1,5 @@
+import { todayStr } from './format';
+
 /**
  * "3 days ago", "2 weeks ago", "in March".
  *
@@ -78,4 +80,50 @@ export function timeAgoShort(at: Date | string | number, now: Date | number = Da
     day: 'numeric',
     ...(sameYear ? {} : { year: 'numeric' }),
   });
+}
+
+/*
+ * An expense's date is a calendar day, not a moment, and has to be read as one.
+ *
+ * The pipeline is: an <input type="date"> gives "2026-08-24" in the user's own calendar, the API
+ * stores `new Date("2026-08-24")` — UTC midnight — and the client used to format that instant in
+ * local time. West of UTC that lands on the previous day, so a New York user adding an expense
+ * today saw yesterday's date on it, and `timeAgoShort` called it "4h ago" before midnight and
+ * "1d ago" after. The edit form was the odd one out and always got it right, because it reads
+ * `date.slice(0, 10)` rather than parsing.
+ *
+ * So these two work on calendar dates as strings and never build a Date from the stored instant.
+ * `slice(0, 10)` recovers the day the user actually picked, whatever zone they are now in.
+ */
+
+/** The stored day, as the YYYY-MM-DD the user originally chose. */
+export function expenseDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+const dayNumber = (ymd: string): number =>
+  Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10)) / DAY;
+
+/** "today" / "yesterday" / "3d ago", counted in whole days rather than elapsed hours. */
+export function dayAgo(iso: string, now: Date | number = Date.now()): string {
+  const day = expenseDay(iso);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  const today = todayStr(now instanceof Date ? now : new Date(now));
+  const diff = dayNumber(today) - dayNumber(day);
+
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'yesterday';
+  if (diff < 0) return fullDay(iso, { month: 'short', day: 'numeric' });
+  if (diff < 7) return `${diff}d ago`;
+  if (diff < 35) return `${Math.floor(diff / 7)}w ago`;
+
+  const sameYear = day.slice(0, 4) === today.slice(0, 4);
+  return fullDay(iso, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+}
+
+/** The day spelled out. UTC, because that is the zone the picked day was stored in. */
+export function fullDay(iso: string, options: Intl.DateTimeFormatOptions): string {
+  const day = expenseDay(iso);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  return new Date(`${day}T00:00:00.000Z`).toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
 }

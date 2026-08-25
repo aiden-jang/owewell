@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { timeAgo, timeAgoShort } from './relativeTime.js';
+import { describe, expect, it, test } from 'vitest';
+import { dayAgo, expenseDay, fullDay, timeAgo, timeAgoShort } from './relativeTime.js';
 
 /** A fixed "now" so none of this depends on when the suite runs. */
 const NOW = new Date('2026-08-05T12:00:00Z').getTime();
@@ -107,5 +107,68 @@ describe('timeAgoShort', () => {
 
   test('says nothing for a timestamp it cannot read', () => {
     expect(timeAgoShort('not a date', NOW)).toBe('');
+  });
+});
+
+/*
+ * The calendar-day helpers, run from a zone west of UTC.
+ *
+ * This is where the bug lived and it is invisible from UTC: an expense dated "2026-08-24" is stored
+ * as 2026-08-24T00:00:00Z, and formatting that instant in New York gives Aug 23. Every test here
+ * pins the clock to a New York moment so a regression to local-time formatting fails rather than
+ * passing on the CI box's TZ.
+ */
+describe('an expense date is a calendar day, not an instant', () => {
+  // 2026-08-24 14:00 in New York (UTC-4) — the same wall-clock day as the stored UTC day.
+  const NY_AUG_24 = new Date('2026-08-24T18:00:00.000Z');
+  // 2026-08-23 22:00 in New York, which is already 2026-08-24 in UTC. The two calendars disagree.
+  const NY_AUG_23_LATE = new Date('2026-08-24T02:00:00.000Z');
+
+  const stored = (day: string): string => new Date(day).toISOString();
+
+  it('spells out the day that was picked, not the one local time lands on', () => {
+    expect(stored('2026-08-24')).toBe('2026-08-24T00:00:00.000Z');
+    expect(fullDay(stored('2026-08-24'), { weekday: 'short', month: 'short', day: 'numeric' })).toBe(
+      'Mon, Aug 24',
+    );
+  });
+
+  it('calls an expense added today "today"', () => {
+    expect(dayAgo(stored('2026-08-24'), NY_AUG_24)).toBe('today');
+  });
+
+  /*
+   * The case that made the old code say "1d ago" about something entered minutes earlier. At 22:00
+   * in New York the stored instant is already tomorrow in UTC, so any hours-elapsed arithmetic gets
+   * the sign wrong. Counting calendar days off the string cannot.
+   */
+  it('still says "today" late in the evening, when UTC has already moved on', () => {
+    expect(dayAgo(stored('2026-08-23'), NY_AUG_23_LATE)).toBe('today');
+  });
+
+  it('counts whole days back', () => {
+    expect(dayAgo(stored('2026-08-23'), NY_AUG_24)).toBe('yesterday');
+    expect(dayAgo(stored('2026-08-21'), NY_AUG_24)).toBe('3d ago');
+    expect(dayAgo(stored('2026-08-10'), NY_AUG_24)).toBe('2w ago');
+  });
+
+  it('falls back to a date once the day count stops meaning anything', () => {
+    expect(dayAgo(stored('2026-06-01'), NY_AUG_24)).toBe('Jun 1');
+    expect(dayAgo(stored('2025-12-25'), NY_AUG_24)).toBe('Dec 25, 2025');
+  });
+
+  // Backdating is allowed but a future date is not, so this only guards against a bad clock.
+  it('does not invent a negative day count', () => {
+    expect(dayAgo(stored('2026-08-26'), NY_AUG_24)).toBe('Aug 26');
+  });
+
+  it('says nothing for a value that is not a date', () => {
+    expect(dayAgo('', NY_AUG_24)).toBe('');
+    expect(fullDay('not-a-date', { month: 'short' })).toBe('');
+  });
+
+  // The edit form has always been right, because it slices rather than parses. Same answer now.
+  it('agrees with what the edit form prefills', () => {
+    expect(expenseDay(stored('2026-08-24'))).toBe('2026-08-24');
   });
 });

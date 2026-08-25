@@ -6,7 +6,7 @@ import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
 import { lensAmount, matchesPersonLens } from '../lib/activityFilters';
-import { timeAgoShort as timeAgo } from '../lib/relativeTime';
+import { timeAgoShort as timeAgo, dayAgo } from '../lib/relativeTime';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 import type { Settlement } from '../lib/settlements';
@@ -412,7 +412,7 @@ export function ActivityFeed({
                                 would read "Alicepaid". */}
                           <span className="shrink-0 whitespace-pre">
                             {' paid · '}
-                            {timeAgo(item.expense.date)}
+                            {dayAgo(item.expense.date)}
                             {/* Only flag when it wasn't shared with the whole group; "everyone" is
                                   the default, so printing it on every row would just be noise. */}
                             {item.expense.splits.length < members.length &&

@@ -5,6 +5,7 @@ import { CategoryGlyph } from './CategoryMark';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
+import { fullDay } from '../lib/relativeTime';
 
 /*
  * What one expense actually says, once you tap it.
@@ -23,13 +24,13 @@ const SPLIT_METHOD_LABELS: Record<string, string> = {
   ITEMIZED: 'Split by receipt',
 };
 
+/*
+ * The expense's own day, read as the calendar date it was picked as rather than as an instant.
+ * See `fullDay` — formatting the stored UTC midnight in local time showed the previous day to
+ * anyone west of UTC, which is everyone in the Americas.
+ */
 function fullDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return fullDay(iso, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 /** The number the payer actually typed for this person, in their own units. Null for EQUAL. */

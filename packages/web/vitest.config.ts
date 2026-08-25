@@ -17,5 +17,14 @@ export default defineConfig({
     // localStorage and navigator.onLine and has no JSX in it at all.
     environmentMatchGlobs: [['src/**/*.dom.test.{ts,tsx}', 'jsdom']],
     setupFiles: ['./test/setup.ts'],
+    /*
+     * A fixed zone, west of UTC on purpose.
+     *
+     * An expense's date is a calendar day stored at UTC midnight, so every bug in handling it is
+     * invisible from UTC and shows up everywhere else. CI runs in UTC and this machine does not,
+     * which is the worst of both: pinning one zone means the date tests assert the same thing in
+     * both places, and the one they assert is the one real users are in.
+     */
+    env: { TZ: 'America/New_York' },
   },
 });

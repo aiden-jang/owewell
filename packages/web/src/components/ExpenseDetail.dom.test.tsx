@@ -163,6 +163,23 @@ describe('what the sheet says', () => {
   });
 });
 
+/*
+ * The date the payer picked, printed as that date.
+ *
+ * `date` is a calendar day the API stores at UTC midnight, so formatting it as an instant in local
+ * time shows the day before to anyone west of UTC. The suite is pinned to America/New_York (see
+ * vitest.config.ts) so this fails if that ever comes back.
+ */
+describe('the date on it', () => {
+  const stored = (day: string): string => new Date(day).toISOString();
+
+  it('prints the day that was picked, not the one local time lands on', () => {
+    expect(stored('2026-08-24')).toBe('2026-08-24T00:00:00.000Z');
+    render(<ExpenseDetail {...props} expense={expense({ date: stored('2026-08-24') })} />);
+    expect(screen.getByText(/Mon, Aug 24, 2026/)).toBeInTheDocument();
+  });
+});
+
 describe('what you can do from here', () => {
   it('offers duplicate, edit and delete on an open ledger', async () => {
     const onEdit = vi.fn();
