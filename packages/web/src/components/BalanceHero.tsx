@@ -139,7 +139,12 @@ export function BalanceHero({
             {fmt(totalSettled)} settled so far
           </p>
         )}
-        {settlementJourney > 0 && (
+        {/*
+          * Only once there is progress. The gate used to be "any money is in play", which is true
+          * of almost every group almost all the time, so the hero carried a permanently empty
+          * track and the word 0% — a whole row spent saying nothing has happened yet.
+          */}
+        {totalSettled > 0 && (
           <div className={`mt-4 max-w-xs ${settled ? 'mx-auto' : ''}`}>
             <div className="mb-1.5 flex items-center justify-between text-xs text-faint">
               <span>settle-up progress</span>

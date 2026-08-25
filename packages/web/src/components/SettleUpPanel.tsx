@@ -129,7 +129,9 @@ export function SettleUpPanel({
 
   return (
     <section className="rounded-2xl border border-line bg-card p-4">
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+      {/* One row at every width. Stacking it on a phone left "Share plan" sitting under the
+          heading with no shape around it, reading as a subtitle rather than as the action it is. */}
+      <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
           <Icon name="wallet" size={16} /> Settle up
         </h2>
@@ -172,7 +174,7 @@ export function SettleUpPanel({
         * answer is the same for every transfer in a plan, and eight identical selects would be
         * eight chances to record the wrong one.
         */}
-      <label className="mt-2 flex items-center justify-end gap-1.5 text-xs text-muted">
+      <label className="mt-2 flex items-center justify-between gap-1.5 text-xs text-muted">
         mark paid via
         <select
           value={settleMethod}
@@ -238,9 +240,18 @@ export function SettleUpPanel({
                   disabled={settling}
                   onClick={() => void markPaid(payment)}
                   title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                  /* The only filled control in the row. Nudge is text, the pay links are outlines,
-                     and this is the one that changes the ledger. */
-                  className="tap shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm shadow-accent/20 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+                  /*
+                   * Filled on the recommended row only, outlined on the rest.
+                   *
+                   * Every row used to carry the same filled accent button, so a four-transfer plan
+                   * was four identical loud buttons and the accent stopped meaning "do this one".
+                   * One row already says START HERE; that is the one that earns the fill.
+                   */
+                  className={`tap shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
+                    key === recommendedPaymentKey
+                      ? 'bg-accent text-white shadow-sm shadow-accent/20 hover:brightness-110'
+                      : 'border border-line-strong text-ink hover:border-accent hover:text-accent'
+                  }`}
                 >
                   {paymentInFlight === key ? 'Sent it, mark paid' : 'Mark paid'}
                 </button>

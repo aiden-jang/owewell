@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import {
+  AVATAR_DARK,
+  AVATAR_INK,
+  AVATAR_WARM,
   CATEGORY_DARK,
   CATEGORY_THEMES,
   CATEGORY_WARM,
@@ -165,5 +168,18 @@ describe('the palettes match the stylesheet', () => {
     for (const [key, hex] of Object.entries(cats)) {
       expect(declared[`cat-${key}`], `--p-cat-${key}`).toBe((hex as Hex).toLowerCase());
     }
+  });
+
+  // Avatar.tsx reads these as var(--p-av-N) and never sees a hex, so a typo here would be invisible
+  // everywhere except on the page itself.
+  test.each([
+    ['dark', AVATAR_DARK, "[data-theme='dark']"],
+    ['warm', AVATAR_WARM, "[data-theme='warm']"],
+  ] as const)('%s avatar hues', (_name, avatars, selector) => {
+    const declared = block(selector);
+    avatars.forEach((hex, i) => {
+      expect(declared[`av-${i}`], `--p-av-${i}`).toBe(hex.toLowerCase());
+    });
+    expect(declared['av-ink'], '--p-av-ink').toBe(AVATAR_INK.toLowerCase());
   });
 });
