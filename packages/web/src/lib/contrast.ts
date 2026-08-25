@@ -149,5 +149,38 @@ export const CATEGORY_WARM: CategoryPalette = {
   other: '#9c3e1a',
 };
 
+/*
+ * Avatar discs, per theme.
+ *
+ * Ten hues evenly spaced around the wheel at one lightness; see `Avatar.tsx` for why even spacing
+ * and one lightness, and why the ink is dark rather than white. Only lightness and the chroma cap
+ * differ between the themes, so a person keeps their hue when the theme changes.
+ *
+ * Warm is calmer, and not as a matter of taste. Measured on the warm page the shipped discs were
+ * the highest-chroma thing on screen at 0.157, above the hero figure at 0.132 and the accent at
+ * 0.093 — a decorative initial outranking the money and the primary button. Warm caps chroma at
+ * 0.10 to sit at the accent's level. That costs separation, since ten hues at one lightness
+ * separate mostly by chroma: the closest warm pair is 0.061 apart against dark's 0.097, still well
+ * above a just-noticeable difference at this size.
+ */
+export type AvatarPalette = readonly [Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex];
+
+/** L 0.74, chroma as high as each hue can hold. Vivid, for a near-black page. */
+export const AVATAR_DARK: AvatarPalette = [
+  '#ff7d80', '#f98924', '#cda600', '#8bbe36', '#00c990',
+  '#00c2ca', '#14b8ff', '#8ea4ff', '#c98afc', '#f37ac5',
+];
+
+/** L 0.80, chroma capped at 0.10, so the discs read as identity and not as the loudest thing. */
+export const AVATAR_WARM: AvatarPalette = [
+  '#f8a4a3', '#f0ad7e', '#d5bc70', '#abca84', '#7dd2ad',
+  '#64d1d7', '#7bc8f6', '#a8baff', '#d0acf0', '#eca4ce',
+];
+
+export const AVATAR_THEMES = { dark: AVATAR_DARK, warm: AVATAR_WARM } as const;
+
+/** Near-black rather than pure, so it belongs to the same world as the rest of the ink. */
+export const AVATAR_INK: Hex = '#1b1a1f';
+
 export const CATEGORY_THEMES = { dark: CATEGORY_DARK, warm: CATEGORY_WARM } as const;
 export type ThemeName = keyof typeof THEMES;

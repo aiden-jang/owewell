@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, type Hex } from '../lib/contrast';
-import { avatarColor, AVATAR_COLORS, AVATAR_INK } from './Avatar';
+import { contrast, AVATAR_DARK, AVATAR_INK, AVATAR_THEMES, AVATAR_WARM, type Hex } from '../lib/contrast';
+import { avatarBucket } from './Avatar';
 
 /**
  * The two properties the avatar palette exists to have.
@@ -32,39 +32,88 @@ function distance(a: Hex, b: Hex): number {
   return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
 }
 
-describe('the avatar palette', () => {
+describe.each([
+  ['dark', AVATAR_DARK, 0.085],
+  // Warm caps chroma so the discs stop outranking the money on a near-white page, and ten hues at
+  // one lightness separate mostly by chroma — so its pairs come closer. Still roughly twice a
+  // just-noticeable difference at this size, and pinned here so it cannot quietly go further.
+  ['warm', AVATAR_WARM, 0.055],
+] as const)('the %s avatar palette', (_name, colors, minDistance) => {
   /*
    * The initial is 11px semibold at its smallest, which is body text by WCAG's reckoning, so 4.5:1.
    *
-   * The palette this replaced ran 2.45:1 to 3.61:1 against the white it was printed in — every
+   * The palette these replaced ran 2.45:1 to 3.61:1 against the white it was printed in — every
    * colour failing, the amber and the cyan badly. That is what forced the dark ink: a disc bright
-   * enough to be friendly cannot carry white text at AA.
+   * enough to be friendly cannot carry white text at AA. One ink serves both themes, because the
+   * discs are light in both.
    */
   it('prints readable ink on every colour', () => {
-    for (const color of AVATAR_COLORS) {
-      expect(contrast(color, AVATAR_INK as Hex), color).toBeGreaterThanOrEqual(4.5);
+    for (const color of colors) {
+      expect(contrast(color, AVATAR_INK), color).toBeGreaterThanOrEqual(4.5);
     }
   });
 
   /*
-   * The floor is set just under the closest pair the generated set actually contains, so it fails on
-   * a hand-added colour rather than tracking whatever happens to be there. For reference the old
-   * palette's two nearest (#f0573f and #cf6b3a, both red) sat at 0.068 and read as one colour twice
-   * once MemberStrip put them side by side.
+   * The floor sits just under the closest pair each set actually contains, so it fails on a
+   * hand-added colour rather than tracking whatever happens to be there. For reference, the palette
+   * before these had its two nearest (#f0573f and #cf6b3a, both red) at 0.068, and they read as one
+   * colour twice over once MemberStrip put them side by side.
    */
   it('keeps every pair far enough apart to read as different people', () => {
-    for (let i = 0; i < AVATAR_COLORS.length; i++) {
-      for (let j = i + 1; j < AVATAR_COLORS.length; j++) {
-        const [a, b] = [AVATAR_COLORS[i]!, AVATAR_COLORS[j]!];
-        expect(distance(a, b), `${a} vs ${b}`).toBeGreaterThan(0.085);
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        const [a, b] = [colors[i]!, colors[j]!];
+        expect(distance(a, b), `${a} vs ${b}`).toBeGreaterThan(minDistance);
       }
     }
   });
 
   // Equal perceptual lightness is what stops one disc in a row looking heavier than the rest.
   it('holds one lightness across the whole wheel', () => {
-    const lightness = AVATAR_COLORS.map((c) => oklab(c)[0]);
+    const lightness = colors.map((c) => oklab(c)[0]);
     expect(Math.max(...lightness) - Math.min(...lightness)).toBeLessThan(0.02);
+  });
+
+  it('covers every bucket', () => {
+    expect(colors).toHaveLength(10);
+  });
+});
+
+/*
+ * Why warm exists as a separate set at all.
+ *
+ * On the warm page the shipped discs measured chroma 0.157, against the hero figure's 0.132 and the
+ * accent's 0.093 — so the loudest thing on the group screen was a decorative initial. These are the
+ * two bars it was clearing, kept as bars.
+ */
+describe('the warm discs sit below the money and the primary button', () => {
+  const chroma = (hex: Hex): number => {
+    const [, a, b] = oklab(hex);
+    return Math.hypot(a, b);
+  };
+  const hue = (hex: Hex): number => {
+    const [, a, b] = oklab(hex);
+    return ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+  };
+
+  it('never out-saturates the hero figure', () => {
+    for (const color of AVATAR_WARM) {
+      expect(chroma(color), color).toBeLessThan(chroma('#8a2b1a'));
+    }
+  });
+
+  it('stays within a hair of the accent', () => {
+    for (const color of AVATAR_WARM) {
+      expect(chroma(color), color).toBeLessThan(chroma('#1f6f4f') + 0.02);
+    }
+  });
+
+  // Same bucket, same hue, so switching theme does not reassign anybody's colour.
+  it('keeps each person on their hue in both themes', () => {
+    AVATAR_DARK.forEach((darkHex, i) => {
+      const drift = Math.abs(hue(darkHex) - hue(AVATAR_THEMES.warm[i]!));
+      expect(Math.min(drift, 360 - drift), `bucket ${i}`).toBeLessThan(8);
+    });
   });
 });
 
@@ -84,19 +133,19 @@ describe('picking a colour for a name', () => {
   ];
 
   it('spreads fifty names across the whole wheel', () => {
-    const counts = new Map<string, number>();
-    for (const name of NAMES) counts.set(avatarColor(name), (counts.get(avatarColor(name)) ?? 0) + 1);
-    expect(counts.size).toBe(AVATAR_COLORS.length);
+    const counts = new Map<number, number>();
+    for (const name of NAMES) counts.set(avatarBucket(name), (counts.get(avatarBucket(name)) ?? 0) + 1);
+    expect(counts.size).toBe(AVATAR_DARK.length);
     // Perfectly even would be five each. Ten is the point where one colour owns a fifth of everybody.
     expect(Math.max(...counts.values())).toBeLessThanOrEqual(10);
   });
 
   it('gives the same person the same colour every time', () => {
-    expect(avatarColor('Priya')).toBe(avatarColor('Priya'));
+    expect(avatarBucket('Priya')).toBe(avatarBucket('Priya'));
   });
 
   // Housemates with matching initials were the case the old `hash * 31` got wrong.
   it('separates names that share a prefix', () => {
-    expect(new Set(['Sam', 'Samir', 'Sammy', 'Samantha'].map(avatarColor)).size).toBeGreaterThan(1);
+    expect(new Set(['Sam', 'Samir', 'Sammy', 'Samantha'].map(avatarBucket)).size).toBeGreaterThan(1);
   });
 });
