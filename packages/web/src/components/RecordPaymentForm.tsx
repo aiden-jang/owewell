@@ -1,11 +1,12 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents, type MoneyFormatter } from '@owewell/shared';
+import { currencySymbol, dollarsToCents, type MoneyFormatter } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
 import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
+import { normalizeAmountInput } from '../lib/format';
 import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
 
@@ -153,6 +154,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
     }
   }
 
+  const symbol = currencySymbol();
   const inputClass =
     'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
@@ -220,16 +222,37 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
           ))}
         </select>
       </div>
+      {/*
+        * The amount, at the rank it has in the add-expense sheet.
+        *
+        * It was a 16px box sharing a row with the method dropdown — the exact arrangement the note
+        * in AddExpenseForm describes moving away from, for the same reason: everything else in this
+        * form is a detail about this number, and it was styled as one more select.
+        *
+        * Also the only money input in the app that did not tidy itself on blur. Eight others call
+        * normalizeAmountInput, so "8.5" became "8.50" everywhere except the one form whose entire
+        * job is recording an amount somebody actually paid.
+        */}
+      <div className="rounded-2xl border border-line bg-field px-4 py-4 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+        <div className="flex items-baseline justify-center gap-1">
+          <span aria-hidden className="font-display text-xl font-semibold text-faint">
+            {symbol}
+          </span>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onBlur={() => setAmount(normalizeAmountInput(amount))}
+            placeholder="0.00"
+            inputMode="decimal"
+            required
+            aria-label="Amount"
+            /* Sized to its own digits, as in the add sheet, so the symbol stays beside the number. */
+            style={{ width: `${Math.max(4, amount.length) + 0.3}ch` }}
+            className="tnum bg-transparent text-center font-display text-4xl font-extrabold tracking-tight outline-none placeholder:text-faint"
+          />
+        </div>
+      </div>
       <div className="flex gap-2">
-        <input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-          inputMode="decimal"
-          required
-          className={inputClass}
-          aria-label="Amount"
-        />
         <select
           value={method}
           onChange={(e) => {
@@ -339,7 +362,7 @@ export function RecordPaymentForm({ groupId, members, defaultFromId, suggestions
         disabled={submitting}
         className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
       >
-        {submitting ? 'Logging...' : 'Log payment'}
+        {submitting ? 'Logging…' : 'Log payment'}
       </button>
     </form>
   );

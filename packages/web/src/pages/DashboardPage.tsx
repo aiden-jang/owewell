@@ -352,7 +352,7 @@ export function DashboardPage(): ReactNode {
                 disabled={savingPending}
                 className="btn-gradient rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60"
               >
-                {savingPending ? 'Saving...' : 'Save it'}
+                {savingPending ? 'Saving…' : 'Save it'}
               </button>
               <button
                 type="button"
@@ -488,7 +488,7 @@ export function DashboardPage(): ReactNode {
                 disabled={creating || !name.trim()}
                 className="btn-gradient rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
               >
-                {creating ? 'Adding...' : 'Create'}
+                {creating ? 'Adding…' : 'Create'}
               </button>
             </div>
             <p

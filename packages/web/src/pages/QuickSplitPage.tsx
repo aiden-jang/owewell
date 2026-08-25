@@ -865,7 +865,7 @@ export function QuickSplitPage(): ReactNode {
           disabled={saving}
           className="btn-gradient mt-3 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
         >
-          {saving ? 'Saving...' : user ? 'Save to my account' : "Save it before someone 'forgets'"}
+          {saving ? 'Saving…' : user ? 'Save to my account' : "Save it before someone 'forgets'"}
         </button>
         {user && (
           <Link
