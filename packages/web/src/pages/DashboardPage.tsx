@@ -274,18 +274,9 @@ export function DashboardPage(): ReactNode {
             <span className="truncate font-medium">{group.name}</span>
             <span className={`tnum shrink-0 text-sm font-semibold ${label.className}`}>{label.text}</span>
           </span>
-          {/*
-           * xs and wrapping, where this was sm and truncating.
-           *
-           * xs because the scale calls it "secondary detail under a primary line", which is what
-           * this is, and the member row already reads that way. At sm the three facts overflowed
-           * by 13px on every row at 375px and clipped "$90.00 unsettled" to "$90.00 unse…".
-           *
-           * Wrapping because xs alone only moves the cliff: twelve people and a four-figure total
-           * still ran 2px over. A name may be cut — you can tell a name has been cut — but this is
-           * a list of facts, and one severed mid-word says less than no third fact at all. The
-           * name above still truncates; this line takes a second row on the rare group needing one.
-           */}
+          {/* xs and wrapping. At sm these three facts overflowed by 13px at 375px and clipped
+              "$90.00 unsettled"; xs alone only moves the cliff. A name can be cut and still read as
+              a cut name, but a list of facts with one severed mid-word says less than two facts. */}
           <span className="block text-xs text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
             {activity && <span className="text-faint"> &middot; {activity}</span>}
@@ -384,14 +375,8 @@ export function DashboardPage(): ReactNode {
             <p className="text-sm font-medium text-muted">
               {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
             </p>
-            {/*
-             * A step below the figure on a group page, which is set at 5xl/6xl.
-             *
-             * They were the same size, so opening a group did not feel like arriving anywhere: the
-             * same number in the same weight, twice. This one is a roll-up across groups and you
-             * cannot act on it without opening one of them; the group figure sits directly above the
-             * settle-up panel. The larger type belongs to the number you can do something about.
-             */}
+            {/* A step below the group page's 5xl/6xl figure. The larger type belongs to the number
+                you can act on; this one is a roll-up you can only open. */}
             <p
               className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
                 settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
@@ -407,15 +392,8 @@ export function DashboardPage(): ReactNode {
                 <MoneyText cents={Math.abs(totals.net)} />
               )}
             </p>
-            {/*
-             * Only when the two sides actually differ from the headline.
-             *
-             * These break the net figure into its gross halves, which is worth a line when you are
-             * owed in one group and owing in another. It was rendering whenever either side was
-             * non-zero, which is most accounts: owed everywhere and owing nowhere printed "$42.00"
-             * as a headline and then "owed to you $42.00" as a chip directly beneath it. Same rule
-             * the group hero already uses for its unsettled line.
-             */}
+            {/* Only when the two sides differ from the headline. Owed everywhere and owing nowhere
+                prints the same figure twice, once as a headline and once as a chip beneath it. */}
             {totals.owed > 0 && totals.owe > 0 && (
               <div className="mt-4 flex flex-wrap gap-2 text-sm">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
