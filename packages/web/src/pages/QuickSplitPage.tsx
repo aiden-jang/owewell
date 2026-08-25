@@ -422,10 +422,9 @@ export function QuickSplitPage(): ReactNode {
             </>
           ) : (
             <section className="mb-9 lg:sticky lg:top-24 lg:mb-0">
-              <p className="text-sm font-semibold text-accent">owewell</p>
               {/* No lg bump: beside the tool the pitch column is ~430px, and 60px type breaks
                 "Keep the friends." across two lines. 48px needs 382px and holds. */}
-              <h1 className="mt-1 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
+              <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
                 Split the bill.
                 <br />
                 Keep the friends.
@@ -526,17 +525,30 @@ export function QuickSplitPage(): ReactNode {
 
             {/* Items — one expense per row, each split its own way among everyone above */}
             <div className="mt-6 space-y-3">
-              {/* The running total, at the size of the thing it is: the number you check against the
-                  printed receipt before sending anything to anybody. */}
-              <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center">
-                <p className="tnum font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
+              {/*
+               * The running total, at the size of the thing it is: the number you check against the
+               * printed receipt before sending anything to anybody.
+               *
+               * Only at that size once it IS a number. At zero it was 48px of nothing — the same
+               * type size as the headline, and the largest thing a first-time visitor saw.
+               */}
+              <div
+                className={`rounded-2xl border border-line text-center transition-all ${
+                  grandTotal > 0 ? 'bg-field px-4 py-5' : 'border-dashed px-4 py-3'
+                }`}
+              >
+                <p
+                  className={`tnum font-display font-extrabold tracking-tight ${
+                    grandTotal > 0 ? 'text-4xl sm:text-5xl' : 'text-xl text-faint'
+                  }`}
+                >
                   {Money.fromCents(grandTotal).format()}
                 </p>
-                <p className="mt-1 text-sm text-muted">
-                  {grandTotal > 0
-                    ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${named.length} ${named.length === 1 ? 'person' : 'people'}`
-                    : 'Add what got spent below'}
-                </p>
+                {grandTotal > 0 && (
+                  <p className="mt-1 text-sm text-muted">
+                    {`${items.length} ${items.length === 1 ? 'item' : 'items'} · ${named.length} ${named.length === 1 ? 'person' : 'people'}`}
+                  </p>
+                )}
               </div>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-sm font-medium text-muted">What you spent</h2>
@@ -639,67 +651,70 @@ export function QuickSplitPage(): ReactNode {
                   )}
                 </div>
               ))}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
-                >
-                  + Add item
-                </button>
-                <div className="flex items-center gap-1.5" aria-label="Add tip">
-                  <span className="text-xs text-muted">
-                    {generatedTipTotal > 0 ? `tip ${Money.fromCents(generatedTipTotal).format()}` : 'add tip'}
-                  </span>
-                  {[18, 20, 25].map((percent) => (
-                    <button
-                      key={percent}
-                      type="button"
-                      onClick={() => addTip(percent)}
-                      aria-pressed={activeTip === percent}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition active:scale-[0.96] ${
-                        activeTip === percent
-                          ? 'border-accent bg-accent-soft text-accent'
-                          : 'border-line bg-field text-muted hover:border-accent hover:text-accent'
-                      }`}
-                    >
-                      {percent}%
-                    </button>
-                  ))}
-                  <label className="flex items-center rounded-full border border-line bg-field pl-2.5 text-xs text-muted focus-within:border-accent">
-                    <span className="sr-only">Custom tip percentage</span>
-                    <input
-                      value={customTip}
-                      onChange={(event) => setCustomTip(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          addTip(Number(customTip));
-                        }
-                      }}
-                      placeholder="other"
-                      inputMode="decimal"
-                      className="w-12 bg-transparent py-1 outline-none placeholder:text-muted/70"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => addTip(Number(customTip))}
-                      className="px-2 py-1 font-semibold text-muted transition hover:text-ink"
-                      aria-label="Apply custom tip"
-                    >
-                      %
-                    </button>
-                  </label>
-                  {activeTip !== null && (
-                    <button
-                      type="button"
-                      onClick={clearGeneratedTip}
-                      className="text-xs text-muted transition hover:text-ink hover:underline"
-                    >
-                      remove
-                    </button>
-                  )}
-                </div>
+              <button
+                type="button"
+                onClick={addItem}
+                className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
+              >
+                + Add item
+              </button>
+              {/* Its own row. Tipping is not a sibling of "add another line", and sharing one left
+                  five small controls crowded against a text link. */}
+              <div
+                className="flex flex-wrap items-center justify-end gap-1.5 border-t border-line pt-3"
+                aria-label="Add tip"
+              >
+                <span className="text-xs text-muted">
+                  {generatedTipTotal > 0 ? `tip ${Money.fromCents(generatedTipTotal).format()}` : 'add tip'}
+                </span>
+                {[18, 20, 25].map((percent) => (
+                  <button
+                    key={percent}
+                    type="button"
+                    onClick={() => addTip(percent)}
+                    aria-pressed={activeTip === percent}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition active:scale-[0.96] ${
+                      activeTip === percent
+                        ? 'border-accent bg-accent-soft text-accent'
+                        : 'border-line bg-field text-muted hover:border-accent hover:text-accent'
+                    }`}
+                  >
+                    {percent}%
+                  </button>
+                ))}
+                <label className="flex items-center rounded-full border border-line bg-field pl-2.5 text-xs text-muted focus-within:border-accent">
+                  <span className="sr-only">Custom tip percentage</span>
+                  <input
+                    value={customTip}
+                    onChange={(event) => setCustomTip(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addTip(Number(customTip));
+                      }
+                    }}
+                    placeholder="other"
+                    inputMode="decimal"
+                    className="w-12 bg-transparent py-1 outline-none placeholder:text-muted/70"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addTip(Number(customTip))}
+                    className="px-2 py-1 font-semibold text-muted transition hover:text-ink"
+                    aria-label="Apply custom tip"
+                  >
+                    %
+                  </button>
+                </label>
+                {activeTip !== null && (
+                  <button
+                    type="button"
+                    onClick={clearGeneratedTip}
+                    className="text-xs text-muted transition hover:text-ink hover:underline"
+                  >
+                    remove
+                  </button>
+                )}
               </div>
             </div>
             {/* Only once there is an answer: the form is blank for most of the time spent here. */}
@@ -790,10 +805,12 @@ export function QuickSplitPage(): ReactNode {
                       : 'Send it to the group chat'}
               </button>
             )}
+            {/* Disabled until there is a split to save. Full-width accent over an empty form is the
+                loudest control on the page inviting you to save nothing. */}
             <button
               type="button"
               onClick={() => void onSave()}
-              disabled={saving}
+              disabled={saving || grandTotal <= 0}
               className="btn-gradient mt-3 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
             >
               {saving ? 'Saving…' : user ? 'Save to my account' : "Save it before someone 'forgets'"}
