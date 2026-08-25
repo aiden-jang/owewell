@@ -74,7 +74,9 @@ export function WrappedRecap({
           <span className="block text-2xs font-medium uppercase tracking-wide text-faint">
             Biggest moment
           </span>
-          <strong className="mt-1 block truncate text-sm text-ink" title={recap.largest?.description}>
+          {/* Two lines rather than one: the card is narrow enough that ordinary descriptions clip by
+              a few pixels, and "Cabin, three nig…" is worse than a second line. */}
+          <strong className="mt-1 line-clamp-2 block text-sm text-ink" title={recap.largest?.description}>
             {recap.largest?.description ?? 'nothing yet'}
           </strong>
           {recap.largest && (
