@@ -14,13 +14,8 @@ import type { SuggestedPayment } from '../lib/settlements';
 /*
  * Who pays whom, and everything you can do about it.
  *
- * Lifted out of the group page, which had grown past 2,600 lines. Almost all the state in here is
- * state nobody else wanted: which reminder tone is selected, and whether a share button is
- * mid-share. The page was keeping eight hooks alive for a section that renders only when somebody
- * owes somebody.
- *
- * Marking a payment deliberately stays outside: it moves the ledger, builds a receipt and refetches
- * balances, so the page owns it and this panel only says which payment and by what method.
+ * Marking a payment deliberately stays with the page: it moves the ledger, builds a receipt and
+ * refetches balances. This panel only says which payment and by what method.
  */
 
 export function SettleUpPanel({
@@ -51,8 +46,7 @@ export function SettleUpPanel({
   const [nudgeTone, setNudgeTone] = useState<NudgeTone>('gentle');
 
   const settlePlanTotal = suggested.reduce((sum, payment) => sum + payment.amountCents, 0);
-  // Only for the "Start here" flag on the top row. This used to also feed a "Best next move" card
-  // above the list, which named the same payment the top row already names and labels.
+  // Only feeds the "Start here" flag on the top row.
   const bestSettleStep = bestSettlementStep(balances, suggested);
   const recommendedPaymentKey = bestSettleStep
     ? `${bestSettleStep.payment.fromUserId}-${bestSettleStep.payment.toUserId}`
@@ -168,13 +162,9 @@ export function SettleUpPanel({
         <span className="tnum font-semibold text-ink">{fmt(settlePlanTotal)} remaining</span>
       </div>
       {/*
-       * Directly above the buttons it governs, not up in the header beside "Share plan".
-       *
-       * It sets the method every Mark paid in the list records, but sitting in the share row it
-       * read as an option for the share — and it was the one form control in a header of text
-       * links, which is its own kind of wrong. It stays one control rather than one per row: the
-       * answer is the same for every transfer in a plan, and eight identical selects would be
-       * eight chances to record the wrong one.
+       * Directly above the buttons it governs. One control, not one per row: the answer is the same
+       * for every transfer in a plan, and eight selects would be eight chances to record the wrong
+       * method.
        */}
       <label className="mt-2 flex items-center justify-between gap-1.5 text-xs text-muted">
         mark paid via
@@ -206,20 +196,9 @@ export function SettleUpPanel({
               }`}
             >
               {/*
-               * The sentence and the one button that acts on it, on one line.
-               *
-               * Everything used to share a wrapping row: on a phone that put the actions on a
-               * second line pushed to the right edge while the sentence started at the left, so
-               * Mark paid — the only control that touches the ledger — sat as far from its own
-               * sentence as the row allowed. Pinning the two together and dropping the rest
-               * underneath is one layout that holds at every width, which is also why the sm:
-               * variants are gone: two arrangements meant two things to keep right.
-               *
-               * The amount is its own line above the names, not the tail of the sentence. Two real
-               * names ("Maria-Fernanda Villanueva pays Konstantinos Papadopoulos-Herrera") ran the
-               * sentence to five lines on a 375px phone and left $2,143.78 stranded at the bottom,
-               * furthest from the button that records it. Names may still wrap, since they are the
-               * part you read, but the figure you act on now sits level with Mark paid.
+               * Amount on its own line above the names, with Mark paid level with it. Two real
+               * names run the sentence to five lines on a 375px phone, stranding the figure at the
+               * bottom, furthest from the button that records it.
                */}
               {/* Above the row, not inside the name column: it labels the whole transfer, and from
                   in there it pushed the avatar out of line with the amount. */}
@@ -244,13 +223,8 @@ export function SettleUpPanel({
                   disabled={settling}
                   onClick={() => void markPaid(payment)}
                   title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
-                  /*
-                   * Filled on the recommended row only, outlined on the rest.
-                   *
-                   * Every row used to carry the same filled accent button, so a four-transfer plan
-                   * was four identical loud buttons and the accent stopped meaning "do this one".
-                   * One row already says START HERE; that is the one that earns the fill.
-                   */
+                  /* Filled on the recommended row only. Four identical accent buttons and the
+                     accent stops meaning "do this one"; START HERE marks the one that earns it. */
                   className={`tap shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
                     key === recommendedPaymentKey
                       ? 'bg-accent text-white shadow-sm shadow-accent/20 hover:brightness-110'
@@ -286,16 +260,8 @@ export function SettleUpPanel({
                     setPaymentNudge((current) => (current === key ? null : key));
                     resetNudgeShare();
                   }}
-                  /*
-                   * A chip, like the pay links beside it, but a quieter one.
-                   *
-                   * This was a bare underlined text button, which read fine back when the actions
-                   * sat right-aligned in a header-ish row. Once they became a left-aligned chip row
-                   * it was the only square, borderless, transparent thing in a line of pills — 28px
-                   * and radius 0 against their 30px and fully round. Same geometry now so the row
-                   * is one set; the hairline border and muted text keep it below the pay links,
-                   * which are the ones that actually move money.
-                   */
+                  /* Same pill geometry as the pay links beside it, but quieter: the hairline border
+                     and muted text keep it below the ones that actually move money. */
                   className="tap rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink active:scale-[0.98]"
                 >
                   {paymentNudge === key ? 'Close nudge' : 'Nudge'}

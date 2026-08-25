@@ -136,12 +136,7 @@ export function QuickSplitPage(): ReactNode {
     setDraftRestored(false);
   }
 
-  /*
-   * Everything the numbers say, worked out in one place.
-   *
-   * This was ninety lines of mutable accumulators inline in the render, and the only money math in
-   * the app with no tests behind it. See lib/quickSplitResult.ts.
-   */
+  // All of it in one place, and tested: see lib/quickSplitResult.ts.
   const { named, effectivePayerId, effectiveYouId, transfers, grandTotal, yourShareCents, sharesByPerson } =
     computeQuickSplit({ people, items, payerId, youId, splitPayers });
 
@@ -729,9 +724,7 @@ export function QuickSplitPage(): ReactNode {
                 </div>
               </div>
             </div>
-
-            {/* Only once there is an answer. It used to render a heading and a promise above an empty
-            space for as long as the form was blank, which is most of the time somebody spends here. */}
+            {/* Only once there is an answer: the form is blank for most of the time spent here. */}
             {transfers && (
               <section className="mt-6">
                 <h2 className="text-sm font-medium text-muted">Who owes what</h2>

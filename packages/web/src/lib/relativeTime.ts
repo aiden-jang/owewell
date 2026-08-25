@@ -53,13 +53,7 @@ export function timeAgo(at: Date | string | number, now: Date | number = Date.no
     : `${d.toLocaleString(undefined, { month: 'short' })} ${d.getFullYear()}`;
 }
 
-/**
- * The same answer, short enough to sit in a dense row.
- *
- * "5m ago" rather than "5 minutes ago". A second implementation of this used to live in the group
- * page, which is how the dashboard ended up saying "23 hours ago" while the feed said "23h ago" from
- * code that had drifted apart in its rounding as well as its wording. One function, two registers.
- */
+/** The same answer, short enough for a dense row: "5m ago" rather than "5 minutes ago". */
 export function timeAgoShort(at: Date | string | number, now: Date | number = Date.now()): string {
   const then = at instanceof Date ? at.getTime() : typeof at === 'string' ? Date.parse(at) : at;
   const nowMs = now instanceof Date ? now.getTime() : now;
@@ -83,17 +77,14 @@ export function timeAgoShort(at: Date | string | number, now: Date | number = Da
 }
 
 /*
- * An expense's date is a calendar day, not a moment, and has to be read as one.
+ * An expense's date is a calendar day, not a moment.
  *
- * The pipeline is: an <input type="date"> gives "2026-08-24" in the user's own calendar, the API
- * stores `new Date("2026-08-24")` — UTC midnight — and the client used to format that instant in
- * local time. West of UTC that lands on the previous day, so a New York user adding an expense
- * today saw yesterday's date on it, and `timeAgoShort` called it "4h ago" before midnight and
- * "1d ago" after. The edit form was the odd one out and always got it right, because it reads
- * `date.slice(0, 10)` rather than parsing.
+ * An <input type="date"> gives "2026-08-24" in the user's calendar and the API stores it as UTC
+ * midnight. Formatting that instant in local time lands on the previous day anywhere west of UTC,
+ * so a New York user adding an expense today sees yesterday's date on it.
  *
- * So these two work on calendar dates as strings and never build a Date from the stored instant.
- * `slice(0, 10)` recovers the day the user actually picked, whatever zone they are now in.
+ * So these work on the date string and never build a Date from the stored instant. `slice(0, 10)`
+ * recovers the day that was picked, whatever zone the reader is in.
  */
 
 /** The stored day, as the YYYY-MM-DD the user originally chose. */

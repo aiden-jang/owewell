@@ -24,11 +24,6 @@ export function preferredMethod(payee: Payee | null | undefined): PaymentMethod 
 
 const dollars = (cents: number): string => (cents / 100).toFixed(2);
 
-/** True when the payee has at least one payment handle we can build a link for. */
-export function hasPayLink(payee: Payee): boolean {
-  return Boolean(payee.venmoHandle || payee.cashappCashtag || payee.paypalHandle);
-}
-
 /**
  * Build "pay <payee>" deep links for a settlement amount, one per handle the
  * payee has set. The amount is prefilled; the payer confirms in the payment app.

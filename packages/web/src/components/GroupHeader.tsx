@@ -53,11 +53,8 @@ export function GroupHeader({
   }, [menuOpen]);
 
   /*
-   * Every menu item closes the menu, whether or not what it started succeeded.
-   *
-   * Only two of them used to, which meant archiving or deleting left the menu hanging open over a
-   * page that had already changed underneath it. Closing is about the menu having been used, not
-   * about the outcome, so it happens on the way out rather than on the way back.
+   * Every menu item closes the menu, whether or not what it started succeeded. Closing is about the
+   * menu having been used, not about the outcome — so it happens on the way out, not on the way back.
    */
   const runAndClose = (action: () => void | Promise<void>) => (): void => {
     setMenuOpen(false);

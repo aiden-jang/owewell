@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, AVATAR_DARK, AVATAR_INK, AVATAR_THEMES, AVATAR_WARM, type Hex } from '../lib/contrast';
+import { contrast, AVATAR_DARK, AVATAR_INK, AVATAR_WARM, type Hex } from '../lib/contrast';
 import { avatarBucket } from './Avatar';
 
 /**
@@ -111,7 +111,7 @@ describe('the warm discs sit below the money and the primary button', () => {
   // Same bucket, same hue, so switching theme does not reassign anybody's colour.
   it('keeps each person on their hue in both themes', () => {
     AVATAR_DARK.forEach((darkHex, i) => {
-      const drift = Math.abs(hue(darkHex) - hue(AVATAR_THEMES.warm[i]!));
+      const drift = Math.abs(hue(darkHex) - hue(AVATAR_WARM[i]!));
       expect(Math.min(drift, 360 - drift), `bucket ${i}`).toBeLessThan(8);
     });
   });

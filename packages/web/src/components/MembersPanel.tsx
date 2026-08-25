@@ -7,16 +7,11 @@ import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 
 /*
- * The member list, and the three small editors hiding inside it.
+ * The member list, and the three small editors inside it.
  *
- * Ten pieces of state came out of the group page with this: which row has its actions open, which
- * row is being renamed, which row is editing payment handles, three handle drafts, and the
- * add-someone field with its error. None of it is read anywhere else.
- *
- * The division of labour with the page: the page's handlers do the work and say so (they call the
- * API, refetch the group, and toast on success), and they throw when it fails. This panel decides
- * what failure looks like, which is not the same everywhere — a failed add belongs under the field
- * you just typed in, while a failed rename has no field left on screen to sit under.
+ * The page's handlers do the work and throw on failure; this panel decides what failure looks like.
+ * That differs by case: a failed add belongs under the field you just typed in, a failed rename has
+ * no field left on screen to sit under.
  */
 
 export interface PaymentHandles {
@@ -157,11 +152,7 @@ export function MembersPanel({
   }
 
   return (
-    /*
-     * No heading and no collapse: this lives in a sheet the person opened by choosing "Members",
-     * so the sheet's own title says what it is, and folding away the thing you just asked for
-     * would be the most pointless tap in the app.
-     */
+    /* No heading: the sheet's own title already says "Members". */
     <section>
       <div>
         {/* Same treatment as the ledger: one panel, hairline rows. A roster is a list of the
@@ -252,17 +243,11 @@ export function MembersPanel({
                     <Avatar name={member.displayName} />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       {/*
-                       * The name gets the first line to itself, and the money moves to the second.
+                       * Name on the first line, money on the second. The figures are shrink-0, so
+                       * sharing a row means the name is the only thing that can give — an
+                       * eight-person roster on a 375px phone rendered "Tomas" as "T…".
                        *
-                       * Everything used to compete for one row: the name, a rename pencil, the
-                       * balance, then a wallet and a remove button. The figures are shrink-0 so the
-                       * name was the only thing that could give, and an eight-person roster on a
-                       * 375px phone rendered "Tomas" as "T…" and "Nadia" as "N…". A member list
-                       * whose whole job is telling you who is in the group was the one thing on
-                       * screen not doing it.
-                       *
-                       * "owner" stays up here because it is a fact about who someone is rather
-                       * than about what they owe, and only ever one row carries it.
+                       * "owner" stays on the name line: it says who someone is, not what they owe.
                        */}
                       <span className="flex items-baseline gap-1.5">
                         <span className="truncate font-medium">{member.displayName}</span>
@@ -272,13 +257,9 @@ export function MembersPanel({
                       </span>
                       {label.text && (
                         /*
-                         * The position, and only the position.
-                         *
-                         * "paid X · share Y" used to ride along here and there was never room for
-                         * all three: it clipped to "share $…" on every row, and letting it wrap
-                         * made every row two lines and pushed the add-someone field off the
-                         * screen. It also answers a question the page already answers better, in
-                         * the fronting breakdown, with a bar. It moves into the open row below.
+                         * The position only. There is no room for "paid X · share Y" as well — it
+                         * clips, and wrapping pushes the add-someone field off screen. It moves into
+                         * the open row below, where it also stops competing with the fronting card.
                          */
                         <span className={`tnum truncate text-xs font-medium ${label.tone}`}>
                           {label.text}
@@ -286,23 +267,15 @@ export function MembersPanel({
                       )}
                       {open && (
                         /*
-                         * Roster editing, in one place per member instead of scattered across the row.
-                         *
-                         * Rename and payment handles were bare icons that appeared on some rows and
-                         * not others, which is a puzzle rather than an affordance — you had to know
-                         * that a pencil means "this one is a placeholder". Labelled, and opened
-                         * deliberately, they can say what they do. Inline rather than a popup menu
-                         * because this list scrolls inside a sheet, and an absolutely positioned
-                         * menu on the last row has nowhere to go.
+                         * All roster editing in one place per member. Bare icons that appear on some
+                         * rows and not others are a puzzle, not an affordance. Inline rather than a
+                         * popup: this list scrolls inside a sheet, so a menu on the last row has
+                         * nowhere to go.
                          */
                         <span className="flex flex-col gap-2 pt-2">
                           {detail && <span className="tnum text-xs text-faint">{detail}</span>}
-                          {/*
-                           * Wide vertical gaps, narrow horizontal ones. The pills are 30px tall, so
-                           * once they stack their 44px hit areas would overlap — with Remove at the
-                           * bottom of the stack. Side by side they are far wider than 44px, so
-                           * nothing needs the room horizontally.
-                           */}
+                          {/* Wide vertical gaps: the pills are 30px tall, so stacked their 44px hit
+                              areas would overlap, with Remove at the bottom. */}
                           <span className="flex flex-wrap gap-x-2 gap-y-3.5">
                             {canRename && (
                               <RowAction icon="pencil" label="Rename" onClick={() => startRename(member)} />

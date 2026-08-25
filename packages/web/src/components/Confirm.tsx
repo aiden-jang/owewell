@@ -47,14 +47,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
   const confirmRef = useRef<HTMLButtonElement>(null);
 
   /*
-   * The same trap, restore and scroll lock the sheet has.
+   * The same trap, restore and scroll lock the sheet has. This dialog guards Delete group and Turn
+   * off link, so Tab must not walk into the page behind it.
    *
-   * This was Escape plus a focused button and nothing else: Tab walked out into the page behind, on
-   * the dialog that guards Delete group and Turn off link. Closing it also dropped focus at the top
-   * of the document rather than back where you were.
-   *
-   * Opens on the confirm button rather than the dialog, unlike a sheet — a confirm has two buttons
-   * and one obvious answer, and the point of it is that the answer is one keypress away.
+   * Opens on the confirm button rather than the dialog, unlike a sheet: a confirm has two buttons
+   * and one obvious answer, and the point is that the answer is one keypress away.
    */
   const cancel = useCallback(() => settle(false), [settle]);
   useDialogFocus(dialogRef, pending !== null, cancel, () => confirmRef.current);
@@ -86,12 +83,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
             aria-modal="true"
             aria-label={pending.title}
             tabIndex={-1}
-            /*
-             * Enters the way a sheet does: up from the bottom on a phone, centred on a wider
-             * screen. It used to land in the middle at every size, so the app had two arrival
-             * animations for two kinds of modal — and the destructive confirm put its buttons in
-             * the centre of the screen, furthest from a thumb.
-             */
+            /* Enters the way a sheet does: up from the bottom on a phone, centred on a wider
+               screen. Centring at every size puts a destructive confirm's buttons furthest from a
+               thumb. */
             className="animate-sheet surface w-full rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
             onClick={(e) => e.stopPropagation()}
           >

@@ -9,14 +9,9 @@ import { flush, isAlreadyDone, subscribe, type QueuedEdit, type QueuedWrite } fr
 /*
  * Draining the outbox, wherever you happen to be standing.
  *
- * This used to live in the group page, scoped to that group's id, which meant a write queued in one
- * group only went out when you next opened that group. Add an expense to the Big Sur tab on a train,
- * spend the week in the flat tab, and it sat in localStorage the whole time while the dashboard
- * quietly showed balances that did not include it.
- *
- * So the group page syncs its own group (it has the ledger on screen to refresh) and the dashboard
- * syncs everything (it is the screen you land on). One hook, because the interesting parts — one
- * flush at a time, what a rejection says, what a conflict asks — should not be written twice.
+ * The group page syncs its own group, because it has the ledger on screen to refresh; the dashboard
+ * syncs everything, because it is the screen you land on. Scoped to one group only, a write queued
+ * in the Big Sur tab would sit in localStorage for a week while you used the flat tab.
  */
 
 /** Send one queued write. The four kinds differ in exactly the ways the outbox comments describe. */

@@ -114,6 +114,19 @@ describe('what it refuses to send', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  /*
+   * `required` only checks that a field is non-empty, so spaces sail past it and reach the trim.
+   * These two branches look unreachable next to the native attribute and are not.
+   */
+  it('rejects a description that is only spaces', async () => {
+    const user = await open();
+    await user.type(screen.getByLabelText('What the expense was for'), '   ');
+    await user.type(screen.getByLabelText('Amount'), '10');
+    await submit(user);
+    expect(screen.getByRole('alert')).toHaveTextContent('Add a short description.');
+    expect(create).not.toHaveBeenCalled();
+  });
+
   // What native validation cannot catch: a field that is filled in but is not a number.
   it('rejects an amount that is not one', async () => {
     const user = await open();

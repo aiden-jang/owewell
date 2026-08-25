@@ -123,14 +123,9 @@ export function SharedGroupPage(): ReactNode {
       </header>
 
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 animate-rise px-4 py-8">
-        {/*
-         * A shape, not a sentence.
-         *
-         * This was centred grey text reading "Loading the tab…", which is the first thing anybody
-         * who is not a user ever sees of owewell, on whatever connection they happen to be on. It
-         * read as a page that had failed rather than one that was arriving. These blocks match the
-         * ready state below: label, name, member count, the spend card, then who-owes-who.
-         */}
+        {/* A shape, not a sentence. This is the first thing a non-user ever sees, on whatever
+            connection they have; grey text reads as a page that failed rather than one arriving.
+            The blocks match the ready state below. */}
         {status === 'loading' && (
           <div aria-busy="true" aria-label="Loading the tab">
             <Skeleton className="h-5 w-28" />

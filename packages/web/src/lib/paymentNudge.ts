@@ -13,13 +13,9 @@ export interface PaymentNudgeDetails {
 /*
  * Written to sound like the person sending it, not like the app.
  *
- * These used to announce themselves: "a gentle owewell nudge for $24.50", "mark it paid in owewell".
- * Nobody texts a friend a sentence with the software's name in it twice, so the whole message read as
- * automated, which is the worst possible framing for asking somebody for money. It makes the ask feel
- * like a collections notice rather than a mate mentioning a thing.
- *
- * So: no product name in the sentence, no instructions about which app to open, and the pay link does
- * the work that the explaining used to. The tones differ in nerve, not in vocabulary.
+ * No product name in the sentence and no instructions about which app to open: a message with the
+ * software's name in it reads as automated, which is the worst framing for asking someone for
+ * money. The pay link does the explaining. The tones differ in nerve, not in vocabulary.
  */
 export function paymentNudgeText(details: PaymentNudgeDetails, tone: NudgeTone, fmt: MoneyFormatter): string {
   const amount = fmt(details.amountCents);

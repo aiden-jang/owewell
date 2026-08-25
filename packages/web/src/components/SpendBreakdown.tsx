@@ -6,18 +6,11 @@ import { lensTotal, spendByCategory as computeSpendByCategory } from '../lib/act
 import type { Expense } from '../lib/expenses';
 
 /*
- * Where the money went, folded into the feed it filters.
+ * Where the money went, folded into the feed it filters. The chart and the list are one
+ * interaction, so tapping a category filters where you are standing.
  *
- * This used to be a section on a Summary tab, and tapping a category set a filter and threw you to
- * the other tab to see the result. That was the clearest sign the tab boundary was in the wrong
- * place: the chart and the list it filters are one interaction, so they live together now and the
- * filter applies where you are standing.
- *
- * Open, with no disclosure around it. It spent a while collapsed, which was a reasonable call when
- * the merge first put a budget card, a settle-by card and a monthly pulse on this page too and the
- * feed was a long way down. Those are all gone, so the argument went with them — and the same
- * section renders open on the public share link, which left the owner of a group hunting for a
- * chevron to see what a guest is shown outright.
+ * Open, with no disclosure: the public share page renders the same section open, so collapsing it
+ * here would leave an owner hunting for a chevron to see what a guest is shown outright.
  */
 
 export function SpendBreakdown({
