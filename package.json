@@ -15,7 +15,9 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dead-classes": "pnpm --filter @owewell/web dead-classes"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.18.0",

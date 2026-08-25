@@ -20,7 +20,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
+      # The repo is prettier-formatted and the config describes it, so drift is a CI failure rather
+      # than something the next person's editor silently fixes half of.
+      - run: pnpm format:check
       - run: pnpm build
+      # After the build, because it diffs the source's class names against the CSS Tailwind actually
+      # emitted. A class that never gets generated produces no CSS and no error: typecheck, lint and
+      # the whole suite stayed green while a bad @custom-variant deleted all 114 hover styles.
+      - run: pnpm dead-classes
       - run: pnpm test
 
   # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
