@@ -867,3 +867,118 @@ describe('an edit that names the version it was based on', () => {
     expect((await dinnerAt(9_000)).amountCents).toBe(9_000);
   });
 });
+
+/*
+ * The same membership checks, on the edit paths.
+ *
+ * `createExpense` and `createItemizedExpense` were the only paths these were tested on, and an edit
+ * is the worse case of the two: the expense is already in the ledger, so a payer or participant
+ * from outside the group rewrites money the group has already agreed on rather than adding a row
+ * they might notice.
+ *
+ * The intruder here is a real person in a real group of their own, not an invented id — that is the
+ * shape the attack actually has, and a check that only rejects nonsense ids would pass anyway.
+ */
+describe('an edit cannot pull in somebody from another group', () => {
+  let intruder: string;
+  let simpleId: string;
+  let receiptId: string;
+
+  beforeEach(async () => {
+    intruder = await seedPerson(db, 'Mallory');
+    await createGroup(db, intruder, "Mallory's own trip");
+
+    simpleId = (
+      await createExpense(db, alice, groupId, {
+        description: 'Dinner',
+        amountCents: 9_000,
+        payerId: alice,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: alice }, { userId: bob }],
+      })
+    ).id;
+
+    receiptId = (
+      await createItemizedExpense(db, alice, groupId, {
+        description: 'Nopa',
+        payerId: alice,
+        taxCents: 0,
+        tipCents: 0,
+        items: [{ name: 'Beer', amountCents: 2_000, participantIds: [alice, bob] }],
+      })
+    ).id;
+  });
+
+  test('not as the payer', async () => {
+    await expect(
+      updateExpense(db, alice, groupId, simpleId, {
+        description: 'Dinner',
+        amountCents: 9_000,
+        payerId: intruder,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: alice }, { userId: bob }],
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PAYER' });
+  });
+
+  test('not as a participant', async () => {
+    await expect(
+      updateExpense(db, alice, groupId, simpleId, {
+        description: 'Dinner',
+        amountCents: 9_000,
+        payerId: alice,
+        splitMethod: 'EQUAL',
+        participants: [{ userId: alice }, { userId: intruder }],
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PARTICIPANT' });
+  });
+
+  test('not as the payer of a receipt', async () => {
+    await expect(
+      updateItemizedExpense(db, alice, groupId, receiptId, {
+        description: 'Nopa',
+        payerId: intruder,
+        taxCents: 0,
+        tipCents: 0,
+        items: [{ name: 'Beer', amountCents: 2_000, participantIds: [alice] }],
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PAYER' });
+  });
+
+  test('not on a line of a receipt', async () => {
+    await expect(
+      updateItemizedExpense(db, alice, groupId, receiptId, {
+        description: 'Nopa',
+        payerId: alice,
+        taxCents: 0,
+        tipCents: 0,
+        items: [{ name: 'Beer', amountCents: 2_000, participantIds: [alice, intruder] }],
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PARTICIPANT' });
+  });
+
+  test('not as the payer of one line of a receipt', async () => {
+    await expect(
+      updateItemizedExpense(db, alice, groupId, receiptId, {
+        description: 'Nopa',
+        payerId: alice,
+        taxCents: 0,
+        tipCents: 0,
+        items: [{ name: 'Beer', amountCents: 2_000, participantIds: [alice], payerId: intruder }],
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PAYER' });
+  });
+
+  // The refusals must not have changed anything on the way out.
+  test('and the expense is left exactly as it was', async () => {
+    const before = await listExpenses(db, alice, groupId);
+    await updateExpense(db, alice, groupId, simpleId, {
+      description: 'Dinner',
+      amountCents: 9_000,
+      payerId: intruder,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    }).catch(() => undefined);
+    expect(await listExpenses(db, alice, groupId)).toEqual(before);
+  });
+});
