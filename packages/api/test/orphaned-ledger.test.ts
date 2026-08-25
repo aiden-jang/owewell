@@ -10,15 +10,10 @@ import { testDb, seedPerson } from './helpers.js';
 /**
  * Regression tests for a production incident.
  *
- * A placeholder ("david") was claimed by a real account. The membership row moved to the account, the
- * six expense_splits did not, and from then on every balance call in that group returned
- * {"error":"INTERNAL"} — because computeBalances dropped the seatless person's net, the balances
- * stopped summing to zero, and simplifyDebts threw a SettleError that nothing mapped.
- *
- * Three separate defects, so three separate tests:
- *   1. claimPlaceholder was not atomic, and collided with a unique index it could reach.
- *   2. computeBalances discarded anyone it had counted who held no seat.
- *   3. SettleError surfaced as a bare INTERNAL with no message.
+ * A placeholder was claimed by a real account. The membership row moved, its six expense_splits did
+ * not, and every balance call in that group then returned INTERNAL: computeBalances dropped the
+ * seatless person's net, the balances stopped summing to zero, and simplifyDebts threw a SettleError
+ * nothing mapped. Three defects, so three tests.
  */
 
 let db: ReturnType<typeof testDb>;

@@ -3,14 +3,12 @@ import type { ReactNode } from 'react';
 /*
  * A person, as a coloured disc with their initial in it.
  *
- * Ten hues evenly spaced around the OKLCH wheel at one lightness, generated rather than picked.
- * Even spacing keeps neighbours distinguishable once MemberStrip puts five side by side; one
- * lightness keeps any disc from looking heavier than the rest, since OKLCH's L is perceptual.
- * Chroma is whatever each hue can hold there — sRGB can't make a vivid yellow as dark as a blue.
+ * Ten hues evenly spaced around the OKLCH wheel at one lightness. Even spacing keeps neighbours
+ * distinguishable once five sit side by side; one lightness stops any disc looking heavier, since
+ * OKLCH's L is perceptual. Chroma is whatever each hue can hold there.
  *
  * The ink is dark, not white, and that is what lets the discs stay bright: white on a friendly
- * mid-tone fails 4.5:1, and darkening the discs enough to carry it turns the greens to olive.
- * Checked in `Avatar.test.ts`.
+ * mid-tone fails 4.5:1. Checked in `Avatar.test.ts`.
  */
 
 /* Hexes live in lib/contrast.ts, read here as CSS vars so a disc follows the theme by itself. */

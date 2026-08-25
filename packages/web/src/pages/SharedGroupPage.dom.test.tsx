@@ -6,16 +6,9 @@ import type { SharedGroupSummary } from '@owewell/core';
 import { ApiError } from '../lib/api';
 
 /**
- * The page a non-user lands on, driven.
- *
- * This is the only screen in the app that strangers see, and until now the only one with no tests.
- * Three of the rules here are the kind that fail quietly and look like something else:
- *
- *   1. A dead link and a bad connection get different screens. Telling an invited person "this link
- *      isn't valid" because their train went into a tunnel is the worst version of this page.
- *   2. Claiming a seat while signed out has to survive the round trip through sign-in, which is why
- *      the seat id goes into the return URL rather than into memory.
- *   3. Somebody already in the group must not be able to claim a second seat in it.
+ * The page a non-user lands on, driven. Its rules fail quietly and look like something else: a dead
+ * link and a bad connection must get different screens, a seat claim must survive the round trip
+ * through sign-in, and a member must not be able to claim a second seat.
  */
 
 const NAMES = ['Alice', 'Bob', 'Cara'];

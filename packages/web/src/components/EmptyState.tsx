@@ -4,19 +4,13 @@ import { Icon, type IconName } from './Icon';
 /*
  * The two things a page says when it has no list to show, and why they must not look alike.
  *
- * They did. Every one of these was a dashed box with a grey icon in a grey square, so "No groups
- * yet" — the first screen a new account ever sees — was pixel-for-pixel the same object as
- * "Couldn't load your groups" directly above it in the same file. One of those is an invitation and
- * the other is a failure, and a person landing on the first should not have to read the sentence to
- * work out which they got.
+ *   invite   nothing here yet, which is the normal beginning of things. A solid card in the accent,
+ *            because it is part of the app rather than a hole in it.
+ *   problem  something did not load, or is gone. Dashed and grey, which reads as "missing".
  *
- *   invite   there is nothing here yet, and that is the normal beginning of things.
- *            A solid card in the accent, because it is part of the app rather than a hole in it.
- *   problem  something did not load, or is gone. Dashed and grey: the conventional reading of a
- *            dashed border is "missing", which is exactly right here and exactly wrong above.
- *
- * One component rather than a convention, because a convention is a thing you remember and this is
- * a thing that was already forgotten six times.
+ * "No groups yet" and "Couldn't load your groups" were the same dashed grey box, so the first screen
+ * a new account saw was pixel-for-pixel a failure. One component rather than a convention, because a
+ * convention is a thing you remember and this one was forgotten six times.
  */
 
 export function EmptyState({

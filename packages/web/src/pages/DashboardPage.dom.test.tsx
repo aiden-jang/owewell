@@ -5,17 +5,9 @@ import { MemoryRouter } from 'react-router-dom';
 import type { GroupSummary } from '../lib/groups';
 
 /**
- * The dashboard, driven rather than eyeballed.
- *
- * All three things tested here were reported by hand, and none of them are visible to a typecheck:
- *   1. "New" and "Select" were independent booleans, so both could be open at once — the name field
- *      sat under the selection UI while select mode's bottom bar pushed the page around.
- *   2. Pressing Create with an empty name returned silently, which looks like a frozen app.
- *   3. Each row needed a date, and it should say when something last HAPPENED, not when the group
- *      was created.
- *
- * The dashboard needs a signed-in session in the real app, so verifying it used to mean a human
- * logging in. That is the gap these close.
+ * The dashboard, driven rather than eyeballed. Everything here was reported by hand and none of it
+ * is visible to a typecheck. It needs a signed-in session in the real app, so verifying it any
+ * other way means a human logging in.
  */
 
 const HOUR = 3_600_000;

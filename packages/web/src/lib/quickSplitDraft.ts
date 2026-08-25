@@ -1,16 +1,13 @@
 import type { SplitMethod } from '@owewell/core';
 
 /*
- * The unsaved split, kept on this device.
+ * The unsaved split, kept on this device. Quick split has no account behind it, so a closed tab is
+ * the only place the work can go.
  *
- * Quick split has no account behind it, so a closed tab is the only place the work can go. This is
- * the whole persistence layer: what a draft is, how long one lives, and what it takes to trust one
- * off disk. Lifted out of QuickSplitPage, which was a thousand lines with this buried at the top.
- *
- * Validation is strict on purpose. The value comes from localStorage, which anything on the origin
- * can write and an older build of this app definitely did: every field is checked rather than cast,
- * and anything that fails is treated as no draft at all. A half-restored split that silently drops
- * one person is worse than starting over.
+ * Validation is strict on purpose: the value comes from localStorage, which anything on the origin
+ * can write and an older build of this app did. Every field is checked rather than cast, and a
+ * failure means no draft at all — a half-restored split that silently drops one person is worse
+ * than starting over.
  */
 
 export interface DraftPerson {

@@ -16,16 +16,13 @@ import { GroupError, memberView, requireMembership, requireOwner, type GroupMemb
 /*
  * Who is in a group, and what happens to the ledger when that changes.
  *
- * Split out of groups.ts, which had grown to cover two jobs. The group functions next door are about
- * the group as a thing — its name, share link, archive state — and none of them touch the
- * ledger. Everything here does: adding or removing somebody re-splits the expenses they were part
- * of, and getting that wrong moves money that people have already agreed on.
+ * The group functions next door are about the group as a thing — name, share link, archive — and
+ * none of them touch the ledger. Everything here does: adding or removing somebody re-splits the
+ * expenses they were part of. The dependency runs one way, members -> groups, so the shared guards
+ * live over there.
  *
- * The dependency runs one way, members -> groups, which is why the shared guards live over there.
- *
- * `claimPlaceholder` deliberately stayed in groups.ts despite being about a member. It is authorised
- * by a share token rather than by membership — the one call here a non-member is allowed to make —
- * so it belongs with the share-link flow it is the last step of, not with the roster writes.
+ * `claimPlaceholder` stays in groups.ts despite being about a member: it is authorised by a share
+ * token rather than by membership, so it belongs with the flow it is the last step of.
  */
 
 /**

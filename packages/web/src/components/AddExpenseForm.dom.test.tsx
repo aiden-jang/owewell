@@ -5,20 +5,9 @@ import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 
 /**
- * The form every expense enters through, driven.
- *
- * It is the largest untested thing in the app and the only one where a bug writes bad data rather
- * than drawing a bad screen. Four kinds of rule live in here and each fails differently:
- *
- *   1. Custom splits have to reconcile. An EXACT split that does not add up to the total, or
- *      percentages that do not reach 100, make the group's arithmetic wrong from its first expense
- *      and there is nothing later that notices.
- *   2. The client id is minted before the request and reused by the queued retry, which is the only
- *      reason a save that times out and is sent again does not become two expenses.
- *   3. An edit carries the version it was based on; a create has none. That is the whole of the
- *      optimistic-concurrency story on this path.
- *   4. Editing has to prefill what the payer originally typed, not what the server computed, or
- *      opening and re-saving an expense silently rewrites the split.
+ * The form every expense enters through, driven. The one place where a bug writes bad data rather
+ * than drawing a bad screen, so the rules worth holding are the arithmetic ones: splits that must
+ * reconcile, an idempotency key that must survive a retry, and a version that must not.
  */
 
 const create = vi.fn<(groupId: string, payload: Record<string, unknown>) => Promise<Expense>>();

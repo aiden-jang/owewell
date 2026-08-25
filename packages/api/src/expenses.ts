@@ -877,14 +877,11 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
 
   // Anyone `bump` touched who no longer holds a seat.
   //
-  // These used to be dropped on the floor. The map is keyed by whoever is referenced, but the return
-  // was `members.map(...)`, so a person with splits and no membership row had their balance computed
-  // and then discarded. The remaining balances stopped netting to zero, simplifyDebts refused, and
-  // every balance call in the group returned INTERNAL. It happened in production: a placeholder was
-  // half-merged into a real account, keeping the splits and losing the seat.
-  //
-  // Keeping them is also the honest answer. Someone who still owes money should stay on the ledger
-  // until they are square, whatever happened to their membership.
+  // Returning `members.map(...)` instead drops them: their balance is computed and discarded, the
+  // rest stop netting to zero, simplifyDebts refuses, and every balance call in the group returns
+  // INTERNAL. That happened in production, from a half-merged placeholder that kept its splits and
+  // lost its seat. Keeping them is also the honest answer — someone who still owes money belongs on
+  // the ledger until they are square.
   const seated = new Set(members.map((m) => m.personId));
   const strays = [...net.keys()].filter((id) => !seated.has(id));
   if (strays.length) {

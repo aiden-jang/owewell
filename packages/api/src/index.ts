@@ -54,14 +54,12 @@ app.use('*', harden());
 /**
  * Nothing this API returns is cacheable.
  *
- * /owewell/me had no Cache-Control, and a GET with no directives is heuristically cacheable, so the
- * browser is free to keep it. The same bug in accounts produced a visible one: sign out, press back,
- * the page re-checks the session, the browser answers from its own cache, and you appear signed in
- * until a refresh. Here it cuts both ways, because a cached `{user: null}` can just as easily keep
- * telling a freshly signed-in person they are signed out.
+ * A GET with no directives is heuristically cacheable, so the browser may keep it. In accounts that
+ * showed up as: sign out, press back, the session re-check is answered from cache, and you appear
+ * signed in. It cuts both ways — a cached `{user: null}` tells a signed-in person they are not.
  *
- * Applied to every API path rather than to /me, because every one of them is per-user: balances,
- * groups, expenses. A response whose body depends on who is asking must never be stored.
+ * Applied to every API path, not just /me: every response here depends on who is asking, and a
+ * response like that must never be stored.
  */
 app.use('/owewell/*', noStore());
 app.use('/health', noStore());
@@ -75,17 +73,13 @@ function noStore() {
 }
 
 /**
- * Static assets, which are the opposite case.
+ * Static assets, which are the opposite case: a blanket `no-store` here re-downloads the hashed
+ * bundles on every navigation, because `run_worker_first` sends the whole origin through us.
  *
- * This used to be one `app.use('*')` that put `no-store` on literally every response, assets
- * included. Because `run_worker_first` sends the whole origin through this Worker, that meant the
- * hashed JS and CSS bundles were re-downloaded on every single navigation, and it would have made
- * self-hosting the font actively worse than loading it from Google.
- *
- * Two buckets. Content-addressed files (Vite's hashed bundles, the versioned font subsets) can never
- * change under a given name, so they get a year and `immutable`. Everything else — index.html, the
- * service worker, the manifest, icons — keeps its name across deploys, so it must revalidate or a
- * released fix sits behind a stale shell.
+ * Two buckets. Content-addressed files (Vite's hashed bundles, versioned font subsets) can never
+ * change under a given name, so a year and `immutable`. Everything else — index.html, the service
+ * worker, the manifest, icons — keeps its name across deploys and must revalidate, or a released
+ * fix sits behind a stale shell.
  */
 const IMMUTABLE = /^\/(assets\/|fonts\/)/;
 

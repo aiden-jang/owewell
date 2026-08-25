@@ -4,16 +4,13 @@ import type { DraftItem, DraftPerson } from './quickSplitDraft';
 import { serverValue } from './splitValues';
 
 /*
- * Who owes whom, worked out from the form.
- *
- * Lifted out of QuickSplitPage, where it sat as ninety lines of mutable accumulators in the middle
- * of a render. It is the only money math in the app that had no tests: `@owewell/shared` covers the
- * primitives, and the group page gets its numbers from the server, but this path computes a whole
- * split in the browser and shipped uncovered.
+ * Who owes whom, worked out from the form. The only money math in the app that runs entirely in the
+ * browser — `@owewell/shared` covers the primitives, and the group page gets its numbers from the
+ * server.
  *
  * Pure, and returns nulls rather than throwing. A half-typed form is the normal state of this
- * screen, not an error — every field is a string somebody is still editing, so anything unparseable
- * means "no answer yet" and the UI simply shows nothing.
+ * screen: every field is a string somebody is still editing, so anything unparseable means "no
+ * answer yet" and the UI shows nothing.
  */
 
 export interface QuickSplitResult {

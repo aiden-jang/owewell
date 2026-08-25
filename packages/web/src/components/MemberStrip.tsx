@@ -4,16 +4,11 @@ import { Icon } from './Icon';
 import type { GroupMember } from '../lib/groups';
 
 /*
- * Who is in this group, above the money.
+ * Who is in this group, above the money. Seeing the roster is a glance you take often; editing it
+ * is a thing you do once, so the faces are visible and the editing is behind a tap.
  *
- * The roster lives in a sheet behind the ⋯ menu, which answers "who is in this group" only if you
- * already thought to look there. That is the wrong shape for the question: it is the one thing about
- * a group you check at a glance and almost never edit, so it should be visible and the editing
- * should be the thing behind a tap.
- *
- * Faces rather than names, because five names is a list and five faces is one object. Overlapping
- * with a ring in the card colour so the stack reads as a stack rather than as five things that
- * failed to lay out.
+ * Faces rather than names: five names is a list, five faces is one object. The ring is the card
+ * colour so the stack reads as a stack rather than as five things that failed to lay out.
  */
 
 /** Past this the stack stops being a glance and starts being a queue. The rest become "+n". */

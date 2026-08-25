@@ -200,15 +200,12 @@ export async function getOrCreateShareToken(db: DB, personId: string, groupId: s
 }
 
 /*
- * Taking a share link back.
+ * Taking a share link back. Without it the only remedy for a forwarded URL is deleting the group,
+ * which takes the ledger with it.
  *
- * There was no way to. A token was minted once and returned forever, so the only remedy for a link
- * that had been forwarded somewhere it shouldn't be was deleting the group, which takes the ledger
- * with it. Anyone who had ever been sent the URL could watch the balances indefinitely.
- *
- * Owner-only, matching rename and delete: it is one shared thing that changes what everybody outside
- * the group can see, not a personal preference. Members are unaffected either way — a claimed seat is
- * a real membership and does not depend on the token that introduced it.
+ * Owner-only, matching rename and delete: it changes what everybody outside the group can see.
+ * Members are unaffected — a claimed seat is a real membership and does not depend on the token
+ * that introduced it.
  */
 
 /** Replace the token, so every copy of the old link stops resolving. Returns the new one. */
@@ -334,14 +331,14 @@ export async function claimPlaceholder(
 
   // ── Repoint every reference from the placeholder to the caller, scoped to this group. ──
   //
-  // This is an identity merge on a ledger, so it is all-or-nothing. It used to be eight sequential
-  // awaits with the membership row moved FIRST, which meant any later failure left the seat owned by
-  // the caller and the money still attached to the placeholder. Balances then stopped summing to zero
-  // and every balance call in the group 500'd forever. That happened in production.
+  // An identity merge on a ledger, so it is all-or-nothing. Done as sequential awaits with the
+  // membership row moved first, any later failure leaves the seat owned by the caller and the money
+  // on the placeholder; balances then stop summing to zero and every balance call 500s. That
+  // happened in production.
   //
-  // The failure was not hypothetical either: expense_splits has a unique index on
-  // (expense_id, person_id), so if the caller already had a split on an expense the placeholder was
-  // also on, a plain repoint collides. Two rows for the same human have to be MERGED, not renamed.
+  // And it will fail: expense_splits is unique on (expense_id, person_id), so if the caller already
+  // has a split on an expense the placeholder is also on, a plain repoint collides. Two rows for the
+  // same human must be MERGED, not renamed.
   const expIds = (
     await db.select({ id: expenses.id }).from(expenses).where(eq(expenses.groupId, groupId)).all()
   ).map((e) => e.id);

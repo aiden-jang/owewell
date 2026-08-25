@@ -8,13 +8,10 @@ import type { GroupMember } from '../lib/groups';
 /*
  * Two ways to put something on the tab, behind one sheet.
  *
- * Which one you are using is the only state here, and it deliberately survives the sheet closing:
- * somebody itemising one receipt is usually about to itemise the next one, and making them pick
- * again every time would be a tax on the person doing the tedious job.
- *
- * The forms differ in what they ask for and not in what happens afterwards, so the callbacks are
- * shared. `onCreated` is told which kind it was, because "added to the tab" and "receipt added to
- * the tab" are different pieces of news and the page owns the wording.
+ * Which one you are using survives the sheet closing on purpose: somebody itemising one receipt is
+ * usually about to itemise the next. The forms differ in what they ask for, not in what happens
+ * after, so the callbacks are shared — `onCreated` is told which kind it was, because "added to the
+ * tab" and "receipt added to the tab" are different news and the page owns the wording.
  */
 
 export type ExpenseMode = 'simple' | 'itemized';

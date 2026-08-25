@@ -606,12 +606,9 @@ export function GroupDetailPage(): ReactNode {
       {/*
        * Only once there's a list to add to — the empty state owns the first-expense CTA.
        *
-       * Bottom LEFT, which is not where a floating action button usually goes. Every action in this
-       * app is right-aligned, so bottom-right is the one place a fixed control is guaranteed to
-       * land on something: measured, it covered 30px of Mark paid and the method select beside it.
-       * The cost is right-thumb reach, which beats making people scroll to reach the primary button.
-       *
-       * Not zero-overlap — nothing fixed over a scrolling page can be. What it lands on now is an
+       * Bottom LEFT, unusually. Every action in this app is right-aligned, so bottom-right is the
+       * one place a fixed control is guaranteed to land on something: measured, it covered 30px of
+       * Mark paid. Nothing fixed over a scrolling page is zero-overlap; what it lands on now is an
        * aria-hidden avatar with the same name in text beside it.
        */}
       {ledgerHasRows && (
