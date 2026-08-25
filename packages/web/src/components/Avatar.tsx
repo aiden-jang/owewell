@@ -28,21 +28,12 @@ import type { ReactNode } from 'react';
  * the colour bright and clears 4.5:1 with room to spare. Checked in `Avatar.test.ts`.
  */
 
-const COLORS = [
-  '#ff7d80',
-  '#f98924',
-  '#cda600',
-  '#8bbe36',
-  '#00c990',
-  '#00c2ca',
-  '#14b8ff',
-  '#8ea4ff',
-  '#c98afc',
-  '#f37ac5',
-] as const;
-
-/** Near-black rather than pure, so it belongs to the same world as the rest of the ink. */
-const INK = '#1b1a1f';
+/*
+ * The hexes live in lib/contrast.ts with the rest of the palettes and are read here as CSS
+ * variables, so a disc follows the theme without this component knowing which theme is on. Warm
+ * runs the same hues at a lower chroma; AVATAR_WARM says why.
+ */
+const BUCKETS = 10;
 
 /*
  * FNV-1a plus murmur3's finalizer, replacing the `hash * 31 + c` this used to run.
@@ -53,7 +44,7 @@ const INK = '#1b1a1f';
  * onto one colour, and a preview of twelve came out five blues, three greens and no warm colour at
  * all. The finalizer costs four instructions and flattens the worst bucket from thirteen to eight.
  */
-function colorFor(name: string): string {
+function bucketFor(name: string): number {
   let hash = 0x811c9dc5;
   for (const ch of name) {
     hash ^= ch.charCodeAt(0);
@@ -64,12 +55,12 @@ function colorFor(name: string): string {
   hash ^= hash >>> 13;
   hash = Math.imul(hash, 0xc2b2ae35) >>> 0;
   hash = (hash ^ (hash >>> 16)) >>> 0;
-  return COLORS[hash % COLORS.length]!;
+  return hash % BUCKETS;
 }
 
 /** Exported so the spread can be measured; nothing else should care how a colour is chosen. */
-export function avatarColor(name: string): string {
-  return colorFor(name);
+export function avatarBucket(name: string): number {
+  return bucketFor(name);
 }
 
 const DIMS = { xs: 'h-6 w-6 text-2xs', sm: 'h-7 w-7 text-xs', md: 'h-9 w-9 text-sm' } as const;
@@ -80,13 +71,9 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: keyof typeo
     <span
       aria-hidden
       className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ${DIMS[size]}`}
-      style={{ backgroundColor: colorFor(name), color: INK }}
+      style={{ backgroundColor: `var(--p-av-${bucketFor(name)})`, color: 'var(--p-av-ink)' }}
     >
       {initial}
     </span>
   );
 }
-
-/** Exported for the contrast test, which is the only thing outside this file that needs them. */
-export const AVATAR_COLORS = COLORS;
-export const AVATAR_INK = INK;

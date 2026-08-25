@@ -195,7 +195,15 @@ export function ActivityFeed({
 
   return (
     <>
-        {activity.length > 0 && (
+        {activity.length > 0 && breakdown}
+      {/*
+        * Below the breakdown, not above it.
+        *
+        * These controls filter the list underneath, and they used to sit on the far side of the
+        * whole "Where it went" chart from it — a search field separated from its results by a page
+        * of bars. Nothing about the breakdown is filtered by them.
+        */}
+      {activity.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
               <span className="sr-only">Search activity</span>
@@ -281,8 +289,7 @@ export function ActivityFeed({
           </div>
         )}
 
-        {activity.length > 0 && breakdown}
-
+  
         <section className="mt-6">
           <div className="flex items-baseline justify-end gap-3">
             <h2 className="sr-only">Activity</h2>
