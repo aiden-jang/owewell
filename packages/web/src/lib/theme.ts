@@ -15,13 +15,10 @@ const KEY = 'owewell:theme';
 /**
  * The palette the static assets are built against.
  *
- * A favicon, a PWA splash and an OG card are all fetched once, by a crawler or an installer, with no
- * person and no localStorage behind them — they cannot follow a device and they cannot follow a
- * choice. Something has to be committed to a file, and this names which palette that is.
- *
- * `scripts/og.mjs` reads this identifier straight out of this file so the share card can never
- * disagree with the app. It also backstops `preferredTheme()` on the rare browser with no
- * matchMedia, which keeps it load-bearing rather than a constant only a build script cares about.
+ * A favicon, a PWA splash and an OG card are fetched once, by a crawler or an installer, with no
+ * person and no localStorage behind them — they cannot follow a device or a choice, so one palette
+ * has to be committed. `scripts/og.mjs` reads this identifier out of this file, so the share card
+ * cannot disagree with the app. It also backstops `preferredTheme()` where matchMedia is missing.
  */
 export const SHIPPED_THEME: ThemeName = 'warm';
 
@@ -111,9 +108,9 @@ export function setTheme(name: ThemeName): void {
 /**
  * Call once at boot, before the app paints, so there is no flash of the wrong palette.
  *
- * The console handles stay, because they can do one thing the footer switch cannot: `reset()` drops
- * the stored choice entirely and hands the decision back to the device. That is the only way to see
- * what a first-time visitor actually gets, and a stored choice otherwise wins forever.
+ * The console handles stay because they do one thing the footer switch cannot: `reset()` drops the
+ * stored choice and hands the decision back to the device, which is the only way to see what a
+ * first-time visitor gets.
  *
  *   owewell.theme('warm')   try the warm palette on this device
  *   owewell.reset()         forget the choice and follow the OS again

@@ -5,19 +5,9 @@ import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 
 /**
- * The receipt form, driven.
- *
- * The sibling of AddExpenseForm and the more dangerous of the two, because a receipt carries more
- * places for a wrong number to hide: a per-item payer, a per-item participant list, and tax and tip
- * that ride on top of the lines. The rules that matter here are the ones where being wrong writes
- * data rather than drawing a bad screen:
- *
- *   1. Every line needs a name, a positive amount and somebody on it. A blank line saved as zero
- *      would silently shift everyone's share of the tax and tip.
- *   2. Blank tax and tip are zero; unparseable tax and tip are an error. Treating the second as the
- *      first would book a receipt that does not match the paper one.
- *   3. Reopening a receipt has to drop participants and per-item payers who have since left, or the
- *      edit re-sends people who are no longer in the group.
+ * The receipt form, driven. The more dangerous of the two forms: a per-item payer, a per-item
+ * participant list, and tax and tip riding on top of the lines are all places for a wrong number to
+ * hide, and being wrong here writes data rather than drawing a bad screen.
  */
 
 const createItemized = vi.fn<(g: string, p: Record<string, unknown>) => Promise<Expense>>();

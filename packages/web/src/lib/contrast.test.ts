@@ -120,16 +120,11 @@ describe.each(Object.entries(CATEGORY_THEMES))('%s category hues', (name, cats) 
   });
 
   /*
-   * Not tested: whether two categories "look alike".
-   *
-   * Three numeric rules were tried — luminance ratio, luminance gap, hue distance — and each flagged
-   * a different innocent pair while missing the one that actually failed. Groceries and Transport
-   * read as a single wedge in the ring at 10% and 4%, and they were 43° of hue apart, so no
-   * threshold here would have caught them. Small arcs of similar-feeling colour is a judgement about
-   * apparent size and saturation, and fitting a constant until the current palette passes would
-   * measure nothing.
-   *
-   * So it is checked by looking. Transport moved from green to teal because groceries owns green.
+   * Not tested: whether two categories "look alike". Three numeric rules were tried — luminance
+   * ratio, luminance gap, hue distance — and each flagged an innocent pair while missing the real
+   * failure: Groceries and Transport read as one wedge at 10% and 4% despite being 43° apart.
+   * Apparent similarity is a judgement about arc size and saturation, and fitting a constant until
+   * the current palette passes would measure nothing. Checked by looking instead.
    */
 });
 

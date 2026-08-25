@@ -5,14 +5,9 @@ import { useToast } from '../components/Toast';
 /*
  * The link that gets other people into the group.
  *
- * Two things make this more than a button. Minting the token is a WRITE — the server creates one if
- * the group has none — so it cannot be done speculatively on every group anyone opens. And the link
- * is a one-time action on a permanent surface, so it earns a place on screen only while it is still
- * the obvious next step: nobody else in the group yet, or people in it by name who have not claimed
- * their spot. After that it goes back to being a button in the header.
- *
- * So the token is fetched up front exactly when `needsPeople` says it is about to be shown, and
- * otherwise waits to be asked for.
+ * Minting the token is a WRITE — the server creates one if the group has none — so it cannot be
+ * done speculatively on every group anyone opens. It is fetched up front exactly when `needsPeople`
+ * says it is about to be shown, and otherwise waits to be asked for.
  */
 
 /** How long the Copy button admits it copied. */

@@ -4,19 +4,9 @@ import { ApiError } from './api';
 import type { QueuedEdit, QueuedWrite } from './outbox';
 
 /**
- * Draining the outbox, driven.
- *
- * The enqueue side is covered by the forms; this is the half that actually re-sends, and it is
- * where the interesting failures are. Four of its rules only ever bite in conditions nobody
- * reproduces by hand:
- *
- *   1. One flush at a time. A flaky connection fires `online` repeatedly and mount can overlap a
- *      reconnect, so two passes would post the same entry twice.
- *   2. A queued delete that finds nothing to delete got what it wanted. Reporting that as a failure
- *      asks somebody to fix something that is already correct.
- *   3. A conflict is a question. "Apply mine" has to re-send WITHOUT expectedVersion, or it
- *      conflicts against the very change it was just told about and can never land.
- *   4. A rejection is named, because it has left the queue and only the person can retype it.
+ * Draining the outbox, driven. The forms cover the enqueue side; this is the half that re-sends,
+ * and its rules only bite in conditions nobody reproduces by hand — a doubled flush, a conflict
+ * that can never land, a delete of something already gone.
  */
 
 const flush = vi.fn();

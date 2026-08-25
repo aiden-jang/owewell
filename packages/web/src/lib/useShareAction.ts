@@ -2,15 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CONFIRM_MS } from './timing';
 
 /*
- * Handing a line of text to whoever is standing next to you: try the share sheet, treat a dismissed
- * sheet as a decision rather than a failure, fall back to the clipboard, and say where the text went.
+ * Handing a line of text to whoever is next to you: try the share sheet, treat a dismissal as a
+ * decision rather than a failure, fall back to the clipboard, and say where the text went.
  *
- * Don't drop the AbortError check. Without it, backing out of the share sheet silently writes to
- * the clipboard instead.
- *
- * The invite link is the one share that skips this: it passes a url with no text body, so the
- * sheet's own Copy copies the link rather than a sentence wrapped around it. Nothing here ever
- * downloads — the clipboard is the right fallback for text going into a group chat.
+ * Don't drop the AbortError check — without it, backing out of the sheet silently writes to the
+ * clipboard. The invite link skips this entirely: it passes a url with no text body, so the sheet's
+ * own Copy gives the link rather than a sentence wrapped around it.
  */
 
 /** Null between shares. Drives the button label, which is why 'shared' and 'copied' stay distinct. */

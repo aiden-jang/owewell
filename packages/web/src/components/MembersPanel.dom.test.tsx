@@ -4,16 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Balance, GroupMember } from '../lib/groups';
 
 /**
- * The member list, driven.
- *
- * Two things in here are permissions rather than presentation, and both are the kind that get
- * noticed only when they are wrong: who is offered the remove button, and whether the roster is
- * still editable once a payment exists. Removing someone re-splits their share, so doing it after a
- * settlement is logged would leave a recorded payment that no longer matches any debt.
- *
- * The third is where a failure appears. A failed add belongs under the field you just typed in; a
- * failed rename has no field left on screen by then, so it goes to a toast. That split is the whole
- * reason the page's handlers throw instead of handling their own errors.
+ * The member list, driven. Two of these are permissions rather than presentation: who is offered
+ * Remove, and whether the roster freezes once a payment exists — removing someone re-splits their
+ * share, which would leave a recorded payment matching no debt.
  */
 
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };

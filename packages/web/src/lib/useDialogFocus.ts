@@ -1,15 +1,11 @@
 import { useEffect, type RefObject } from 'react';
 
 /*
- * What an aria-modal dialog owes a keyboard, in one place.
+ * What an aria-modal dialog owes a keyboard, in one place: Escape, a Tab trap, focus restored on
+ * close, and the page behind locked.
  *
- * Sheet had all of this and Confirm had a third of it: Escape and a focused button, but Tab walked
- * straight out into the page behind — on the dialog guarding Delete group and Turn off link, which
- * are the two least recoverable things in the app. It also never gave focus back on close, so
- * dismissing a confirm dropped you at the top of the document.
- *
- * Extracted rather than copied. Two implementations of a focus trap is two things to keep correct,
- * and the one that got copied second is always the one missing a case.
+ * Extracted rather than copied. Two focus traps is two things to keep correct, and the second copy
+ * is always the one missing a case.
  */
 export function useDialogFocus(
   ref: RefObject<HTMLElement | null>,
