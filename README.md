@@ -14,41 +14,54 @@ dinner when nobody wants to do the math and everybody remembers it differently.
 ## What it does
 
 - **Groups with real members and placeholders.** Add people who have accounts _and_ people who
-  don't (a placeholder is just a name). Rename or remove placeholders; promote them when they sign
-  up. Balances recompute whenever membership changes.
-- **Two kinds of expense.** A simple "one payer, split evenly (or by weight)" expense, or an
-  **itemized** one where each line goes to specific people (the classic "you got the steak, I got
-  a salad" problem). Expenses can be backdated.
-- **Settle up, honestly.** Record payments with a method (Venmo, PayPal, Cash App, Zelle, cash,
-  …), including **partial** and **manual** payments, and undo one if you fat-finger it. owewell
-  suggests the **fewest transactions** that clear everyone's balance.
+  don't (a placeholder is just a name). Rename or remove placeholders; a share link lets someone
+  claim their own seat and become a real member. Balances recompute whenever membership changes.
+- **Two kinds of expense.** A simple "one payer, split evenly (or by weight, percent, or exact
+  amounts)" expense, or an **itemized** one where each line goes to specific people, with its own
+  payer, plus tax and tip apportioned across the lines. Expenses can be backdated.
+- **Corrections are on the record.** Editing an expense writes a revision, so the feed can say what
+  changed and from what. Deleting is soft, and undo restores the same row down to the odd cent.
+- **Settle up, honestly.** Record payments with a method (Venmo, PayPal, Cash App, Zelle, cash),
+  including partial and manual ones, and undo one if you fat-finger it. owewell suggests the
+  **fewest transfers** that clear everyone.
+- **Works with no signal.** Writes typed offline are queued and replayed, with idempotency keys so
+  a retry doesn't become a second dinner, and version checks so a late edit can't silently erase
+  somebody else's.
 - **Quick split, no login.** A signed-out one-shot splitter for "just tell me the number."
-  Accounts add persistence, groups, and history.
+- **A read-only share link**, revocable, for people who aren't in the group.
 - **Live.** Everyone in a group sees expenses and payments appear in real time.
-- **Archive** groups you're done with instead of deleting the history.
-
----
+- **Two themes**, following the device until you choose, and **archive** for groups you're done with.
 
 ## Architecture
 
 ```
                 Browser (React + Vite + Tailwind)
-        ┌────────────────────────────────────────────┐
-        │  Dashboard · GroupDetail · QuickSplit        │
-        │        │ fetch /owewell/*        ▲ live       │
-        └────────┼─────────────────────────┼───────────┘
-                 │                          │ WebSocket
-        ╔════════▼══════════════════════════════════════╗
-        ║   owewell Worker (Hono)  - one origin          ║
-        ║   /owewell/*  API    +   app.all('*') → SPA    ║
-        ║      │                                         ║
-        ║      ├─ getSessionUser → accounts.aidenjang    ║  (optional; quick split is anonymous)
-        ║      ├─ D1 + Drizzle   groups, expenses,        ║
-        ║      │                 splits, settlements      ║
-        ║      ├─ @owewell/core  pure money/split math    ║
-        ║      └─ GroupRoom (Durable Object) realtime     ║
-        ╚════════════════════════════════════════════════╝
+        ┌──────────────────────────────────────────────┐
+        │  Dashboard · GroupDetail · QuickSplit · /s/:token │
+        │        │ fetch /owewell/*        ▲ live        │
+        │        │                          │            │
+        │   localStorage outbox ────────────┘ WebSocket  │
+        └────────┼──────────────────────────────────────┘
+                 │
+        ╔════════▼════════════════════════════════════════╗
+        ║   owewell Worker (Hono)  — one origin            ║
+        ║   /owewell/*  API    +   app.all('*') → SPA      ║
+        ║      │                                           ║
+        ║      ├─ getSessionUser → accounts.aidenjang      ║  (optional; quick split is anonymous)
+        ║      ├─ D1 + Drizzle   the ledger                ║
+        ║      ├─ @owewell/shared  pure money/split math   ║
+        ║      └─ GroupRoom (Durable Object) realtime      ║
+        ╚══════════════════════════════════════════════════╝
 ```
+
+Four packages, and the split between the middle two is the one worth knowing:
+
+| package           | what's in it                                             | why separate                                                                                                                              |
+| ----------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `@owewell/api`    | Hono Worker, Drizzle queries, the `GroupRoom` DO         | the only thing that touches I/O                                                                                                           |
+| `@owewell/web`    | React SPA                                                |                                                                                                                                           |
+| `@owewell/shared` | `Money`, `allocateCents`, split methods, `simplifyDebts` | pure and dependency-free, so it can be tested without a network or a database, and the browser and the Worker run **the same** arithmetic |
+| `@owewell/core`   | wire types, payment methods, expense categories          | shared vocabulary with no behaviour, so neither side can drift on the shape of a payload                                                  |
 
 ## Decisions worth explaining
 
@@ -57,53 +70,103 @@ the debate. Every amount is an integer number of cents from the API boundary thr
 The split math also has to decide who eats the leftover cent when a total doesn't divide evenly;
 doing that on floats would silently lose or invent money.
 
-**The split math is a pure package (`@owewell/core`), tested without any I/O.** All the logic that
-actually matters (even splits, weighted splits, itemized allocation, remainder distribution,
-balance netting, and the minimum-cash-flow settlement suggestion) lives in a dependency-free
-package with unit tests. The Worker is a thin shell that reads D1, calls core, and writes back.
-The rules I most want to be _correct_ are the ones furthest from the network.
+**The split math is a pure package (`@owewell/shared`), tested without any I/O.** Even splits,
+weighted splits, itemized allocation, remainder distribution, balance netting, and the
+minimum-cash-flow settlement suggestion all live in a dependency-free package. The Worker is a thin
+shell that reads D1, calls it, and writes back. The rules I most want to be _correct_ are the ones
+furthest from the network — and because the browser imports the same package, the quick-split
+preview and the saved expense cannot disagree.
 
-**D1 for the ledger, a Durable Object for the live feed.** The data is relational (groups have
-members, expenses have splits, settlements reference both), so D1 + Drizzle is the natural home.
-Realtime is a different shape (a short-lived fan-out to whoever's looking at one group), so each
-group gets a `GroupRoom` Durable Object that holds no durable state and just relays "something
-changed." Using the hibernation WebSocket API means an idle room costs nothing. _Why not push
-everything through the DO?_ Because durable relational data in a single-threaded object is the
-wrong tool; D1 is the source of truth and the DO is a notification bus.
+**The odd cent is assigned deterministically, from a seed both sides can derive.** Largest-remainder
+allocation decides who absorbs the extra penny, and the tie-break normally comes from the expense
+id. Quick split has to show the split _before_ the expense exists, so it passes an explicit seed;
+otherwise the preview shows one arrangement and the save produces another.
+
+**D1 for the ledger, a Durable Object for the live feed.** The data is relational, so D1 + Drizzle
+is the natural home. Realtime is a different shape (a short-lived fan-out to whoever's looking at
+one group), so each group gets a `GroupRoom` Durable Object that holds no durable state and just
+relays "something changed." Hibernation WebSockets mean an idle room costs nothing. _Why not push
+everything through the DO?_ Durable relational data in a single-threaded object is the wrong tool;
+D1 is the source of truth and the DO is a notification bus.
+
+**Writes survive a dead connection.** The app gets used in restaurants, which is where phones have
+one bar. A write that can't reach the server goes into a localStorage outbox and is replayed later.
+Each kind is queued on its own terms: a create carries an idempotency key so a replay is recognised
+rather than duplicated, a delete needs none (deleting twice is deleting once), and an edit carries
+the version it was written against, so one that would erase somebody else's change comes back as a
+question instead of quietly winning. Not the Background Sync API — Safari doesn't implement it.
+
+**Edits are versioned, and a conflict is a question.** `expectedVersion` on an edit lets the server
+refuse one written against a row that has since moved. The client then asks the person, and if they
+choose their own version it re-sends _without_ the version — otherwise the retry conflicts with the
+change it was just told about, forever.
+
+**Deletion is soft, so undo is a flag flip.** The same row comes back with the same id and the same
+splits, down to which person absorbed the odd cent. A re-create would move a penny between two
+people. That's also why there's no confirm dialog on delete: a confirm asks you to predict a mistake
+you haven't made yet, and everybody clicks through it.
 
 **Accounts are optional.** Quick split works signed out because the highest-friction moment is the
-one where you just want a number at the table. Accounts unlock groups, history, and invites. The
-same `/owewell/me` endpoint returns `{ user: null }` rather than a 401 so the client can treat
-signed-out as a normal state, not an error.
+one where you just want a number at the table. `/owewell/me` returns `{ user: null }` rather than a
+401, so the client treats signed-out as a normal state rather than an error.
 
-**Placeholders are first-class.** Real life is "me, my roommate, and the two friends who'll
-Venmo me later." Placeholders let you model that group immediately; a guard (`NOT_PLACEHOLDER`)
-stops you from renaming a real account as if it were one.
+**Placeholders are first-class.** Real life is "me, my roommate, and the two friends who'll Venmo me
+later." A placeholder is just a name. A share link lets one of them claim that seat and become a
+real member; the seat id travels through sign-in in the return URL, because a full-page redirect
+loses anything held in memory.
+
+**Share links are revocable.** The owner can mint a replacement — which stops every copy of the old
+link resolving — or turn public access off entirely. Members keep their access either way.
+
+**One currency, on purpose.** A per-group currency setting was removed: it relabelled amounts
+without converting them, which is worse than not offering it.
+
+**Two themes, and the palette is data.** `warm` and `dark`, following `prefers-color-scheme` until
+someone chooses. Every colour lives in `lib/contrast.ts` as well as in `index.css`, and a test
+parses the stylesheet to assert the two copies agree — because a colour that fails contrast is a
+real defect, and defects deserve tests. The same tests hold the bars: 4.5:1 for body text, 3:1 for
+UI shapes, and the avatar discs capped so they don't out-saturate the money.
 
 ## Trade-offs
 
 - **Settlement suggests, it doesn't move money.** owewell computes the fewest transfers and tags
-  the method; the actual payment happens in Venmo/cash/etc. Integrating a payments API is a
-  whole different trust-and-compliance surface I deliberately stayed out of.
+  the method; the actual payment happens in Venmo/cash/etc. Integrating a payments API is a whole
+  different trust-and-compliance surface I deliberately stayed out of.
 - **Realtime is a "refetch" nudge, not a CRDT.** The DO broadcasts "group changed" and clients
-  refetch, rather than syncing granular ops. Simple and correct for this scale; a busy shared
-  group would want diffed updates.
+  refetch, rather than syncing granular ops. Simple and correct for this scale; a busy shared group
+  would want diffed updates.
+- **The outbox is per-device, not per-account.** A write queued on your phone replays from your
+  phone. Syncing the queue itself would need a server-side store, which is most of the way to
+  building the thing the queue exists to avoid.
+- **`expense.date` is stored as UTC midnight.** It's a calendar day, not an instant, so the client
+  formats it in UTC and never builds a `Date` from the stored value. Storing a plain `YYYY-MM-DD`
+  would be cleaner; it isn't worth a migration.
+- **The PWA manifest hardcodes the warm palette.** Manifests can't respond to colour scheme, so a
+  dark-mode user gets a cream splash screen. Platform limit, not a decision.
 
 ## Project layout
 
 ```
-api/                          owewell Worker (Hono)
-  src/index.ts                routes: /owewell/* API + SPA fallback; harden() middleware
-  src/groups.ts               groups + membership (real accounts + placeholders)
-  src/expenses.ts             simple + itemized expenses, balances
-  src/settlements.ts          payments (methods, partial/manual) + min-cash-flow suggestions
-  src/invites.ts              share-link group invites
-  src/quicksplit.ts           anonymous one-shot split
-  src/realtime.ts + GroupRoom  Durable Object live fan-out
-  src/db/                     Drizzle schema + client; migrations/
-web/                          React + Vite + Tailwind SPA
-../../packages/owewell-core/  pure money/split math (@owewell/core)
+packages/
+  api/       owewell Worker (Hono)
+    src/index.ts        routes: /owewell/* API + SPA fallback; harden() middleware
+    src/groups.ts       groups, membership, share tokens
+    src/members.ts      real accounts + placeholders, seat claiming
+    src/expenses.ts     simple + itemized expenses, revisions, balances
+    src/settlements.ts  payments (methods, partial/manual) + min-cash-flow suggestions
+    src/quicksplit.ts   anonymous one-shot split
+    src/realtime.ts     GroupRoom Durable Object, live fan-out
+    src/harden.ts       security headers, body limits, rate limiting
+    src/db/             Drizzle schema + client; migrations/ alongside
+  web/       React + Vite + Tailwind SPA
+    src/pages/          Dashboard, GroupDetail, QuickSplit, SharedGroup
+    src/lib/            outbox, ledger hook, palettes, money formatting, CSV
+  shared/    pure money/split math (@owewell/shared)
+  core/      wire types, payment methods, categories (@owewell/core)
 ```
+
+Nine D1 tables: `people`, `groups`, `group_members`, `expenses`, `expense_revisions`,
+`expense_splits`, `expense_items`, `expense_item_shares`, `settlements`.
 
 ## Running locally
 
@@ -158,12 +221,31 @@ Or use the Cloudflare dashboard: **Workers & Pages → D1 → owewell → Consol
 ## Tests
 
 ```bash
-pnpm -r test    # 322 tests: 106 API, 138 web, 78 shared
-                # groups, expenses, settlements, invites, quicksplit, and the pure split math
+pnpm -r test    # 710 tests: 108 API, 546 web, 56 shared
 ```
 
-The API tests run against a real local D1 (via `@cloudflare/vitest-pool-workers`), so the Drizzle
-queries and migrations are exercised, not mocked.
+Three registers, deliberately:
+
+- **`shared`** — the arithmetic, with no I/O at all. Splits, remainders, netting, settlement.
+- **`api`** — real routes against a real local D1 via `@cloudflare/vitest-pool-workers`, so the
+  Drizzle queries and the migrations are exercised rather than mocked.
+- **`web`** — mostly behaviour, not markup: the outbox drain, the focus trap, the session's
+  person-id remapping, the forms' reconciliation guards, the realtime socket's reconnect.
+
+Two things the suite does that are worth copying:
+
+**It asserts the palette against the stylesheet.** `contrast.test.ts` parses `index.css` and checks
+every colour matches its TypeScript copy, then measures the contrast ratios. A colour regression is
+otherwise invisible until somebody complains.
+
+**It is pinned to `America/New_York`.** An expense's date is a calendar day stored at UTC midnight,
+so every bug in handling it is invisible from UTC — and CI runs in UTC. Pinning one zone means the
+date tests assert the same thing everywhere, and the zone they assert in is one real users are in.
+
+There's also `pnpm --filter @owewell/web dead-classes`, which diffs the class names in the source
+against the CSS the build actually emitted. A Tailwind class that never gets generated produces no
+CSS and no error; nothing else catches it. It caught a `@custom-variant` shorthand that silently
+deleted all 114 hover styles while typecheck, lint and the whole suite stayed green.
 
 ## Talking about this
 
@@ -171,29 +253,48 @@ queries and migrations are exercised, not mocked.
 payments. Money is integer cents everywhere.
 
 **The shape.** Groups, expenses and balances live in D1 through Drizzle. A Durable Object per group
-session pushes changes to everyone watching, so two people entering expenses at a restaurant table
-see each other's as they happen. The settle-up step takes the debt graph and reduces it to a minimal
-set of transfers, so eight people don't make twenty-eight payments.
+pushes changes to everyone watching, so two people entering expenses at a restaurant table see each
+other's as they happen. The settle-up step takes the debt graph and reduces it to a minimal set of
+transfers, so eight people don't make twenty-eight payments.
 
-**The call I'd defend.** Integer cents from end to end, never floats. This sounds like pedantry until
-you split $10 three ways: floats give you three payments of 3.3333333333333335 and a balance that
-never quite reaches zero. Cents means the remainder is one cent and I have to decide who gets it,
-which is a product question I'd rather answer on purpose than discover in a rounding error. Every
-split method distributes the remainder deterministically instead of letting it drift.
+**The call I'd defend.** Integer cents from end to end, never floats. This sounds like pedantry
+until you split $10 three ways: floats give you three payments of 3.3333333333333335 and a balance
+that never quite reaches zero. Cents means the remainder is one cent and I have to decide who gets
+it, which is a product question I'd rather answer on purpose than discover in a rounding error.
 
-**The one I got wrong.** The trip budget compared expense dates against "today" computed with
-`toISOString()`, which is UTC. Expenses are local calendar dates. Anyone east of UTC saw today's
-spending land on tomorrow for part of the day. It only shows up in certain timezones at certain
-hours, which is exactly why it survived review.
+**The second one I'd defend.** The pure package. It isn't tidiness — it's that the browser and the
+Worker import the same `allocateCents`, so a quick-split preview and the expense it saves are
+computed by one implementation. The first version had the preview doing its own arithmetic, and on
+an uneven bill it showed a number that wasn't the number that got saved.
+
+**The one I got wrong.** Every expense showed the wrong date for anyone west of UTC. An
+`<input type="date">` gives `"2026-08-24"` in your own calendar; the API did `new Date(...)` on it,
+which is UTC midnight; the client formatted that instant in local time and landed on the day before.
+Since the form defaults to today, adding an expense in New York dated it yesterday. Nothing threw,
+no test failed, and the edit form was quietly right the whole time because it read `date.slice(0, 10)`
+instead of parsing. Two things came out of it: dates are a calendar day and are read as strings, and
+the test suite is pinned to a non-UTC zone so the class of bug can't hide again.
+
+**What I'd tell you about testing.** I try to make a test fail on purpose before I trust it. Twice
+that changed the outcome. A test asserting the outbox reuses its idempotency key passed against a
+deliberately broken retry, because the UUID stub returned the same value every call — it couldn't
+tell a reused id from a fresh one. And a focus-trap test covered tabbing forward out of a dialog but
+not backward, which I only found by breaking each guard one at a time instead of all at once.
 
 **What breaks first.** D1 write throughput on a single very active group, since every expense is a
-write and the Durable Object fans out the change. Realistic groups are under twenty people so this
+write and the Durable Object fans out the change. Realistic groups are under twenty people, so this
 is theoretical, but it's the first thing that would bend.
 
-**What I'd change.** Editing an expense used to overwrite it in place, so a $40 dinner could become
-$80 with nothing but a moved balance to show for it. There's a revision log now, but it went in late.
-I should have written it when I wrote the edit path, because "who changed this" is the first question
-anyone asks when a number looks wrong.
+**What I'd change.** The revision log. Editing an expense used to overwrite it in place, so a $40
+dinner could become $80 with nothing but a moved balance to show for it. There's a log now, but it
+went in late. It should have been written with the edit path, because "who changed this" is the
+first question anyone asks when a number looks wrong.
+
+**The thing I keep relearning.** Most of the real bugs in this app were found by putting hostile
+content into a component and measuring it, not by reading the code. Long names and four-figure
+amounts at 375px found a members list rendering "Tomas" as "T…", a settle-up row that pushed the
+amount five lines below the button that records it, and a `<select>` whose width was set by its
+longest option. All of them survived review, twice, because on my own data they looked fine.
 
 ## Observability
 
