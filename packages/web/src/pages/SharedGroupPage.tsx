@@ -242,7 +242,7 @@ export function SharedGroupPage(): ReactNode {
                             disabled={claiming === m.userId}
                             className="rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
                           >
-                            {claiming === m.userId ? 'Claiming...' : 'This is me'}
+                            {claiming === m.userId ? 'Claiming…' : 'This is me'}
                           </button>
                         )}
                       </span>
