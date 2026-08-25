@@ -55,12 +55,11 @@ export interface CreateExpenseInput {
   /** The date the expense happened (backdatable). Omit to use "now". */
   date?: Date;
   /**
-   * Overrides the odd-cent tie-break seed, which normally comes from the generated expense id.
+   * Overrides the odd-cent tie-break seed, which normally comes from the expense id.
    *
-   * Only for callers that have to show the split before it exists. Quick split previews the exact
-   * per-person cents in the browser and then saves them; the id is a server-side randomUUID, so the
-   * preview cannot predict it, and on an uneven bill the number you were shown was frequently not
-   * the number that got saved. Passing a seed both sides can derive makes them agree.
+   * Only for callers that must show the split before it exists. Quick split previews exact
+   * per-person cents in the browser, and it cannot predict a server-side randomUUID — so on an
+   * uneven bill the number shown was often not the number saved.
    */
   splitSeed?: string;
 }
@@ -136,8 +135,8 @@ async function assertUnlocked(db: DB, groupId: string): Promise<void> {
  * Refuse an edit written against a version that has since moved.
  *
  * Only when the caller names a version. Omitting it means "apply mine regardless", which is what the
- * client sends after showing somebody the conflict and being told to go ahead — the alternative would
- * be a loop where the second attempt conflicts with the change the first attempt was told about.
+ * client sends once a person has been shown the conflict and chosen — otherwise the second attempt
+ * conflicts with the change the first was told about, forever.
  */
 function assertVersion(current: number, expected: number | undefined): void {
   if (expected !== undefined && expected !== current) {
@@ -216,15 +215,12 @@ export async function createExpense(
 ): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
   /*
-   * A retry of a write that already landed returns what landed.
+   * A retry of a write that already landed returns what landed. A request that times out mid-flight
+   * looks, from the client, identical to one that never arrived — without this, "send it again" is
+   * how a $180 dinner shows up twice.
    *
-   * The browser's outbox replays a create when it cannot tell whether the first attempt reached us:
-   * a request that times out mid-flight looks identical, from the client, to one that never arrived.
-   * Without this the honest-looking recovery ("send it again") is how a $180 dinner shows up twice.
-   *
-   * Checked before validation on purpose. A replay is a claim about a write we may already have
-   * accepted, and re-validating it against a group that has since changed (a member removed, say)
-   * would reject a retry of something already sitting in the ledger.
+   * Checked before validation on purpose: re-validating a replay against a group that has since
+   * changed would reject a retry of something already in the ledger.
    */
   if (input.clientId) {
     const already = await findByClientId(db, groupId, input.clientId);
@@ -342,10 +338,8 @@ export async function updateExpense(
     })
     .where(eq(expenses.id, expenseId));
   /*
-   * Keep what it used to say, before the row is gone.
-   *
-   * Written after the update rather than before, so a failed edit does not leave a revision for a change
-   * that never happened. Only when something actually moved: re-saving an untouched form is not a
+   * Record what it said before, written after the update so a failed edit leaves no revision for a
+   * change that never happened. Only when something moved: re-saving an untouched form is not a
    * correction, and a row for it would bury the ones that matter.
    */
   const changed = changedFields(existing, {
@@ -611,11 +605,8 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
   }
 
   /*
-   * The latest correction per expense, in one query.
-   *
-   * Only the newest: the feed answers "has this changed, and from what", and a full trail per row would
-   * be a changelog nobody asked for in the middle of a list of dinners. The older rows are still there
-   * for anything that ever wants them.
+   * The latest correction per expense, in one query. Only the newest: the feed answers "has this
+   * changed, and from what", not "give me a changelog in the middle of a list of dinners".
    */
   const editByExpense = new Map<
     string,
@@ -730,14 +721,12 @@ export async function deleteExpense(
 /**
  * Put back an expense that was just deleted.
  *
- * Deletion has always been a soft delete, so undo is a flag flip rather than a re-creation: the same
- * row, the same id, the same splits, and therefore the same odd-cent assignment it had before. A
- * re-create would quietly move a penny between two people.
+ * Deletion is a soft delete, so undo is a flag flip: same row, same splits, same odd-cent
+ * assignment. A re-create would quietly move a penny between two people.
  *
- * Deliberately not time-limited on the server. The toast that offers it is, but a rule enforced only
- * by how long a message stays on screen is not a rule, and there is nothing unsafe about restoring an
- * expense an hour later: the ledger has to be unlocked either way, which means nobody has settled
- * against the balances in between.
+ * Not time-limited on the server. The toast that offers it is, but a rule enforced only by how long
+ * a message stays on screen is not a rule — and the ledger has to be unlocked either way, so nobody
+ * has settled against the balances in between.
  */
 export async function restoreExpense(
   db: DB,
