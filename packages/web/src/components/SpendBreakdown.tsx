@@ -76,17 +76,16 @@ export function SpendBreakdown({
                   className={`-mx-2 block w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${on ? 'bg-accent-soft' : ''}`}
                 >
                   {/*
-                    * Label and figure above, bar across the full width below.
-                    *
-                    * These were three columns on one line: a 112px label, an 80px figure, and the
-                    * bar taking whatever was left — about 105px on a 375px phone. The bar is the
-                    * only part of the row you are actually comparing, and it was the smallest thing
-                    * in it. Stacking costs a line per category and gives the comparison the width.
-                    */}
+                   * Label and figure above, bar across the full width below.
+                   *
+                   * These were three columns on one line: a 112px label, an 80px figure, and the
+                   * bar taking whatever was left — about 105px on a 375px phone. The bar is the
+                   * only part of the row you are actually comparing, and it was the smallest thing
+                   * in it. Stacking costs a line per category and gives the comparison the width.
+                   */}
                   <span className="flex items-baseline justify-between gap-3 text-sm">
                     <span className={`min-w-0 truncate ${on ? 'font-medium text-accent' : ''}`}>
-                      <CategoryDot categoryKey={meta.key} />{' '}
-                      {meta.label}
+                      <CategoryDot categoryKey={meta.key} /> {meta.label}
                     </span>
                     <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
                   </span>

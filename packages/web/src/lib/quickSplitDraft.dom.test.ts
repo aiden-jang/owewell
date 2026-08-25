@@ -20,7 +20,13 @@ const KEY = 'owewell:quick-split-draft';
 
 const person = (id: string, name: string): DraftPerson => ({ id, name });
 const item = (over: Partial<DraftItem> = {}): DraftItem => ({
-  id: 'i1', description: 'Dinner', amount: '80', values: {}, method: 'EQUAL', payerId: 'p1', ...over,
+  id: 'i1',
+  description: 'Dinner',
+  amount: '80',
+  values: {},
+  method: 'EQUAL',
+  payerId: 'p1',
+  ...over,
 });
 
 const store = (draft: unknown): void => localStorage.setItem(KEY, JSON.stringify(draft));
@@ -44,7 +50,11 @@ describe('restoring a draft', () => {
 
   it('round-trips what it wrote', () => {
     writeQuickSplitDraft({
-      people: valid.people, items: valid.items, payerId: 'p1', splitPayers: true, youId: 'p2',
+      people: valid.people,
+      items: valid.items,
+      payerId: 'p1',
+      splitPayers: true,
+      youId: 'p2',
     });
     expect(readQuickSplitDraft()).toMatchObject({ splitPayers: true, youId: 'p2' });
   });

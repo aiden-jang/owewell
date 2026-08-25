@@ -25,7 +25,10 @@ function expense(over: Partial<Expense> & { id: string; description: string; amo
     date: '2026-08-10T12:00:00.000Z',
     note: null,
     version: 1,
-    splits: [{ userId: 'a', owedCents: 0 }, { userId: 'b', owedCents: 0 }],
+    splits: [
+      { userId: 'a', owedCents: 0 },
+      { userId: 'b', owedCents: 0 },
+    ],
     ...over,
   };
 }
@@ -49,7 +52,10 @@ const DINNER = expense({
   description: 'Dinner at Nopa',
   amountCents: 8_000,
   payerId: 'a',
-  splits: [{ userId: 'a', owedCents: 4_000 }, { userId: 'b', owedCents: 4_000 }],
+  splits: [
+    { userId: 'a', owedCents: 4_000 },
+    { userId: 'b', owedCents: 4_000 },
+  ],
 });
 const CAB = expense({
   id: 'e2',
@@ -58,7 +64,10 @@ const CAB = expense({
   payerId: 'b',
   category: 'transport',
   date: '2026-08-09T12:00:00.000Z',
-  splits: [{ userId: 'b', owedCents: 1_200 }, { userId: 'c', owedCents: 1_200 }],
+  splits: [
+    { userId: 'b', owedCents: 1_200 },
+    { userId: 'c', owedCents: 1_200 },
+  ],
 });
 const PAYMENT: Settlement = {
   id: 's1',
@@ -273,7 +282,13 @@ describe('the category drill-down from the other tab', () => {
 describe('writes that have not reached the server', () => {
   it('shows a queued expense above the ledger and says it is not counted', async () => {
     const queued = [
-      { kind: 'expense', clientId: 'q1', groupId: 'g1', description: 'Ferry', amountCents: 900 } as unknown as PendingRow,
+      {
+        kind: 'expense',
+        clientId: 'q1',
+        groupId: 'g1',
+        description: 'Ferry',
+        amountCents: 900,
+      } as unknown as PendingRow,
     ];
     await open({ pendingRows: queued });
     expect(rowTexts()[0]).toContain('Ferry');
@@ -301,7 +316,12 @@ describe('writes that have not reached the server', () => {
 
 describe('how much renders', () => {
   const many = Array.from({ length: 60 }, (_, i) =>
-    expense({ id: `x${i}`, description: `Item ${i}`, amountCents: 100, date: `2026-06-${String((i % 28) + 1).padStart(2, '0')}T12:00:00.000Z` }),
+    expense({
+      id: `x${i}`,
+      description: `Item ${i}`,
+      amountCents: 100,
+      date: `2026-06-${String((i % 28) + 1).padStart(2, '0')}T12:00:00.000Z`,
+    }),
   );
 
   it('caps the feed and offers the rest', async () => {

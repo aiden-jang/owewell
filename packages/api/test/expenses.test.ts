@@ -735,7 +735,9 @@ describe('undoing a delete', () => {
     });
     await deleteExpense(db, alice, groupId, created.id);
     const stranger = await seedPerson(db, 'Nosy');
-    await expect(restoreExpense(db, stranger, groupId, created.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(restoreExpense(db, stranger, groupId, created.id)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });
 

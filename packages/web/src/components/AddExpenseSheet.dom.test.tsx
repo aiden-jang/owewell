@@ -15,7 +15,13 @@ import type { GroupMember } from '../lib/groups';
 // The forms are tested on their own. Here they are stand-ins that report which one rendered and let
 // the test fire their callbacks.
 vi.mock('./AddExpenseForm', () => ({
-  AddExpenseForm: ({ onCreated, onQueued }: { onCreated: (e: unknown) => void; onQueued: (d: string) => void }) => (
+  AddExpenseForm: ({
+    onCreated,
+    onQueued,
+  }: {
+    onCreated: (e: unknown) => void;
+    onQueued: (d: string) => void;
+  }) => (
     <div>
       <p>simple form</p>
       <button onClick={() => onCreated({ id: 'e1' })}>save simple</button>
@@ -24,7 +30,13 @@ vi.mock('./AddExpenseForm', () => ({
   ),
 }));
 vi.mock('./AddItemizedExpenseForm', () => ({
-  AddItemizedExpenseForm: ({ onCreated, onQueued }: { onCreated: (e: unknown) => void; onQueued: (d: string) => void }) => (
+  AddItemizedExpenseForm: ({
+    onCreated,
+    onQueued,
+  }: {
+    onCreated: (e: unknown) => void;
+    onQueued: (d: string) => void;
+  }) => (
     <div>
       <p>itemized form</p>
       <button onClick={() => onCreated({ id: 'e2' })}>save itemized</button>
@@ -34,8 +46,15 @@ vi.mock('./AddItemizedExpenseForm', () => ({
 }));
 
 const member = (userId: string): GroupMember => ({
-  userId, displayName: userId, email: null, role: 'MEMBER', joinedAt: '2026-08-01T00:00:00.000Z',
-  isPlaceholder: false, venmoHandle: null, cashappCashtag: null, paypalHandle: null,
+  userId,
+  displayName: userId,
+  email: null,
+  role: 'MEMBER',
+  joinedAt: '2026-08-01T00:00:00.000Z',
+  isPlaceholder: false,
+  venmoHandle: null,
+  cashappCashtag: null,
+  paypalHandle: null,
 });
 
 const onCreated = vi.fn();

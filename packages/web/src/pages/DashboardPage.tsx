@@ -242,14 +242,20 @@ export function DashboardPage(): ReactNode {
 
   // `selectable` rows become tap-to-select in select mode; archived rows stay plain links.
   const groupRow = (group: GroupSummary, selectable = true): ReactNode => {
-    const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0, fmt);
+    const label = perGroupLabel(
+      group.netCents,
+      group.totalSpentCents > 0,
+      group.totalUnsettledCents > 0,
+      fmt,
+    );
     // Last activity, not creation date: it answers "is this still going on", which is the only date
     // question a dashboard row raises. A group with no expenses yet says when it was started.
     //
     // Short form, as in the feed. "3 people · 4 days ago" did not fit beside the amount at 375px and
     // truncated to "3 people · 4 d...", which spends a line saying nothing. Four characters shorter
     // is the whole fix.
-    const activity = group.totalSpentCents > 0 ? timeAgo(group.lastActivityAt) : `started ${timeAgo(group.createdAt)}`;
+    const activity =
+      group.totalSpentCents > 0 ? timeAgo(group.lastActivityAt) : `started ${timeAgo(group.createdAt)}`;
     const isSel = selected.has(group.id);
     const selecting = selectMode && selectable;
     const inner = (
@@ -263,30 +269,30 @@ export function DashboardPage(): ReactNode {
           )}
         </span>
         {/*
-          * Primary facts on the first line, every secondary fact together on the second.
-          *
-          * The name and the meta line used to sit in one column against a two-line amount column,
-          * so the two of them fought over the same width and the meta line always lost — "3 people ·
-          * 4 d..." tells you nothing. With the balance lifted alongside the name, the detail line
-          * gets the full row. Same shape as a member row, deliberately.
-          */}
+         * Primary facts on the first line, every secondary fact together on the second.
+         *
+         * The name and the meta line used to sit in one column against a two-line amount column,
+         * so the two of them fought over the same width and the meta line always lost — "3 people ·
+         * 4 d..." tells you nothing. With the balance lifted alongside the name, the detail line
+         * gets the full row. Same shape as a member row, deliberately.
+         */}
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
             <span className="truncate font-medium">{group.name}</span>
             <span className={`tnum shrink-0 text-sm font-semibold ${label.className}`}>{label.text}</span>
           </span>
           {/*
-            * xs and wrapping, where this was sm and truncating.
-            *
-            * xs because the scale calls it "secondary detail under a primary line", which is what
-            * this is, and the member row already reads that way. At sm the three facts overflowed
-            * by 13px on every row at 375px and clipped "$90.00 unsettled" to "$90.00 unse…".
-            *
-            * Wrapping because xs alone only moves the cliff: twelve people and a four-figure total
-            * still ran 2px over. A name may be cut — you can tell a name has been cut — but this is
-            * a list of facts, and one severed mid-word says less than no third fact at all. The
-            * name above still truncates; this line takes a second row on the rare group needing one.
-            */}
+           * xs and wrapping, where this was sm and truncating.
+           *
+           * xs because the scale calls it "secondary detail under a primary line", which is what
+           * this is, and the member row already reads that way. At sm the three facts overflowed
+           * by 13px on every row at 375px and clipped "$90.00 unsettled" to "$90.00 unse…".
+           *
+           * Wrapping because xs alone only moves the cliff: twelve people and a four-figure total
+           * still ran 2px over. A name may be cut — you can tell a name has been cut — but this is
+           * a list of facts, and one severed mid-word says less than no third fact at all. The
+           * name above still truncates; this line takes a second row on the rare group needing one.
+           */}
           <span className="block text-xs text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
             {activity && <span className="text-faint"> &middot; {activity}</span>}
@@ -333,7 +339,11 @@ export function DashboardPage(): ReactNode {
   return (
     <div className="flex-1">
       <AppHeader />
-      <main id="main" tabIndex={-1} className={`mx-auto w-full max-w-2xl animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}>
+      <main
+        id="main"
+        tabIndex={-1}
+        className={`mx-auto w-full max-w-2xl animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}
+      >
         {pending && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
             <span className="flex items-center gap-2 text-sm">
@@ -377,57 +387,57 @@ export function DashboardPage(): ReactNode {
         {/* Nothing to total before there is a group: an account on its first day was being shown a
             $0.00 the size of a headline, above an empty state that already says the same thing. */}
         {activeGroups.length > 0 && (
-        <section className="surface rounded-3xl p-6 sm:p-7">
-          <p className="text-sm font-medium text-muted">
-            {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
-          </p>
-          {/*
-            * A step below the figure on a group page, which is set at 5xl/6xl.
-            *
-            * They were the same size, so opening a group did not feel like arriving anywhere: the
-            * same number in the same weight, twice. This one is a roll-up across groups and you
-            * cannot act on it without opening one of them; the group figure sits directly above the
-            * settle-up panel. The larger type belongs to the number you can do something about.
-            */}
-          <p
-            className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
-              settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
-            }`}
-          >
-            {settled && hasAnySpend ? (
-              othersStillOwe ? (
-                "You're square"
+          <section className="surface rounded-3xl p-6 sm:p-7">
+            <p className="text-sm font-medium text-muted">
+              {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
+            </p>
+            {/*
+             * A step below the figure on a group page, which is set at 5xl/6xl.
+             *
+             * They were the same size, so opening a group did not feel like arriving anywhere: the
+             * same number in the same weight, twice. This one is a roll-up across groups and you
+             * cannot act on it without opening one of them; the group figure sits directly above the
+             * settle-up panel. The larger type belongs to the number you can do something about.
+             */}
+            <p
+              className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
+                settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
+              }`}
+            >
+              {settled && hasAnySpend ? (
+                othersStillOwe ? (
+                  "You're square"
+                ) : (
+                  'All settled'
+                )
               ) : (
-                'All settled'
-              )
-            ) : (
                 <MoneyText cents={Math.abs(totals.net)} />
+              )}
+            </p>
+            {/*
+             * Only when the two sides actually differ from the headline.
+             *
+             * These break the net figure into its gross halves, which is worth a line when you are
+             * owed in one group and owing in another. It was rendering whenever either side was
+             * non-zero, which is most accounts: owed everywhere and owing nowhere printed "$42.00"
+             * as a headline and then "owed to you $42.00" as a chip directly beneath it. Same rule
+             * the group hero already uses for its unsettled line.
+             */}
+            {totals.owed > 0 && totals.owe > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-pos" />
+                  <span className="text-muted">owed to you</span>
+                  <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-neg" />
+                  <span className="text-muted">you owe</span>
+                  <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
+                </span>
+              </div>
             )}
-          </p>
-          {/*
-            * Only when the two sides actually differ from the headline.
-            *
-            * These break the net figure into its gross halves, which is worth a line when you are
-            * owed in one group and owing in another. It was rendering whenever either side was
-            * non-zero, which is most accounts: owed everywhere and owing nowhere printed "$42.00"
-            * as a headline and then "owed to you $42.00" as a chip directly beneath it. Same rule
-            * the group hero already uses for its unsettled line.
-            */}
-          {totals.owed > 0 && totals.owe > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-pos" />
-                <span className="text-muted">owed to you</span>
-                <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-neg" />
-                <span className="text-muted">you owe</span>
-                <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
-              </span>
-            </div>
-          )}
-        </section>
+          </section>
         )}
 
         <div className="mt-8 flex items-center justify-between">
@@ -495,7 +505,9 @@ export function DashboardPage(): ReactNode {
               id="group-name-hint"
               className={`mt-1.5 text-sm ${nameTouched && !name.trim() ? 'font-medium text-neg' : 'text-faint'}`}
             >
-              {nameTouched && !name.trim() ? 'Give the group a name to create it.' : 'Name it after the trip, the flat, or the people.'}
+              {nameTouched && !name.trim()
+                ? 'Give the group a name to create it.'
+                : 'Name it after the trip, the flat, or the people.'}
             </p>
           </form>
         )}
@@ -508,7 +520,11 @@ export function DashboardPage(): ReactNode {
               icon="users"
               title="Couldn't load your groups."
               body="Probably a hiccup on our end, not you."
-              action={<Button variant="secondary" onClick={loadGroups}>Try again</Button>}
+              action={
+                <Button variant="secondary" onClick={loadGroups}>
+                  Try again
+                </Button>
+              }
             />
           ) : groups === null ? (
             <SkeletonList rows={3} />
@@ -563,9 +579,7 @@ export function DashboardPage(): ReactNode {
       {selectMode && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card/90 backdrop-blur-md">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <span className="text-sm font-medium">
-              {selected.size} selected
-            </span>
+            <span className="text-sm font-medium">{selected.size} selected</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"

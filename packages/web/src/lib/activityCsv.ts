@@ -61,7 +61,8 @@ export function activityCsv({
   ].sort((a, b) => {
     // Balances are a footer, not events, so they sort to the bottom by name rather than by a date
     // they do not have.
-    if (a.type === 'Current balance') return b.type === 'Current balance' ? a.description.localeCompare(b.description) : 1;
+    if (a.type === 'Current balance')
+      return b.type === 'Current balance' ? a.description.localeCompare(b.description) : 1;
     if (b.type === 'Current balance') return -1;
     return a.date.localeCompare(b.date);
   });
@@ -82,6 +83,9 @@ export function activityCsv({
 
 /** Turn a group name into something a filesystem is happy with. */
 export function csvFileName(groupName: string): string {
-  const slug = groupName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = groupName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
   return `${slug || 'owewell'}-activity.csv`;
 }

@@ -36,15 +36,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
     [],
   );
 
-  const settle = useCallback(
-    (ok: boolean): void => {
-      setPending((current) => {
-        current?.resolve(ok);
-        return null;
-      });
-    },
-    [],
-  );
+  const settle = useCallback((ok: boolean): void => {
+    setPending((current) => {
+      current?.resolve(ok);
+      return null;
+    });
+  }, []);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -90,11 +87,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
             aria-label={pending.title}
             tabIndex={-1}
             /*
-              * Enters the way a sheet does: up from the bottom on a phone, centred on a wider
-              * screen. It used to land in the middle at every size, so the app had two arrival
-              * animations for two kinds of modal — and the destructive confirm put its buttons in
-              * the centre of the screen, furthest from a thumb.
-              */
+             * Enters the way a sheet does: up from the bottom on a phone, centred on a wider
+             * screen. It used to land in the middle at every size, so the app had two arrival
+             * animations for two kinds of modal — and the destructive confirm put its buttons in
+             * the centre of the screen, furthest from a thumb.
+             */
             className="animate-sheet surface w-full rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
             onClick={(e) => e.stopPropagation()}
           >
@@ -134,9 +131,7 @@ function ConfirmButton({
 }): ReactNode {
   const base = 'rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition active:scale-[0.98]';
   const color =
-    tone === 'danger'
-      ? 'bg-neg-solid text-white hover:brightness-110'
-      : 'btn-gradient hover:opacity-90';
+    tone === 'danger' ? 'bg-neg-solid text-white hover:brightness-110' : 'btn-gradient hover:opacity-90';
   return (
     <button ref={buttonRef} type="button" onClick={onClick} className={`${base} ${color}`}>
       {children}

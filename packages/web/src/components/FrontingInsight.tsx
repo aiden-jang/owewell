@@ -27,19 +27,28 @@ export function FrontingInsight({ balances, expenseCount }: { balances: Balance[
             <span className="block truncate text-xs text-muted">{headline}</span>
           </span>
         </span>
-        <Icon name="chevron-right" size={16} className="shrink-0 text-faint transition-transform group-open:rotate-90" />
+        <Icon
+          name="chevron-right"
+          size={16}
+          className="shrink-0 text-faint transition-transform group-open:rotate-90"
+        />
       </summary>
 
       <div className="border-t border-line px-4 pb-4 pt-3">
         <div
           className="flex h-2.5 overflow-hidden rounded-full bg-line"
           role="img"
-          aria-label={insight.shares.map((share) => `${share.displayName} covered ${Math.round(share.percent)}%`).join(', ')}
+          aria-label={insight.shares
+            .map((share) => `${share.displayName} covered ${Math.round(share.percent)}%`)
+            .join(', ')}
         >
           {insight.shares.map((share, index) => (
             <span
               key={share.userId}
-              style={{ width: `${share.percent}%`, backgroundColor: SEGMENT_COLORS[index % SEGMENT_COLORS.length] }}
+              style={{
+                width: `${share.percent}%`,
+                backgroundColor: SEGMENT_COLORS[index % SEGMENT_COLORS.length],
+              }}
             />
           ))}
         </div>

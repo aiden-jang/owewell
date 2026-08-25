@@ -90,7 +90,12 @@ beforeEach(() => {
   create.mockReset();
   toastStub.success.mockClear();
   toastStub.error.mockClear();
-  create.mockResolvedValue({ id: 'new1', name: 'Whatever', createdAt: new Date().toISOString(), members: [{}] });
+  create.mockResolvedValue({
+    id: 'new1',
+    name: 'Whatever',
+    createdAt: new Date().toISOString(),
+    members: [{}],
+  });
 });
 
 describe('creating a group', () => {

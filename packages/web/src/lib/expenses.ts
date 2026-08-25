@@ -19,9 +19,7 @@ export const expensesApi = {
   update: (groupId: string, expenseId: string, payload: CreateExpensePayload): Promise<Expense> =>
     api.put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((r) => r.expense),
   createItemized: (groupId: string, payload: CreateItemizedPayload): Promise<Expense> =>
-    api
-      .post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload)
-      .then((r) => r.expense),
+    api.post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload).then((r) => r.expense),
   updateItemized: (groupId: string, expenseId: string, payload: CreateItemizedPayload): Promise<Expense> =>
     api
       .put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/itemized`, payload)

@@ -15,14 +15,22 @@ import type { DraftItem, DraftPerson } from './quickSplitDraft';
 
 const p = (id: string, name: string): DraftPerson => ({ id, name });
 const item = (over: Partial<DraftItem> = {}): DraftItem => ({
-  id: 'i1', description: 'Dinner', amount: '30', values: {}, method: 'EQUAL', payerId: '', ...over,
+  id: 'i1',
+  description: 'Dinner',
+  amount: '30',
+  values: {},
+  method: 'EQUAL',
+  payerId: '',
+  ...over,
 });
 
 const run = (over: Partial<Parameters<typeof computeQuickSplit>[0]> = {}) =>
   computeQuickSplit({
     people: [p('a', 'Alice'), p('b', 'Bob'), p('c', 'Cara')],
     items: [item()],
-    payerId: 'a', youId: 'a', splitPayers: false,
+    payerId: 'a',
+    youId: 'a',
+    splitPayers: false,
     ...over,
   });
 
@@ -53,7 +61,10 @@ describe('what it refuses to answer', () => {
     ['no items with an amount', { items: [item({ amount: '' })] }],
     ['an amount that is not a number', { items: [item({ amount: 'abc' })] }],
     ['nobody named yet', { people: [p('a', ''), p('b', '')] }],
-    ['a percent split that is not a number', { items: [item({ method: 'PERCENT' as const, values: { a: 'half' } })] }],
+    [
+      'a percent split that is not a number',
+      { items: [item({ method: 'PERCENT' as const, values: { a: 'half' } })] },
+    ],
   ])('returns no transfers for %s', (_label, over) => {
     expect(run(over).transfers).toBeNull();
   });

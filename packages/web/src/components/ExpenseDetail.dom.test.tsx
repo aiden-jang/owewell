@@ -200,7 +200,12 @@ describe('a correction someone already made', () => {
       <ExpenseDetail
         {...props}
         expense={expense({
-          lastEdit: { at: '2026-08-11T10:00:00.000Z', byId: 'u3', fields: ['amount'], formerAmountCents: 4_000 },
+          lastEdit: {
+            at: '2026-08-11T10:00:00.000Z',
+            byId: 'u3',
+            fields: ['amount'],
+            formerAmountCents: 4_000,
+          },
         })}
       />,
     );

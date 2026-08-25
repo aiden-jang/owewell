@@ -35,12 +35,11 @@ export function frontingInsight(balances: Balance[], expenseCount: number): Fron
   // Three expenses keeps a single dinner from producing advice. Sixty percent is meaningfully above
   // even for a pair, while the +20 point check keeps larger groups from being flagged too eagerly.
   const fairShare = 100 / involved.length;
-  const concentrated =
-    expenseCount >= 3 && leader.percent >= 60 && leader.percent - fairShare >= 20;
+  const concentrated = expenseCount >= 3 && leader.percent >= 60 && leader.percent - fairShare >= 20;
   const nextPayer = concentrated
-    ? [...shares]
+    ? ([...shares]
         .filter((share) => share.userId !== leader.userId)
-        .sort((a, b) => a.paidCents - b.paidCents || a.displayName.localeCompare(b.displayName))[0] ?? null
+        .sort((a, b) => a.paidCents - b.paidCents || a.displayName.localeCompare(b.displayName))[0] ?? null)
     : null;
 
   return { shares, leader, nextPayer, concentrated };

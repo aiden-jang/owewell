@@ -33,11 +33,22 @@ function member(over: Partial<GroupMember> & { userId: string; displayName: stri
 }
 
 const ALICE = member({ userId: 'a', displayName: 'Alice', role: 'OWNER' });
-const BOB = member({ userId: 'b', displayName: 'Bob', email: null, isPlaceholder: true, venmoHandle: 'bobby' });
+const BOB = member({
+  userId: 'b',
+  displayName: 'Bob',
+  email: null,
+  isPlaceholder: true,
+  venmoHandle: 'bobby',
+});
 const CARA = member({ userId: 'c', displayName: 'Cara' });
 
-const balance = (userId: string, displayName: string, netCents: number, paidCents = 0, owedCents = 0): Balance =>
-  ({ userId, displayName, netCents, paidCents, owedCents });
+const balance = (
+  userId: string,
+  displayName: string,
+  netCents: number,
+  paidCents = 0,
+  owedCents = 0,
+): Balance => ({ userId, displayName, netCents, paidCents, owedCents });
 
 const BALANCES = [
   balance('a', 'Alice', 4_000, 4_000, 0),
@@ -155,7 +166,9 @@ describe('renaming', () => {
   it('is offered for placeholders only', async () => {
     const user = await open();
     expect((await openActions(user, 'Bob')).getByRole('button', { name: 'Rename' })).toBeInTheDocument();
-    expect((await openActions(user, 'Cara')).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(
+      (await openActions(user, 'Cara')).queryByRole('button', { name: 'Rename' }),
+    ).not.toBeInTheDocument();
   });
 
   it('starts from the name they already have', async () => {
@@ -203,8 +216,12 @@ describe('payment handles', () => {
   // nobody to set them.
   it('is offered for yourself and for placeholders, not for other real members', async () => {
     const user = await open();
-    expect((await openActions(user, 'Alice')).getByRole('button', { name: 'Payment handles' })).toBeInTheDocument();
-    expect((await openActions(user, 'Bob')).getByRole('button', { name: 'Payment handles' })).toBeInTheDocument();
+    expect(
+      (await openActions(user, 'Alice')).getByRole('button', { name: 'Payment handles' }),
+    ).toBeInTheDocument();
+    expect(
+      (await openActions(user, 'Bob')).getByRole('button', { name: 'Payment handles' }),
+    ).toBeInTheDocument();
     expect(
       (await openActions(user, 'Cara')).queryByRole('button', { name: 'Payment handles' }),
     ).not.toBeInTheDocument();
@@ -283,7 +300,10 @@ describe('what each row says about the money', () => {
 
   // A brand-new member of a brand-new group is not "settled up" — there has been nothing to settle.
   it('says nothing at all before the group has any activity', async () => {
-    await open({ hasActivity: false, balances: [balance('a', 'Alice', 0), balance('b', 'Bob', 0), balance('c', 'Cara', 0)] });
+    await open({
+      hasActivity: false,
+      balances: [balance('a', 'Alice', 0), balance('b', 'Bob', 0), balance('c', 'Cara', 0)],
+    });
     expect(screen.queryByText('settled up')).not.toBeInTheDocument();
   });
 });

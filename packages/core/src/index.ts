@@ -9,7 +9,15 @@ export { SPLIT_METHODS } from '@owewell/shared';
 export type { SplitMethod };
 
 /** How a settlement was actually paid. Tag-only (no deep links), surfaced in the activity feed. */
-export const PAYMENT_METHODS = ['venmo', 'paypal', 'cashapp', 'apple_cash', 'zelle', 'cash', 'other'] as const;
+export const PAYMENT_METHODS = [
+  'venmo',
+  'paypal',
+  'cashapp',
+  'apple_cash',
+  'zelle',
+  'cash',
+  'other',
+] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 /** Human-friendly labels for each payment method (for pickers + the activity feed). */
@@ -242,4 +250,3 @@ export interface SharedGroupSummary {
   suggested: { fromName: string; toName: string; amountCents: number }[];
   breakdown: { category: string; cents: number }[];
 }
-

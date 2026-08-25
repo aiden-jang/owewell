@@ -109,21 +109,22 @@ export function ActivityFeed({
         if (!matchesPersonLens(item.expense, personFilter, relationFilter)) return false;
       }
       if (!query) return true;
-      const haystack = item.kind === 'expense'
-        ? [
-            item.expense.description,
-            categoryMeta(item.expense.category).label,
-            memberName(item.expense.payerId),
-            ...item.expense.splits.map((split) => memberName(split.userId)),
-            fmt(item.expense.amountCents),
-          ]
-        : [
-            memberName(item.settlement.fromUserId),
-            memberName(item.settlement.toUserId),
-            'payment',
-            item.settlement.method ? PAYMENT_METHOD_LABELS[item.settlement.method] : '',
-            fmt(item.settlement.amountCents),
-          ];
+      const haystack =
+        item.kind === 'expense'
+          ? [
+              item.expense.description,
+              categoryMeta(item.expense.category).label,
+              memberName(item.expense.payerId),
+              ...item.expense.splits.map((split) => memberName(split.userId)),
+              fmt(item.expense.amountCents),
+            ]
+          : [
+              memberName(item.settlement.fromUserId),
+              memberName(item.settlement.toUserId),
+              'payment',
+              item.settlement.method ? PAYMENT_METHOD_LABELS[item.settlement.method] : '',
+              fmt(item.settlement.amountCents),
+            ];
       return haystack.some((value) => value.toLocaleLowerCase().includes(query));
     });
   }, [activity, activityQuery, categoryFilter, fmt, members, personFilter, relationFilter]);
@@ -186,7 +187,8 @@ export function ActivityFeed({
    * rendered list is correct for every filter at once, including ones added later.
    */
   const visibleTotal = visibleActivity.reduce(
-    (sum, item) => (item.kind === 'expense' ? sum + lensAmount(item.expense, personFilter, relationFilter) : sum),
+    (sum, item) =>
+      item.kind === 'expense' ? sum + lensAmount(item.expense, personFilter, relationFilter) : sum,
     0,
   );
   const filtering = Boolean(activityQuery || categoryFilter || personFilter);
@@ -195,307 +197,301 @@ export function ActivityFeed({
 
   return (
     <>
-        {activity.length > 0 && breakdown}
+      {activity.length > 0 && breakdown}
       {/*
-        * Below the breakdown, not above it.
-        *
-        * These controls filter the list underneath, and they used to sit on the far side of the
-        * whole "Where it went" chart from it — a search field separated from its results by a page
-        * of bars. Nothing about the breakdown is filtered by them.
-        */}
+       * Below the breakdown, not above it.
+       *
+       * These controls filter the list underneath, and they used to sit on the far side of the
+       * whole "Where it went" chart from it — a search field separated from its results by a page
+       * of bars. Nothing about the breakdown is filtered by them.
+       */}
       {activity.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
-              <span className="sr-only">Search activity</span>
-              <input
-                type="search"
-                value={activityQuery}
-                onChange={(event) => setActivityQuery(event.target.value)}
-                placeholder="Find dinner, Alex, $24…"
-                className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
-              />
-              {activityQuery && (
-                <button
-                  type="button"
-                  onClick={() => setActivityQuery('')}
-                  aria-label="Clear activity search"
-                  className="text-muted transition hover:text-ink"
-                >
-                  <Icon name="x" size={13} />
-                </button>
-              )}
-            </label>
-            {/*
-              * Capped, because a select is as wide as its longest option.
-              *
-              * One member called Konstantinos Papadopoulos-Herrera made this control 250px instead
-              * of 89px, which was enough on its own to push the search field onto its own line and
-              * leave the row looking broken. The group switcher already caps itself for the same
-              * reason; this one did not.
-              */}
-            <select
-              value={personFilter ?? ''}
-              onChange={(e) => setPersonFilter(e.target.value || null)}
-              aria-label="Filter by person"
-              className={`max-w-[8.5rem] truncate rounded-full border px-3 py-2 font-medium outline-none transition focus:border-accent ${
-                personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
-              }`}
-            >
-              <option value="">Anyone</option>
-              {members.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.userId === currentUserId ? 'You' : m.displayName}
-                </option>
-              ))}
-            </select>
-            {personFilter && (
-              <select
-                value={relationFilter}
-                onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
-                aria-label="Filter by relationship to the expense"
-                className="rounded-full border border-accent bg-accent-soft px-3 py-2 font-medium text-accent outline-none transition focus:border-accent"
-              >
-                <option value="involved">involved</option>
-                <option value="owes">owes</option>
-                <option value="paid">paid</option>
-              </select>
-            )}
-            {categoryFilter && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <label className="flex min-w-[190px] flex-1 items-center gap-2 rounded-full border border-line bg-field px-3 py-1.5 transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
+            <span className="sr-only">Search activity</span>
+            <input
+              type="search"
+              value={activityQuery}
+              onChange={(event) => setActivityQuery(event.target.value)}
+              placeholder="Find dinner, Alex, $24…"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-faint"
+            />
+            {activityQuery && (
               <button
                 type="button"
-                onClick={() => onCategoryFilter(null)}
-                aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
-                className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
+                onClick={() => setActivityQuery('')}
+                aria-label="Clear activity search"
+                className="text-muted transition hover:text-ink"
               >
-                <CategoryGlyph categoryKey={categoryFilter} />
-                {categoryMeta(categoryFilter).label}
-                <Icon name="x" size={12} />
+                <Icon name="x" size={13} />
               </button>
             )}
-            {filtering && (
-              <>
-                <span className="text-faint">
-                  {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
-                </span>
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
-                >
-                  Clear
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-  
-        <section className="mt-6">
-          <div className="flex items-baseline justify-end gap-3">
-            <h2 className="sr-only">Activity</h2>
-            {visibleTotal > 0 && (
-              <span className="tnum text-sm text-muted">
-                {fmt(visibleTotal)}{' '}
-                {lensActive ? (relationFilter === 'owes' ? 'owed' : relationFilter === 'paid' ? 'paid' : 'spent') : 'spent'}
-                {/* A whole-ledger average has no business beside a filtered total. */}
-                {!filtering && perPersonCents > 0 && (
-                  <span className="text-faint"> · {fmt(perPersonCents)} avg/person</span>
-                )}
-              </span>
-            )}
-          </div>
-          {/* items-start, not items-center: the note runs to two lines on a phone and a centred
-              icon floats against the gap between them. */}
-          {settlements.length > 0 && (
-            <p className="mt-2 flex items-start gap-1.5 text-xs text-faint">
-              <Icon name="undo" size={13} className="mt-0.5 shrink-0" />
-              A payment&rsquo;s been recorded, so this is locked. Undo it below to edit or remove
-              expenses.
-            </p>
+          </label>
+          {/*
+           * Capped, because a select is as wide as its longest option.
+           *
+           * One member called Konstantinos Papadopoulos-Herrera made this control 250px instead
+           * of 89px, which was enough on its own to push the search field onto its own line and
+           * leave the row looking broken. The group switcher already caps itself for the same
+           * reason; this one did not.
+           */}
+          <select
+            value={personFilter ?? ''}
+            onChange={(e) => setPersonFilter(e.target.value || null)}
+            aria-label="Filter by person"
+            className={`max-w-[8.5rem] truncate rounded-full border px-3 py-2 font-medium outline-none transition focus:border-accent ${
+              personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
+            }`}
+          >
+            <option value="">Anyone</option>
+            {members.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.userId === currentUserId ? 'You' : m.displayName}
+              </option>
+            ))}
+          </select>
+          {personFilter && (
+            <select
+              value={relationFilter}
+              onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
+              aria-label="Filter by relationship to the expense"
+              className="rounded-full border border-accent bg-accent-soft px-3 py-2 font-medium text-accent outline-none transition focus:border-accent"
+            >
+              <option value="involved">involved</option>
+              <option value="owes">owes</option>
+              <option value="paid">paid</option>
+            </select>
           )}
-          {activity.length === 0 ? (
-            <div className="mt-3">
-              <EmptyState
-                tone="invite"
-                icon="receipt"
-                title="Nothing yet."
-                body="Add an expense and let the math sort itself out."
-                action={
-                  <button
-                    type="button"
-                    onClick={() => onAddExpense()}
-                    className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
-                  >
-                    <Icon name="plus" size={15} /> Add expense
-                  </button>
-                }
-              />
-            </div>
-          ) : visibleActivity.length === 0 ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
-              Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
+          {categoryFilter && (
+            <button
+              type="button"
+              onClick={() => onCategoryFilter(null)}
+              aria-label={`Clear ${categoryMeta(categoryFilter).label} filter`}
+              className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent transition hover:bg-accent/15"
+            >
+              <CategoryGlyph categoryKey={categoryFilter} />
+              {categoryMeta(categoryFilter).label}
+              <Icon name="x" size={12} />
+            </button>
+          )}
+          {filtering && (
+            <>
+              <span className="text-faint">
+                {visibleActivity.length} {visibleActivity.length === 1 ? 'result' : 'results'}
+              </span>
               <button
                 type="button"
                 onClick={clearFilters}
-                className="font-medium text-accent hover:underline"
+                className="text-muted underline-offset-2 transition hover:text-ink hover:underline"
               >
-                Clear search and filters
+                Clear
               </button>
-            </div>
-          ) : (
-            /*
-             * One panel, hairline rows, rather than a stack of separate cards.
-             *
-             * Every row used to carry its own border and shadow, which gave a receipt for coffee the
-             * same visual weight as the panel it sat in — the ledger read as a pile of objects
-             * instead of a list. Hairlines say "these are the same kind of thing, in order", which
-             * is what a ledger is.
-             */
-            <ul className="panel mt-3">
-              {/*
-                * Queued writes sit above the ledger, dimmed and inert.
-                *
-                * They are not expenses yet, so they are deliberately not in the balances above and
-                * say so: showing them as normal rows would mean the feed and the number at the top
-                * of the page disagreed, with nothing on screen to explain why.
-                */}
-              {pendingRows.map((entry) => (
-                <li
-                  key={entry.clientId}
-                  className="animate-rise flex items-center justify-between gap-3 border-b border-dashed border-line-strong px-4 py-3 opacity-70"
+            </>
+          )}
+        </div>
+      )}
+
+      <section className="mt-6">
+        <div className="flex items-baseline justify-end gap-3">
+          <h2 className="sr-only">Activity</h2>
+          {visibleTotal > 0 && (
+            <span className="tnum text-sm text-muted">
+              {fmt(visibleTotal)}{' '}
+              {lensActive
+                ? relationFilter === 'owes'
+                  ? 'owed'
+                  : relationFilter === 'paid'
+                    ? 'paid'
+                    : 'spent'
+                : 'spent'}
+              {/* A whole-ledger average has no business beside a filtered total. */}
+              {!filtering && perPersonCents > 0 && (
+                <span className="text-faint"> · {fmt(perPersonCents)} avg/person</span>
+              )}
+            </span>
+          )}
+        </div>
+        {/* items-start, not items-center: the note runs to two lines on a phone and a centred
+              icon floats against the gap between them. */}
+        {settlements.length > 0 && (
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-faint">
+            <Icon name="undo" size={13} className="mt-0.5 shrink-0" />A payment&rsquo;s been recorded, so this
+            is locked. Undo it below to edit or remove expenses.
+          </p>
+        )}
+        {activity.length === 0 ? (
+          <div className="mt-3">
+            <EmptyState
+              tone="invite"
+              icon="receipt"
+              title="Nothing yet."
+              body="Add an expense and let the math sort itself out."
+              action={
+                <button
+                  type="button"
+                  onClick={() => onAddExpense()}
+                  className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
-                      <Icon name="share" size={13} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-muted">{entry.description}</p>
-                      <p className="truncate text-sm text-faint">
-                        Waiting for signal · not counted yet
-                      </p>
-                    </div>
+                  <Icon name="plus" size={15} /> Add expense
+                </button>
+              }
+            />
+          </div>
+        ) : visibleActivity.length === 0 ? (
+          <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
+            Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
+            <button type="button" onClick={clearFilters} className="font-medium text-accent hover:underline">
+              Clear search and filters
+            </button>
+          </div>
+        ) : (
+          /*
+           * One panel, hairline rows, rather than a stack of separate cards.
+           *
+           * Every row used to carry its own border and shadow, which gave a receipt for coffee the
+           * same visual weight as the panel it sat in — the ledger read as a pile of objects
+           * instead of a list. Hairlines say "these are the same kind of thing, in order", which
+           * is what a ledger is.
+           */
+          <ul className="panel mt-3">
+            {/*
+             * Queued writes sit above the ledger, dimmed and inert.
+             *
+             * They are not expenses yet, so they are deliberately not in the balances above and
+             * say so: showing them as normal rows would mean the feed and the number at the top
+             * of the page disagreed, with nothing on screen to explain why.
+             */}
+            {pendingRows.map((entry) => (
+              <li
+                key={entry.clientId}
+                className="animate-rise flex items-center justify-between gap-3 border-b border-dashed border-line-strong px-4 py-3 opacity-70"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
+                    <Icon name="share" size={13} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-muted">{entry.description}</p>
+                    <p className="truncate text-sm text-faint">Waiting for signal · not counted yet</p>
                   </div>
-                  <span className="tnum shrink-0 font-semibold text-muted">{fmt(entry.amountCents)}</span>
-                </li>
-              ))}
-              {shownActivity.map((item, i) =>
-                item.kind === 'expense' ? (
-                  <li
-                    key={`e-${item.expense.id}`}
-                    className="animate-rise"
-                    style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-                  >
-                    {/*
-                      * The whole row opens the detail sheet, and every action lives in there.
-                      *
-                      * The alternative was the four hover-revealed icons this used to carry, which are
-                      * invisible on a phone and, on a desktop, put delete a stray click away from the
-                      * amount you were reading.
-                      */}
-                    <button
-                      type="button"
-                      onClick={() => onOpenExpense(item.expense.id)}
-                      aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
-                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface2"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <Avatar name={payerSummary(item.expense).avatar} size="sm" />
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">
-                            <CategoryGlyph categoryKey={item.expense.category ?? 'other'} />{' '}
-                            {item.expense.description}
-                          </p>
-                          <p className="flex items-baseline text-sm text-muted">
-                            <span className="truncate">{payerSummary(item.expense).who}</span>
-                            {/* The space is in the text, not a flex gap: a gap is invisible to a
-                                screen reader and to anything that copies the row, both of which
-                                would read "Alicepaid". */}
-                            <span className="shrink-0 whitespace-pre">
-                              {' paid · '}
-                              {timeAgo(item.expense.date)}
-                              {/* Only flag when it wasn't shared with the whole group; "everyone" is
-                                  the default, so printing it on every row would just be noise. */}
-                              {item.expense.splits.length < members.length &&
-                                ` · ${item.expense.splits.length} ways`}
-                            </span>
-                          </p>
-                          {/*
-                            * A queued edit says so; a landed one does not.
-                            *
-                            * "Alice changed the amount from $40.00" used to print here too, which put
-                            * a third line of history on every row somebody had ever corrected — on
-                            * the one screen you scan rather than read. It is still on the expense
-                            * itself, which is where you go when you want to know what happened to it.
-                            *
-                            * This line is not history. It explains why the row disagrees with what
-                            * you typed, so it has to stay where the wrong number is.
-                            */}
-                          {pendingEdits.has(item.expense.id) && (
-                            <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <span className="tnum font-semibold">
-                          {fmt(item.expense.amountCents)}
-                        </span>
-                        <Icon name="chevron-right" size={16} className="text-faint" />
-                      </div>
-                    </button>
-                  </li>
-                ) : (
-                  <li
-                    key={`s-${item.settlement.id}`}
-                    className="animate-rise group flex items-center justify-between gap-3 px-4 py-3"
-                    style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
+                </div>
+                <span className="tnum shrink-0 font-semibold text-muted">{fmt(entry.amountCents)}</span>
+              </li>
+            ))}
+            {shownActivity.map((item, i) =>
+              item.kind === 'expense' ? (
+                <li
+                  key={`e-${item.expense.id}`}
+                  className="animate-rise"
+                  style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
+                >
+                  {/*
+                   * The whole row opens the detail sheet, and every action lives in there.
+                   *
+                   * The alternative was the four hover-revealed icons this used to carry, which are
+                   * invisible on a phone and, on a desktop, put delete a stray click away from the
+                   * amount you were reading.
+                   */}
+                  <button
+                    type="button"
+                    onClick={() => onOpenExpense(item.expense.id)}
+                    aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface2"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-pos/30 bg-pos/10 text-pos">
-                        <Icon name="check" size={16} />
-                      </span>
+                      <Avatar name={payerSummary(item.expense).avatar} size="sm" />
                       <div className="min-w-0">
-                        {/* Two lines, then it truncates. Two names and neither can afford to be the
-                            one cut off, but letting them wrap freely ran this row to four lines with
-                            the amount floating in the middle of it. */}
-                        <p className="line-clamp-2 text-sm">
-                          <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
-                          <span className="text-muted"> paid </span>
-                          <span className="font-medium">{nameOf(item.settlement.toUserId)}</span>
+                        <p className="truncate font-medium">
+                          <CategoryGlyph categoryKey={item.expense.category ?? 'other'} />{' '}
+                          {item.expense.description}
                         </p>
-                        <p className="text-sm text-muted">
-                          {timeAgo(item.settlement.createdAt)}
-                          {item.settlement.method && ` · via ${PAYMENT_METHOD_LABELS[item.settlement.method]}`}
+                        <p className="flex items-baseline text-sm text-muted">
+                          <span className="truncate">{payerSummary(item.expense).who}</span>
+                          {/* The space is in the text, not a flex gap: a gap is invisible to a
+                                screen reader and to anything that copies the row, both of which
+                                would read "Alicepaid". */}
+                          <span className="shrink-0 whitespace-pre">
+                            {' paid · '}
+                            {timeAgo(item.expense.date)}
+                            {/* Only flag when it wasn't shared with the whole group; "everyone" is
+                                  the default, so printing it on every row would just be noise. */}
+                            {item.expense.splits.length < members.length &&
+                              ` · ${item.expense.splits.length} ways`}
+                          </span>
                         </p>
+                        {/*
+                         * A queued edit says so; a landed one does not.
+                         *
+                         * "Alice changed the amount from $40.00" used to print here too, which put
+                         * a third line of history on every row somebody had ever corrected — on
+                         * the one screen you scan rather than read. It is still on the expense
+                         * itself, which is where you go when you want to know what happened to it.
+                         *
+                         * This line is not history. It explains why the row disagrees with what
+                         * you typed, so it has to stay where the wrong number is.
+                         */}
+                        {pendingEdits.has(item.expense.id) && (
+                          <p className="truncate text-xs text-faint">Your change is waiting for signal</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <span className="tnum font-medium text-pos">
-                        {fmt(item.settlement.amountCents)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void onUndoSettlement(item.settlement.id)}
-                        aria-label="Undo payment"
-                        className="tap grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-                      >
-                        <Icon name="undo" size={15} />
-                      </button>
+                      <span className="tnum font-semibold">{fmt(item.expense.amountCents)}</span>
+                      <Icon name="chevron-right" size={16} className="text-faint" />
                     </div>
-                  </li>
-                ),
-              )}
-            </ul>
-          )}
-          {hiddenActivityCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAll(true)}
-              className="mt-3 w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
-            >
-              Show {hiddenActivityCount} older {hiddenActivityCount === 1 ? 'entry' : 'entries'}
-            </button>
-          )}
-        </section>
+                  </button>
+                </li>
+              ) : (
+                <li
+                  key={`s-${item.settlement.id}`}
+                  className="animate-rise group flex items-center justify-between gap-3 px-4 py-3"
+                  style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-pos/30 bg-pos/10 text-pos">
+                      <Icon name="check" size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      {/* Two lines, then it truncates. Two names and neither can afford to be the
+                            one cut off, but letting them wrap freely ran this row to four lines with
+                            the amount floating in the middle of it. */}
+                      <p className="line-clamp-2 text-sm">
+                        <span className="font-medium">{nameOf(item.settlement.fromUserId)}</span>
+                        <span className="text-muted"> paid </span>
+                        <span className="font-medium">{nameOf(item.settlement.toUserId)}</span>
+                      </p>
+                      <p className="text-sm text-muted">
+                        {timeAgo(item.settlement.createdAt)}
+                        {item.settlement.method && ` · via ${PAYMENT_METHOD_LABELS[item.settlement.method]}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="tnum font-medium text-pos">{fmt(item.settlement.amountCents)}</span>
+                    <button
+                      type="button"
+                      onClick={() => void onUndoSettlement(item.settlement.id)}
+                      aria-label="Undo payment"
+                      className="tap grid h-8 w-8 place-items-center rounded-full text-faint opacity-100 transition hover:bg-surface2 hover:text-neg [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                    >
+                      <Icon name="undo" size={15} />
+                    </button>
+                  </div>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
+        {hiddenActivityCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="mt-3 w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
+          >
+            Show {hiddenActivityCount} older {hiddenActivityCount === 1 ? 'entry' : 'entries'}
+          </button>
+        )}
+      </section>
     </>
   );
 }

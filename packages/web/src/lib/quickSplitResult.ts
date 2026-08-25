@@ -56,8 +56,13 @@ export function computeQuickSplit(input: {
     youId && named.some((p) => p.id === youId) ? youId : (named[0]?.id ?? people[0]?.id ?? '');
 
   const empty: QuickSplitResult = {
-    transfers: null, grandTotal: 0, yourShareCents: null, sharesByPerson: null,
-    effectivePayerId, effectiveYouId, named,
+    transfers: null,
+    grandTotal: 0,
+    yourShareCents: null,
+    sharesByPerson: null,
+    effectivePayerId,
+    effectiveYouId,
+    named,
   };
 
   let grandTotal = 0;
@@ -105,10 +110,13 @@ export function computeQuickSplit(input: {
       named.map((p) => ({ userId: p.id, netCents: (paid[p.id] ?? 0) - (owed[p.id] ?? 0) })),
     );
     return {
-      transfers, grandTotal,
+      transfers,
+      grandTotal,
       yourShareCents: owed[effectiveYouId] ?? null,
       sharesByPerson: owed,
-      effectivePayerId, effectiveYouId, named,
+      effectivePayerId,
+      effectiveYouId,
+      named,
     };
   } catch {
     return empty;

@@ -6,10 +6,18 @@ import type { Expense } from './expenses';
 const fmt = formatMoney;
 const nameOf = (id: string) => ({ a: 'Alice', b: 'Bob' })[id] ?? 'Someone';
 
-const expense = (over: Partial<Expense> & { id: string; description: string; amountCents: number }): Expense => ({
-  payerId: 'a', splitMethod: 'EQUAL', category: 'food', createdAt: '2026-08-10T12:00:00.000Z',
-  date: '2026-08-10T12:00:00.000Z', note: null, version: 1,
-  splits: [{ userId: 'a', owedCents: 0 }], ...over,
+const expense = (
+  over: Partial<Expense> & { id: string; description: string; amountCents: number },
+): Expense => ({
+  payerId: 'a',
+  splitMethod: 'EQUAL',
+  category: 'food',
+  createdAt: '2026-08-10T12:00:00.000Z',
+  date: '2026-08-10T12:00:00.000Z',
+  note: null,
+  version: 1,
+  splits: [{ userId: 'a', owedCents: 0 }],
+  ...over,
 });
 
 const rows = (csv: string) => csv.split('\r\n');
@@ -50,7 +58,16 @@ describe('the exported ledger', () => {
       expense({ id: 'e1', description: 'Cab home', amountCents: 2_400, date: '2026-08-09T12:00:00.000Z' }),
       expense({ id: 'e2', description: 'Dinner', amountCents: 8_000, date: '2026-08-10T12:00:00.000Z' }),
     ],
-    settlements: [{ id: 's1', fromUserId: 'b', toUserId: 'a', amountCents: 4_000, method: 'venmo', createdAt: '2026-08-11T12:00:00.000Z' }],
+    settlements: [
+      {
+        id: 's1',
+        fromUserId: 'b',
+        toUserId: 'a',
+        amountCents: 4_000,
+        method: 'venmo',
+        createdAt: '2026-08-11T12:00:00.000Z',
+      },
+    ],
     balances: [
       { userId: 'b', displayName: 'Bob', netCents: -1_000, paidCents: 0, owedCents: 1_000 },
       { userId: 'a', displayName: 'Alice', netCents: 1_000, paidCents: 0, owedCents: 0 },
@@ -64,13 +81,17 @@ describe('the exported ledger', () => {
   });
 
   it('puts expenses and payments on one timeline, oldest first', () => {
-    const types = rows(csv).slice(1).map((r) => r.split(',')[1]);
+    const types = rows(csv)
+      .slice(1)
+      .map((r) => r.split(',')[1]);
     expect(types).toEqual(['Expense', 'Expense', 'Payment', 'Current balance', 'Current balance']);
   });
 
   // Balances are a footer, not events. They have no date to sort by, so they sort by name.
   it('ends with the balances, alphabetically', () => {
-    const tail = rows(csv).slice(-2).map((r) => r.split(',')[2]);
+    const tail = rows(csv)
+      .slice(-2)
+      .map((r) => r.split(',')[2]);
     expect(tail).toEqual(['Alice', 'Bob']);
   });
 
@@ -94,8 +115,20 @@ describe('the exported ledger', () => {
 
   it('records a payment with no method as one anyway', () => {
     const plain = activityCsv({
-      expenses: [], balances: [], nameOf, fmt,
-      settlements: [{ id: 's1', fromUserId: 'b', toUserId: 'a', amountCents: 100, method: null, createdAt: '2026-08-11T12:00:00.000Z' }],
+      expenses: [],
+      balances: [],
+      nameOf,
+      fmt,
+      settlements: [
+        {
+          id: 's1',
+          fromUserId: 'b',
+          toUserId: 'a',
+          amountCents: 100,
+          method: null,
+          createdAt: '2026-08-11T12:00:00.000Z',
+        },
+      ],
     });
     expect(plain).toContain('payment recorded');
   });

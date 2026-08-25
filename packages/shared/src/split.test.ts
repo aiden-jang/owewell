@@ -2,8 +2,7 @@ import { describe, expect, test } from 'vitest';
 import fc from 'fast-check';
 import { computeSplit, quickSplitSeed, SplitError, type SplitMethod } from './split.js';
 
-const ids = (n: number): { userId: string }[] =>
-  Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
+const ids = (n: number): { userId: string }[] => Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
 
 describe('computeSplit', () => {
   test('EQUAL divides evenly, leftover cent to the first', () => {
@@ -15,11 +14,13 @@ describe('computeSplit', () => {
   });
 
   test('SHARES splits by weight', () => {
-    expect(computeSplit('SHARES', 1000, [
-      { userId: 'a', value: 2 },
-      { userId: 'b', value: 1 },
-      { userId: 'c', value: 1 },
-    ])).toEqual([
+    expect(
+      computeSplit('SHARES', 1000, [
+        { userId: 'a', value: 2 },
+        { userId: 'b', value: 1 },
+        { userId: 'c', value: 1 },
+      ]),
+    ).toEqual([
       { userId: 'a', owedCents: 500 },
       { userId: 'b', owedCents: 250 },
       { userId: 'c', owedCents: 250 },
@@ -27,10 +28,12 @@ describe('computeSplit', () => {
   });
 
   test('PERCENT splits by basis points and must total 100%', () => {
-    expect(computeSplit('PERCENT', 1000, [
-      { userId: 'a', value: 6000 },
-      { userId: 'b', value: 4000 },
-    ])).toEqual([
+    expect(
+      computeSplit('PERCENT', 1000, [
+        { userId: 'a', value: 6000 },
+        { userId: 'b', value: 4000 },
+      ]),
+    ).toEqual([
       { userId: 'a', owedCents: 600 },
       { userId: 'b', owedCents: 400 },
     ]);
@@ -43,10 +46,12 @@ describe('computeSplit', () => {
   });
 
   test('EXACT passes through and must total the bill', () => {
-    expect(computeSplit('EXACT', 1000, [
-      { userId: 'a', value: 600 },
-      { userId: 'b', value: 400 },
-    ])).toEqual([
+    expect(
+      computeSplit('EXACT', 1000, [
+        { userId: 'a', value: 600 },
+        { userId: 'b', value: 400 },
+      ]),
+    ).toEqual([
       { userId: 'a', owedCents: 600 },
       { userId: 'b', owedCents: 400 },
     ]);
@@ -60,9 +65,7 @@ describe('computeSplit', () => {
 
   test('rejects empty participants, duplicates, and missing values', () => {
     expect(() => computeSplit('EQUAL', 100, [])).toThrow(SplitError);
-    expect(() =>
-      computeSplit('EQUAL', 100, [{ userId: 'a' }, { userId: 'a' }]),
-    ).toThrow(SplitError);
+    expect(() => computeSplit('EQUAL', 100, [{ userId: 'a' }, { userId: 'a' }])).toThrow(SplitError);
     expect(() => computeSplit('SHARES', 100, [{ userId: 'a' }])).toThrow(SplitError);
   });
 

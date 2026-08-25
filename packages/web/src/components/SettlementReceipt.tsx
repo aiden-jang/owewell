@@ -7,22 +7,34 @@ import { useMoney } from '../lib/currency';
 
 function balanceCopy(cents: number, fmt: MoneyFormatter): string {
   if (cents === 0) return 'settled up';
-  return cents > 0
-    ? `owed ${fmt(cents)}`
-    : `owes ${fmt(Math.abs(cents))}`;
+  return cents > 0 ? `owed ${fmt(cents)}` : `owes ${fmt(Math.abs(cents))}`;
 }
 
-export function SettlementReceipt({ receipt, onClose }: { receipt: SettlementReceiptData; onClose: () => void }): ReactNode {
+export function SettlementReceipt({
+  receipt,
+  onClose,
+}: {
+  receipt: SettlementReceiptData;
+  onClose: () => void;
+}): ReactNode {
   const fmt = useMoney();
   const { settlement } = receipt;
   return (
-    <section aria-labelledby="payment-receipt-title" className="mt-6 overflow-hidden rounded-2xl border border-pos/30 bg-pos/5 shadow-sm shadow-pos/5 animate-rise">
+    <section
+      aria-labelledby="payment-receipt-title"
+      className="mt-6 overflow-hidden rounded-2xl border border-pos/30 bg-pos/5 shadow-sm shadow-pos/5 animate-rise"
+    >
       <div className="flex items-start gap-3 border-b border-pos/15 px-4 py-4">
-        <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pos text-[#07120a]">
+        <span
+          aria-hidden
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pos text-[#07120a]"
+        >
           <Icon name="check" size={19} />
         </span>
         <div className="min-w-0 flex-1">
-          <p id="payment-receipt-title" className="text-xs font-semibold uppercase tracking-wide text-pos">Payment recorded</p>
+          <p id="payment-receipt-title" className="text-xs font-semibold uppercase tracking-wide text-pos">
+            Payment recorded
+          </p>
           <p className="mt-0.5 font-display text-xl font-semibold tracking-tight text-ink">
             {fmt(settlement.amountCents)}
           </p>
@@ -31,7 +43,12 @@ export function SettlementReceipt({ receipt, onClose }: { receipt: SettlementRec
             {settlement.method ? ` via ${PAYMENT_METHOD_LABELS[settlement.method]}` : ''}
           </p>
         </div>
-        <button type="button" onClick={onClose} aria-label="Dismiss payment receipt" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss payment receipt"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
+        >
           <Icon name="x" size={16} />
         </button>
       </div>

@@ -40,15 +40,7 @@ function inputNote(method: string, value: number | null | undefined): string | n
   return null;
 }
 
-function Row({
-  left,
-  right,
-  muted,
-}: {
-  left: ReactNode;
-  right: ReactNode;
-  muted?: boolean;
-}): ReactNode {
+function Row({ left, right, muted }: { left: ReactNode; right: ReactNode; muted?: boolean }): ReactNode {
   return (
     <li className="flex items-center justify-between gap-3 py-2">
       <div className={`min-w-0 text-sm ${muted ? 'text-muted' : ''}`}>{left}</div>
@@ -83,9 +75,10 @@ export function ExpenseDetail({
   const label = (id: string): string => (id === viewerId ? 'you' : nameOf(id));
   const category = categoryMeta(expense.category);
   const itemized = expense.splitMethod === 'ITEMIZED';
-  const payers = itemized && expense.items?.length
-    ? [...new Set(expense.items.map((i) => i.payerId ?? expense.payerId))]
-    : [expense.payerId];
+  const payers =
+    itemized && expense.items?.length
+      ? [...new Set(expense.items.map((i) => i.payerId ?? expense.payerId))]
+      : [expense.payerId];
   const myShare = expense.splits.find((s) => s.userId === viewerId);
   const iPaid = payers.includes(viewerId ?? '');
   const items = expense.items ?? [];
@@ -97,12 +90,9 @@ export function ExpenseDetail({
   return (
     <div>
       <div className="text-center">
-        <p className="font-display text-4xl font-semibold tracking-tight tnum">
-          {fmt(expense.amountCents)}
-        </p>
+        <p className="font-display text-4xl font-semibold tracking-tight tnum">{fmt(expense.amountCents)}</p>
         <p className="mt-1 text-sm text-muted">
-          <CategoryGlyph categoryKey={category.key} />{' '}
-          {category.label} · {fullDate(expense.date)}
+          <CategoryGlyph categoryKey={category.key} /> {category.label} · {fullDate(expense.date)}
         </p>
       </div>
 
@@ -111,13 +101,11 @@ export function ExpenseDetail({
         <p className="mt-4 rounded-2xl bg-surface2 px-4 py-3 text-center text-sm">
           {iPaid ? (
             <>
-              You paid, and your share is{' '}
-              <span className="tnum font-semibold">{fmt(myShare.owedCents)}</span>
+              You paid, and your share is <span className="tnum font-semibold">{fmt(myShare.owedCents)}</span>
             </>
           ) : (
             <>
-              Your share is{' '}
-              <span className="tnum font-semibold">{fmt(myShare.owedCents)}</span>
+              Your share is <span className="tnum font-semibold">{fmt(myShare.owedCents)}</span>
             </>
           )}
         </p>
@@ -239,8 +227,8 @@ export function ExpenseDetail({
 
       {locked && !archived && (
         <p className="mt-3 flex items-start gap-1.5 text-xs text-faint">
-          <Icon name="undo" size={13} className="mt-0.5 shrink-0" />
-          A payment&rsquo;s been recorded, so this is locked. Undo it to edit or remove this.
+          <Icon name="undo" size={13} className="mt-0.5 shrink-0" />A payment&rsquo;s been recorded, so this
+          is locked. Undo it to edit or remove this.
         </p>
       )}
     </div>

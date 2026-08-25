@@ -9,7 +9,10 @@ export function PublicHeader(): ReactNode {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
-        <Link to="/split" className="tap flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+        <Link
+          to="/split"
+          className="tap flex items-center gap-2 font-display text-xl font-semibold tracking-tight"
+        >
           <BrandMark /> owewell
         </Link>
         <div className="flex items-center gap-2 text-sm font-medium">

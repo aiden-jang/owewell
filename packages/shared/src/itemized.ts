@@ -75,7 +75,11 @@ export function computeItemizedSplit(input: ItemizedInput): SplitShare[] {
   if (extra === 0) {
     extraShares = users.map(() => 0);
   } else if (itemsTotal === 0) {
-    extraShares = allocateCents(extra, users.map(() => 1), seed === undefined ? undefined : `${seed}:extra`);
+    extraShares = allocateCents(
+      extra,
+      users.map(() => 1),
+      seed === undefined ? undefined : `${seed}:extra`,
+    );
   } else {
     extraShares = allocateCents(
       extra,
@@ -147,7 +151,11 @@ export function computeItemizedPayers(input: ItemizedPaymentInput): PayerShare[]
   if (extra === 0) {
     extraShares = payers.map(() => 0);
   } else if (itemsTotal === 0) {
-    extraShares = allocateCents(extra, payers.map(() => 1), extraSeed);
+    extraShares = allocateCents(
+      extra,
+      payers.map(() => 1),
+      extraSeed,
+    );
   } else {
     extraShares = allocateCents(
       extra,

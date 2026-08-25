@@ -79,7 +79,9 @@ describe('the confirm dialog', () => {
     // eslint-disable-next-line no-console
     console.log('focus before enter:', (document.activeElement as HTMLElement)?.textContent);
     let sawWindowKeydown = false;
-    window.addEventListener('keydown', (e) => { if (e.key === 'Enter') sawWindowKeydown = true; });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sawWindowKeydown = true;
+    });
     await user.keyboard('{Enter}');
     // eslint-disable-next-line no-console
     console.log('window saw Enter keydown:', sawWindowKeydown);

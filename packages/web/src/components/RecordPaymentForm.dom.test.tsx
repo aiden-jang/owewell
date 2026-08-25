@@ -14,9 +14,15 @@ import { RecordPaymentForm } from './RecordPaymentForm';
  */
 
 const member = (userId: string, displayName: string): GroupMember => ({
-  userId, displayName, email: null, role: 'MEMBER',
-  joinedAt: '2026-08-01T00:00:00.000Z', isPlaceholder: false,
-  venmoHandle: null, cashappCashtag: null, paypalHandle: null,
+  userId,
+  displayName,
+  email: null,
+  role: 'MEMBER',
+  joinedAt: '2026-08-01T00:00:00.000Z',
+  isPlaceholder: false,
+  venmoHandle: null,
+  cashappCashtag: null,
+  paypalHandle: null,
 });
 
 const MEMBERS = [member('a', 'Alice'), member('b', 'Bob')];

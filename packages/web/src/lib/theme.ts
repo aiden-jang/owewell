@@ -59,8 +59,7 @@ function applyTheme(name: ThemeName): void {
    * choice rather than a guess, the device's opinion stops being relevant and a scoped tag would
    * keep overriding this one.
    */
-  const color =
-    getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim() || '#0b0b0d';
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--page-bg').trim() || '#0b0b0d';
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
     meta.setAttribute('content', color);
     meta.removeAttribute('media');

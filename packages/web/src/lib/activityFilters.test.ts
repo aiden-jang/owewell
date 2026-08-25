@@ -18,9 +18,20 @@ function exp(payerId: string, amountCents: number, category: string, splits: [st
   } as Expense;
 }
 
-const e1 = exp('A', 6000, 'food', [['A', 2000], ['B', 2000], ['C', 2000]]);
-const e2 = exp('B', 3000, 'transport', [['B', 1500], ['C', 1500]]);
-const e3 = exp('A', 9000, 'food', [['A', 3000], ['B', 3000], ['C', 3000]]);
+const e1 = exp('A', 6000, 'food', [
+  ['A', 2000],
+  ['B', 2000],
+  ['C', 2000],
+]);
+const e2 = exp('B', 3000, 'transport', [
+  ['B', 1500],
+  ['C', 1500],
+]);
+const e3 = exp('A', 9000, 'food', [
+  ['A', 3000],
+  ['B', 3000],
+  ['C', 3000],
+]);
 const all = [e1, e2, e3];
 
 describe('shareOf', () => {
