@@ -40,6 +40,40 @@ describe('the committed brand assets', () => {
   });
 
   /*
+   * The manifest's colours are unreachable from the palette: a splash screen is painted before any
+   * CSS runs, so they have to be literals in a JSON file. That makes them the one place a palette
+   * change cannot propagate to and nothing complains — the same shape as the favicon drift above.
+   *
+   * `background_color` is the splash and `theme_color` is the installed title bar. Neither can vary
+   * by colour scheme; the manifest spec has no media queries, which is why the scheme-aware
+   * `<meta name="theme-color">` pair in index.html exists alongside them and overrides the second
+   * one at runtime. So the manifest is pinned to SHIPPED_THEME, the same palette the icons are
+   * drawn against, and a dark-mode splash is a platform limit rather than a decision.
+   */
+  it('the manifest is painted in the palette the icons are', () => {
+    const manifest = JSON.parse(read('public/manifest.webmanifest')) as Record<string, string>;
+    expect(manifest.background_color?.toLowerCase()).toBe(palette.canvas!.toLowerCase());
+    expect(manifest.theme_color?.toLowerCase()).toBe(palette.canvas!.toLowerCase());
+  });
+
+  // The light half of the pair must agree with the manifest, or the splash and the first painted
+  // frame are different colours.
+  it('and index.html agrees with it', () => {
+    const html = read('index.html');
+    const light =
+      /<meta name="theme-color" content="(#[0-9a-fA-F]{6})" media="\(prefers-color-scheme: light\)"/.exec(
+        html,
+      )?.[1];
+    const dark =
+      /<meta name="theme-color" content="(#[0-9a-fA-F]{6})" media="\(prefers-color-scheme: dark\)"/.exec(
+        html,
+      )?.[1];
+    expect(light?.toLowerCase(), 'light theme-color meta').toBe(palette.canvas!.toLowerCase());
+    expect(dark?.toLowerCase(), 'dark theme-color meta').toBeTruthy();
+    expect(dark?.toLowerCase()).not.toBe(light?.toLowerCase());
+  });
+
+  /*
    * Named, not inferred. The old mark was these two stops, and a check that only asserts the new
    * colour is present would still pass on a file that had both — which is what a half-done swap
    * looks like.
