@@ -1,18 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  Money,
-  computeSplit,
-  dollarsToCents,
-  quickSplitSeed,
-  simplifyDebts,
-  type SplitMethod,
-  type Transfer,
-} from '@owewell/shared';
+import { Money, dollarsToCents, type SplitMethod, type Transfer } from '@owewell/shared';
 import { normalizeAmountInput } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 import { PublicHeader } from '../components/PublicHeader';
 import { serverValue } from '../lib/splitValues';
+import { computeQuickSplit } from '../lib/quickSplitResult';
 import {
   clearQuickSplitDraft,
   readQuickSplitDraft,
@@ -143,15 +136,14 @@ export function QuickSplitPage(): ReactNode {
     setDraftRestored(false);
   }
 
-  const named = people.filter((p) => p.name.trim());
-
-  // Default the payer/you to the first named person until they choose. Both must resolve to a
-  // person who's actually in the split (has a name), so a blank or since-removed selection can't
-  // make Save fail with "Pick who paid" while a payer radio still looks chosen.
-  const effectivePayerId =
-    payerId && named.some((p) => p.id === payerId) ? payerId : (named[0]?.id ?? '');
-  const effectiveYouId =
-    youId && named.some((p) => p.id === youId) ? youId : (named[0]?.id ?? people[0]?.id ?? '');
+  /*
+   * Everything the numbers say, worked out in one place.
+   *
+   * This was ninety lines of mutable accumulators inline in the render, and the only money math in
+   * the app with no tests behind it. See lib/quickSplitResult.ts.
+   */
+  const { named, effectivePayerId, effectiveYouId, transfers, grandTotal, yourShareCents, sharesByPerson } =
+    computeQuickSplit({ people, items, payerId, youId, splitPayers });
 
   function updatePerson(id: string, patch: Partial<Person>): void {
     setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -267,62 +259,6 @@ export function QuickSplitPage(): ReactNode {
       if (Number.isFinite(n)) sum += n;
     }
     return { text: `${sum} share${sum === 1 ? '' : 's'} total`, tone: 'text-muted' };
-  }
-
-  // Live combined breakdown: each person's total share summed across every valid item, or null
-  // until at least one item has a usable amount + valid per-person values.
-  let transfers: Transfer[] | null = null;
-  let grandTotal = 0;
-  // Your own share, which the transfer list can never show you: it only names people who owe
-  // somebody, so whoever paid is absent from it entirely and the one number they came for
-  // ("what did this actually cost me?") is left to be worked out by hand.
-  let yourShareCents: number | null = null;
-  /** Everyone's share, kept so the verdict below can read the shape of the split. */
-  let sharesByPerson: Record<string, number> | null = null;
-  try {
-    const owedAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
-    const paidAcc: Record<string, number> = Object.fromEntries(named.map((p) => [p.id, 0]));
-    let any = false;
-    // Counts only the items that will actually be sent, because the save path drops blank ones and
-    // the server seeds by position in what it receives. Using the raw array index here would put the
-    // odd cent somewhere else the moment any item above it was left empty.
-    let sentIndex = 0;
-    for (const item of items) {
-      const amountCents = item.amount.trim() ? dollarsToCents(item.amount) : 0;
-      if (amountCents <= 0 || named.length === 0) continue;
-      const seed = quickSplitSeed(sentIndex);
-      sentIndex += 1;
-      const shares = computeSplit(
-        item.method,
-        amountCents,
-        named.map((p) => {
-          const value = serverValue(item.method, item.values[p.id] ?? '');
-          return value === undefined ? { userId: p.id } : { userId: p.id, value };
-        }),
-        seed,
-      );
-      for (const s of shares) owedAcc[s.userId] = (owedAcc[s.userId] ?? 0) + s.owedCents;
-      // A per-item payer who isn't a named participant (blank or since-removed) falls back to the
-      // default payer, exactly as the save path does, so the preview can't diverge from the result.
-      const rawPayer = splitPayers && item.payerId ? item.payerId : effectivePayerId;
-      const itemPayer = paidAcc[rawPayer] !== undefined ? rawPayer : effectivePayerId;
-      paidAcc[itemPayer] = (paidAcc[itemPayer] ?? 0) + amountCents;
-      grandTotal += amountCents;
-      any = true;
-    }
-    // Net each person (paid across the items they covered, minus what they owe), then reduce to
-    // the fewest transfers — the same math the saved group will show.
-    transfers = any
-      ? simplifyDebts(named.map((p) => ({ userId: p.id, netCents: (paidAcc[p.id] ?? 0) - (owedAcc[p.id] ?? 0) })))
-      : null;
-    if (any) {
-      yourShareCents = owedAcc[effectiveYouId] ?? null;
-      sharesByPerson = owedAcc;
-    }
-  } catch {
-    transfers = null;
-    yourShareCents = null;
-    sharesByPerson = null;
   }
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
