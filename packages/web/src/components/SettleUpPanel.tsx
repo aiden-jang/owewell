@@ -210,18 +210,27 @@ export function SettleUpPanel({
                 * sentence as the row allowed. Pinning the two together and dropping the rest
                 * underneath is one layout that holds at every width, which is also why the sm:
                 * variants are gone: two arrangements meant two things to keep right.
+                *
+                * The amount is its own line above the names, not the tail of the sentence. Two real
+                * names ("Maria-Fernanda Villanueva pays Konstantinos Papadopoulos-Herrera") ran the
+                * sentence to five lines on a 375px phone and left $2,143.78 stranded at the bottom,
+                * furthest from the button that records it. Names may still wrap, since they are the
+                * part you read, but the figure you act on now sits level with Mark paid.
                 */}
+              {/* Above the row, not inside the name column: it labels the whole transfer, and from
+                  in there it pushed the avatar out of line with the amount. */}
+              {key === recommendedPaymentKey && suggested.length > 1 && (
+                <span className="block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
+              )}
               <span className="flex items-start justify-between gap-3 text-sm">
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="flex min-w-0 items-start gap-2.5">
                   <Avatar name={payment.fromName} size="sm" />
-                  <span>
-                    {key === recommendedPaymentKey && suggested.length > 1 && (
-                      <span className="mb-0.5 block text-2xs font-semibold uppercase tracking-[0.12em] text-faint">Start here</span>
-                    )}
-                    <span className="font-medium">{payment.fromName}</span>
-                    <span className="text-muted"> pays </span>
-                    <span className="font-medium">{payment.toName}</span>{' '}
-                    <span className="tnum font-medium">{fmt(payment.amountCents)}</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="tnum font-semibold">{fmt(payment.amountCents)}</span>
+                    <span className="text-xs text-muted">
+                      <span className="font-medium text-ink">{payment.fromName}</span> pays{' '}
+                      <span className="font-medium text-ink">{payment.toName}</span>
+                    </span>
                   </span>
                 </span>
                 <button

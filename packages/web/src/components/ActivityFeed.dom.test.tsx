@@ -104,6 +104,8 @@ beforeEach(() => {
   onUndoSettlement.mockReset().mockResolvedValue(undefined);
 });
 
+const rowFor = (text: RegExp) => screen.getByText(text).closest('li')!;
+
 describe('what the feed shows', () => {
   it('interleaves expenses and payments, newest first', async () => {
     await open();
@@ -114,10 +116,16 @@ describe('what the feed shows', () => {
     ]);
   });
 
-  it('credits whoever actually paid', async () => {
+  /*
+   * Asserted on the row's text rather than on one element, because the payer's name and the
+   * " paid · <date>" after it are separate spans: only the name may truncate, so that the date
+   * survives a name long enough to fill the row. The space between them has to be real text and not
+   * a flex gap, or this reads "Alicepaid" to a screen reader.
+   */
+  it('credits whoever actually paid, date included', async () => {
     await open();
-    expect(screen.getByText(/Alice paid/)).toBeInTheDocument();
-    expect(screen.getByText(/Bob paid/)).toBeInTheDocument();
+    expect(rowFor(/Dinner at Nopa/).textContent).toContain('Alice paid · ');
+    expect(rowFor(/Cab/).textContent).toContain('Bob paid · ');
   });
 
   /*
@@ -136,7 +144,7 @@ describe('what the feed shows', () => {
       ],
     });
     await open({ expenses: [twoPayers], settlements: [] });
-    expect(screen.getByText(/Alice & Bob paid/)).toBeInTheDocument();
+    expect(rowFor(/Split tab/).textContent).toContain('Alice & Bob paid');
   });
 
   it('flags a split that did not include everyone', async () => {
