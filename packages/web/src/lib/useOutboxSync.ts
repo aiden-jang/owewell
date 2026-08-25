@@ -27,7 +27,11 @@ function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
     case 'edit':
       return expensesApi.update(entry.groupId, entry.expenseId, entry.payload as CreateExpensePayload);
     case 'edit-itemized':
-      return expensesApi.updateItemized(entry.groupId, entry.expenseId, entry.payload as CreateItemizedPayload);
+      return expensesApi.updateItemized(
+        entry.groupId,
+        entry.expenseId,
+        entry.payload as CreateItemizedPayload,
+      );
     case 'delete':
       // A queued delete finding nothing to delete got what it wanted, so it leaves the queue rather
       // than being reported as a failure the person has to do something about.

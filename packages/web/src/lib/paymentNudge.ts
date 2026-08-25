@@ -23,10 +23,11 @@ export interface PaymentNudgeDetails {
  */
 export function paymentNudgeText(details: PaymentNudgeDetails, tone: NudgeTone, fmt: MoneyFormatter): string {
   const amount = fmt(details.amountCents);
-  const copy = tone === 'direct'
-    ? `${details.fromName}, you still owe ${details.toName} ${amount} from ${details.groupName}. Send it over when you get a chance.`
-    : tone === 'playful'
-      ? `Tiny money ghost 👻 ${details.fromName} → ${details.toName}: ${amount} for ${details.groupName}. Exorcise it when you get a chance.`
-      : `Hey ${details.fromName}, there's ${amount} left from ${details.groupName} whenever you get a sec. No rush.`;
+  const copy =
+    tone === 'direct'
+      ? `${details.fromName}, you still owe ${details.toName} ${amount} from ${details.groupName}. Send it over when you get a chance.`
+      : tone === 'playful'
+        ? `Tiny money ghost 👻 ${details.fromName} → ${details.toName}: ${amount} for ${details.groupName}. Exorcise it when you get a chance.`
+        : `Hey ${details.fromName}, there's ${amount} left from ${details.groupName} whenever you get a sec. No rush.`;
   return details.payUrl ? `${copy}\nPay here: ${details.payUrl}` : copy;
 }

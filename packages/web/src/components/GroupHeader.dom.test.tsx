@@ -14,9 +14,16 @@ import type { GroupSummary } from '../lib/groups';
  */
 
 const group = (id: string, name: string): GroupSummary => ({
-  id, name, createdAt: '2026-08-01T00:00:00.000Z', archived: false,
-  memberCount: 3, netCents: 0, totalUnsettledCents: 0, totalSpentCents: 0,
-  lastActivityAt: '2026-08-10T00:00:00.000Z', isOwner: true,
+  id,
+  name,
+  createdAt: '2026-08-01T00:00:00.000Z',
+  archived: false,
+  memberCount: 3,
+  netCents: 0,
+  totalUnsettledCents: 0,
+  totalSpentCents: 0,
+  lastActivityAt: '2026-08-10T00:00:00.000Z',
+  isOwner: true,
 });
 const GROUPS = [group('g1', 'Tahoe'), group('g2', 'Big Sur')];
 

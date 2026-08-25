@@ -25,14 +25,24 @@ const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../components/Toast', () => ({ useToast: () => toastStub }));
 
 const member = (userId: string, isPlaceholder = false): GroupMember => ({
-  userId, displayName: userId, email: isPlaceholder ? null : `${userId}@x.z`, role: 'MEMBER',
-  joinedAt: '2026-08-01T00:00:00.000Z', isPlaceholder,
-  venmoHandle: null, cashappCashtag: null, paypalHandle: null,
+  userId,
+  displayName: userId,
+  email: isPlaceholder ? null : `${userId}@x.z`,
+  role: 'MEMBER',
+  joinedAt: '2026-08-01T00:00:00.000Z',
+  isPlaceholder,
+  venmoHandle: null,
+  cashappCashtag: null,
+  paypalHandle: null,
 });
 
 const group = (members: GroupMember[], archived = false): GroupDetail => ({
-  id: 'g1', name: 'Tahoe', createdById: 'a', createdAt: '2026-08-01T00:00:00.000Z',
-  archived, members,
+  id: 'g1',
+  name: 'Tahoe',
+  createdById: 'a',
+  createdAt: '2026-08-01T00:00:00.000Z',
+  archived,
+  members,
 });
 
 /** Two real members, nobody outstanding: the link has done its job. */
@@ -140,7 +150,10 @@ describe('asking for it', () => {
     const { result } = await open(SETTLED_ROSTER);
     await act(() => result.current.reveal());
 
-    expect(share).toHaveBeenCalledWith({ title: 'Join "Tahoe" on owewell', url: 'http://localhost:3000/s/tok123' });
+    expect(share).toHaveBeenCalledWith({
+      title: 'Join "Tahoe" on owewell',
+      url: 'http://localhost:3000/s/tok123',
+    });
     expect(share.mock.calls[0]![0]).not.toHaveProperty('text');
   });
 

@@ -193,11 +193,22 @@ export function useGroupLedger(groupId: string): GroupLedger {
   const pendingEdits = useMemo(() => new Set(pending.filter(isEdit).map((e) => e.expenseId)), [pending]);
 
   return {
-    group, balances, expenses, settlements, suggested,
-    notFound, loadFailed,
-    pendingRows, pendingDeletes, pendingEdits,
-    load, refreshLedger, setGroup,
-    showSavedExpense, dropExpense, refreshPending,
+    group,
+    balances,
+    expenses,
+    settlements,
+    suggested,
+    notFound,
+    loadFailed,
+    pendingRows,
+    pendingDeletes,
+    pendingEdits,
+    load,
+    refreshLedger,
+    setGroup,
+    showSavedExpense,
+    dropExpense,
+    refreshPending,
     pendingCount: pending.length,
   };
 }

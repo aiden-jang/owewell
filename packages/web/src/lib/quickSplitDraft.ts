@@ -77,7 +77,8 @@ export function readQuickSplitDraft(now = Date.now()): QuickSplitDraft | null {
       now - parsed.savedAt > MAX_AGE ||
       !Array.isArray(parsed.people) ||
       !Array.isArray(parsed.items)
-    ) return null;
+    )
+      return null;
 
     const people = parsed.people.filter(isPerson);
     const items = parsed.items.filter(isItem);

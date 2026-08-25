@@ -296,8 +296,12 @@ describe('a queued payment', () => {
     enqueue(pay('p1'));
     enqueue(entry('c1', 200));
     enqueue({
-      clientId: 'd1', groupId: 'g1', kind: 'delete', expenseId: 'e9',
-      description: 'Gone', queuedAt: 300,
+      clientId: 'd1',
+      groupId: 'g1',
+      kind: 'delete',
+      expenseId: 'e9',
+      description: 'Gone',
+      queuedAt: 300,
     });
     const rows = queued().filter(isPendingRow);
     expect(rows).toHaveLength(2);

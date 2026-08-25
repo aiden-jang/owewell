@@ -167,14 +167,30 @@ export type AvatarPalette = readonly [Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, He
 
 /** L 0.74, chroma as high as each hue can hold. Vivid, for a near-black page. */
 export const AVATAR_DARK: AvatarPalette = [
-  '#ff7d80', '#f98924', '#cda600', '#8bbe36', '#00c990',
-  '#00c2ca', '#14b8ff', '#8ea4ff', '#c98afc', '#f37ac5',
+  '#ff7d80',
+  '#f98924',
+  '#cda600',
+  '#8bbe36',
+  '#00c990',
+  '#00c2ca',
+  '#14b8ff',
+  '#8ea4ff',
+  '#c98afc',
+  '#f37ac5',
 ];
 
 /** L 0.80, chroma capped at 0.10, so the discs read as identity and not as the loudest thing. */
 export const AVATAR_WARM: AvatarPalette = [
-  '#f8a4a3', '#f0ad7e', '#d5bc70', '#abca84', '#7dd2ad',
-  '#64d1d7', '#7bc8f6', '#a8baff', '#d0acf0', '#eca4ce',
+  '#f8a4a3',
+  '#f0ad7e',
+  '#d5bc70',
+  '#abca84',
+  '#7dd2ad',
+  '#64d1d7',
+  '#7bc8f6',
+  '#a8baff',
+  '#d0acf0',
+  '#eca4ce',
 ];
 
 export const AVATAR_THEMES = { dark: AVATAR_DARK, warm: AVATAR_WARM } as const;

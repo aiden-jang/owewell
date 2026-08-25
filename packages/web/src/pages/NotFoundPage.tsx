@@ -4,7 +4,11 @@ import { Icon } from '../components/Icon';
 
 export function NotFoundPage(): ReactNode {
   return (
-    <main id="main" tabIndex={-1} className="flex flex-1 flex-col items-center justify-center px-4 text-center">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="flex flex-1 flex-col items-center justify-center px-4 text-center"
+    >
       {/* Drawn, not 🧾. Colour emoji is a different picture on every platform, which is the reason
           the category chips gave theirs up — and this one was the largest in the app. */}
       <span aria-hidden className="grid h-14 w-14 place-items-center rounded-2xl bg-accent-soft text-accent">

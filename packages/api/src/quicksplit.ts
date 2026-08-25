@@ -4,7 +4,8 @@ import { createGroup } from './groups.js';
 import { addPlaceholderMember } from './members.js';
 import { createExpense } from './expenses.js';
 
-export type QuickSplitErrorCode = 'NO_PAYER' | 'TOO_MANY_YOU' | 'NO_ITEMS' | 'INVALID_SPLIT' | 'INVALID_PAYER';
+export type QuickSplitErrorCode =
+  'NO_PAYER' | 'TOO_MANY_YOU' | 'NO_ITEMS' | 'INVALID_SPLIT' | 'INVALID_PAYER';
 
 export class QuickSplitError extends Error {
   constructor(
@@ -75,7 +76,11 @@ export async function createQuickSplit(
       throw new QuickSplitError('INVALID_PAYER', 'An item payer is not one of the people on the split.');
     }
     try {
-      computeSplit(item.splitMethod, item.amountCents, itemParticipants(input.people, item, (i) => `p${i}`));
+      computeSplit(
+        item.splitMethod,
+        item.amountCents,
+        itemParticipants(input.people, item, (i) => `p${i}`),
+      );
     } catch (err) {
       throw new QuickSplitError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
     }
@@ -87,9 +92,7 @@ export async function createQuickSplit(
   // Resolve each person to a member id once, preserving order so item value arrays line up.
   const userIds: string[] = [];
   for (const p of input.people) {
-    const uid = p.isYou
-      ? personId
-      : (await addPlaceholderMember(db, personId, group.id, p.name)).userId;
+    const uid = p.isYou ? personId : (await addPlaceholderMember(db, personId, group.id, p.name)).userId;
     userIds.push(uid);
   }
   const defaultPayerId = userIds[input.people.findIndex((p) => p.isPayer)]!;

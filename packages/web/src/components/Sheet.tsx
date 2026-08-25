@@ -70,7 +70,9 @@ export function Sheet({
             <Icon name="x" size={18} />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">{children}</div>
+        <div className="overflow-y-auto px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          {children}
+        </div>
       </div>
     </div>
   );

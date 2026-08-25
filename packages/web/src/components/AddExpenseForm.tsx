@@ -42,13 +42,21 @@ function initialValues(editing: Expense | undefined): Record<string, string> {
   return out;
 }
 
-export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
+export function AddExpenseForm({
+  groupId,
+  members,
+  onCreated,
+  onQueued,
+  editing,
+  template,
+}: Props): ReactNode {
   const fmt = useMoney();
   const symbol = currencySymbol();
   const source = editing ?? template;
-  const sourcePayer = source && members.some((member) => member.userId === source.payerId)
-    ? source.payerId
-    : members[0]?.userId ?? '';
+  const sourcePayer =
+    source && members.some((member) => member.userId === source.payerId)
+      ? source.payerId
+      : (members[0]?.userId ?? '');
   const [description, setDescription] = useState(source?.description ?? '');
   const [amount, setAmount] = useState(source ? (source.amountCents / 100).toFixed(2) : '');
   const [payerId, setPayerId] = useState(sourcePayer);
@@ -57,14 +65,14 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
   );
   const [selected, setSelected] = useState<Set<string>>(
     source
-      ? new Set(source.splits.map((s) => s.userId).filter((id) => members.some((member) => member.userId === id)))
+      ? new Set(
+          source.splits.map((s) => s.userId).filter((id) => members.some((member) => member.userId === id)),
+        )
       : new Set(members.map((m) => m.userId)),
   );
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(source));
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
-  const [category, setCategory] = useState<ExpenseCategory>(
-    source?.category ?? DEFAULT_EXPENSE_CATEGORY,
-  );
+  const [category, setCategory] = useState<ExpenseCategory>(source?.category ?? DEFAULT_EXPENSE_CATEGORY);
   const [note, setNote] = useState(source?.note ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -147,9 +155,7 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
     if (method === 'EXACT') {
       const sum = participants.reduce((acc, p) => acc + (p.value ?? 0), 0);
       if (sum !== amountCents) {
-        setError(
-          `The amounts need to add up to ${fmt(amountCents)}. Right now they total ${fmt(sum)}.`,
-        );
+        setError(`The amounts need to add up to ${fmt(amountCents)}. Right now they total ${fmt(sum)}.`);
         return;
       }
     }
@@ -166,7 +172,18 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
     const clientId = crypto.randomUUID();
     // An edit says which version it was based on; a create has none to be based on.
     const versioned = editing ? { expectedVersion: editing.version } : {};
-    const payload = { description: trimmedDescription, amountCents, payerId, splitMethod: method, participants, category, date, note: note.trim(), clientId, ...versioned };
+    const payload = {
+      description: trimmedDescription,
+      amountCents,
+      payerId,
+      splitMethod: method,
+      participants,
+      category,
+      date,
+      note: note.trim(),
+      clientId,
+      ...versioned,
+    };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -236,7 +253,13 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
       } catch {
         target = 0;
       }
-      const tone = !ok ? 'text-neg' : target > 0 && sum === target ? 'text-pos' : sum > target ? 'text-neg' : 'text-muted';
+      const tone = !ok
+        ? 'text-neg'
+        : target > 0 && sum === target
+          ? 'text-pos'
+          : sum > target
+            ? 'text-neg'
+            : 'text-muted';
       splitHint = { text: `${fmt(sum)} of ${fmt(target)} assigned`, tone };
     } else if (method === 'PERCENT') {
       let sum = 0;
@@ -247,7 +270,13 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
         else ok = false;
       }
       const rounded = Math.round(sum * 100) / 100;
-      const tone = !ok ? 'text-neg' : rounded === 100 ? 'text-pos' : rounded > 100 ? 'text-neg' : 'text-muted';
+      const tone = !ok
+        ? 'text-neg'
+        : rounded === 100
+          ? 'text-pos'
+          : rounded > 100
+            ? 'text-neg'
+            : 'text-muted';
       splitHint = { text: `${rounded}% of 100%`, tone };
     } else {
       let sum = 0;
@@ -291,9 +320,7 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
     if (method !== 'EQUAL') return `Split ${ways}`;
     const low = Math.min(...shares.map((s) => s.owedCents));
     const high = Math.max(...shares.map((s) => s.owedCents));
-    const each = low === high
-      ? fmt(low)
-      : `${fmt(low)}–${fmt(high)}`;
+    const each = low === high ? fmt(low) : `${fmt(low)}–${fmt(high)}`;
     return `${each} each · split ${ways}`;
   })();
 
@@ -303,12 +330,12 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
       {/*
-        * The amount, at the size of the thing it is.
-        *
-        * It was a 16px box sharing a row with the payer dropdown, which is the wrong rank: everything
-        * else on this form is a detail about this number. First in the DOM too, so the sheet's focus
-        * trap opens the numeric keypad on a phone instead of the alphabet.
-        */}
+       * The amount, at the size of the thing it is.
+       *
+       * It was a 16px box sharing a row with the payer dropdown, which is the wrong rank: everything
+       * else on this form is a detail about this number. First in the DOM too, so the sheet's focus
+       * trap opens the numeric keypad on a phone instead of the alphabet.
+       */}
       <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
         <div className="flex items-baseline justify-center gap-1">
           <span aria-hidden className="font-display text-2xl font-semibold text-faint">
@@ -342,7 +369,12 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
         className={inputClass}
       />
       <div className="flex gap-2">
-        <select value={payerId} onChange={(e) => setPayerId(e.target.value)} className={inputClass} aria-label="Paid by">
+        <select
+          value={payerId}
+          onChange={(e) => setPayerId(e.target.value)}
+          className={inputClass}
+          aria-label="Paid by"
+        >
           {members.map((m) => (
             <option key={m.userId} value={m.userId}>
               {m.displayName} paid
@@ -370,7 +402,6 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
         aria-label="Note"
         className={inputClass}
       />
-
 
       <select
         value={method}
@@ -410,7 +441,9 @@ export function AddExpenseForm({ groupId, members, onCreated, onQueued, editing,
                   }
                   className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
                 />
-                <span className="w-14 shrink-0 text-sm text-muted">{method === 'EXACT' ? symbol : splitMethodUnit(method)}</span>
+                <span className="w-14 shrink-0 text-sm text-muted">
+                  {method === 'EXACT' ? symbol : splitMethodUnit(method)}
+                </span>
                 {/* Shares and percentages are abstractions; this is the dollars they come to. */}
                 <span className="tnum w-20 text-right text-sm text-muted">
                   {shareOf.has(m.userId) ? fmt(shareOf.get(m.userId)!) : ''}

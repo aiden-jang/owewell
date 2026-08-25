@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  type PaymentMethod,
-} from '@owewell/core';
+import { type PaymentMethod } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
@@ -30,11 +28,7 @@ import { useMoney } from '../lib/currency';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { ExpenseDetail } from '../components/ExpenseDetail';
-import {
-  drop as dropWrite,
-  enqueue as enqueueWrite,
-  isOffline,
-} from '../lib/outbox';
+import { drop as dropWrite, enqueue as enqueueWrite, isOffline } from '../lib/outbox';
 import { useGroupLedger } from '../lib/useGroupLedger';
 import { useInviteLink } from '../lib/useInviteLink';
 import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
@@ -46,17 +40,21 @@ function Shell({ children }: { children: ReactNode }): ReactNode {
     <div className="flex-1">
       <AppHeader />
       {/*
-        * ── Rhythm ──
-        *
-        * One gap between blocks, owned here. Each block used to carry its own top margin, so the
-        * distance between two of them was decided by whichever was written second: the hero said
-        * mt-5, the settle-up panel mt-6, the recap mt-4. Three gaps between peers in
-        * one column, which is what made the spacing read as uneven.
-        *
-        * Anything that needs a different distance from its neighbour is saying it belongs to that
-        * neighbour, and should be nested inside it rather than adjusting the gap.
-        */}
-      <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-2xl animate-rise flex-col gap-5 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
+       * ── Rhythm ──
+       *
+       * One gap between blocks, owned here. Each block used to carry its own top margin, so the
+       * distance between two of them was decided by whichever was written second: the hero said
+       * mt-5, the settle-up panel mt-6, the recap mt-4. Three gaps between peers in
+       * one column, which is what made the spacing read as uneven.
+       *
+       * Anything that needs a different distance from its neighbour is saying it belongs to that
+       * neighbour, and should be nested inside it rather than adjusting the gap.
+       */}
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-2xl animate-rise flex-col gap-5 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8"
+      >
         {children}
       </main>
     </div>
@@ -70,11 +68,23 @@ export function GroupDetailPage(): ReactNode {
   const toast = useToast();
   const confirm = useConfirm();
   const {
-    group, balances, expenses, settlements, suggested,
-    notFound, loadFailed,
-    pendingRows, pendingDeletes, pendingEdits,
-    load, refreshLedger, setGroup,
-    showSavedExpense, dropExpense, refreshPending, pendingCount,
+    group,
+    balances,
+    expenses,
+    settlements,
+    suggested,
+    notFound,
+    loadFailed,
+    pendingRows,
+    pendingDeletes,
+    pendingEdits,
+    load,
+    refreshLedger,
+    setGroup,
+    showSavedExpense,
+    dropExpense,
+    refreshPending,
+    pendingCount,
   } = useGroupLedger(id);
   const [settling, setSettling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -97,8 +107,7 @@ export function GroupDetailPage(): ReactNode {
    * one offline has to hide the floating button too, or it sits on top of the empty state's own
    * "add expense" and the screen offers the same action twice.
    */
-  const ledgerHasRows =
-    settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
+  const ledgerHasRows = settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
@@ -150,7 +159,9 @@ export function GroupDetailPage(): ReactNode {
       });
       const latest = await refreshLedger();
       if (latest) {
-        setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
+        setPaymentReceipt(
+          buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested),
+        );
       } else {
         // No refetch, so no receipt to render. The toast is the fallback confirmation, not the
         // normal one: see `finishManualPayment`.
@@ -177,7 +188,9 @@ export function GroupDetailPage(): ReactNode {
      */
     const latest = await refreshLedger();
     if (latest) {
-      setPaymentReceipt(buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested));
+      setPaymentReceipt(
+        buildSettlementReceipt(settlement, beforeBalances, latest.balances, latest.suggested),
+      );
     } else {
       toast.success('Payment logged.');
     }
@@ -251,7 +264,6 @@ export function GroupDetailPage(): ReactNode {
     }
   }
 
-
   async function toggleArchive(): Promise<void> {
     if (!group) return;
     try {
@@ -316,7 +328,7 @@ export function GroupDetailPage(): ReactNode {
   async function removeFromGroup(targetUserId: string, netCents: number): Promise<void> {
     const reSplit =
       netCents !== 0
-        ? "Their share of the expenses re-splits among everyone else (nothing gets marked as paid). "
+        ? 'Their share of the expenses re-splits among everyone else (nothing gets marked as paid). '
         : '';
     const ok = await confirm({
       title: 'Remove this person?',
@@ -412,25 +424,25 @@ export function GroupDetailPage(): ReactNode {
     return (
       <Shell>
         {/*
-          * The same blocks the loaded page has, at the heights it has them.
-          *
-          * This drew a label, a title, one 128px card and three floating rows, against a real page
-          * of back link, title, a 338px hero, a 310px settle-up panel and a divided feed panel. So
-          * the placeholder was shorter than the thing it stood in for and in a different order, and
-          * everything jumped on arrival — which is the one job a skeleton has.
-          *
-          * The Shell's own gap-5 does the spacing, as it does for the loaded page. No margins here.
-          */}
+         * The same blocks the loaded page has, at the heights it has them.
+         *
+         * This drew a label, a title, one 128px card and three floating rows, against a real page
+         * of back link, title, a 338px hero, a 310px settle-up panel and a divided feed panel. So
+         * the placeholder was shorter than the thing it stood in for and in a different order, and
+         * everything jumped on arrival — which is the one job a skeleton has.
+         *
+         * The Shell's own gap-5 does the spacing, as it does for the loaded page. No margins here.
+         */}
         <Skeleton className="h-5 w-24" />
         <Skeleton className="mt-3 h-9 w-40" />
         {/*
-          * Card-shaped, not slab-shaped.
-          *
-          * Matching the heights alone left two 300px rectangles of flat grey stacked on each other,
-          * which reads as a broken page rather than an arriving one. The bars inside are the pieces
-          * that actually land there: the member strip and the one big figure in the hero, a heading
-          * and two transfer rows in the settle-up panel.
-          */}
+         * Card-shaped, not slab-shaped.
+         *
+         * Matching the heights alone left two 300px rectangles of flat grey stacked on each other,
+         * which reads as a broken page rather than an arriving one. The bars inside are the pieces
+         * that actually land there: the member strip and the one big figure in the hero, a heading
+         * and two transfer rows in the settle-up panel.
+         */}
         <div className="surface flex h-[338px] flex-col items-center rounded-3xl p-6">
           <Skeleton className="h-9 w-32 rounded-full" />
           <Skeleton className="mt-5 h-4 w-28" />
@@ -469,10 +481,7 @@ export function GroupDetailPage(): ReactNode {
   // from the same array; here it decides whether there is a wrapped recap to offer at all.
   const groupSettled = suggested.length === 0;
   const hasActivity = expenses.length > 0 || settlements.length > 0;
-  const groupRecap = groupSettled && expenses.length > 0
-    ? buildGroupRecap(expenses, settlements)
-    : null;
-
+  const groupRecap = groupSettled && expenses.length > 0 ? buildGroupRecap(expenses, settlements) : null;
 
   function exportActivity(): void {
     if (!group) return;
@@ -508,14 +517,14 @@ export function GroupDetailPage(): ReactNode {
       />
 
       {/*
-        * Said above the balance, because the balance is the thing it makes wrong.
-        *
-        * The feed already marks individual rows as waiting, which only explains itself if you
-        * happen to be looking at that row — and it explains nothing about the figure at the top,
-        * which is computed by the server from writes that have not reached it. The dashboard has
-        * said this for every group since the outbox landed; the group page, which is the screen you
-        * are actually on when the signal goes, said nothing.
-        */}
+       * Said above the balance, because the balance is the thing it makes wrong.
+       *
+       * The feed already marks individual rows as waiting, which only explains itself if you
+       * happen to be looking at that row — and it explains nothing about the figure at the top,
+       * which is computed by the server from writes that have not reached it. The dashboard has
+       * said this for every group since the outbox landed; the group page, which is the screen you
+       * are actually on when the signal goes, said nothing.
+       */}
       {pendingCount > 0 && (
         <p
           role="status"
@@ -543,16 +552,15 @@ export function GroupDetailPage(): ReactNode {
         }}
       />
 
-
       {paymentReceipt && (
         <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
       )}
 
       {/*
-        * One block, two readings. While the group still needs people this is the obvious next
-        * thing to do and says so; once they are in, it is just the link, kept around because
-        * somebody always needs it again.
-        */}
+       * One block, two readings. While the group still needs people this is the obvious next
+       * thing to do and says so; once they are in, it is just the link, kept around because
+       * somebody always needs it again.
+       */}
       {invite.link && (
         <InviteLink
           link={invite.link}
@@ -577,12 +585,12 @@ export function GroupDetailPage(): ReactNode {
       )}
 
       {/*
-        * The same slot, before and after.
-        *
-        * A recap only exists once there is nothing left to transfer, so these two can never both
-        * apply. That makes one place on the page read "here is what to pay" and then "here is what
-        * it came to", instead of two places you have to know about.
-        */}
+       * The same slot, before and after.
+       *
+       * A recap only exists once there is nothing left to transfer, so these two can never both
+       * apply. That makes one place on the page read "here is what to pay" and then "here is what
+       * it came to", instead of two places you have to know about.
+       */}
       {suggested.length > 0 ? (
         <SettleUpPanel
           group={group}
@@ -620,32 +628,35 @@ export function GroupDetailPage(): ReactNode {
         onUndoSettlement={undoSettlement}
         onAddExpense={() => setSheetOpen(true)}
         breakdown={
-          <SpendBreakdown expenses={expenses} categoryFilter={categoryFilter} onSelectCategory={setCategoryFilter} />
+          <SpendBreakdown
+            expenses={expenses}
+            categoryFilter={categoryFilter}
+            onSelectCategory={setCategoryFilter}
+          />
         }
       />
 
-
       {/*
-        * The floating add button appears only once there's a list to add to; the empty state owns
-        * the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons.
-        *
-        * Bottom LEFT, which is not where a floating action button usually goes.
-        *
-        * Every action in this app is right-aligned — Mark paid, the row chevrons, the amounts, the
-        * sheet close buttons — so the bottom-right corner is the one place a fixed control is
-        * guaranteed to land on something. It did: on the shortest group page that still shows this
-        * button, at rest, it covered 30px of Mark paid and the payment-method select beside it.
-        * That was survivable while the page carried a budget card, a settle-by card and a monthly
-        * pulse to push the settle-up panel up the screen; with those gone it is the landing state.
-        *
-        * The cost is right-thumb reach, which on a 375px screen is a stretch rather than a problem.
-        * The alternative was making people scroll before they could press the primary button on the
-        * page, which is worse. The bottom padding on <main> still clears the end of the feed.
-        *
-        * It is not zero-overlap — nothing fixed over a scrolling page can be. What it now lands on
-        * is the row avatar, an aria-hidden disc with the same person's name in text beside it.
-        * Measured at the top, middle and end of the shortest page that renders this button.
-        */}
+       * The floating add button appears only once there's a list to add to; the empty state owns
+       * the first-expense CTA, so a brand-new group doesn't show two "add expense" buttons.
+       *
+       * Bottom LEFT, which is not where a floating action button usually goes.
+       *
+       * Every action in this app is right-aligned — Mark paid, the row chevrons, the amounts, the
+       * sheet close buttons — so the bottom-right corner is the one place a fixed control is
+       * guaranteed to land on something. It did: on the shortest group page that still shows this
+       * button, at rest, it covered 30px of Mark paid and the payment-method select beside it.
+       * That was survivable while the page carried a budget card, a settle-by card and a monthly
+       * pulse to push the settle-up panel up the screen; with those gone it is the landing state.
+       *
+       * The cost is right-thumb reach, which on a 375px screen is a stretch rather than a problem.
+       * The alternative was making people scroll before they could press the primary button on the
+       * page, which is worse. The bottom padding on <main> still clears the end of the feed.
+       *
+       * It is not zero-overlap — nothing fixed over a scrolling page can be. What it now lands on
+       * is the row avatar, an aria-hidden disc with the same person's name in text beside it.
+       * Measured at the top, middle and end of the shortest page that renders this button.
+       */}
       {ledgerHasRows && (
         <button
           type="button"
@@ -789,7 +800,9 @@ export function GroupDetailPage(): ReactNode {
       <Sheet
         open={!!duplicatingExpense}
         onClose={() => setDuplicatingExpense(null)}
-        title={duplicatingExpense?.splitMethod === 'ITEMIZED' ? 'Duplicate this receipt' : 'Duplicate this expense'}
+        title={
+          duplicatingExpense?.splitMethod === 'ITEMIZED' ? 'Duplicate this receipt' : 'Duplicate this expense'
+        }
       >
         {duplicatingExpense && (
           <>

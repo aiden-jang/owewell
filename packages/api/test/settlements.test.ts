@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import {
-  createGroup,
-} from '../src/groups.js';
-import {
-  addPlaceholderMember,
-} from '../src/members.js';
+import { createGroup } from '../src/groups.js';
+import { addPlaceholderMember } from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
 import {
   SettlementError,
@@ -145,8 +141,18 @@ describe('a payment that gets retried', () => {
     const alice = await seedPerson(db, 'Alice');
     const group = await createGroup(db, alice, 'Trip');
     const bob = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
-    await recordSettlement(db, alice, group.id, { fromUserId: bob, toUserId: alice, amountCents: 500, clientId: 'pay-a' });
-    await recordSettlement(db, alice, group.id, { fromUserId: bob, toUserId: alice, amountCents: 500, clientId: 'pay-b' });
+    await recordSettlement(db, alice, group.id, {
+      fromUserId: bob,
+      toUserId: alice,
+      amountCents: 500,
+      clientId: 'pay-a',
+    });
+    await recordSettlement(db, alice, group.id, {
+      fromUserId: bob,
+      toUserId: alice,
+      amountCents: 500,
+      clientId: 'pay-b',
+    });
     expect(await listSettlements(db, alice, group.id)).toHaveLength(2);
   });
 });

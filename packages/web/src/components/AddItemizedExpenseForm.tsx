@@ -34,20 +34,31 @@ interface Props {
   /** The expense saved but its photo did not. Worth saying out loud; not worth failing the save. */
 }
 
-export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, editing, template }: Props): ReactNode {
+export function AddItemizedExpenseForm({
+  groupId,
+  members,
+  onCreated,
+  onQueued,
+  editing,
+  template,
+}: Props): ReactNode {
   const fmt = useMoney();
   const source = editing ?? template;
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
-  const defaultPayer = source && members.some((member) => member.userId === source.payerId)
-    ? source.payerId
-    : members[0]?.userId ?? '';
+  const defaultPayer =
+    source && members.some((member) => member.userId === source.payerId)
+      ? source.payerId
+      : (members[0]?.userId ?? '');
   const initialItems = (): ItemDraft[] =>
     source?.items && source.items.length > 0
       ? source.items.map((it) => ({
           name: it.name,
           amount: centsToInput(it.amountCents),
-          participantIds: new Set(it.participantIds.filter((id) => members.some((member) => member.userId === id))),
-          payerId: it.payerId && members.some((member) => member.userId === it.payerId) ? it.payerId : defaultPayer,
+          participantIds: new Set(
+            it.participantIds.filter((id) => members.some((member) => member.userId === id)),
+          ),
+          payerId:
+            it.payerId && members.some((member) => member.userId === it.payerId) ? it.payerId : defaultPayer,
         }))
       : [{ name: '', amount: '', participantIds: allMemberIds(), payerId: defaultPayer }];
   const [description, setDescription] = useState(source?.description ?? '');
@@ -56,9 +67,7 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
   const [tip, setTip] = useState(source?.tipCents ? centsToInput(source.tipCents) : '');
   const [items, setItems] = useState<ItemDraft[]>(initialItems);
   const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
-  const [category, setCategory] = useState<ExpenseCategory>(
-    source?.category ?? DEFAULT_EXPENSE_CATEGORY,
-  );
+  const [category, setCategory] = useState<ExpenseCategory>(source?.category ?? DEFAULT_EXPENSE_CATEGORY);
   const [note, setNote] = useState(source?.note ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -148,7 +157,18 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
     const clientId = crypto.randomUUID();
     // An edit says which version it was based on; a create has none to be based on.
     const versioned = editing ? { expectedVersion: editing.version } : {};
-    const payload = { description: trimmedDescription, payerId, taxCents, tipCents, items: payloadItems, category, date, note: note.trim(), clientId, ...versioned };
+    const payload = {
+      description: trimmedDescription,
+      payerId,
+      taxCents,
+      tipCents,
+      items: payloadItems,
+      category,
+      date,
+      note: note.trim(),
+      clientId,
+      ...versioned,
+    };
     setSubmitting(true);
     try {
       let saved: Expense;
@@ -207,7 +227,12 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         required
         className={inputClass}
       />
-      <select value={payerId} onChange={(e) => setPayerId(e.target.value)} className={inputClass} aria-label="Paid by">
+      <select
+        value={payerId}
+        onChange={(e) => setPayerId(e.target.value)}
+        className={inputClass}
+        aria-label="Paid by"
+      >
         {members.map((m) => (
           <option key={m.userId} value={m.userId}>
             {m.displayName} paid
@@ -224,16 +249,14 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
       />
 
       {/*
-        * The total, where the other tab puts the amount.
-        *
-        * It was a small line at the very bottom, under tax and tip, so switching between "Split a
-        * total" and "Itemize a receipt" moved the money from the top of the sheet to the end of it.
-        * Computed rather than typed, but it is the number you check against the printed receipt.
-        */}
+       * The total, where the other tab puts the amount.
+       *
+       * It was a small line at the very bottom, under tax and tip, so switching between "Split a
+       * total" and "Itemize a receipt" moved the money from the top of the sheet to the end of it.
+       * Computed rather than typed, but it is the number you check against the printed receipt.
+       */}
       <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center">
-        <p className="tnum font-display text-4xl font-extrabold tracking-tight">
-          {fmt(grandTotalCents)}
-        </p>
+        <p className="tnum font-display text-4xl font-extrabold tracking-tight">{fmt(grandTotalCents)}</p>
         <p className="mt-1 text-sm text-muted">
           {grandTotalCents > 0 ? 'Items, tax and tip' : 'Add the line items below'}
         </p>
@@ -251,7 +274,6 @@ export function AddItemizedExpenseForm({ groupId, members, onCreated, onQueued, 
         aria-label="Note"
         className={inputClass}
       />
-
 
       <div className="space-y-3">
         {items.map((item, index) => (

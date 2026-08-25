@@ -24,7 +24,10 @@ vi.mock('./groups', () => ({
 }));
 vi.mock('./expenses', () => ({ expensesApi: { list: (...a: unknown[]) => listExpenses(...a) } }));
 vi.mock('./settlements', () => ({
-  settlementsApi: { list: (...a: unknown[]) => listSettlements(...a), suggested: (...a: unknown[]) => suggestedApi(...a) },
+  settlementsApi: {
+    list: (...a: unknown[]) => listSettlements(...a),
+    suggested: (...a: unknown[]) => suggestedApi(...a),
+  },
 }));
 
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
@@ -35,7 +38,9 @@ let fireRealtime: () => void = () => {};
 let fireDrained: () => void = () => {};
 let fireQueueChanged: () => void = () => {};
 vi.mock('../hooks/useGroupRealtime', () => ({
-  useGroupRealtime: (_id: string, onChange: () => void) => { fireRealtime = onChange; },
+  useGroupRealtime: (_id: string, onChange: () => void) => {
+    fireRealtime = onChange;
+  },
 }));
 vi.mock('./useOutboxSync', () => ({
   useOutboxSync: ({ onChanged, onQueueChanged }: { onChanged: () => void; onQueueChanged: () => void }) => {
@@ -51,9 +56,17 @@ vi.mock('./outbox', async (importOriginal) => ({
 }));
 
 const expense = (id: string, description: string): Expense => ({
-  id, description, amountCents: 1_000, payerId: 'a', splitMethod: 'EQUAL', category: 'food',
-  createdAt: '2026-08-10T12:00:00.000Z', date: '2026-08-10T12:00:00.000Z', note: null,
-  version: 1, splits: [{ userId: 'a', owedCents: 1_000 }],
+  id,
+  description,
+  amountCents: 1_000,
+  payerId: 'a',
+  splitMethod: 'EQUAL',
+  category: 'food',
+  createdAt: '2026-08-10T12:00:00.000Z',
+  date: '2026-08-10T12:00:00.000Z',
+  note: null,
+  version: 1,
+  splits: [{ userId: 'a', owedCents: 1_000 }],
 });
 
 const GROUP = { id: 'g1', name: 'Tahoe', members: [], archived: false } as never;
@@ -152,7 +165,9 @@ describe('refreshing after a write', () => {
     await waitFor(() => expect(result.current.group).toBe(GROUP));
 
     let out: unknown;
-    await act(async () => { out = await result.current.refreshLedger(); });
+    await act(async () => {
+      out = await result.current.refreshLedger();
+    });
     expect(out).toEqual({ balances: BALANCES, suggested: SUGGESTED });
   });
 
@@ -167,7 +182,9 @@ describe('refreshing after a write', () => {
 
     get.mockRejectedValue(new TypeError('Failed to fetch'));
     let out: unknown = 'unset';
-    await act(async () => { out = await result.current.refreshLedger(); });
+    await act(async () => {
+      out = await result.current.refreshLedger();
+    });
     expect(out).toBeNull();
     expect(toastStub.error).toHaveBeenCalledWith(expect.stringContaining('Could not load the latest'));
     expect(result.current.expenses).toHaveLength(1);
@@ -182,7 +199,9 @@ describe('changes that arrive from outside', () => {
     await waitFor(() => expect(result.current.group).toBe(GROUP));
     get.mockClear();
 
-    await act(async () => { fireRealtime(); });
+    await act(async () => {
+      fireRealtime();
+    });
     await waitFor(() => expect(get).toHaveBeenCalled());
   });
 
@@ -191,7 +210,9 @@ describe('changes that arrive from outside', () => {
     await waitFor(() => expect(result.current.group).toBe(GROUP));
     get.mockClear();
 
-    await act(async () => { fireDrained(); });
+    await act(async () => {
+      fireDrained();
+    });
     await waitFor(() => expect(get).toHaveBeenCalled());
   });
 });
@@ -225,9 +246,32 @@ describe('showing a change before the server confirms it', () => {
 });
 
 describe('writes still waiting to go out', () => {
-  const queuedCreate = { clientId: 'q1', groupId: 'g1', kind: 'expense', description: 'Ferry', amountCents: 900, queuedAt: 1, payload: {} } as unknown as QueuedWrite;
-  const queuedDelete = { clientId: 'q2', groupId: 'g1', kind: 'delete', description: 'Cab', expenseId: 'e1', queuedAt: 2 } as unknown as QueuedWrite;
-  const queuedEdit = { clientId: 'q3', groupId: 'g1', kind: 'edit', description: 'Dinner', expenseId: 'e9', queuedAt: 3, payload: {} } as unknown as QueuedWrite;
+  const queuedCreate = {
+    clientId: 'q1',
+    groupId: 'g1',
+    kind: 'expense',
+    description: 'Ferry',
+    amountCents: 900,
+    queuedAt: 1,
+    payload: {},
+  } as unknown as QueuedWrite;
+  const queuedDelete = {
+    clientId: 'q2',
+    groupId: 'g1',
+    kind: 'delete',
+    description: 'Cab',
+    expenseId: 'e1',
+    queuedAt: 2,
+  } as unknown as QueuedWrite;
+  const queuedEdit = {
+    clientId: 'q3',
+    groupId: 'g1',
+    kind: 'edit',
+    description: 'Dinner',
+    expenseId: 'e9',
+    queuedAt: 3,
+    payload: {},
+  } as unknown as QueuedWrite;
 
   it('sorts them into the three things a row can be', async () => {
     outbox = [queuedCreate, queuedDelete, queuedEdit];

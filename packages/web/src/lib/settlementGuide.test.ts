@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Balance } from './groups';
 import type { SuggestedPayment } from './settlements';
-import { bestSettlementStep, previewPaymentPlan, projectBalancesAfterPayment, settlementStepImpact } from './settlementGuide';
+import {
+  bestSettlementStep,
+  previewPaymentPlan,
+  projectBalancesAfterPayment,
+  settlementStepImpact,
+} from './settlementGuide';
 
 const balance = (userId: string, displayName: string, netCents: number): Balance => ({
   userId,
@@ -10,7 +15,13 @@ const balance = (userId: string, displayName: string, netCents: number): Balance
   paidCents: 0,
   owedCents: 0,
 });
-const payment = (fromUserId: string, fromName: string, toUserId: string, toName: string, amountCents: number): SuggestedPayment => ({
+const payment = (
+  fromUserId: string,
+  fromName: string,
+  toUserId: string,
+  toName: string,
+  amountCents: number,
+): SuggestedPayment => ({
   fromUserId,
   fromName,
   toUserId,
@@ -20,8 +31,17 @@ const payment = (fromUserId: string, fromName: string, toUserId: string, toName:
 
 describe('settlementStepImpact', () => {
   it('shows who becomes square and how much work remains', () => {
-    const balances = [balance('a', 'Alex', -8000), balance('b', 'Blair', -2000), balance('c', 'Casey', 5000), balance('d', 'Dev', 5000)];
-    const suggestions = [payment('a', 'Alex', 'c', 'Casey', 5000), payment('b', 'Blair', 'd', 'Dev', 2000), payment('a', 'Alex', 'd', 'Dev', 3000)];
+    const balances = [
+      balance('a', 'Alex', -8000),
+      balance('b', 'Blair', -2000),
+      balance('c', 'Casey', 5000),
+      balance('d', 'Dev', 5000),
+    ];
+    const suggestions = [
+      payment('a', 'Alex', 'c', 'Casey', 5000),
+      payment('b', 'Blair', 'd', 'Dev', 2000),
+      payment('a', 'Alex', 'd', 'Dev', 3000),
+    ];
     expect(settlementStepImpact(suggestions[1]!, balances, suggestions)).toMatchObject({
       clearedNames: ['Blair'],
       remainingCents: 8000,
@@ -53,13 +73,23 @@ describe('settlementStepImpact', () => {
 
 describe('bestSettlementStep', () => {
   it('prefers clearing two balances over merely moving more money', () => {
-    const balances = [balance('a', 'Alex', -8000), balance('b', 'Blair', -2000), balance('c', 'Casey', 8000), balance('d', 'Dev', 2000)];
+    const balances = [
+      balance('a', 'Alex', -8000),
+      balance('b', 'Blair', -2000),
+      balance('c', 'Casey', 8000),
+      balance('d', 'Dev', 2000),
+    ];
     const suggestions = [payment('a', 'Alex', 'c', 'Casey', 5000), payment('b', 'Blair', 'd', 'Dev', 2000)];
     expect(bestSettlementStep(balances, suggestions)?.payment.fromUserId).toBe('b');
   });
 
   it('uses the larger payment when two choices clear the same number of balances', () => {
-    const balances = [balance('a', 'Alex', -6000), balance('b', 'Blair', -4000), balance('c', 'Casey', 6000), balance('d', 'Dev', 4000)];
+    const balances = [
+      balance('a', 'Alex', -6000),
+      balance('b', 'Blair', -4000),
+      balance('c', 'Casey', 6000),
+      balance('d', 'Dev', 4000),
+    ];
     const suggestions = [payment('b', 'Blair', 'd', 'Dev', 4000), payment('a', 'Alex', 'c', 'Casey', 6000)];
     expect(bestSettlementStep(balances, suggestions)?.payment.amountCents).toBe(6000);
     expect(bestSettlementStep(balances, [])).toBeNull();
@@ -68,11 +98,7 @@ describe('bestSettlementStep', () => {
 
 describe('projectBalancesAfterPayment', () => {
   it('shows the payer and recipient balances after the suggested transfer', () => {
-    const balances = [
-      balance('a', 'Alex', -8000),
-      balance('b', 'Blair', 5000),
-      balance('c', 'Casey', 3000),
-    ];
+    const balances = [balance('a', 'Alex', -8000), balance('b', 'Blair', 5000), balance('c', 'Casey', 3000)];
 
     expect(projectBalancesAfterPayment(payment('a', 'Alex', 'b', 'Blair', 5000), balances)).toEqual([
       {
@@ -95,16 +121,12 @@ describe('projectBalancesAfterPayment', () => {
   it('does not mutate the source balances', () => {
     const balances = [balance('a', 'Alex', -2500), balance('b', 'Blair', 2500)];
     projectBalancesAfterPayment(payment('a', 'Alex', 'b', 'Blair', 2500), balances);
-    expect(balances.map(entry => entry.netCents)).toEqual([-2500, 2500]);
+    expect(balances.map((entry) => entry.netCents)).toEqual([-2500, 2500]);
   });
 });
 
 describe('previewPaymentPlan', () => {
-  const balances = [
-    balance('a', 'Alex', -8000),
-    balance('b', 'Blair', 5000),
-    balance('c', 'Casey', 3000),
-  ];
+  const balances = [balance('a', 'Alex', -8000), balance('b', 'Blair', 5000), balance('c', 'Casey', 3000)];
 
   it('rebuilds the remaining plan after a partial payment', () => {
     const preview = previewPaymentPlan(payment('a', 'Alex', 'b', 'Blair', 2500), balances)!;
@@ -117,11 +139,13 @@ describe('previewPaymentPlan', () => {
 
   it('warns when a payment reverses debt or travels the wrong way', () => {
     expect(previewPaymentPlan(payment('a', 'Alex', 'b', 'Blair', 6000), balances)?.direction).toBe('overpay');
-    expect(previewPaymentPlan(payment('b', 'Blair', 'a', 'Alex', 1000), balances)?.direction).toBe('wrong-way');
+    expect(previewPaymentPlan(payment('b', 'Blair', 'a', 'Alex', 1000), balances)?.direction).toBe(
+      'wrong-way',
+    );
   });
 
   it('does not mutate the live balances', () => {
     previewPaymentPlan(payment('a', 'Alex', 'b', 'Blair', 1000), balances);
-    expect(balances.map(entry => entry.netCents)).toEqual([-8000, 5000, 3000]);
+    expect(balances.map((entry) => entry.netCents)).toEqual([-8000, 5000, 3000]);
   });
 });

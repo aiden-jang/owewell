@@ -44,7 +44,9 @@ describe('quick-split', () => {
     });
     const group = await getGroup(db, alice, groupId);
     const sam = group.members.find((m) => m.userId !== alice)!.userId;
-    const net = Object.fromEntries((await getBalances(db, alice, groupId)).map((b) => [b.userId, b.netCents]));
+    const net = Object.fromEntries(
+      (await getBalances(db, alice, groupId)).map((b) => [b.userId, b.netCents]),
+    );
     expect(net[alice]).toBe(500); // paid 2000, owes 1500
     expect(net[sam]).toBe(-500); // paid 1000, owes 1500
   });

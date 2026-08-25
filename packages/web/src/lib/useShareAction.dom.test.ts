@@ -26,7 +26,11 @@ function stubNavigator(props: Record<string, unknown>): void {
 }
 
 const report = vi.fn();
-const payload = { title: 'Tahoe settle-up', text: 'Bob pays Alice $30.00', failureMessage: 'Could not share that.' };
+const payload = {
+  title: 'Tahoe settle-up',
+  text: 'Bob pays Alice $30.00',
+  failureMessage: 'Could not share that.',
+};
 
 beforeEach(() => {
   report.mockReset();
@@ -87,7 +91,10 @@ describe('without a share sheet', () => {
   });
 
   it('hands the caller its own words when the clipboard refuses', async () => {
-    stubNavigator({ share: undefined, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    stubNavigator({
+      share: undefined,
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    });
     const { result } = renderHook(() => useShareAction(report));
 
     await act(() => result.current.share(payload));
@@ -141,18 +148,28 @@ describe('what the button says afterwards', () => {
 describe('a second press while the first is in flight', () => {
   it('is ignored', async () => {
     let release: () => void = () => {};
-    const share = vi.fn().mockImplementation(() => new Promise<void>((resolve) => { release = resolve; }));
+    const share = vi.fn().mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
     stubNavigator({ share });
     const { result } = renderHook(() => useShareAction(report));
 
     let first: Promise<void>;
-    act(() => { first = result.current.share(payload); });
+    act(() => {
+      first = result.current.share(payload);
+    });
     await waitFor(() => expect(result.current.status).toBe('sharing'));
 
     await act(() => result.current.share(payload));
     expect(share).toHaveBeenCalledTimes(1);
 
-    await act(async () => { release(); await first; });
+    await act(async () => {
+      release();
+      await first;
+    });
     expect(result.current.status).toBe('shared');
   });
 });

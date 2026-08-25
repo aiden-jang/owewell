@@ -2,11 +2,17 @@ import type { Balance, GroupDetail, GroupMember, GroupSummary, SharedGroupSummar
 import { api } from './api';
 
 // Re-export the shared contract so components can keep importing group types from here.
-export type { Balance, GroupDetail, GroupMember, GroupRole, GroupSummary, SharedGroupSummary } from '@owewell/core';
+export type {
+  Balance,
+  GroupDetail,
+  GroupMember,
+  GroupRole,
+  GroupSummary,
+  SharedGroupSummary,
+} from '@owewell/core';
 
 export const groupsApi = {
-  list: (): Promise<GroupSummary[]> =>
-    api.get<{ groups: GroupSummary[] }>('/groups').then((r) => r.groups),
+  list: (): Promise<GroupSummary[]> => api.get<{ groups: GroupSummary[] }>('/groups').then((r) => r.groups),
   create: (name: string): Promise<GroupDetail> =>
     api.post<{ group: GroupDetail }>('/groups', { name }).then((r) => r.group),
   get: (id: string): Promise<GroupDetail> =>
@@ -44,8 +50,7 @@ export const groupsApi = {
   rotateShare: (id: string): Promise<string> =>
     api.post<{ token: string }>(`/groups/${id}/share/rotate`, {}).then((r) => r.token),
   // Owner-only. Removes the public view; sharing again mints a fresh token.
-  revokeShare: (id: string): Promise<void> =>
-    api.del(`/groups/${id}/share`).then(() => undefined),
+  revokeShare: (id: string): Promise<void> => api.del(`/groups/${id}/share`).then(() => undefined),
   // Public: fetch a group's read-only summary by share token (works signed-out).
   sharedSummary: (token: string): Promise<SharedGroupSummary> =>
     api.get<{ summary: SharedGroupSummary }>(`/shared/${token}`).then((r) => r.summary),

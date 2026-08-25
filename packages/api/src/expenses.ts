@@ -1,4 +1,10 @@
-import { changedFields, computeItemizedSplit, computeItemizedPayers, computeSplit, type SplitMethod } from '@owewell/shared';
+import {
+  changedFields,
+  computeItemizedSplit,
+  computeItemizedPayers,
+  computeSplit,
+  type SplitMethod,
+} from '@owewell/shared';
 import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
@@ -14,12 +20,7 @@ import {
 } from './db/schema.js';
 
 export type ExpenseErrorCode =
-  | 'INVALID_PAYER'
-  | 'INVALID_PARTICIPANT'
-  | 'INVALID_SPLIT'
-  | 'NOT_FOUND'
-  | 'LOCKED'
-  | 'CONFLICT';
+  'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT' | 'NOT_FOUND' | 'LOCKED' | 'CONFLICT';
 
 export class ExpenseError extends Error {
   constructor(
@@ -121,7 +122,11 @@ export interface MemberBalance {
  * has any settlement. (Mirrors the member-removal rule.)
  */
 async function assertUnlocked(db: DB, groupId: string): Promise<void> {
-  const settled = await db.select({ c: count() }).from(settlements).where(eq(settlements.groupId, groupId)).get();
+  const settled = await db
+    .select({ c: count() })
+    .from(settlements)
+    .where(eq(settlements.groupId, groupId))
+    .get();
   if ((settled?.c ?? 0) > 0) {
     throw new ExpenseError('LOCKED', "Can't change or delete an expense once a payment has been recorded.");
   }
@@ -165,7 +170,11 @@ async function findByClientId(db: DB, groupId: string, clientId: string): Promis
     version: all.version,
     splits: (
       await db
-        .select({ userId: expenseSplits.personId, owedCents: expenseSplits.owedCents, inputValue: expenseSplits.inputValue })
+        .select({
+          userId: expenseSplits.personId,
+          owedCents: expenseSplits.owedCents,
+          inputValue: expenseSplits.inputValue,
+        })
         .from(expenseSplits)
         .where(eq(expenseSplits.expenseId, all.id))
         .all()
@@ -174,19 +183,37 @@ async function findByClientId(db: DB, groupId: string, clientId: string): Promis
 }
 
 async function memberPersonIds(db: DB, groupId: string): Promise<Set<string>> {
-  const rows = await db.select({ personId: groupMembers.personId }).from(groupMembers).where(eq(groupMembers.groupId, groupId)).all();
+  const rows = await db
+    .select({ personId: groupMembers.personId })
+    .from(groupMembers)
+    .where(eq(groupMembers.groupId, groupId))
+    .all();
   return new Set(rows.map((r) => r.personId));
 }
 
 /** Drop an expense's line items + their per-item shares (used when replacing on edit). */
 async function clearItemizedRows(db: DB, expenseId: string): Promise<void> {
-  const itemRows = await db.select({ id: expenseItems.id }).from(expenseItems).where(eq(expenseItems.expenseId, expenseId)).all();
+  const itemRows = await db
+    .select({ id: expenseItems.id })
+    .from(expenseItems)
+    .where(eq(expenseItems.expenseId, expenseId))
+    .all();
   if (itemRows.length === 0) return;
-  await db.delete(expenseItemShares).where(inArray(expenseItemShares.itemId, itemRows.map((r) => r.id)));
+  await db.delete(expenseItemShares).where(
+    inArray(
+      expenseItemShares.itemId,
+      itemRows.map((r) => r.id),
+    ),
+  );
   await db.delete(expenseItems).where(eq(expenseItems.expenseId, expenseId));
 }
 
-export async function createExpense(db: DB, personId: string, groupId: string, input: CreateExpenseInput): Promise<ExpenseView> {
+export async function createExpense(
+  db: DB,
+  personId: string,
+  groupId: string,
+  input: CreateExpenseInput,
+): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
   /*
    * A retry of a write that already landed returns what landed.
@@ -204,7 +231,8 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
     if (already) return already;
   }
   const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
+  if (!members.has(input.payerId))
+    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   if (input.participants.some((p) => !members.has(p.userId))) {
     throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
   }
@@ -243,11 +271,29 @@ export async function createExpense(db: DB, personId: string, groupId: string, i
       inputValue: valueByPerson.get(s.userId) ?? null,
     })),
   );
-  return { id, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, version: 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return {
+    id,
+    description: input.description,
+    amountCents: input.amountCents,
+    payerId: input.payerId,
+    splitMethod: input.splitMethod,
+    category: input.category ?? null,
+    createdAt: new Date(),
+    date: input.date ?? new Date(),
+    note: input.note ?? null,
+    version: 1,
+    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
+  };
 }
 
 /** Replace a simple (non-itemized) expense in place, recomputing its splits. Preserves createdAt. */
-export async function updateExpense(db: DB, personId: string, groupId: string, expenseId: string, input: CreateExpenseInput): Promise<ExpenseView> {
+export async function updateExpense(
+  db: DB,
+  personId: string,
+  groupId: string,
+  expenseId: string,
+  input: CreateExpenseInput,
+): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
   await assertUnlocked(db, groupId);
   const existing = await db
@@ -265,7 +311,8 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
   if (!existing) throw new ExpenseError('NOT_FOUND', 'That expense no longer exists.');
   assertVersion(existing.version, input.expectedVersion);
   const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
+  if (!members.has(input.payerId))
+    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   if (input.participants.some((p) => !members.has(p.userId))) {
     throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
   }
@@ -332,10 +379,27 @@ export async function updateExpense(db: DB, personId: string, groupId: string, e
       inputValue: valueByPerson.get(s.userId) ?? null,
     })),
   );
-  return { id: expenseId, description: input.description, amountCents: input.amountCents, payerId: input.payerId, splitMethod: input.splitMethod, category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, version: existing.version + 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return {
+    id: expenseId,
+    description: input.description,
+    amountCents: input.amountCents,
+    payerId: input.payerId,
+    splitMethod: input.splitMethod,
+    category: input.category ?? null,
+    createdAt: existing.createdAt,
+    date: input.date ?? existing.createdAt,
+    note: input.note ?? null,
+    version: existing.version + 1,
+    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
+  };
 }
 
-export async function createItemizedExpense(db: DB, personId: string, groupId: string, input: CreateItemizedExpenseInput): Promise<ExpenseView> {
+export async function createItemizedExpense(
+  db: DB,
+  personId: string,
+  groupId: string,
+  input: CreateItemizedExpenseInput,
+): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
   // Same replay guard as the simple create. A receipt is the write most likely to be queued offline
   // and the most expensive to duplicate, since it is also the biggest.
@@ -344,7 +408,8 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
     if (already) return already;
   }
   const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
+  if (!members.has(input.payerId))
+    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   const everyone = new Set(input.items.flatMap((i) => i.participantIds));
   if ([...everyone].some((pid) => !members.has(pid))) {
     throw new ExpenseError('INVALID_PARTICIPANT', 'Everyone on an item must be a group member.');
@@ -369,7 +434,8 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }
 
-  const amountCents = input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
+  const amountCents =
+    input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
   await db.insert(expenses).values({
     id,
     groupId,
@@ -386,20 +452,49 @@ export async function createItemizedExpense(db: DB, personId: string, groupId: s
     clientId: input.clientId ?? null,
   });
   await db.insert(expenseSplits).values(
-    shares.map((s) => ({ id: crypto.randomUUID(), expenseId: id, personId: s.userId, owedCents: s.owedCents })),
+    shares.map((s) => ({
+      id: crypto.randomUUID(),
+      expenseId: id,
+      personId: s.userId,
+      owedCents: s.owedCents,
+    })),
   );
   for (const item of input.items) {
     const itemId = crypto.randomUUID();
-    await db.insert(expenseItems).values({ id: itemId, expenseId: id, name: item.name, amountCents: item.amountCents, payerId: item.payerId ?? null });
-    await db.insert(expenseItemShares).values(
-      item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
-    );
+    await db.insert(expenseItems).values({
+      id: itemId,
+      expenseId: id,
+      name: item.name,
+      amountCents: item.amountCents,
+      payerId: item.payerId ?? null,
+    });
+    await db
+      .insert(expenseItemShares)
+      .values(item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })));
   }
-  return { id, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: new Date(), date: input.date ?? new Date(), note: input.note ?? null, version: 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return {
+    id,
+    description: input.description,
+    amountCents,
+    payerId: input.payerId,
+    splitMethod: 'ITEMIZED',
+    category: input.category ?? null,
+    createdAt: new Date(),
+    date: input.date ?? new Date(),
+    note: input.note ?? null,
+    version: 1,
+    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
+  };
 }
 
 /** Replace an itemized expense in place: recompute item splits, swap items + shares. Preserves createdAt. */
-export async function updateItemizedExpense(db: DB, personId: string, groupId: string, expenseId: string, input: CreateItemizedExpenseInput): Promise<ExpenseView> {
+export async function updateItemizedExpense(
+  db: DB,
+  personId: string,
+  groupId: string,
+  expenseId: string,
+  input: CreateItemizedExpenseInput,
+): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
   await assertUnlocked(db, groupId);
   const existing = await db
@@ -410,7 +505,8 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
   if (!existing) throw new ExpenseError('NOT_FOUND', 'That expense no longer exists.');
   assertVersion(existing.version, input.expectedVersion);
   const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId)) throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
+  if (!members.has(input.payerId))
+    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
   const everyone = new Set(input.items.flatMap((i) => i.participantIds));
   if ([...everyone].some((pid) => !members.has(pid))) {
     throw new ExpenseError('INVALID_PARTICIPANT', 'Everyone on an item must be a group member.');
@@ -430,7 +526,8 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }
-  const amountCents = input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
+  const amountCents =
+    input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
 
   await db
     .update(expenses)
@@ -449,27 +546,62 @@ export async function updateItemizedExpense(db: DB, personId: string, groupId: s
     .where(eq(expenses.id, expenseId));
   await clearItemizedRows(db, expenseId);
   await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await db.insert(expenseSplits).values(
-    shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-  );
+  await db
+    .insert(expenseSplits)
+    .values(
+      shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
+    );
   for (const item of input.items) {
     const itemId = crypto.randomUUID();
-    await db.insert(expenseItems).values({ id: itemId, expenseId, name: item.name, amountCents: item.amountCents, payerId: item.payerId ?? null });
-    await db.insert(expenseItemShares).values(
-      item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
-    );
+    await db.insert(expenseItems).values({
+      id: itemId,
+      expenseId,
+      name: item.name,
+      amountCents: item.amountCents,
+      payerId: item.payerId ?? null,
+    });
+    await db
+      .insert(expenseItemShares)
+      .values(item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })));
   }
-  return { id: expenseId, description: input.description, amountCents, payerId: input.payerId, splitMethod: 'ITEMIZED', category: input.category ?? null, createdAt: existing.createdAt, date: input.date ?? existing.createdAt, note: input.note ?? null, version: existing.version + 1, splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })) };
+  return {
+    id: expenseId,
+    description: input.description,
+    amountCents,
+    payerId: input.payerId,
+    splitMethod: 'ITEMIZED',
+    category: input.category ?? null,
+    createdAt: existing.createdAt,
+    date: input.date ?? existing.createdAt,
+    note: input.note ?? null,
+    version: existing.version + 1,
+    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
+  };
 }
 
 export async function listExpenses(db: DB, personId: string, groupId: string): Promise<ExpenseView[]> {
   await requireMembership(db, personId, groupId);
-  const rows = await db.select().from(expenses).where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt))).orderBy(desc(expenses.createdAt)).all();
+  const rows = await db
+    .select()
+    .from(expenses)
+    .where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
+    .orderBy(desc(expenses.createdAt))
+    .all();
   if (rows.length === 0) return [];
   const splitRows = await db
-    .select({ expenseId: expenseSplits.expenseId, userId: expenseSplits.personId, owedCents: expenseSplits.owedCents, inputValue: expenseSplits.inputValue })
+    .select({
+      expenseId: expenseSplits.expenseId,
+      userId: expenseSplits.personId,
+      owedCents: expenseSplits.owedCents,
+      inputValue: expenseSplits.inputValue,
+    })
     .from(expenseSplits)
-    .where(inArray(expenseSplits.expenseId, rows.map((r) => r.id)))
+    .where(
+      inArray(
+        expenseSplits.expenseId,
+        rows.map((r) => r.id),
+      ),
+    )
     .all();
   const byExpense = new Map<string, { userId: string; owedCents: number; inputValue: number | null }[]>();
   for (const s of splitRows) {
@@ -485,11 +617,19 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
    * be a changelog nobody asked for in the middle of a list of dinners. The older rows are still there
    * for anything that ever wants them.
    */
-  const editByExpense = new Map<string, { at: Date; byId: string; fields: string[]; formerAmountCents: number }>();
+  const editByExpense = new Map<
+    string,
+    { at: Date; byId: string; fields: string[]; formerAmountCents: number }
+  >();
   const revisionRows = await db
     .select()
     .from(expenseRevisions)
-    .where(inArray(expenseRevisions.expenseId, rows.map((r) => r.id)))
+    .where(
+      inArray(
+        expenseRevisions.expenseId,
+        rows.map((r) => r.id),
+      ),
+    )
     .orderBy(desc(expenseRevisions.editedAt))
     .all();
   for (const revision of revisionRows) {
@@ -504,11 +644,20 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
   }
 
   // For itemized expenses, attach line items + their participants so the edit form can prefill.
-  const itemsByExpense = new Map<string, { name: string; amountCents: number; participantIds: string[]; payerId?: string }[]>();
+  const itemsByExpense = new Map<
+    string,
+    { name: string; amountCents: number; participantIds: string[]; payerId?: string }[]
+  >();
   const itemizedIds = rows.filter((r) => r.splitMethod === 'ITEMIZED').map((r) => r.id);
   if (itemizedIds.length > 0) {
     const itemRows = await db
-      .select({ id: expenseItems.id, expenseId: expenseItems.expenseId, name: expenseItems.name, amountCents: expenseItems.amountCents, payerId: expenseItems.payerId })
+      .select({
+        id: expenseItems.id,
+        expenseId: expenseItems.expenseId,
+        name: expenseItems.name,
+        amountCents: expenseItems.amountCents,
+        payerId: expenseItems.payerId,
+      })
       .from(expenseItems)
       .where(inArray(expenseItems.expenseId, itemizedIds))
       .all();
@@ -517,7 +666,12 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
       const shareRows = await db
         .select({ itemId: expenseItemShares.itemId, personId: expenseItemShares.personId })
         .from(expenseItemShares)
-        .where(inArray(expenseItemShares.itemId, itemRows.map((i) => i.id)))
+        .where(
+          inArray(
+            expenseItemShares.itemId,
+            itemRows.map((i) => i.id),
+          ),
+        )
         .all();
       for (const s of shareRows) {
         const l = sharesByItem.get(s.itemId) ?? [];
@@ -527,7 +681,12 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     }
     for (const it of itemRows) {
       const l = itemsByExpense.get(it.expenseId) ?? [];
-      l.push({ name: it.name, amountCents: it.amountCents, participantIds: sharesByItem.get(it.id) ?? [], ...(it.payerId ? { payerId: it.payerId } : {}) });
+      l.push({
+        name: it.name,
+        amountCents: it.amountCents,
+        participantIds: sharesByItem.get(it.id) ?? [],
+        ...(it.payerId ? { payerId: it.payerId } : {}),
+      });
       itemsByExpense.set(it.expenseId, l);
     }
   }
@@ -551,9 +710,18 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
   }));
 }
 
-export async function deleteExpense(db: DB, personId: string, groupId: string, expenseId: string): Promise<void> {
+export async function deleteExpense(
+  db: DB,
+  personId: string,
+  groupId: string,
+  expenseId: string,
+): Promise<void> {
   await requireMembership(db, personId, groupId);
-  const e = await db.select({ id: expenses.id }).from(expenses).where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt))).get();
+  const e = await db
+    .select({ id: expenses.id })
+    .from(expenses)
+    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
+    .get();
   if (!e) throw new ExpenseError('NOT_FOUND', 'That expense is already gone.');
   await assertUnlocked(db, groupId);
   await db.update(expenses).set({ deletedAt: new Date() }).where(eq(expenses.id, expenseId));
@@ -604,7 +772,11 @@ export async function getBalances(db: DB, personId: string, groupId: string): Pr
  *  responsible for deciding who may see it. */
 export async function computeBalances(db: DB, groupId: string): Promise<MemberBalance[]> {
   const members = await db
-    .select({ personId: groupMembers.personId, displayName: people.displayName, joinedAt: groupMembers.joinedAt })
+    .select({
+      personId: groupMembers.personId,
+      displayName: people.displayName,
+      joinedAt: groupMembers.joinedAt,
+    })
     .from(groupMembers)
     .innerJoin(people, eq(groupMembers.personId, people.id))
     .where(eq(groupMembers.groupId, groupId))
@@ -623,7 +795,18 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
     map.set(p, (map.get(p) ?? 0) + d);
   };
 
-  const exps = await db.select({ id: expenses.id, payerId: expenses.payerId, amountCents: expenses.amountCents, splitMethod: expenses.splitMethod, taxCents: expenses.taxCents, tipCents: expenses.tipCents }).from(expenses).where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt))).all();
+  const exps = await db
+    .select({
+      id: expenses.id,
+      payerId: expenses.payerId,
+      amountCents: expenses.amountCents,
+      splitMethod: expenses.splitMethod,
+      taxCents: expenses.taxCents,
+      tipCents: expenses.tipCents,
+    })
+    .from(expenses)
+    .where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
+    .all();
 
   // Credit side. Non-itemized expenses credit their single payer the full amount.
   // Itemized expenses credit each line item's payer (falling back to the expense
@@ -632,7 +815,11 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
   const itemsByExpense = new Map<string, { amountCents: number; payerId: string | null }[]>();
   if (itemizedIds.length) {
     const itemRows = await db
-      .select({ expenseId: expenseItems.expenseId, amountCents: expenseItems.amountCents, payerId: expenseItems.payerId })
+      .select({
+        expenseId: expenseItems.expenseId,
+        amountCents: expenseItems.amountCents,
+        payerId: expenseItems.payerId,
+      })
       .from(expenseItems)
       .where(inArray(expenseItems.expenseId, itemizedIds))
       .all();
@@ -661,14 +848,31 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
     }
   }
   if (exps.length) {
-    const splitRows = await db.select({ personId: expenseSplits.personId, owedCents: expenseSplits.owedCents }).from(expenseSplits).where(inArray(expenseSplits.expenseId, exps.map((e) => e.id))).all();
+    const splitRows = await db
+      .select({ personId: expenseSplits.personId, owedCents: expenseSplits.owedCents })
+      .from(expenseSplits)
+      .where(
+        inArray(
+          expenseSplits.expenseId,
+          exps.map((e) => e.id),
+        ),
+      )
+      .all();
     for (const s of splitRows) {
       bump(s.personId, -s.owedCents);
       add(owed, s.personId, s.owedCents);
     }
   }
 
-  const setl = await db.select({ fromPersonId: settlements.fromPersonId, toPersonId: settlements.toPersonId, amountCents: settlements.amountCents }).from(settlements).where(eq(settlements.groupId, groupId)).all();
+  const setl = await db
+    .select({
+      fromPersonId: settlements.fromPersonId,
+      toPersonId: settlements.toPersonId,
+      amountCents: settlements.amountCents,
+    })
+    .from(settlements)
+    .where(eq(settlements.groupId, groupId))
+    .all();
   for (const s of setl) {
     bump(s.fromPersonId, s.amountCents);
     bump(s.toPersonId, -s.amountCents);
@@ -696,8 +900,13 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
   const strays = [...net.keys()].filter((id) => !seated.has(id));
   if (strays.length) {
     const names = new Map(
-      (await db.select({ id: people.id, displayName: people.displayName }).from(people).where(inArray(people.id, strays)).all())
-        .map((p) => [p.id, p.displayName] as const),
+      (
+        await db
+          .select({ id: people.id, displayName: people.displayName })
+          .from(people)
+          .where(inArray(people.id, strays))
+          .all()
+      ).map((p) => [p.id, p.displayName] as const),
     );
     for (const id of strays) {
       rows.push({

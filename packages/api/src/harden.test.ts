@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applySecurityHeaders,
-  DEFAULT_CSP,
-  enforceSameOrigin,
-  securityHeaders,
-} from './harden.js';
+import { applySecurityHeaders, DEFAULT_CSP, enforceSameOrigin, securityHeaders } from './harden.js';
 
 describe('securityHeaders', () => {
   it('sets the core headers with the default CSP', () => {

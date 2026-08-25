@@ -46,7 +46,9 @@ describe('a person with money and no seat', () => {
 
     // Exactly the production state: the seat is gone, the split is not. Deleting the membership row
     // directly is the point — it is how the data actually ended up, whatever route it took.
-    await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, ghost)));
+    await db
+      .delete(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, ghost)));
 
     const balances = await getBalances(db, alice, groupId);
     expect(sum(balances.map((b) => b.netCents))).toBe(0);
@@ -67,7 +69,9 @@ describe('a person with money and no seat', () => {
       splitMethod: 'EQUAL',
       participants: [{ userId: alice }, { userId: ghost }],
     });
-    await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, ghost)));
+    await db
+      .delete(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.personId, ghost)));
 
     // This threw SettleError -> INTERNAL for every visit to the settlements page.
     const suggested = await getSuggestedPayments(db, alice, groupId);

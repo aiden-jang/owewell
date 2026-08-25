@@ -24,7 +24,8 @@ describe('paymentNudgeText', () => {
   });
 
   it('adds a payment deep link when the recipient has one configured', () => {
-    expect(paymentNudgeText({ ...details, payUrl: 'https://pay.example/blair' }, 'gentle', usd))
-      .toContain('\nPay here: https://pay.example/blair');
+    expect(paymentNudgeText({ ...details, payUrl: 'https://pay.example/blair' }, 'gentle', usd)).toContain(
+      '\nPay here: https://pay.example/blair',
+    );
   });
 });

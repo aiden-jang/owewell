@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { hasPayLink, payLinks, preferredMethod } from './payLinks';
 
-const payee = (over: Partial<{ venmoHandle: string; cashappCashtag: string; paypalHandle: string }> = {}) => ({
+const payee = (
+  over: Partial<{ venmoHandle: string; cashappCashtag: string; paypalHandle: string }> = {},
+) => ({
   venmoHandle: over.venmoHandle ?? null,
   cashappCashtag: over.cashappCashtag ?? null,
   paypalHandle: over.paypalHandle ?? null,
@@ -9,7 +11,11 @@ const payee = (over: Partial<{ venmoHandle: string; cashappCashtag: string; payp
 
 describe('payLinks', () => {
   it('builds one link per handle, with the amount in dollars', () => {
-    const links = payLinks(payee({ venmoHandle: 'alex', cashappCashtag: 'alexc', paypalHandle: 'alexp' }), 2450, 'owewell: Trip');
+    const links = payLinks(
+      payee({ venmoHandle: 'alex', cashappCashtag: 'alexc', paypalHandle: 'alexp' }),
+      2450,
+      'owewell: Trip',
+    );
     expect(links.map((l) => l.label)).toEqual(['Venmo', 'Cash App', 'PayPal']);
     expect(links.map((l) => l.method)).toEqual(['venmo', 'cashapp', 'paypal']);
 
@@ -37,7 +43,9 @@ describe('payLinks', () => {
 
 describe('preferredMethod', () => {
   it('prefers Venmo, then Cash App, then PayPal', () => {
-    expect(preferredMethod(payee({ venmoHandle: 'v', cashappCashtag: 'c', paypalHandle: 'p' }))).toBe('venmo');
+    expect(preferredMethod(payee({ venmoHandle: 'v', cashappCashtag: 'c', paypalHandle: 'p' }))).toBe(
+      'venmo',
+    );
     expect(preferredMethod(payee({ cashappCashtag: 'c', paypalHandle: 'p' }))).toBe('cashapp');
     expect(preferredMethod(payee({ paypalHandle: 'p' }))).toBe('paypal');
   });

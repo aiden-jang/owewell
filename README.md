@@ -13,7 +13,7 @@ dinner when nobody wants to do the math and everybody remembers it differently.
 
 ## What it does
 
-- **Groups with real members and placeholders.** Add people who have accounts *and* people who
+- **Groups with real members and placeholders.** Add people who have accounts _and_ people who
   don't (a placeholder is just a name). Rename or remove placeholders; promote them when they sign
   up. Balances recompute whenever membership changes.
 - **Two kinds of expense.** A simple "one payer, split evenly (or by weight)" expense, or an
@@ -61,14 +61,14 @@ doing that on floats would silently lose or invent money.
 actually matters (even splits, weighted splits, itemized allocation, remainder distribution,
 balance netting, and the minimum-cash-flow settlement suggestion) lives in a dependency-free
 package with unit tests. The Worker is a thin shell that reads D1, calls core, and writes back.
-The rules I most want to be *correct* are the ones furthest from the network.
+The rules I most want to be _correct_ are the ones furthest from the network.
 
 **D1 for the ledger, a Durable Object for the live feed.** The data is relational (groups have
 members, expenses have splits, settlements reference both), so D1 + Drizzle is the natural home.
 Realtime is a different shape (a short-lived fan-out to whoever's looking at one group), so each
 group gets a `GroupRoom` Durable Object that holds no durable state and just relays "something
-changed." Using the hibernation WebSocket API means an idle room costs nothing. *Why not push
-everything through the DO?* Because durable relational data in a single-threaded object is the
+changed." Using the hibernation WebSocket API means an idle room costs nothing. _Why not push
+everything through the DO?_ Because durable relational data in a single-threaded object is the
 wrong tool; D1 is the source of truth and the DO is a notification bus.
 
 **Accounts are optional.** Quick split works signed out because the highest-friction moment is the
@@ -128,7 +128,7 @@ not switched on.
 
 owewell's data lives in **Cloudflare D1** (SQLite), reached through **Drizzle** (schema in
 `api/src/db/schema.ts`: `people`, `groups`, `group_members`, `expenses`, `expense_splits`,
-`expense_items`, `expense_item_shares`, `settlements`, `invites`). Realtime state is *not* in D1;
+`expense_items`, `expense_item_shares`, `settlements`, `invites`). Realtime state is _not_ in D1;
 it stays in the in-memory `GroupRoom` Durable Object. Identity (users and sessions) is a separate
 D1 owned by the auth service, not this one.
 

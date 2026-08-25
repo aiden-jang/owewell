@@ -132,7 +132,12 @@ export async function listSettlements(db: DB, personId: string, groupId: string)
   }));
 }
 
-export async function deleteSettlement(db: DB, personId: string, groupId: string, settlementId: string): Promise<void> {
+export async function deleteSettlement(
+  db: DB,
+  personId: string,
+  groupId: string,
+  settlementId: string,
+): Promise<void> {
   await requireMembership(db, personId, groupId);
   const row = await db
     .select({ id: settlements.id })
@@ -144,7 +149,11 @@ export async function deleteSettlement(db: DB, personId: string, groupId: string
 }
 
 /** The shortest set of "who should pay whom" to clear the current balances. */
-export async function getSuggestedPayments(db: DB, personId: string, groupId: string): Promise<SuggestedPayment[]> {
+export async function getSuggestedPayments(
+  db: DB,
+  personId: string,
+  groupId: string,
+): Promise<SuggestedPayment[]> {
   const balances = await getBalances(db, personId, groupId);
   const nameByPerson = new Map(balances.map((b) => [b.userId, b.displayName]));
   const transfers = simplifyDebts(balances.map((b) => ({ userId: b.userId, netCents: b.netCents })));

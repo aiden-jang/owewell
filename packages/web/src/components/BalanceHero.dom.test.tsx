@@ -18,19 +18,47 @@ import type { Settlement, SuggestedPayment } from '../lib/settlements';
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('./Toast', () => ({ useToast: () => toastStub }));
 
-const balance = (userId: string, displayName: string, netCents: number): Balance =>
-  ({ userId, displayName, netCents, paidCents: 0, owedCents: 0 });
-
-const expense = (id: string, amountCents: number, date = '2026-08-10T12:00:00.000Z'): Expense => ({
-  id, description: 'Dinner', amountCents, payerId: 'a', splitMethod: 'EQUAL', category: 'food',
-  createdAt: date, date, note: null, version: 1,
-  splits: [{ userId: 'a', owedCents: 0 }, { userId: 'b', owedCents: 0 }],
+const balance = (userId: string, displayName: string, netCents: number): Balance => ({
+  userId,
+  displayName,
+  netCents,
+  paidCents: 0,
+  owedCents: 0,
 });
 
-const settlement = (id: string, amountCents: number): Settlement =>
-  ({ id, fromUserId: 'b', toUserId: 'a', amountCents, method: 'venmo', createdAt: '2026-08-11T12:00:00.000Z' });
+const expense = (id: string, amountCents: number, date = '2026-08-10T12:00:00.000Z'): Expense => ({
+  id,
+  description: 'Dinner',
+  amountCents,
+  payerId: 'a',
+  splitMethod: 'EQUAL',
+  category: 'food',
+  createdAt: date,
+  date,
+  note: null,
+  version: 1,
+  splits: [
+    { userId: 'a', owedCents: 0 },
+    { userId: 'b', owedCents: 0 },
+  ],
+});
 
-const OWED: SuggestedPayment = { fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 3_000 };
+const settlement = (id: string, amountCents: number): Settlement => ({
+  id,
+  fromUserId: 'b',
+  toUserId: 'a',
+  amountCents,
+  method: 'venmo',
+  createdAt: '2026-08-11T12:00:00.000Z',
+});
+
+const OWED: SuggestedPayment = {
+  fromUserId: 'b',
+  fromName: 'Bob',
+  toUserId: 'a',
+  toName: 'Alice',
+  amountCents: 3_000,
+};
 
 const onLogPayment = vi.fn();
 const onOpenMembers = vi.fn();
@@ -138,7 +166,10 @@ describe('the settle-up progress bar', () => {
   it('reads payments made against money still outstanding', async () => {
     // $30 paid back, $30 still owed: halfway.
     await open({ settlements: [settlement('s1', 3_000)] });
-    expect(screen.getByRole('progressbar', { name: 'Settle-up progress' })).toHaveAttribute('aria-valuenow', '50');
+    expect(screen.getByRole('progressbar', { name: 'Settle-up progress' })).toHaveAttribute(
+      'aria-valuenow',
+      '50',
+    );
   });
 
   /*
@@ -147,7 +178,10 @@ describe('the settle-up progress bar', () => {
    */
   it('does not run past the end when somebody overpays', async () => {
     await open({ ...ALL_CLEAR, settlements: [settlement('s1', 99_000)] });
-    expect(screen.getByRole('progressbar', { name: 'Settle-up progress' })).toHaveAttribute('aria-valuenow', '100');
+    expect(screen.getByRole('progressbar', { name: 'Settle-up progress' })).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    );
   });
 
   it('stays away before anything has been paid or owed', async () => {
