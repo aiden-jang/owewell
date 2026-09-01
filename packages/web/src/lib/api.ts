@@ -1,9 +1,11 @@
 // This app's own API is served from its own origin under the /owewell prefix (callers pass
 // bare paths like "/groups"). Locally the same prefix is proxied by Vite, so dev matches prod.
-export const API_BASE = import.meta.env.VITE_API_URL ?? '/owewell';
+// The server also answers on /owewell, the prefix this used to use, so an older cached bundle
+// keeps working. New requests all go here.
+export const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 // The shared auth service (login/logout/account pages + session). Sign-in and sign-out are
 // full-page redirects here; the browser never fetches it cross-origin (identity comes from
-// the same-origin /owewell/me instead). In dev the auth Worker serves the login UI + API from
+// the same-origin /api/me instead). In dev the auth Worker serves the login UI + API from
 // one origin on :34100 (wrangler dev), so default there rather than sending local logins to
 // production. VITE_AUTH_URL overrides either way.
 export const AUTH_ORIGIN =

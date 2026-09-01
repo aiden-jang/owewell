@@ -2,7 +2,7 @@
 
 **Status: live** at `owewell.aidenjang.com` (D1 provisioned, custom domain attached). For a new
 version use the **Routine redeploy** section below; the first-deploy steps are kept for reference.
-One Cloudflare Worker (`owewell-api`) serves both the API (`/owewell/*`, `/health`) and the web SPA
+One Cloudflare Worker (`owewell-api`) serves both the API (`/api/*`, `/health`) and the web SPA
 (static assets) on one origin, `owewell.aidenjang.com`. Its own D1 (`owewell`) holds
 groups/expenses/settlements and the local `people` registry. Free tier; you pay only for DNS.
 
@@ -60,7 +60,7 @@ pnpm exec wrangler deploy
 
 ```bash
 curl https://owewell.aidenjang.com/health          # {"status":"ok","service":"owewell"}
-curl https://owewell.aidenjang.com/owewell/me       # {"user":null} when signed out
+curl https://owewell.aidenjang.com/api/me           # {"user":null} when signed out
 ```
 
 Then open `https://owewell.aidenjang.com`, use the signed-out quick split, click "Log in"
@@ -79,4 +79,4 @@ cd packages/web && pnpm dev
 ```
 
 The `--var AUTH_URL:...` overrides the committed prod value; the web dev server proxies
-`/owewell` (including the realtime WebSocket) to `:34200`.
+`/api` (including the realtime WebSocket) to `:34200`. `/owewell`, the old prefix, is proxied too.

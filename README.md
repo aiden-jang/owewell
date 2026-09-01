@@ -38,14 +38,14 @@ dinner when nobody wants to do the math and everybody remembers it differently.
                 Browser (React + Vite + Tailwind)
         ┌──────────────────────────────────────────────┐
         │  Dashboard · GroupDetail · QuickSplit · /s/:token │
-        │        │ fetch /owewell/*        ▲ live        │
+        │        │ fetch /api/*            ▲ live        │
         │        │                          │            │
         │   localStorage outbox ────────────┘ WebSocket  │
         └────────┼──────────────────────────────────────┘
                  │
         ╔════════▼════════════════════════════════════════╗
         ║   owewell Worker (Hono)  — one origin            ║
-        ║   /owewell/*  API    +   app.all('*') → SPA      ║
+        ║   /api/*  API        +   app.all('*') → SPA      ║
         ║      │                                           ║
         ║      ├─ getSessionUser → accounts.aidenjang      ║  (optional; quick split is anonymous)
         ║      ├─ D1 + Drizzle   the ledger                ║
@@ -107,7 +107,7 @@ people. That's also why there's no confirm dialog on delete: a confirm asks you 
 you haven't made yet, and everybody clicks through it.
 
 **Accounts are optional.** Quick split works signed out because the highest-friction moment is the
-one where you just want a number at the table. `/owewell/me` returns `{ user: null }` rather than a
+one where you just want a number at the table. `/api/me` returns `{ user: null }` rather than a
 401, so the client treats signed-out as a normal state rather than an error.
 
 **Placeholders are first-class.** Real life is "me, my roommate, and the two friends who'll Venmo me
@@ -127,6 +127,20 @@ parses the stylesheet to assert the two copies agree — because a colour that f
 real defect, and defects deserve tests. The same tests hold the bars: 4.5:1 for body text, 3:1 for
 UI shapes, and the avatar discs capped so they don't out-saturate the money.
 
+### The API prefix
+
+The API is at `/api/*`. It used to be `/owewell/*`, which said the app's name twice on its own
+subdomain (`owewell.aidenjang.com/owewell/groups/…`). The prefix itself is load-bearing — one
+Worker serves both the SPA and the API from one origin, so something has to separate an API call
+from a page request — but the name was not.
+
+`/owewell` still answers. Both prefixes mount the same sub-app, so there is nothing to keep in
+step, and a browser holding a cached bundle or an old service worker keeps working. It can be
+deleted once nobody is on the old bundle.
+
+Share links never contained the prefix (they are `/s/:token`, a client route), so none of this
+touched a link anyone had been sent.
+
 ### Rate limiting, and why the share token is short
 
 The share link is the only way to read a group without signing in, so it is the only URL worth
@@ -134,8 +148,8 @@ guessing at. Two per-IP limits, both native Cloudflare bindings checked at the e
 
 | | limit | why |
 |---|---|---|
-| `API_LIMITER` | 240/min across `/owewell/*` | Registered **before** the auth guard, because every authenticated request costs a round trip to the shared auth service. A flood here is amplified into a flood there. |
-| `SHARE_LIMITER` | 20/min on `/owewell/shared/:token` | The guessing target. This is what lets the token be short. |
+| `API_LIMITER` | 240/min across `/api/*` | Registered **before** the auth guard, because every authenticated request costs a round trip to the shared auth service. A flood here is amplified into a flood there. |
+| `SHARE_LIMITER` | 20/min on `/api/shared/:token` | The guessing target. This is what lets the token be short. |
 
 Both degrade **open** when the binding is absent — local `wrangler dev` doesn't provide one, and a
 limiter that closed instead would make the app unusable offline in a way that looks like a bug in
@@ -172,7 +186,7 @@ never does. Old tokens still resolve, so links already in people's messages keep
 ```
 packages/
   api/       owewell Worker (Hono)
-    src/index.ts        routes: /owewell/* API + SPA fallback; harden() middleware
+    src/index.ts        routes: /api/* API (+ /owewell alias) + SPA fallback; harden()
     src/groups.ts       groups, membership, share tokens
     src/members.ts      real accounts + placeholders, seat claiming
     src/expenses.ts     simple + itemized expenses, revisions, balances
