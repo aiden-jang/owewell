@@ -1,10 +1,13 @@
 // Minimal service worker: enough for installability and an offline app shell.
-// owewell's API and realtime WebSocket both live under /owewell/*, so that
-// traffic always goes to the network and is never cached.
+// The API and the realtime WebSocket live under /api/* (and /owewell/*, the old prefix), so
+// that traffic always goes to the network and is never cached.
 
 // Bump this on any sw.js change: the activate handler deletes every cache that isn't the current
 // one, so a version bump purges stale entries (including dev's unhashed modules) on update.
-const CACHE = 'owewell-v2';
+// v3 for the /api move. A browser still running the v2 worker does not know to skip /api, and
+// its fallback branch caches unmatched GETs — so it could store a group's balances. Bumping the
+// name means this worker's activate handler deletes that cache outright on the way in.
+const CACHE = 'owewell-v3';
 const SHELL = '/';
 
 self.addEventListener('install', (event) => {
@@ -23,8 +26,8 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never cache API / realtime traffic.
-  if (url.pathname.startsWith('/owewell')) return;
+  // Never cache API / realtime traffic. Both prefixes: old clients still call /owewell.
+  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/owewell')) return;
   if (request.method !== 'GET') return;
 
   // Navigations: network first, and refresh the cached shell on the way through so an offline

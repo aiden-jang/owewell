@@ -49,6 +49,9 @@ import { notifyGroupChanged } from './realtime.js';
 type Vars = { person: Person };
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
+// Every API route hangs off this, mounted below at both prefixes.
+const api = new Hono<{ Bindings: Env; Variables: Vars }>();
+
 // Security headers on every response + a same-origin CSRF guard on state-changing requests.
 // The GET WebSocket upgrade for realtime is a safe method, so it passes through untouched.
 app.use('*', harden());
@@ -63,7 +66,7 @@ app.use('*', harden());
  * Applied to every API path, not just /me: every response here depends on who is asking, and a
  * response like that must never be stored.
  */
-app.use('/owewell/*', noStore());
+api.use('*', noStore());
 app.use('/health', noStore());
 
 // Per-IP ceiling across the whole API, registered BEFORE the auth guard on purpose: every
@@ -71,7 +74,7 @@ app.use('/health', noStore());
 // amplified into a flood there. Set far above real use — opening the app and clicking through
 // a few groups is a couple of dozen requests — so it only ever catches a script.
 // /health is deliberately outside this, or an uptime monitor could trip it.
-app.use('/owewell/*', perIp((env) => env.API_LIMITER, 'Slow down a moment, then try again.'));
+api.use('*', perIp((env) => env.API_LIMITER, 'Slow down a moment, then try again.'));
 
 function noStore() {
   return async (c: { header: (k: string, v: string) => void }, next: () => Promise<void>) => {
@@ -92,9 +95,13 @@ function noStore() {
  */
 const IMMUTABLE = /^\/(assets\/|fonts\/)/;
 
+const isApiPath = (path: string) => path.startsWith('/api') || path.startsWith('/owewell');
+
 app.use('*', async (c, next) => {
   await next();
-  if (c.req.path.startsWith('/owewell') || c.req.path === '/health') return;
+  // Both API prefixes, or this overwrites the no-store that noStore() just set and makes
+  // per-user responses cacheable again.
+  if (isApiPath(c.req.path) || c.req.path === '/health') return;
   c.header('Cache-Control', IMMUTABLE.test(c.req.path) ? 'public, max-age=31536000, immutable' : 'no-cache');
 });
 
@@ -103,7 +110,7 @@ app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
 // Who is the caller? Same-origin endpoint the web app polls so the browser never has to
 // talk to the auth service cross-origin. Returns { user: null } when signed out (not 401),
 // since owewell is usable signed-out (quick split). Registered before the auth guard below.
-app.get('/owewell/me', async (c) => {
+api.get('/me', async (c) => {
   const user = await getSessionUser(c.req.raw, c.env.AUTH_URL);
   if (!user) return c.json({ user: null });
   const person = await getOrCreatePerson(createDb(c.env), user);
@@ -123,8 +130,8 @@ app.get('/owewell/me', async (c) => {
 //   2. A tighter per-IP limit than the rest of the API (see the middleware above this route).
 //      This is what allows the token to be short: without it the token's length is the entire
 //      defence.
-app.get(
-  '/owewell/shared/:token',
+api.get(
+  '/shared/:token',
   perIp((env) => env.SHARE_LIMITER, 'Too many attempts. Try again shortly.'),
   async (c) => {
     const token = c.req.param('token');
@@ -138,14 +145,14 @@ app.get(
 
 // Everything else under /owewell requires a signed-in user (validated against the shared
 // auth service), resolved to this app's local person.
-app.use('/owewell/*', async (c, next) => {
+api.use('*', async (c, next) => {
   const user = await getSessionUser(c.req.raw, c.env.AUTH_URL);
   if (!user) return c.json({ error: 'UNAUTHENTICATED' }, 401);
   c.set('person', await getOrCreatePerson(createDb(c.env), user));
   await next();
 });
 
-app.post('/owewell/groups', async (c) => {
+api.post('/groups', async (c) => {
   const parsed = z
     .object({ name: z.string().trim().min(1).max(80) })
     .safeParse(await c.req.json().catch(() => null));
@@ -154,15 +161,15 @@ app.post('/owewell/groups', async (c) => {
   return c.json({ group }, 201);
 });
 
-app.get('/owewell/groups', async (c) => {
+api.get('/groups', async (c) => {
   return c.json({ groups: await listGroups(createDb(c.env), c.get('person').id) });
 });
 
-app.get('/owewell/groups/:id', async (c) => {
+api.get('/groups/:id', async (c) => {
   return c.json({ group: await getGroup(createDb(c.env), c.get('person').id, c.req.param('id')) });
 });
 
-app.patch('/owewell/groups/:id', async (c) => {
+api.patch('/groups/:id', async (c) => {
   const parsed = z
     .object({ name: z.string().trim().min(1).max(80) })
     .safeParse(await c.req.json().catch(() => null));
@@ -172,7 +179,7 @@ app.patch('/owewell/groups/:id', async (c) => {
   return c.json({ group });
 });
 
-app.post('/owewell/groups/:id/archive', async (c) => {
+api.post('/groups/:id/archive', async (c) => {
   const parsed = z.object({ archived: z.boolean() }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const group = await setGroupArchived(
@@ -185,25 +192,25 @@ app.post('/owewell/groups/:id/archive', async (c) => {
   return c.json({ group });
 });
 
-app.delete('/owewell/groups/:id', async (c) => {
+api.delete('/groups/:id', async (c) => {
   await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
   return c.json({ ok: true });
 });
 
 // Create (or fetch) the group's public read-only share token. Members only.
-app.post('/owewell/groups/:id/share', async (c) => {
+api.post('/groups/:id/share', async (c) => {
   const token = await getOrCreateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
   return c.json({ token });
 });
 
 // Mint a replacement, killing every copy of the old link. Owner-only.
-app.post('/owewell/groups/:id/share/rotate', async (c) => {
+api.post('/groups/:id/share/rotate', async (c) => {
   const token = await rotateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
   return c.json({ token });
 });
 
 // Remove the public view entirely. Owner-only.
-app.delete('/owewell/groups/:id/share', async (c) => {
+api.delete('/groups/:id/share', async (c) => {
   await revokeShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
   return c.json({ ok: true });
 });
@@ -211,7 +218,7 @@ app.delete('/owewell/groups/:id/share', async (c) => {
 // Add a member: a name-only placeholder seat. Real people join by claiming their seat via the
 // group's share link (see /owewell/shared/:token/claim); there's no separate invite flow.
 const addMemberBody = z.object({ name: z.string().trim().min(1).max(80) });
-app.post('/owewell/groups/:id/members', async (c) => {
+api.post('/groups/:id/members', async (c) => {
   const parsed = addMemberBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const member = await addPlaceholderMember(
@@ -224,7 +231,7 @@ app.post('/owewell/groups/:id/members', async (c) => {
   return c.json({ member }, 201);
 });
 
-app.patch('/owewell/groups/:id/members/:personId', async (c) => {
+api.patch('/groups/:id/members/:personId', async (c) => {
   const parsed = z
     .object({ name: z.string().trim().min(1).max(80) })
     .safeParse(await c.req.json().catch(() => null));
@@ -240,7 +247,7 @@ app.patch('/owewell/groups/:id/members/:personId', async (c) => {
   return c.json({ member });
 });
 
-app.patch('/owewell/groups/:id/members/:personId/payment', async (c) => {
+api.patch('/groups/:id/members/:personId/payment', async (c) => {
   const handle = z.string().trim().max(64).optional();
   const parsed = z
     .object({ venmoHandle: handle, cashappCashtag: handle, paypalHandle: handle })
@@ -257,17 +264,17 @@ app.patch('/owewell/groups/:id/members/:personId/payment', async (c) => {
   return c.json({ member });
 });
 
-app.delete('/owewell/groups/:id/members/:personId', async (c) => {
+api.delete('/groups/:id/members/:personId', async (c) => {
   await removeMember(createDb(c.env), c.get('person').id, c.req.param('id'), c.req.param('personId'));
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ ok: true });
 });
 
-app.get('/owewell/groups/:id/balances', async (c) => {
+api.get('/groups/:id/balances', async (c) => {
   return c.json({ balances: await getBalances(createDb(c.env), c.get('person').id, c.req.param('id')) });
 });
 
-app.get('/owewell/groups/:id/expenses', async (c) => {
+api.get('/groups/:id/expenses', async (c) => {
   return c.json({ expenses: await listExpenses(createDb(c.env), c.get('person').id, c.req.param('id')) });
 });
 
@@ -289,7 +296,7 @@ const createExpenseBody = z.object({
   expectedVersion: z.number().int().positive().optional(),
   date: isoDate.optional(),
 });
-app.post('/owewell/groups/:id/expenses', async (c) => {
+api.post('/groups/:id/expenses', async (c) => {
   const parsed = createExpenseBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const { date, participants, ...rest } = parsed.data;
@@ -326,7 +333,7 @@ const itemizedBody = z.object({
   expectedVersion: z.number().int().positive().optional(),
   date: isoDate.optional(),
 });
-app.post('/owewell/groups/:id/expenses/itemized', async (c) => {
+api.post('/groups/:id/expenses/itemized', async (c) => {
   const parsed = itemizedBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const { date, ...rest } = parsed.data;
@@ -338,7 +345,7 @@ app.post('/owewell/groups/:id/expenses/itemized', async (c) => {
   return c.json({ expense }, 201);
 });
 
-app.put('/owewell/groups/:id/expenses/:expenseId', async (c) => {
+api.put('/groups/:id/expenses/:expenseId', async (c) => {
   const parsed = createExpenseBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const { date, participants, ...rest } = parsed.data;
@@ -359,7 +366,7 @@ app.put('/owewell/groups/:id/expenses/:expenseId', async (c) => {
   return c.json({ expense });
 });
 
-app.put('/owewell/groups/:id/expenses/:expenseId/itemized', async (c) => {
+api.put('/groups/:id/expenses/:expenseId/itemized', async (c) => {
   const parsed = itemizedBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const { date, ...rest } = parsed.data;
@@ -377,7 +384,7 @@ app.put('/owewell/groups/:id/expenses/:expenseId/itemized', async (c) => {
   return c.json({ expense });
 });
 
-app.post('/owewell/groups/:id/expenses/:expenseId/restore', async (c) => {
+api.post('/groups/:id/expenses/:expenseId/restore', async (c) => {
   const expense = await restoreExpense(
     createDb(c.env),
     c.get('person').id,
@@ -388,19 +395,19 @@ app.post('/owewell/groups/:id/expenses/:expenseId/restore', async (c) => {
   return c.json({ expense });
 });
 
-app.delete('/owewell/groups/:id/expenses/:expenseId', async (c) => {
+api.delete('/groups/:id/expenses/:expenseId', async (c) => {
   await deleteExpense(createDb(c.env), c.get('person').id, c.req.param('id'), c.req.param('expenseId'));
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ ok: true });
 });
 
-app.get('/owewell/groups/:id/settlements', async (c) => {
+api.get('/groups/:id/settlements', async (c) => {
   return c.json({
     settlements: await listSettlements(createDb(c.env), c.get('person').id, c.req.param('id')),
   });
 });
 
-app.get('/owewell/groups/:id/settlements/suggested', async (c) => {
+api.get('/groups/:id/settlements/suggested', async (c) => {
   return c.json({
     suggested: await getSuggestedPayments(createDb(c.env), c.get('person').id, c.req.param('id')),
   });
@@ -413,7 +420,7 @@ const recordSettlementBody = z.object({
   method: z.enum(PAYMENT_METHODS).optional(),
   clientId: z.string().min(8).max(64).optional(),
 });
-app.post('/owewell/groups/:id/settlements', async (c) => {
+api.post('/groups/:id/settlements', async (c) => {
   const parsed = recordSettlementBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const settlement = await recordSettlement(createDb(c.env), c.get('person').id, c.req.param('id'), {
@@ -427,7 +434,7 @@ app.post('/owewell/groups/:id/settlements', async (c) => {
   return c.json({ settlement }, 201);
 });
 
-app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
+api.delete('/groups/:id/settlements/:settlementId', async (c) => {
   await deleteSettlement(createDb(c.env), c.get('person').id, c.req.param('id'), c.req.param('settlementId'));
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ ok: true });
@@ -435,7 +442,7 @@ app.delete('/owewell/groups/:id/settlements/:settlementId', async (c) => {
 
 // Claim an unclaimed seat (placeholder) via a share token. Requires sign-in (auth guard above);
 // the token authorizes the claim. The caller merges into the placeholder and becomes a member.
-app.post('/owewell/shared/:token/claim', async (c) => {
+api.post('/shared/:token/claim', async (c) => {
   const parsed = z.object({ personId: z.string().min(1) }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const result = await claimPlaceholder(
@@ -474,7 +481,7 @@ const quickSplitBody = z.object({
     .min(1)
     .max(50),
 });
-app.post('/owewell/quick-splits', async (c) => {
+api.post('/quick-splits', async (c) => {
   const parsed = quickSplitBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const result = await createQuickSplit(createDb(c.env), c.get('person').id, {
@@ -496,7 +503,7 @@ app.post('/owewell/quick-splits', async (c) => {
 
 // Live updates: authenticated members upgrade to a WebSocket bound to this group's room.
 // Auth + membership are checked here; the Durable Object only ever sees authorized sockets.
-app.get('/owewell/groups/:id/ws', async (c) => {
+api.get('/groups/:id/ws', async (c) => {
   if (c.req.header('Upgrade') !== 'websocket') return c.json({ error: 'ExpectedWebSocket' }, 426);
   const groupId = c.req.param('id');
   await requireMembership(createDb(c.env), c.get('person').id, groupId);
@@ -538,6 +545,12 @@ app.onError((err, c) => {
 
 // Everything that isn't the API (/health, /owewell/*) is the web SPA: real files, or the
 // index.html fallback for client routes. run_worker_first routes it all through here.
+// The API lives at /api. `/owewell` is the old prefix, kept working because a browser holding a
+// cached service worker or an old bundle is still calling it. Both point at the same routes, so
+// there is nothing to keep in step. Safe to delete once no client is on the old bundle.
+app.route('/api', api);
+app.route('/owewell', api);
+
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export { GroupRoom } from './realtime.js';

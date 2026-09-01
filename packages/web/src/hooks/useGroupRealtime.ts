@@ -2,9 +2,8 @@ import { useEffect, useRef } from 'react';
 import { API_BASE } from '../lib/api';
 
 /**
- * WebSocket URL for a group's realtime room. Each group has its own endpoint under the API
- * prefix (`/owewell/groups/:id/ws`), backed by a per-group Durable Object. In dev this is
- * proxied by Vite; in prod it's same-origin, so we just swap http(s) for ws(s).
+ * WebSocket URL for a group's realtime room, one Durable Object per group. Built from API_BASE,
+ * so it follows the API prefix automatically. Same origin in production; Vite proxies it in dev.
  */
 function realtimeUrl(groupId: string): string {
   const base = new URL(`${API_BASE}/groups/${groupId}/ws`, window.location.origin);
