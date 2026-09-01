@@ -49,7 +49,7 @@ afterEach(() => {
 describe('the address it dials', () => {
   it('is the group’s own room, on the websocket scheme', () => {
     renderHook(() => useGroupRealtime('g1', vi.fn()));
-    expect(latest().url).toBe('ws://localhost:3000/owewell/groups/g1/ws');
+    expect(latest().url).toBe('ws://localhost:3000/api/groups/g1/ws');
   });
 
   // In production the app is served over https, where an insecure socket is simply blocked.
@@ -60,7 +60,7 @@ describe('the address it dials', () => {
       value: { ...real, origin: 'https://owewell.example', protocol: 'https:' },
     });
     renderHook(() => useGroupRealtime('g1', vi.fn()));
-    expect(latest().url).toBe('wss://owewell.example/owewell/groups/g1/ws');
+    expect(latest().url).toBe('wss://owewell.example/api/groups/g1/ws');
     Object.defineProperty(window, 'location', { configurable: true, value: real });
   });
 

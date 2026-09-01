@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest';
  * directly, which is exactly why a missing response header sat unnoticed.
  */
 describe('cache headers', () => {
-  const paths = ['/owewell/me', '/owewell/groups'];
+  // Both prefixes: /api is current, /owewell is the alias old clients still call.
+  const paths = ['/api/me', '/api/groups', '/owewell/me', '/owewell/groups'];
 
   it.each(paths)('%s is never cacheable', async (path) => {
     const res = await SELF.fetch(`https://x${path}`);
