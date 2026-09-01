@@ -146,10 +146,10 @@ touched a link anyone had been sent.
 The share link is the only way to read a group without signing in, so it is the only URL worth
 guessing at. Two per-IP limits, both native Cloudflare bindings checked at the edge:
 
-| | limit | why |
-|---|---|---|
-| `API_LIMITER` | 240/min across `/api/*` | Registered **before** the auth guard, because every authenticated request costs a round trip to the shared auth service. A flood here is amplified into a flood there. |
-| `SHARE_LIMITER` | 20/min on `/api/shared/:token` | The guessing target. This is what lets the token be short. |
+|                 | limit                          | why                                                                                                                                                                    |
+| --------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_LIMITER`   | 240/min across `/api/*`        | Registered **before** the auth guard, because every authenticated request costs a round trip to the shared auth service. A flood here is amplified into a flood there. |
+| `SHARE_LIMITER` | 20/min on `/api/shared/:token` | The guessing target. This is what lets the token be short.                                                                                                             |
 
 Both degrade **open** when the binding is absent — local `wrangler dev` doesn't provide one, and a
 limiter that closed instead would make the app unusable offline in a way that looks like a bug in
