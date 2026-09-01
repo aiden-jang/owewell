@@ -46,6 +46,15 @@ run_worker_first = true
 
 # Custom domain. Requires the aidenjang.com zone on this Cloudflare account; provisioned on
 # `wrangler deploy`. Ignored by local `wrangler dev`.
+# Per-IP rate limit on the PUBLIC share lookup, which is the only unauthenticated endpoint and
+# so the only one worth guessing at. This is what lets the share token be short: without it, the
+# token's length is the sole defence and has to carry all the weight on its own.
+# period must be 10 or 60.
+[[ratelimits]]
+name = "SHARE_LIMITER"
+namespace_id = "2001"
+simple = { limit = 20, period = 60 }
+
 [[routes]]
 pattern = "owewell.aidenjang.com"
 custom_domain = true
