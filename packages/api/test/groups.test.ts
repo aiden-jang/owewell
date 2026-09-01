@@ -165,7 +165,7 @@ describe('groups', () => {
     });
 
     const token = await getOrCreateShareToken(db, alice, group.id);
-    expect(token).toMatch(/^[a-f0-9]{32,}$/);
+    expect(token).toMatch(/^[0-9A-HJKMNP-TV-Z]{14}$/);
     // Idempotent: the same token comes back on repeat.
     expect(await getOrCreateShareToken(db, alice, group.id)).toBe(token);
     // Non-members can't mint a link.

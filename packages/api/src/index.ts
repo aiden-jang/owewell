@@ -3,6 +3,7 @@ import { SettleError } from '@owewell/shared';
 import { z } from 'zod';
 import { getSessionUser } from '@aidenjang/auth-client';
 import { harden } from './harden.js';
+import { looksLikeShareToken } from './shareToken.js';
 import type { Env } from './env.js';
 import { createDb } from './db/client.js';
 import { getOrCreatePerson, type Person } from './people.js';
@@ -106,8 +107,24 @@ app.get('/owewell/me', async (c) => {
 
 // Public, read-only group summary for a share link. No auth by design: anyone with the token
 // may view (never edit). Registered before the auth guard below. 404 for an unknown token.
+//
+// The only unauthenticated endpoint, so the only one anyone would bother guessing at. Two
+// guards, in cheapest-first order:
+//   1. Reject anything that isn't shaped like a token, before touching the database. A guesser
+//      should not get a free D1 query per attempt.
+//   2. Rate limit per IP. This is what allows the token to be short: without it the token's
+//      length is the entire defence.
 app.get('/owewell/shared/:token', async (c) => {
-  const summary = await getSharedSummary(createDb(c.env), c.req.param('token'));
+  const token = c.req.param('token');
+  if (!looksLikeShareToken(token)) return c.json({ error: 'NOT_FOUND' }, 404);
+
+  const ip = c.req.header('CF-Connecting-IP');
+  if (c.env.SHARE_LIMITER && ip) {
+    const { success } = await c.env.SHARE_LIMITER.limit({ key: ip });
+    if (!success) return c.json({ error: 'TOO_MANY_REQUESTS' }, 429);
+  }
+
+  const summary = await getSharedSummary(createDb(c.env), token);
   if (!summary) return c.json({ error: 'NOT_FOUND' }, 404);
   return c.json({ summary });
 });
