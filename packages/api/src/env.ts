@@ -10,4 +10,12 @@ export interface Env {
   // The built web SPA (apps/owewell/web/dist), served from this same Worker so the UI and
   // the /owewell/* API share one origin.
   ASSETS: Fetcher;
+  // Per-IP limiter on the public share lookup. Optional: local `wrangler dev` does not always
+  // provide the binding, and the endpoint degrades to unlimited rather than refusing everyone.
+  SHARE_LIMITER?: RateLimiter;
+}
+
+/** Cloudflare's native rate-limit binding. */
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }

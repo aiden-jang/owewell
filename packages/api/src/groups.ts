@@ -14,6 +14,7 @@ import {
   settlements,
 } from './db/schema.js';
 import type { BatchItem } from 'drizzle-orm/batch';
+import { mintShareToken } from './shareToken.js';
 
 export type GroupErrorCode =
   | 'NOT_FOUND'
@@ -180,10 +181,6 @@ export interface SharedGroupSummary {
 }
 
 /** Two UUIDs' worth of entropy, hex only, so the link isn't guessable. */
-function mintShareToken(): string {
-  return (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
-}
-
 /** Create (once) or return the group's public share token. Members only. */
 export async function getOrCreateShareToken(db: DB, personId: string, groupId: string): Promise<string> {
   await requireMembership(db, personId, groupId);
