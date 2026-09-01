@@ -74,7 +74,10 @@ app.use('/health', noStore());
 // amplified into a flood there. Set far above real use — opening the app and clicking through
 // a few groups is a couple of dozen requests — so it only ever catches a script.
 // /health is deliberately outside this, or an uptime monitor could trip it.
-api.use('*', perIp((env) => env.API_LIMITER, 'Slow down a moment, then try again.'));
+api.use(
+  '*',
+  perIp((env) => env.API_LIMITER, 'Slow down a moment, then try again.'),
+);
 
 function noStore() {
   return async (c: { header: (k: string, v: string) => void }, next: () => Promise<void>) => {

@@ -37,12 +37,28 @@ pnpm run deploy            # redeploy to attach owewell.aidenjang.com
 
 ## Routine redeploy (the usual case)
 
+CI does this on merge to `main` and is the normal path. By hand, from the repo root:
+
 ```bash
-pnpm run deploy            # builds the SPA, applies pending migrations, then deploys
+pnpm run deploy       # the full CI gate, then ship
+pnpm run deploy:only  # skip the gate (know why you're doing this)
+```
+
+From inside `packages/api`, `pnpm run deploy` is the ship step on its own — the same thing
+`deploy:only` calls.
+
+```bash
 # API/config-only change (reuse the last-built SPA, and skip migrations):
 pnpm exec wrangler deploy
 ```
 
+- **This applies D1 migrations to the production database**, before the code ships and failing
+  hard if they fail. That ordering is deliberate: shipping code whose migration has not run is
+  what once 500'd `/auth/me` for every app. It also means a hand-run deploy is not a dry run —
+  a migration that lands is landed.
+- The root `deploy` runs the same gate as CI, in the same order: typecheck, lint, format:check,
+  build, dead-classes, test. `dead-classes` has to come after the build; it diffs class names
+  against the CSS Tailwind actually emitted.
 - No re-login needed: `wrangler login` credentials persist across sessions.
 - It's `pnpm exec wrangler deploy` (workspace binary), **not** `pnpm wrangler deploy`.
 - `pnpm run deploy` (not bare `pnpm deploy`, which is pnpm's own command).
