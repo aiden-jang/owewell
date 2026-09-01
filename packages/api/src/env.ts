@@ -10,8 +10,11 @@ export interface Env {
   // The built web SPA (apps/owewell/web/dist), served from this same Worker so the UI and
   // the /owewell/* API share one origin.
   ASSETS: Fetcher;
-  // Per-IP limiter on the public share lookup. Optional: local `wrangler dev` does not always
-  // provide the binding, and the endpoint degrades to unlimited rather than refusing everyone.
+  // Per-IP limiters. Both optional: local `wrangler dev` and the test worker do not provide
+  // them, and the API degrades to unlimited rather than refusing everyone.
+  // A ceiling across the whole API, sized so only a script ever meets it.
+  API_LIMITER?: RateLimiter;
+  // Much tighter, on the one unauthenticated endpoint. A share request spends both.
   SHARE_LIMITER?: RateLimiter;
 }
 
