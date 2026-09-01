@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getSessionUser } from '@aidenjang/auth-client';
 import { harden } from './harden.js';
 import { looksLikeShareToken } from './shareToken.js';
+import { perIp } from './rateLimit.js';
 import type { Env } from './env.js';
 import { createDb } from './db/client.js';
 import { getOrCreatePerson, type Person } from './people.js';
@@ -65,6 +66,13 @@ app.use('*', harden());
 app.use('/owewell/*', noStore());
 app.use('/health', noStore());
 
+// Per-IP ceiling across the whole API, registered BEFORE the auth guard on purpose: every
+// authenticated request costs a round trip to the shared auth service, so a flood here is
+// amplified into a flood there. Set far above real use — opening the app and clicking through
+// a few groups is a couple of dozen requests — so it only ever catches a script.
+// /health is deliberately outside this, or an uptime monitor could trip it.
+app.use('/owewell/*', perIp((env) => env.API_LIMITER, 'Slow down a moment, then try again.'));
+
 function noStore() {
   return async (c: { header: (k: string, v: string) => void }, next: () => Promise<void>) => {
     await next();
@@ -112,22 +120,21 @@ app.get('/owewell/me', async (c) => {
 // guards, in cheapest-first order:
 //   1. Reject anything that isn't shaped like a token, before touching the database. A guesser
 //      should not get a free D1 query per attempt.
-//   2. Rate limit per IP. This is what allows the token to be short: without it the token's
-//      length is the entire defence.
-app.get('/owewell/shared/:token', async (c) => {
-  const token = c.req.param('token');
-  if (!looksLikeShareToken(token)) return c.json({ error: 'NOT_FOUND' }, 404);
+//   2. A tighter per-IP limit than the rest of the API (see the middleware above this route).
+//      This is what allows the token to be short: without it the token's length is the entire
+//      defence.
+app.get(
+  '/owewell/shared/:token',
+  perIp((env) => env.SHARE_LIMITER, 'Too many attempts. Try again shortly.'),
+  async (c) => {
+    const token = c.req.param('token');
+    if (!looksLikeShareToken(token)) return c.json({ error: 'NOT_FOUND' }, 404);
 
-  const ip = c.req.header('CF-Connecting-IP');
-  if (c.env.SHARE_LIMITER && ip) {
-    const { success } = await c.env.SHARE_LIMITER.limit({ key: ip });
-    if (!success) return c.json({ error: 'TOO_MANY_REQUESTS' }, 429);
-  }
-
-  const summary = await getSharedSummary(createDb(c.env), token);
-  if (!summary) return c.json({ error: 'NOT_FOUND' }, 404);
-  return c.json({ summary });
-});
+    const summary = await getSharedSummary(createDb(c.env), token);
+    if (!summary) return c.json({ error: 'NOT_FOUND' }, 404);
+    return c.json({ summary });
+  },
+);
 
 // Everything else under /owewell requires a signed-in user (validated against the shared
 // auth service), resolved to this app's local person.
