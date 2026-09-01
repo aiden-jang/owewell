@@ -14,7 +14,10 @@ function limiter(allow: boolean, seen: string[] = []): RateLimiter {
 
 function appWith(env: Partial<Env>) {
   const app = new Hono<{ Bindings: Env }>();
-  app.use('*', perIp((e) => e.API_LIMITER, 'Slow down a moment, then try again.'));
+  app.use(
+    '*',
+    perIp((e) => e.API_LIMITER, 'Slow down a moment, then try again.'),
+  );
   app.get('/x', (c) => c.json({ ok: true }));
   return (headers: Record<string, string> = { 'CF-Connecting-IP': '1.2.3.4' }) =>
     app.request('http://x/x', { headers }, env as Env);

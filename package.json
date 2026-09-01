@@ -17,7 +17,9 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dead-classes": "pnpm --filter @owewell/web dead-classes"
+    "dead-classes": "pnpm --filter @owewell/web dead-classes",
+    "deploy": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build && pnpm dead-classes && pnpm test && pnpm run deploy:only",
+    "deploy:only": "pnpm --filter @owewell/api run deploy"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.18.0",
