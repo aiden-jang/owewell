@@ -50,6 +50,14 @@ run_worker_first = true
 # so the only one worth guessing at. This is what lets the share token be short: without it, the
 # token's length is the sole defence and has to carry all the weight on its own.
 # period must be 10 or 60.
+# Ceiling across the whole API. Opening the app and moving between a few groups is a couple of
+# dozen requests, so this only ever catches a script. Checked before the auth guard, because
+# every authenticated request costs a call to the shared auth service.
+[[ratelimits]]
+name = "API_LIMITER"
+namespace_id = "2002"
+simple = { limit = 240, period = 60 }
+
 [[ratelimits]]
 name = "SHARE_LIMITER"
 namespace_id = "2001"

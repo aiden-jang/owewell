@@ -127,6 +127,29 @@ parses the stylesheet to assert the two copies agree — because a colour that f
 real defect, and defects deserve tests. The same tests hold the bars: 4.5:1 for body text, 3:1 for
 UI shapes, and the avatar discs capped so they don't out-saturate the money.
 
+### Rate limiting, and why the share token is short
+
+The share link is the only way to read a group without signing in, so it is the only URL worth
+guessing at. Two per-IP limits, both native Cloudflare bindings checked at the edge:
+
+| | limit | why |
+|---|---|---|
+| `API_LIMITER` | 240/min across `/owewell/*` | Registered **before** the auth guard, because every authenticated request costs a round trip to the shared auth service. A flood here is amplified into a flood there. |
+| `SHARE_LIMITER` | 20/min on `/owewell/shared/:token` | The guessing target. This is what lets the token be short. |
+
+Both degrade **open** when the binding is absent — local `wrangler dev` doesn't provide one, and a
+limiter that closed instead would make the app unusable offline in a way that looks like a bug in
+whatever you were building at the time.
+
+Share tokens are 14 Crockford base32 characters (~70 bits, no `I`/`L`/`O`/`U`). They were 64 hex
+characters, which was 256 bits doing the job of a rate limit that didn't exist. Length alone caps
+nothing: a guesser with unlimited attempts eventually gets there, and one with 20 attempts a minute
+never does. Old tokens still resolve, so links already in people's messages keep working.
+
+`/health` is deliberately outside both, or an uptime monitor would trip the limit.
+
+---
+
 ## Trade-offs
 
 - **Settlement suggests, it doesn't move money.** owewell computes the fewest transfers and tags
@@ -156,7 +179,9 @@ packages/
     src/settlements.ts  payments (methods, partial/manual) + min-cash-flow suggestions
     src/quicksplit.ts   anonymous one-shot split
     src/realtime.ts     GroupRoom Durable Object, live fan-out
-    src/harden.ts       security headers, body limits, rate limiting
+    src/harden.ts       security headers + same-origin CSRF guard
+    src/rateLimit.ts    per-IP limiting middleware
+    src/shareToken.ts   share-link tokens (short, and the legacy shape)
     src/db/             Drizzle schema + client; migrations/ alongside
   web/       React + Vite + Tailwind SPA
     src/pages/          Dashboard, GroupDetail, QuickSplit, SharedGroup
