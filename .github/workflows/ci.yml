@@ -18,17 +18,20 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
+      # `pnpm <name>` is not `pnpm run <name>`: where pnpm has a command of its own it wins and
+      # the script is unreachable. `deploy` is one of those. This checks the whole chain.
+      - run: pnpm run gates
+      - run: pnpm run typecheck
+      - run: pnpm run lint
       # The repo is prettier-formatted and the config describes it, so drift is a CI failure rather
       # than something the next person's editor silently fixes half of.
-      - run: pnpm format:check
-      - run: pnpm build
+      - run: pnpm run format:check
+      - run: pnpm run build
       # After the build, because it diffs the source's class names against the CSS Tailwind actually
       # emitted. A class that never gets generated produces no CSS and no error: typecheck, lint and
       # the whole suite stayed green while a bad @custom-variant deleted all 114 hover styles.
-      - run: pnpm dead-classes
-      - run: pnpm test
+      - run: pnpm run dead-classes
+      - run: pnpm run test
 
   # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
   # Requires a CLOUDFLARE_API_TOKEN repo secret with BOTH Workers Scripts:Edit and D1:Edit.
