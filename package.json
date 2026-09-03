@@ -18,7 +18,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dead-classes": "pnpm --filter @owewell/web dead-classes",
-    "deploy": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build && pnpm dead-classes && pnpm test && pnpm run deploy:only",
+    "gates": "node scripts/check-gates.mjs",
+    "verify": "pnpm run gates && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test",
+    "deploy": "pnpm run verify && pnpm run deploy:only",
     "deploy:only": "pnpm --filter @owewell/api run deploy"
   },
   "devDependencies": {
