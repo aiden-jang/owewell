@@ -30,8 +30,8 @@ importers:
   packages/api:
     dependencies:
       '@aidenjang/auth-client':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.2.0
+        version: 0.2.0
       '@owewell/core':
         specifier: workspace:*
         version: link:../core
@@ -92,8 +92,8 @@ importers:
   packages/web:
     dependencies:
       '@aidenjang/auth-client':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.2.0
+        version: 0.2.0
       '@owewell/core':
         specifier: workspace:*
         version: link:../core
@@ -155,8 +155,8 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@aidenjang/auth-client@0.1.0':
-    resolution: {integrity: sha512-5oP5ozI0HtBXGYBhscIlLE8R3YGiivJg0C8tayB5laurvw/HFDQ/lOaSMl2VqkhStJi/ads5XdihEx7WBQA1Cw==}
+  '@aidenjang/auth-client@0.2.0':
+    resolution: {integrity: sha512-biPBn1EW7hgLNohSVzfr/f275pxujkkI8SoZJVVFp7cH927KTQpVjyed0wB/I8VicFpElXgo4izMM68DajIKPg==}
 
   '@asamuzakjp/css-color@6.0.5':
     resolution: {integrity: sha512-mbhpPMmnw/kwW19aRNmSUl1QzLbdGo1SCuE49BT98MNwqF6zaHb3o2owssFc/PEO/4t2UjqtCNwocuDtJornzA==}
@@ -3184,7 +3184,7 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@aidenjang/auth-client@0.1.0': {}
+  '@aidenjang/auth-client@0.2.0': {}
 
   '@asamuzakjp/css-color@6.0.5':
     dependencies:

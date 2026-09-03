@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { SettleError } from '@owewell/shared';
 import { z } from 'zod';
-import { getSessionUser } from '@aidenjang/auth-client';
+import { resolveSession } from '@aidenjang/auth-client';
 import { harden } from './harden.js';
 import { looksLikeShareToken } from './shareToken.js';
 import { perIp } from './rateLimit.js';
@@ -114,8 +114,11 @@ app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
 // talk to the auth service cross-origin. Returns { user: null } when signed out (not 401),
 // since owewell is usable signed-out (quick split). Registered before the auth guard below.
 api.get('/me', async (c) => {
-  const user = await getSessionUser(c.req.raw, c.env.AUTH_URL);
-  if (!user) return c.json({ user: null });
+  // An unreachable auth service reads as signed out here on purpose: owewell works signed-out,
+  // so the anonymous app is the honest degraded state. The guard below makes the other call.
+  const session = await resolveSession(c.req.raw, c.env.AUTH_URL);
+  if (session.state !== 'signed-in') return c.json({ user: null });
+  const user = session.user;
   const person = await getOrCreatePerson(createDb(c.env), user);
   return c.json({
     user: { id: user.id, email: user.email, displayName: user.displayName },
@@ -149,9 +152,14 @@ api.get(
 // Everything else under /owewell requires a signed-in user (validated against the shared
 // auth service), resolved to this app's local person.
 api.use('*', async (c, next) => {
-  const user = await getSessionUser(c.req.raw, c.env.AUTH_URL);
-  if (!user) return c.json({ error: 'UNAUTHENTICATED' }, 401);
-  c.set('person', await getOrCreatePerson(createDb(c.env), user));
+  const session = await resolveSession(c.req.raw, c.env.AUTH_URL);
+  // 503, not 401. A 401 tells a signed-in caller they are signed out, and the web app answers
+  // that by clearing the user it holds, so an auth hiccup logs people out of their own groups.
+  if (session.state === 'unavailable') {
+    return c.json({ error: 'AUTH_UNAVAILABLE' }, 503, { 'Retry-After': '30' });
+  }
+  if (session.state === 'signed-out') return c.json({ error: 'UNAUTHENTICATED' }, 401);
+  c.set('person', await getOrCreatePerson(createDb(c.env), session.user));
   await next();
 });
 
