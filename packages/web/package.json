@@ -16,7 +16,7 @@
     "dead-classes": "node scripts/dead-classes.mjs"
   },
   "dependencies": {
-    "@aidenjang/auth-client": "^0.1.0",
+    "@aidenjang/auth-client": "^0.2.0",
     "@owewell/core": "workspace:*",
     "@owewell/shared": "workspace:*",
     "react": "^18.3.1",
