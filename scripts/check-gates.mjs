@@ -110,12 +110,25 @@ for (const m of ci.matchAll(/run:\s*(pnpm[^\n]*)/g)) {
  */
 const checkJob = ci.split(/^  deploy:/m)[0] ?? '';
 const inCi = new Set([...checkJob.matchAll(/run:\s*pnpm run ([\w:-]+)/g)].map((m) => m[1]));
-const inVerify = new Set(invocations(scripts.verify ?? '').map((i) => i.name));
+const verifyOrder = invocations(scripts.verify ?? '').map((i) => i.name);
+const inVerify = new Set(verifyOrder);
 for (const name of inCi) {
   if (!inVerify.has(name)) problems.push(`ci.yml runs \`${name}\` and verify does not`);
 }
 for (const name of inVerify) {
   if (!inCi.has(name)) problems.push(`verify runs \`${name}\` and ci.yml does not`);
+}
+
+/*
+ * And in the same order, which is what DEPLOY.md promises. Cheap checks first is the point:
+ * nobody should wait for the browser suite to learn that a script name was mistyped.
+ */
+const ciOrder = [...inCi];
+if (problems.length === 0 && ciOrder.join(' ') !== verifyOrder.join(' ')) {
+  problems.push(
+    `verify and ci.yml run the same gates in different orders:\n` +
+      `    verify: ${verifyOrder.join(' ')}\n    ci.yml: ${ciOrder.join(' ')}`,
+  );
 }
 
 if (problems.length > 0) {
