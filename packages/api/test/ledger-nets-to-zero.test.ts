@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createGroup } from '../src/groups.js';
 import { addPlaceholderMember } from '../src/members.js';
-import { createExpense, createItemizedExpense, deleteExpense, getBalances } from '../src/expenses.js';
+import { createExpense, deleteExpense, getBalances } from '../src/expenses.js';
+import { createItemizedExpense } from '../src/itemizedExpenses.js';
 import { recordSettlement } from '../src/settlements.js';
 import { testDb, seedPerson } from './helpers.js';
 

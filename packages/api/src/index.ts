@@ -27,13 +27,12 @@ import { addPlaceholderMember, removeMember, renameMember, setPaymentHandles } f
 import {
   ExpenseError,
   createExpense,
-  createItemizedExpense,
   deleteExpense,
   getBalances,
   restoreExpense,
   updateExpense,
-  updateItemizedExpense,
 } from './expenses.js';
+import { createItemizedExpense, updateItemizedExpense } from './itemizedExpenses.js';
 import { listExpenses } from './expenseList.js';
 import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS } from '@owewell/core';
 import {

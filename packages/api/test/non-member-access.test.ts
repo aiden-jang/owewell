@@ -10,15 +10,8 @@ import {
   setGroupArchived,
 } from '../src/groups.js';
 import { addPlaceholderMember, removeMember, renameMember, setPaymentHandles } from '../src/members.js';
-import {
-  createExpense,
-  createItemizedExpense,
-  deleteExpense,
-  getBalances,
-  restoreExpense,
-  updateExpense,
-  updateItemizedExpense,
-} from '../src/expenses.js';
+import { createExpense, deleteExpense, getBalances, restoreExpense, updateExpense } from '../src/expenses.js';
+import { createItemizedExpense, updateItemizedExpense } from '../src/itemizedExpenses.js';
 import { listExpenses } from '../src/expenseList.js';
 import {
   deleteSettlement,
