@@ -30,11 +30,11 @@ import {
   createItemizedExpense,
   deleteExpense,
   getBalances,
-  listExpenses,
   restoreExpense,
   updateExpense,
   updateItemizedExpense,
 } from './expenses.js';
+import { listExpenses } from './expenseList.js';
 import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS } from '@owewell/core';
 import {
   SettlementError,

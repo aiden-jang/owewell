@@ -15,11 +15,11 @@ import {
   createItemizedExpense,
   deleteExpense,
   getBalances,
-  listExpenses,
   restoreExpense,
   updateExpense,
   updateItemizedExpense,
 } from '../src/expenses.js';
+import { listExpenses } from '../src/expenseList.js';
 import {
   deleteSettlement,
   getSuggestedPayments,

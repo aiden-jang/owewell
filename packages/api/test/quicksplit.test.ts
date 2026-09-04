@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { getGroup } from '../src/groups.js';
-import { getBalances, listExpenses } from '../src/expenses.js';
+import { getBalances } from '../src/expenses.js';
+import { listExpenses } from '../src/expenseList.js';
 import { QuickSplitError, createQuickSplit } from '../src/quicksplit.js';
 import { testDb, seedPerson } from './helpers.js';
 

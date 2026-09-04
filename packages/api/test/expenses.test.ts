@@ -8,11 +8,11 @@ import {
   createItemizedExpense,
   deleteExpense,
   getBalances,
-  listExpenses,
   restoreExpense,
   updateExpense,
   updateItemizedExpense,
 } from '../src/expenses.js';
+import { listExpenses } from '../src/expenseList.js';
 import { testDb, seedPerson } from './helpers.js';
 
 let db: ReturnType<typeof testDb>;

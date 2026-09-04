@@ -1,7 +1,8 @@
 import { changedFields, computeItemizedSplit, computeSplit, type SplitMethod } from '@owewell/shared';
-import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
+import { listExpenses } from './expenseList.js';
 // Balance reading moved to its own module; re-exported so callers keep one import site.
 export { computeBalances, getBalances, type MemberBalance } from './balances.js';
 import {
@@ -554,134 +555,6 @@ export async function updateItemizedExpense(
     version: existing.version + 1,
     splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
   };
-}
-
-export async function listExpenses(db: DB, personId: string, groupId: string): Promise<ExpenseView[]> {
-  await requireMembership(db, personId, groupId);
-  const rows = await db
-    .select()
-    .from(expenses)
-    .where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
-    .orderBy(desc(expenses.createdAt))
-    .all();
-  if (rows.length === 0) return [];
-  const splitRows = await db
-    .select({
-      expenseId: expenseSplits.expenseId,
-      userId: expenseSplits.personId,
-      owedCents: expenseSplits.owedCents,
-      inputValue: expenseSplits.inputValue,
-    })
-    .from(expenseSplits)
-    .where(
-      inArray(
-        expenseSplits.expenseId,
-        rows.map((r) => r.id),
-      ),
-    )
-    .all();
-  const byExpense = new Map<string, { userId: string; owedCents: number; inputValue: number | null }[]>();
-  for (const s of splitRows) {
-    const list = byExpense.get(s.expenseId) ?? [];
-    list.push({ userId: s.userId, owedCents: s.owedCents, inputValue: s.inputValue });
-    byExpense.set(s.expenseId, list);
-  }
-
-  /*
-   * The latest correction per expense, in one query. Only the newest: the feed answers "has this
-   * changed, and from what", not "give me a changelog in the middle of a list of dinners".
-   */
-  const editByExpense = new Map<
-    string,
-    { at: Date; byId: string; fields: string[]; formerAmountCents: number }
-  >();
-  const revisionRows = await db
-    .select()
-    .from(expenseRevisions)
-    .where(
-      inArray(
-        expenseRevisions.expenseId,
-        rows.map((r) => r.id),
-      ),
-    )
-    .orderBy(desc(expenseRevisions.editedAt))
-    .all();
-  for (const revision of revisionRows) {
-    // Sorted newest first, so the first one seen for an expense is the one to keep.
-    if (editByExpense.has(revision.expenseId)) continue;
-    editByExpense.set(revision.expenseId, {
-      at: revision.editedAt,
-      byId: revision.editedById,
-      fields: revision.fields.split(','),
-      formerAmountCents: revision.amountCents,
-    });
-  }
-
-  // For itemized expenses, attach line items + their participants so the edit form can prefill.
-  const itemsByExpense = new Map<
-    string,
-    { name: string; amountCents: number; participantIds: string[]; payerId?: string }[]
-  >();
-  const itemizedIds = rows.filter((r) => r.splitMethod === 'ITEMIZED').map((r) => r.id);
-  if (itemizedIds.length > 0) {
-    const itemRows = await db
-      .select({
-        id: expenseItems.id,
-        expenseId: expenseItems.expenseId,
-        name: expenseItems.name,
-        amountCents: expenseItems.amountCents,
-        payerId: expenseItems.payerId,
-      })
-      .from(expenseItems)
-      .where(inArray(expenseItems.expenseId, itemizedIds))
-      .all();
-    const sharesByItem = new Map<string, string[]>();
-    if (itemRows.length > 0) {
-      const shareRows = await db
-        .select({ itemId: expenseItemShares.itemId, personId: expenseItemShares.personId })
-        .from(expenseItemShares)
-        .where(
-          inArray(
-            expenseItemShares.itemId,
-            itemRows.map((i) => i.id),
-          ),
-        )
-        .all();
-      for (const s of shareRows) {
-        const l = sharesByItem.get(s.itemId) ?? [];
-        l.push(s.personId);
-        sharesByItem.set(s.itemId, l);
-      }
-    }
-    for (const it of itemRows) {
-      const l = itemsByExpense.get(it.expenseId) ?? [];
-      l.push({
-        name: it.name,
-        amountCents: it.amountCents,
-        participantIds: sharesByItem.get(it.id) ?? [],
-        ...(it.payerId ? { payerId: it.payerId } : {}),
-      });
-      itemsByExpense.set(it.expenseId, l);
-    }
-  }
-
-  return rows.map((e) => ({
-    id: e.id,
-    description: e.description,
-    amountCents: e.amountCents,
-    payerId: e.payerId,
-    splitMethod: e.splitMethod,
-    category: e.category,
-    createdAt: e.createdAt,
-    date: e.date ?? e.createdAt,
-    note: e.note,
-    version: e.version,
-    splits: byExpense.get(e.id) ?? [],
-    ...(editByExpense.has(e.id) ? { lastEdit: editByExpense.get(e.id)! } : {}),
-    ...(e.splitMethod === 'ITEMIZED'
-      ? { taxCents: e.taxCents, tipCents: e.tipCents, items: itemsByExpense.get(e.id) ?? [] }
-      : {}),
-  }));
 }
 
 export async function deleteExpense(
