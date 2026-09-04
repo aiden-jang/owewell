@@ -3,7 +3,7 @@
   "compilerOptions": {
     "noEmit": true,
     // vitest-pool-workers supplies the `cloudflare:test` module declaration the tests import.
-    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"],
     "lib": ["ES2022"]
   },
   // `test` is not optional here. It was left out once, and a rename that broke every test import
