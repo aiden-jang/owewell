@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useDashboardMode } from './useDashboardMode.js';
 import { Link, useNavigate } from 'react-router-dom';
 import { type MoneyFormatter } from '@owewell/shared';
 import { useMoney } from '../lib/currency';
@@ -45,54 +46,27 @@ export function DashboardPage(): ReactNode {
   // loadError = the fetch failed (show a retry, not the cheerful "no groups" state).
   const [loadError, setLoadError] = useState(false);
   const fmt = useMoney();
-  const [name, setName] = useState('');
-  const [creatingOpen, setCreatingOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(() => loadPendingSplit());
   const [savingPending, setSavingPending] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  // Set once the name field has been touched, so the "needs a name" hint appears on demand and not
-  // as a scolding the instant the form opens.
-  const [nameTouched, setNameTouched] = useState(false);
-
-  const toggleSelected = (id: string): void =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const exitSelect = (): void => {
-    setSelectMode(false);
-    setSelected(new Set());
-  };
-
-  // Select mode and the create form are mutually exclusive: select mode hides the New button, so
-  // leaving both open strands the name field under the selection UI with no way back.
-  const openCreate = (): void => {
-    setSelectMode(false);
-    setSelected(new Set());
-    setNameTouched(false);
-    setError(null);
-    setCreatingOpen(true);
-  };
-
-  const closeCreate = (): void => {
-    setCreatingOpen(false);
-    setName('');
-    setNameTouched(false);
-    setError(null);
-  };
-
-  const enterSelect = (): void => {
-    closeCreate();
-    setSelectMode(true);
-  };
+  const mode = useDashboardMode(() => setError(null));
+  const {
+    creatingOpen,
+    name,
+    setName,
+    nameTouched,
+    touchName,
+    openCreate,
+    closeCreate,
+    selectMode,
+    selected,
+    toggleSelected,
+    enterSelect,
+    exitSelect,
+  } = mode;
 
   async function onBulkArchive(): Promise<void> {
     const ids = [...selected];
@@ -195,7 +169,7 @@ export function DashboardPage(): ReactNode {
     event.preventDefault();
     // Used to return silently, so pressing Create with an empty field looked like the app had frozen.
     if (!name.trim()) {
-      setNameTouched(true);
+      touchName();
       return;
     }
     setCreating(true);
@@ -453,7 +427,7 @@ export function DashboardPage(): ReactNode {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onBlur={() => setNameTouched(true)}
+                onBlur={() => touchName()}
                 onKeyDown={(e) => e.key === 'Escape' && closeCreate()}
                 aria-invalid={nameTouched && !name.trim()}
                 aria-describedby="group-name-hint"
