@@ -227,9 +227,21 @@ pnpm --filter @owewell/api dev
 pnpm --filter @owewell/web dev
 ```
 
-Apply D1 migrations locally with `pnpm --filter @owewell/api db:migrate:local`. See
-[DEPLOY.md](DEPLOY.md) for the production runbook, including the optional extras that are built but
-not switched on.
+Apply D1 migrations locally with `pnpm --filter @owewell/api db:migrate:local`.
+
+`pnpm run verify` is the whole gate, and its last step drives a real browser. That needs Chromium
+downloaded once:
+
+```bash
+pnpm --filter @owewell/web exec playwright install chromium
+```
+
+Without it `verify` gets all the way to the browser suite before failing, which is a slow way to
+find out. The suite starts its own Worker against its own database (`.wrangler/e2e-state`), so it
+neither needs `dev:api` running nor touches what you have been developing against.
+
+See [DEPLOY.md](DEPLOY.md) for the production runbook, including the optional extras that are built
+but not switched on.
 
 ## Data & database access
 
