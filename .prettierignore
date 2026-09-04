@@ -7,3 +7,7 @@ packages/api/migrations/
 dist/
 **/dist/
 packages/web/public/
+
+# Playwright artefacts
+test-results/
+playwright-report/
