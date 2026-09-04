@@ -69,8 +69,8 @@ function itemSplitHint(item: Item, named: Person[]): { text: string; tone: strin
   return { text: `${sum} share${sum === 1 ? '' : 's'} total`, tone: 'text-muted' };
 }
 
-/* One line of the receipt: what it was, what it cost, who is on it, and how it divides. Pulled out
-   because it is the piece that repeats, and the page around it is one long form. */
+/* One line of the receipt: what it was, what it cost, who is on it, and how it divides. Its own
+   component because it is the piece that repeats, in a page that is otherwise one long form. */
 export default function QuickSplitItemRow({
   item,
   index,

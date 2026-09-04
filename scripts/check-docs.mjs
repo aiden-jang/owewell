@@ -44,10 +44,11 @@ const files = new Set(
 );
 
 const problems = [];
-let fenced = false;
 const known = (name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(code);
 
 for (const doc of DOCS) {
+  // Per document: a stray fence in one must not change how the next one is read.
+  let fenced = false;
   readFileSync(doc, 'utf8')
     .split('\n')
     .forEach((line, i) => {

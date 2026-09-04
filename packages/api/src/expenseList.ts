@@ -4,7 +4,7 @@ import { expenseItemShares, expenseItems, expenseRevisions, expenseSplits, expen
 import { requireMembership } from './groups.js';
 import type { ExpenseView } from './expenses.js';
 
-/* Reading the tab. Split out from the writers because it shares nothing with them but the row
+/* Reading the tab. Separate from the writers because it shares nothing with them but the row
    shape: no guards, no version checks, no idempotency, just the query that assembles a view. */
 
 export async function listExpenses(db: DB, personId: string, groupId: string): Promise<ExpenseView[]> {
