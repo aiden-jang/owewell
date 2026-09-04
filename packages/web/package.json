@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "e2e": "playwright test",
     "gen:icons": "node scripts/gen-icons.mjs",
     "gen:og": "node scripts/gen-og.mjs",
     "test:watch": "vitest",
@@ -24,6 +25,7 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^7.0.0",
