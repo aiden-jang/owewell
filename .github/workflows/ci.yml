@@ -33,6 +33,11 @@ jobs:
       # the whole suite stayed green while a bad @custom-variant deleted all 114 hover styles.
       - run: pnpm run dead-classes
       - run: pnpm run test
+      # The layer nothing else sees: whether a person can get from an empty account to a correct
+      # balance, in a browser, against the real Worker and a real migrated D1.
+      - name: Install Playwright browser
+        run: pnpm --filter @owewell/web exec playwright install --with-deps chromium
+      - run: pnpm run e2e
 
   # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
   # Requires a CLOUDFLARE_API_TOKEN repo secret with BOTH Workers Scripts:Edit and D1:Edit.

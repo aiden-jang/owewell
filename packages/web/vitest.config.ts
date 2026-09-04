@@ -17,6 +17,9 @@ export default defineConfig({
     // localStorage and navigator.onLine and has no JSX in it at all.
     environmentMatchGlobs: [['src/**/*.dom.test.{ts,tsx}', 'jsdom']],
     setupFiles: ['./test/setup.ts'],
+    // e2e/ belongs to Playwright. Vitest picking those up gets as far as `test.describe` and then
+    // reports two copies of @playwright/test, which is a confusing way to say "wrong runner".
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     /*
      * A fixed zone, west of UTC on purpose.
      *
