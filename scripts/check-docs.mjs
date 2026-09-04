@@ -44,6 +44,7 @@ const files = new Set(
 );
 
 const problems = [];
+let fenced = false;
 const known = (name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(code);
 
 for (const doc of DOCS) {
@@ -51,6 +52,7 @@ for (const doc of DOCS) {
     .split('\n')
     .forEach((line, i) => {
       const at = `${doc}:${i + 1}`;
+      if (line.trimStart().startsWith('```')) fenced = !fenced;
 
       for (const m of line.matchAll(/[\w./@-]*\w+\.(?:ts|tsx|css|mjs|toml|yml)\b/g)) {
         const bare = m[0].replace(/^`|`$/g, '');
@@ -60,7 +62,10 @@ for (const doc of DOCS) {
         }
       }
 
-      for (const m of line.matchAll(/pnpm (?:run |-r )?([a-z][\w:-]*)/g)) {
+      /* Only inside backticks or a fence: English prose says things like "a pnpm command of the
+         same name", and that is not an invocation. */
+      const commands = fenced ? [line] : [...line.matchAll(/`([^`]+)`/g)].map((b) => b[1]);
+      for (const m of commands.join('\n').matchAll(/pnpm (?:run |-r )?([a-z][\w:-]*)/g)) {
         const name = m[1];
         if (['install', 'exec', 'audit', 'why', 'dlx', 'add', 'create', 'run'].includes(name)) continue;
         if (NOT_OURS.has(`pnpm ${name}`)) continue;
