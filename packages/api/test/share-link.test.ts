@@ -1,7 +1,8 @@
 import { SELF } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { testDb, seedPerson } from './helpers.js';
-import { createGroup, getOrCreateShareToken } from '../src/groups.js';
+import { createGroup } from '../src/groups.js';
+import { getOrCreateShareToken } from '../src/sharing.js';
 
 /**
  * The share link is the only way into this app without signing in, so it is the only URL anyone
