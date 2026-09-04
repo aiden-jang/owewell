@@ -21,6 +21,7 @@ jobs:
       # `pnpm <name>` is not `pnpm run <name>`: where pnpm has a command of its own it wins and
       # the script is unreachable. `deploy` is one of those. This checks the whole chain.
       - run: pnpm run gates
+      - run: pnpm run size
       - run: pnpm run typecheck
       - run: pnpm run lint
       # The repo is prettier-formatted and the config describes it, so drift is a CI failure rather
