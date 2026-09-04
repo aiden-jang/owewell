@@ -26,7 +26,9 @@ export interface DashboardMode {
   exitSelect: () => void;
 }
 
-export function useDashboardMode(onLeaveCreate: () => void): DashboardMode {
+/** `onCreateToggled` fires whenever the name field opens or closes, which is when the page wants
+    anything it was showing about the last attempt cleared. */
+export function useDashboardMode(onCreateToggled: () => void): DashboardMode {
   const [creatingOpen, setCreatingOpen] = useState(false);
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
@@ -37,7 +39,7 @@ export function useDashboardMode(onLeaveCreate: () => void): DashboardMode {
     setCreatingOpen(false);
     setName('');
     setNameTouched(false);
-    onLeaveCreate();
+    onCreateToggled();
   };
 
   const exitSelect = (): void => {
@@ -54,7 +56,7 @@ export function useDashboardMode(onLeaveCreate: () => void): DashboardMode {
     openCreate: () => {
       exitSelect();
       setNameTouched(false);
-      onLeaveCreate();
+      onCreateToggled();
       setCreatingOpen(true);
     },
     closeCreate,
