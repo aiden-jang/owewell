@@ -18,6 +18,7 @@ import { defineConfig, devices } from '@playwright/test';
 const AUTH_PORT = 34199;
 const API_PORT = 34200;
 const WEB_PORT = 30001;
+const STATE = '.wrangler/e2e-state';
 
 export default defineConfig({
   testDir: './e2e',
@@ -43,7 +44,15 @@ export default defineConfig({
       stdout: 'ignore',
     },
     {
-      command: `pnpm run db:migrate:local && pnpm exec wrangler dev --var AUTH_URL:http://localhost:${AUTH_PORT} --port ${API_PORT}`,
+      /*
+       * Its own state directory, not the one `pnpm run dev:api` uses. Sharing it meant every run
+       * left its groups and expenses in the database somebody develops against, and the suite
+       * quietly depended on whatever the last run had done.
+       */
+      command:
+        `pnpm exec wrangler d1 migrations apply owewell --local --persist-to ${STATE} && ` +
+        `pnpm exec wrangler dev --persist-to ${STATE} ` +
+        `--var AUTH_URL:http://localhost:${AUTH_PORT} --port ${API_PORT}`,
       cwd: '../api',
       port: API_PORT,
       reuseExistingServer: !process.env.CI,
