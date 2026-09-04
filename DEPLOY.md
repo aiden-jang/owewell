@@ -56,9 +56,9 @@ pnpm exec wrangler deploy
   hard if they fail. That ordering is deliberate: shipping code whose migration has not run is
   what once 500'd `/auth/me` for every app. It also means a hand-run deploy is not a dry run —
   a migration that lands is landed.
-- The root `deploy` runs the same gate as CI, in the same order: typecheck, lint, format:check,
-  build, dead-classes, test. `dead-classes` has to come after the build; it diffs class names
-  against the CSS Tailwind actually emitted.
+- The root `deploy` runs `verify` first, which is the same list CI runs and in the same order.
+  `dead-classes` has to come after the build; it diffs class names against the CSS Tailwind
+  actually emitted. `gates` checks that every step in both lists names a script that exists.
 - No re-login needed: `wrangler login` credentials persist across sessions.
 - It's `pnpm exec wrangler deploy` (workspace binary), **not** `pnpm wrangler deploy`.
 - `pnpm run deploy` (not bare `pnpm deploy`, which is pnpm's own command).
