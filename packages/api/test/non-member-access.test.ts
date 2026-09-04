@@ -1,14 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import {
-  createGroup,
-  deleteGroup,
-  getGroup,
-  getOrCreateShareToken,
-  renameGroup,
-  revokeShareToken,
-  rotateShareToken,
-  setGroupArchived,
-} from '../src/groups.js';
+import { createGroup, deleteGroup, getGroup, renameGroup, setGroupArchived } from '../src/groups.js';
+import { getOrCreateShareToken, rotateShareToken, revokeShareToken } from '../src/sharing.js';
 import { addPlaceholderMember, removeMember, renameMember, setPaymentHandles } from '../src/members.js';
 import { createExpense, deleteExpense, getBalances, restoreExpense, updateExpense } from '../src/expenses.js';
 import { createItemizedExpense, updateItemizedExpense } from '../src/itemizedExpenses.js';

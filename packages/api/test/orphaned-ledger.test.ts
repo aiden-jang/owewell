@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { and, eq } from 'drizzle-orm';
-import { claimPlaceholder, createGroup, getGroup, getOrCreateShareToken } from '../src/groups.js';
+import { createGroup, getGroup } from '../src/groups.js';
+import { claimPlaceholder, getOrCreateShareToken } from '../src/sharing.js';
 import { addPlaceholderMember } from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
 import { getSuggestedPayments } from '../src/settlements.js';
