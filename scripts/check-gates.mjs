@@ -58,9 +58,8 @@ function invocations(command) {
     // Step over the flags and their values that select where the script runs.
     while (i < words.length) {
       const w = words[i];
-      if (w === '-r' || w === '--recursive') i += 1;
-      else if (w.startsWith('--filter=')) i += 1;
-      else if (w === '--filter') i += 2;
+      // `--filter` takes its value as the next word; every other flag carries its own.
+      if (w === '--filter') i += 2;
       else if (w.startsWith('-')) i += 1;
       else break;
     }
