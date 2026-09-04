@@ -13,10 +13,23 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
-    // .ts as well as .tsx: not every test that needs a DOM renders a component. The outbox needs
-    // localStorage and navigator.onLine and has no JSX in it at all.
-    environmentMatchGlobs: [['src/**/*.dom.test.{ts,tsx}', 'jsdom']],
     setupFiles: ['./test/setup.ts'],
+    /*
+     * Two projects rather than one environment per glob: environmentMatchGlobs went away in
+     * vitest 4. Same split as before — .ts as well as .tsx, because not every test that needs a
+     * DOM renders a component. The outbox needs localStorage and navigator.onLine and has no JSX
+     * in it at all.
+     */
+    projects: [
+      {
+        extends: true,
+        test: { name: 'node', include: ['src/**/*.test.{ts,tsx}'], exclude: ['src/**/*.dom.test.{ts,tsx}'] },
+      },
+      {
+        extends: true,
+        test: { name: 'dom', include: ['src/**/*.dom.test.{ts,tsx}'], environment: 'jsdom' },
+      },
+    ],
     // e2e/ belongs to Playwright. Vitest picking those up gets as far as `test.describe` and then
     // reports two copies of @playwright/test, which is a confusing way to say "wrong runner".
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
