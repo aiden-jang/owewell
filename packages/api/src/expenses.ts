@@ -1,19 +1,18 @@
-import { changedFields, computeItemizedSplit, computeSplit, type SplitMethod } from '@owewell/shared';
-import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { changedFields, computeSplit, type SplitMethod } from '@owewell/shared';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
+import {
+  assertUnlocked,
+  assertVersion,
+  clearItemizedRows,
+  findByClientId,
+  memberPersonIds,
+} from './expenseGuards.js';
 import { listExpenses } from './expenseList.js';
 // Balance reading moved to its own module; re-exported so callers keep one import site.
 export { computeBalances, getBalances, type MemberBalance } from './balances.js';
-import {
-  expenseItemShares,
-  expenseItems,
-  expenseRevisions,
-  expenseSplits,
-  expenses,
-  groupMembers,
-  settlements,
-} from './db/schema.js';
+import { expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 
 export type ExpenseErrorCode =
   'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT' | 'NOT_FOUND' | 'LOCKED' | 'CONFLICT';
@@ -97,98 +96,6 @@ export interface ExpenseView {
   items?: { name: string; amountCents: number; participantIds: string[] }[];
   /** The most recent correction, when there has been one. Older ones stay in the table, unread. */
   lastEdit?: { at: Date; byId: string; fields: string[]; formerAmountCents: number };
-}
-
-/**
- * Once any payment is recorded, changing or removing an expense would break the settlement
- * that was logged against the old balances — so the ledger locks. Throws LOCKED if the group
- * has any settlement. (Mirrors the member-removal rule.)
- */
-async function assertUnlocked(db: DB, groupId: string): Promise<void> {
-  const settled = await db
-    .select({ c: count() })
-    .from(settlements)
-    .where(eq(settlements.groupId, groupId))
-    .get();
-  if ((settled?.c ?? 0) > 0) {
-    throw new ExpenseError('LOCKED', "Can't change or delete an expense once a payment has been recorded.");
-  }
-}
-
-/**
- * Refuse an edit written against a version that has since moved.
- *
- * Only when the caller names a version. Omitting it means "apply mine regardless", which is what the
- * client sends once a person has been shown the conflict and chosen — otherwise the second attempt
- * conflicts with the change the first was told about, forever.
- */
-function assertVersion(current: number, expected: number | undefined): void {
-  if (expected !== undefined && expected !== current) {
-    throw new ExpenseError('CONFLICT', 'Somebody changed this expense while you were away.');
-  }
-}
-
-/** The expense this client id already produced, if any. Null when this is a first attempt. */
-async function findByClientId(db: DB, groupId: string, clientId: string): Promise<ExpenseView | null> {
-  const row = await db
-    .select({ id: expenses.id })
-    .from(expenses)
-    .where(and(eq(expenses.groupId, groupId), eq(expenses.clientId, clientId)))
-    .get();
-  if (!row) return null;
-  // Deleted counts as landed: replaying a create for something the user then deleted must not bring
-  // it back, so this looks past `deletedAt` deliberately and the caller gets the row as it stands.
-  const all = await db.select().from(expenses).where(eq(expenses.id, row.id)).get();
-  if (!all) return null;
-  return {
-    id: all.id,
-    description: all.description,
-    amountCents: all.amountCents,
-    payerId: all.payerId,
-    splitMethod: all.splitMethod,
-    category: all.category,
-    createdAt: all.createdAt,
-    date: all.date ?? all.createdAt,
-    note: all.note,
-    version: all.version,
-    splits: (
-      await db
-        .select({
-          userId: expenseSplits.personId,
-          owedCents: expenseSplits.owedCents,
-          inputValue: expenseSplits.inputValue,
-        })
-        .from(expenseSplits)
-        .where(eq(expenseSplits.expenseId, all.id))
-        .all()
-    ).map((sp) => ({ userId: sp.userId, owedCents: sp.owedCents, inputValue: sp.inputValue })),
-  };
-}
-
-async function memberPersonIds(db: DB, groupId: string): Promise<Set<string>> {
-  const rows = await db
-    .select({ personId: groupMembers.personId })
-    .from(groupMembers)
-    .where(eq(groupMembers.groupId, groupId))
-    .all();
-  return new Set(rows.map((r) => r.personId));
-}
-
-/** Drop an expense's line items + their per-item shares (used when replacing on edit). */
-async function clearItemizedRows(db: DB, expenseId: string): Promise<void> {
-  const itemRows = await db
-    .select({ id: expenseItems.id })
-    .from(expenseItems)
-    .where(eq(expenseItems.expenseId, expenseId))
-    .all();
-  if (itemRows.length === 0) return;
-  await db.delete(expenseItemShares).where(
-    inArray(
-      expenseItemShares.itemId,
-      itemRows.map((r) => r.id),
-    ),
-  );
-  await db.delete(expenseItems).where(eq(expenseItems.expenseId, expenseId));
 }
 
 export async function createExpense(
@@ -363,191 +270,6 @@ export async function updateExpense(
     amountCents: input.amountCents,
     payerId: input.payerId,
     splitMethod: input.splitMethod,
-    category: input.category ?? null,
-    createdAt: existing.createdAt,
-    date: input.date ?? existing.createdAt,
-    note: input.note ?? null,
-    version: existing.version + 1,
-    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
-  };
-}
-
-export async function createItemizedExpense(
-  db: DB,
-  personId: string,
-  groupId: string,
-  input: CreateItemizedExpenseInput,
-): Promise<ExpenseView> {
-  await requireMembership(db, personId, groupId);
-  // Same replay guard as the simple create. A receipt is the write most likely to be queued offline
-  // and the most expensive to duplicate, since it is also the biggest.
-  if (input.clientId) {
-    const already = await findByClientId(db, groupId, input.clientId);
-    if (already) return already;
-  }
-  const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId))
-    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
-  const everyone = new Set(input.items.flatMap((i) => i.participantIds));
-  if ([...everyone].some((pid) => !members.has(pid))) {
-    throw new ExpenseError('INVALID_PARTICIPANT', 'Everyone on an item must be a group member.');
-  }
-  if (input.items.some((i) => i.payerId && !members.has(i.payerId))) {
-    throw new ExpenseError('INVALID_PAYER', 'An item payer must be a group member.');
-  }
-
-  // Before the split, not after, for the same reason as createExpense: the id seeds who absorbs the
-  // odd cent, and on a receipt that is one leftover per uneven item plus the tax and tip.
-  const id = crypto.randomUUID();
-
-  let shares;
-  try {
-    shares = computeItemizedSplit({
-      items: input.items.map((i) => ({ amountCents: i.amountCents, participantIds: i.participantIds })),
-      taxCents: input.taxCents,
-      tipCents: input.tipCents,
-      seed: id,
-    });
-  } catch (err) {
-    throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
-  }
-
-  const amountCents =
-    input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
-  await db.insert(expenses).values({
-    id,
-    groupId,
-    payerId: input.payerId,
-    createdById: personId,
-    description: input.description,
-    amountCents,
-    splitMethod: 'ITEMIZED',
-    category: input.category ?? null,
-    taxCents: input.taxCents,
-    tipCents: input.tipCents,
-    date: input.date ?? null,
-    note: input.note ?? null,
-    clientId: input.clientId ?? null,
-  });
-  await db.insert(expenseSplits).values(
-    shares.map((s) => ({
-      id: crypto.randomUUID(),
-      expenseId: id,
-      personId: s.userId,
-      owedCents: s.owedCents,
-    })),
-  );
-  for (const item of input.items) {
-    const itemId = crypto.randomUUID();
-    await db.insert(expenseItems).values({
-      id: itemId,
-      expenseId: id,
-      name: item.name,
-      amountCents: item.amountCents,
-      payerId: item.payerId ?? null,
-    });
-    await db
-      .insert(expenseItemShares)
-      .values(item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })));
-  }
-  return {
-    id,
-    description: input.description,
-    amountCents,
-    payerId: input.payerId,
-    splitMethod: 'ITEMIZED',
-    category: input.category ?? null,
-    createdAt: new Date(),
-    date: input.date ?? new Date(),
-    note: input.note ?? null,
-    version: 1,
-    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
-  };
-}
-
-/** Replace an itemized expense in place: recompute item splits, swap items + shares. Preserves createdAt. */
-export async function updateItemizedExpense(
-  db: DB,
-  personId: string,
-  groupId: string,
-  expenseId: string,
-  input: CreateItemizedExpenseInput,
-): Promise<ExpenseView> {
-  await requireMembership(db, personId, groupId);
-  await assertUnlocked(db, groupId);
-  const existing = await db
-    .select({ createdAt: expenses.createdAt, version: expenses.version })
-    .from(expenses)
-    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
-    .get();
-  if (!existing) throw new ExpenseError('NOT_FOUND', 'That expense no longer exists.');
-  assertVersion(existing.version, input.expectedVersion);
-  const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId))
-    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
-  const everyone = new Set(input.items.flatMap((i) => i.participantIds));
-  if ([...everyone].some((pid) => !members.has(pid))) {
-    throw new ExpenseError('INVALID_PARTICIPANT', 'Everyone on an item must be a group member.');
-  }
-  if (input.items.some((i) => i.payerId && !members.has(i.payerId))) {
-    throw new ExpenseError('INVALID_PAYER', 'An item payer must be a group member.');
-  }
-
-  let shares;
-  try {
-    shares = computeItemizedSplit({
-      items: input.items.map((i) => ({ amountCents: i.amountCents, participantIds: i.participantIds })),
-      taxCents: input.taxCents,
-      tipCents: input.tipCents,
-      seed: expenseId,
-    });
-  } catch (err) {
-    throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
-  }
-  const amountCents =
-    input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
-
-  await db
-    .update(expenses)
-    .set({
-      payerId: input.payerId,
-      description: input.description,
-      amountCents,
-      splitMethod: 'ITEMIZED',
-      category: input.category ?? null,
-      taxCents: input.taxCents,
-      tipCents: input.tipCents,
-      date: input.date ?? null,
-      note: input.note ?? null,
-      version: existing.version + 1,
-    })
-    .where(eq(expenses.id, expenseId));
-  await clearItemizedRows(db, expenseId);
-  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await db
-    .insert(expenseSplits)
-    .values(
-      shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-    );
-  for (const item of input.items) {
-    const itemId = crypto.randomUUID();
-    await db.insert(expenseItems).values({
-      id: itemId,
-      expenseId,
-      name: item.name,
-      amountCents: item.amountCents,
-      payerId: item.payerId ?? null,
-    });
-    await db
-      .insert(expenseItemShares)
-      .values(item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })));
-  }
-  return {
-    id: expenseId,
-    description: input.description,
-    amountCents,
-    payerId: input.payerId,
-    splitMethod: 'ITEMIZED',
     category: input.category ?? null,
     createdAt: existing.createdAt,
     date: input.date ?? existing.createdAt,

@@ -5,13 +5,12 @@ import { recordSettlement } from '../src/settlements.js';
 import {
   ExpenseError,
   createExpense,
-  createItemizedExpense,
   deleteExpense,
   getBalances,
   restoreExpense,
   updateExpense,
-  updateItemizedExpense,
 } from '../src/expenses.js';
+import { createItemizedExpense, updateItemizedExpense } from '../src/itemizedExpenses.js';
 import { listExpenses } from '../src/expenseList.js';
 import { testDb, seedPerson } from './helpers.js';
 
