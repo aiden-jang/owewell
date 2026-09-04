@@ -150,7 +150,9 @@ describe('New and Select are one at a time', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  test('opening the name field leaves select mode', async () => {
+  // Not the other direction of the interlock: select mode swaps New for Cancel, so there is no
+  // way to reach the name field from inside it. useDashboardMode still resets, defensively.
+  test('the name field is reachable again after leaving select mode', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /select/i }));
     // Select mode swaps the buttons for Cancel, so getting back to New means leaving it first.
