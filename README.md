@@ -47,7 +47,7 @@ dinner when nobody wants to do the math and everybody remembers it differently.
         ║   owewell Worker (Hono)  — one origin            ║
         ║   /api/*  API        +   app.all('*') → SPA      ║
         ║      │                                           ║
-        ║      ├─ getSessionUser → accounts.aidenjang      ║  (optional; quick split is anonymous)
+        ║      ├─ resolveSession  → accounts.aidenjang      ║  (optional; quick split is anonymous)
         ║      ├─ D1 + Drizzle   the ledger                ║
         ║      ├─ @owewell/shared  pure money/split math   ║
         ║      └─ GroupRoom (Durable Object) realtime      ║
@@ -187,9 +187,14 @@ never does. Old tokens still resolve, so links already in people's messages keep
 packages/
   api/       owewell Worker (Hono)
     src/index.ts        routes: /api/* API (+ /owewell alias) + SPA fallback; harden()
-    src/groups.ts       groups, membership, share tokens
+    src/groups.ts       groups and membership
+    src/sharing.ts      the share link, and claiming a spot through one
     src/members.ts      real accounts + placeholders, seat claiming
-    src/expenses.ts     simple + itemized expenses, revisions, balances
+    src/expenses.ts     writing a plain expense, and revisions
+    src/itemizedExpenses.ts  writing a receipt: per-item people, payers, tax and tip
+    src/expenseGuards.ts  the checks every expense write runs first
+    src/expenseList.ts  assembling the tab
+    src/balances.ts     reading the ledger: who is up, who is down
     src/settlements.ts  payments (methods, partial/manual) + min-cash-flow suggestions
     src/quicksplit.ts   anonymous one-shot split
     src/realtime.ts     GroupRoom Durable Object, live fan-out
@@ -289,13 +294,19 @@ otherwise invisible until somebody complains.
 so every bug in handling it is invisible from UTC — and CI runs in UTC. Pinning one zone means the
 date tests assert the same thing everywhere, and the zone they assert in is one real users are in.
 
-**The API runs as two vitest projects.** The D1 tests need isolated storage: each starts from the
-post-migration snapshot and rolls its own writes back. The Durable Object tests cannot have it — a
-room holding an accepted WebSocket cannot be snapshotted, and the pool fails with "Isolated storage
-failed" without naming the cause. Turning it off globally would have quietly let the D1 tests
-contaminate each other, so realtime gets its own project instead.
+**Every API test starts from the production schema.** `test/apply-migrations.ts` runs the same
+migrations wrangler applies, so a query is checked against the columns that actually exist rather
+than a hand-written fixture of them.
 
-CI runs `typecheck`, `lint`, `format:check`, `build`, `dead-classes` and `test`, in that order.
+**And one journey runs in a browser.** `packages/web/e2e` drives the real Worker against a real
+local D1: sign in, make a group, add somebody, add an expense, read the balance it produces. Only
+the auth service is a stand-in, because the session is checked server-side and there is no seam in
+the browser to intercept it. It is the only layer that knows whether a person can actually get from
+an empty account to a number they would act on.
+
+`pnpm run verify` is the whole gate and CI runs the same list: `gates`, `size`, `comments`,
+`check:docs`, typecheck, lint, `format:check`, build, `dead-classes`, unit tests, then the browser
+journey.
 `dead-classes` diffs the class names in the source against the CSS the build actually emitted: a
 Tailwind class that never gets generated produces no CSS and no error, and it once caught a
 `@custom-variant` shorthand that silently deleted all 114 hover styles while typecheck, lint and the

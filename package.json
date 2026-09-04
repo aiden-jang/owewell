@@ -22,7 +22,8 @@
     "gates": "node scripts/check-gates.mjs",
     "size": "node scripts/check-size.mjs",
     "comments": "node scripts/check-comments.mjs",
-    "verify": "pnpm run gates && pnpm run size && pnpm run comments && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
+    "check:docs": "node scripts/check-docs.mjs",
+    "verify": "pnpm run gates && pnpm run size && pnpm run comments && pnpm run check:docs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
     "deploy": "pnpm run verify && pnpm run deploy:only",
     "deploy:only": "pnpm --filter @owewell/api run deploy"
   },
