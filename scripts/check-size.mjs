@@ -11,7 +11,7 @@
  */
 import { globSync, readFileSync } from 'node:fs';
 
-const MAX_LINES = 500;
+const MAX_LINES = 400;
 const MAX_STATE = 12;
 
 /*
@@ -24,6 +24,8 @@ const ALREADY_OVER = {
   'packages/web/src/pages/GroupDetailPage.tsx': { lines: 798 },
   'packages/web/src/pages/DashboardPage.tsx': { lines: 552 },
   'packages/api/src/index.ts': { lines: 569 },
+  'packages/web/src/components/AddExpenseForm.tsx': { lines: 477 },
+  'packages/web/src/components/ActivityFeed.tsx': { lines: 458 },
 };
 
 const files = globSync('packages/*/src/**/*.{ts,tsx}').filter((f) => !/\.test\.tsx?$/.test(f));
@@ -44,6 +46,22 @@ for (const file of files) {
 
   if (lines > lineCap) problems.push(`${file} is ${lines} lines, over ${lineCap}`);
   if (state > stateCap) problems.push(`${file} holds ${state} pieces of state, over ${stateCap}`);
+  if (ALREADY_OVER[file]) {
+    if (lines <= MAX_LINES && state <= MAX_STATE) {
+      problems.push(`${file} is under the ceiling now: drop it from ALREADY_OVER`);
+    } else {
+      if (allowed.lines !== undefined && lines < allowed.lines) {
+        problems.push(
+          `${file} is down to ${lines} lines: lower its ALREADY_OVER entry from ${allowed.lines}`,
+        );
+      }
+      if (allowed.state !== undefined && state < allowed.state) {
+        problems.push(
+          `${file} is down to ${state} state: lower its ALREADY_OVER entry from ${allowed.state}`,
+        );
+      }
+    }
+  }
   if (lines > widest.lines) widest = { lines, file };
   if (state > busiest.state) busiest = { state, file };
 }
