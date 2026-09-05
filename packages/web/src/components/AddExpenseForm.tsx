@@ -1,5 +1,4 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
 import {
   DateField,
@@ -12,11 +11,12 @@ import {
 } from './FormFields';
 import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
-import { normalizeAmountInput, todayStr } from '../lib/format';
+import { normalizeAmountInput } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { useMoney } from '../lib/currency';
-import { enqueue, isOffline } from '../lib/outbox';
+import { useExpenseDraft } from '../lib/useExpenseDraft';
+import { saveExpense } from '../lib/saveExpense';
 
 interface Props {
   groupId: string;
@@ -60,14 +60,24 @@ export function AddExpenseForm({
 }: Props): ReactNode {
   const fmt = useMoney();
   const symbol = currencySymbol();
-  const source = editing ?? template;
-  const sourcePayer =
-    source && members.some((member) => member.userId === source.payerId)
-      ? source.payerId
-      : (members[0]?.userId ?? '');
-  const [description, setDescription] = useState(source?.description ?? '');
+  const {
+    source,
+    description,
+    setDescription,
+    payerId,
+    setPayerId,
+    date,
+    setDate,
+    category,
+    setCategory,
+    note,
+    setNote,
+    error,
+    setError,
+    submitting,
+    setSubmitting,
+  } = useExpenseDraft(members, editing, template);
   const [amount, setAmount] = useState(source ? (source.amountCents / 100).toFixed(2) : '');
-  const [payerId, setPayerId] = useState(sourcePayer);
   const [method, setMethod] = useState<SplitMethod>(
     source && source.splitMethod !== 'ITEMIZED' ? source.splitMethod : 'EQUAL',
   );
@@ -79,11 +89,6 @@ export function AddExpenseForm({
       : new Set(members.map((m) => m.userId)),
   );
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(source));
-  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
-  const [category, setCategory] = useState<ExpenseCategory>(source?.category ?? DEFAULT_EXPENSE_CATEGORY);
-  const [note, setNote] = useState(source?.note ?? '');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   function clearAfterCreate(): void {
     setDescription('');
@@ -175,65 +180,35 @@ export function AddExpenseForm({
       }
     }
 
-    // Minted before the request, not after: it has to survive the attempt so a retry can carry the
-    // same one and be recognised as the same expense.
-    const clientId = crypto.randomUUID();
-    // An edit says which version it was based on; a create has none to be based on.
-    const versioned = editing ? { expectedVersion: editing.version } : {};
-    const payload = {
-      description: trimmedDescription,
-      amountCents,
-      payerId,
-      splitMethod: method,
-      participants,
-      category,
-      date,
-      note: note.trim(),
-      clientId,
-      ...versioned,
-    };
     setSubmitting(true);
     try {
-      let saved: Expense;
-      if (editing) {
-        saved = await expensesApi.update(groupId, editing.id, payload);
-      } else {
-        saved = await expensesApi.create(groupId, payload);
-        clearAfterCreate();
-      }
-      onCreated(saved);
-    } catch (err) {
-      // Only a new expense can be queued. An edit needs the row it edits to still be there, and by
-      // the time the connection returns somebody else may have changed it out from under this one.
-      if (editing && onQueued && isOffline(err)) {
-        enqueue({
-          clientId,
-          groupId,
-          kind: 'edit',
-          expenseId: editing.id,
-          description: trimmedDescription,
-          amountCents: amountCents,
-          queuedAt: Date.now(),
-          payload,
-        });
-        onQueued(trimmedDescription);
-        return;
-      }
-      if (!editing && onQueued && isOffline(err)) {
-        enqueue({
-          clientId,
-          groupId,
-          kind: 'expense',
+      const outcome = await saveExpense({
+        groupId,
+        editing,
+        base: {
           description: trimmedDescription,
           amountCents,
-          queuedAt: Date.now(),
-          payload,
-        });
-        clearAfterCreate();
-        onQueued(trimmedDescription);
+          payerId,
+          splitMethod: method,
+          participants,
+          category,
+          date,
+          note: note.trim(),
+        },
+        amountCents,
+        kinds: { create: 'expense', edit: 'edit' },
+        create: expensesApi.create,
+        update: expensesApi.update,
+        canQueue: onQueued != null,
+        failureMessage: 'Could not save the expense.',
+      });
+      if (outcome.status === 'failed') {
+        setError(outcome.message);
         return;
       }
-      setError(err instanceof Error ? err.message : 'Could not save the expense.');
+      if (!editing) clearAfterCreate();
+      if (outcome.status === 'queued') onQueued?.(trimmedDescription);
+      else onCreated(outcome.expense);
     } finally {
       setSubmitting(false);
     }
