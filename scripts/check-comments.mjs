@@ -1,6 +1,10 @@
 /*
- * A ceiling on comments, run by `pnpm run verify`, because a cleanup pass is a moment and drift
- * is permanent.
+ * Two checks on comments, run by `pnpm run verify`.
+ *
+ * A ceiling, because a cleanup pass is a moment and drift is permanent. And a stranded check,
+ * because moving code leaves its comment behind describing something that is no longer underneath
+ * it: `itemSplitHint` moved into its own component and its comment stayed on the page above a name
+ * lookup it has nothing to do with.
  *
  * The ceiling is a share of the code rather than a line count. A count charges a new module for
  * its own header, so it blocks a genuine explanation exactly as hard as it blocks padding.
@@ -40,6 +44,7 @@ const files = globSync('packages/*/src/**/*.{ts,tsx,css}').filter((f) => !/\.tes
 
 let commentLines = 0;
 let totalLines = 0;
+const stranded = [];
 
 for (const file of files) {
   const source = readFileSync(file, 'utf8');
@@ -47,9 +52,47 @@ for (const file of files) {
   for (const c of comments(source)) {
     commentLines += c.lines;
   }
+
+  const lines = source.split('\n');
+  let afterDeclaration = false;
+  for (let i = 1; i < lines.length - 2; i++) {
+    if (/^\}\)?;?$/.test(lines[i])) afterDeclaration = true;
+    /*
+     * A comment, then a blank line, then a declaration. A file header sits above the first one of
+     * those and is fine, so is a section divider; a paragraph floating above an unrelated export
+     * further down is one whose subject moved without it.
+     */
+    const ends = /^\s*(\/\/|\*\/)/.test(lines[i]) && !/^\s*\/\/\s*-{3,}/.test(lines[i]);
+    const next = lines.slice(i + 2, i + 4).find((l) => l.trim()) ?? '';
+    if (
+      afterDeclaration &&
+      ends &&
+      lines[i + 1].trim() === '' &&
+      /^(export |const |function )/.test(next.trim())
+    ) {
+      stranded.push(
+        `${file}:${i + 1} — "${lines[i].trim().slice(0, 56)}…" then a gap, then ${next.trim().slice(0, 36)}`,
+      );
+    }
+
+    /*
+     * A doc block with nothing under it but a closing brace. `/**` exists to describe the next
+     * declaration, so one describing a brace is documenting a prop or a field that has been removed.
+     */
+    if (!/\*\/\s*$/.test(lines[i])) continue;
+    let open = i;
+    while (open >= 0 && !lines[open].includes('/*')) open--;
+    const after = lines.slice(i + 1).find((l) => l.trim()) ?? '';
+    if (open >= 0 && lines[open].includes('/**') && /^[)}\]]/.test(after.trim())) {
+      const quoted = (open === i ? lines[open] : lines[open + 1]) ?? '';
+      stranded.push(
+        `${file}:${open + 1} — a doc block with nothing under it: "${quoted.trim().slice(0, 56)}…"`,
+      );
+    }
+  }
 }
 
-const problems = [];
+const problems = stranded.map((s) => `a comment left behind by a move: ${s}`);
 const density = totalLines === 0 ? 0 : commentLines / totalLines;
 const ceiling = Math.floor(totalLines * MAX_SRC_DENSITY);
 
@@ -67,5 +110,6 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `comments ok: ${(density * 100).toFixed(2)}% of ${totalLines} lines ` + `(${commentLines}/${ceiling})`,
+  `comments ok: ${(density * 100).toFixed(2)}% of ${totalLines} lines ` +
+    `(${commentLines}/${ceiling}), none stranded`,
 );
