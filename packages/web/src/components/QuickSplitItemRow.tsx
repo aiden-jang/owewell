@@ -19,6 +19,8 @@ interface QuickSplitItemRowProps {
   onRemove: (id: string) => void;
 }
 
+// Live running total for one item's non-equal split, so values that don't add up are visible
+// before saving. Mirrors the group expense form.
 function itemSplitHint(item: Item, named: Person[]): { text: string; tone: string } | null {
   if (item.method === 'EQUAL') return null;
   const raws = named.map((p) => (item.values[p.id] ?? '').trim()).filter(Boolean);
