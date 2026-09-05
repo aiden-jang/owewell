@@ -1,6 +1,15 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { CategoryPicker } from './CategoryPicker';
+import {
+  DateField,
+  DescriptionField,
+  FormError,
+  NoteField,
+  PayerSelect,
+  SubmitButton,
+  inputClass,
+} from './FormFields';
 import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput, todayStr } from '../lib/format';
@@ -323,9 +332,6 @@ export function AddExpenseForm({
     return `${each} each · split ${ways}`;
   })();
 
-  const inputClass =
-    'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
-
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
       {/*
@@ -359,48 +365,15 @@ export function AddExpenseForm({
         </p>
       </div>
 
-      <input
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="What was it for?"
-        aria-label="What the expense was for"
-        required
-        className={inputClass}
-      />
+      <DescriptionField value={description} onChange={setDescription} />
       <div className="flex gap-2">
-        <select
-          value={payerId}
-          onChange={(e) => setPayerId(e.target.value)}
-          className={inputClass}
-          aria-label="Paid by"
-        >
-          {members.map((m) => (
-            <option key={m.userId} value={m.userId}>
-              {m.displayName} paid
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
-          className={inputClass}
-        />
+        <PayerSelect members={members} value={payerId} onChange={setPayerId} />
+        <DateField value={date} onChange={setDate} />
       </div>
 
       <CategoryPicker value={category} onChange={setCategory} />
 
-      {/* Optional and unlabelled on purpose: a placeholder is enough for a field nobody has to fill,
-          and a label would give it the same weight as the amount. */}
-      <input
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        maxLength={280}
-        placeholder="Add a note (optional)"
-        aria-label="Note"
-        className={inputClass}
-      />
+      <NoteField value={note} onChange={setNote} />
 
       <select
         value={method}
@@ -459,18 +432,8 @@ export function AddExpenseForm({
         </p>
       )}
 
-      {error && (
-        <p className="text-sm font-medium text-neg" role="alert">
-          {error}
-        </p>
-      )}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
-      >
-        {submitting ? 'Saving…' : editing ? 'Save changes' : 'Add expense'}
-      </button>
+      <FormError message={error} />
+      <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add expense'}</SubmitButton>
     </form>
   );
 }

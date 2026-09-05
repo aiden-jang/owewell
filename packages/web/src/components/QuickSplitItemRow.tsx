@@ -3,9 +3,7 @@ import type { SplitMethod } from '@owewell/core';
 import type { DraftItem as Item, DraftPerson as Person } from '../lib/quickSplitDraft';
 import { normalizeAmountInput } from '../lib/format';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
-
-const inputClass =
-  'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
+import { inputClass } from './FormFields';
 
 interface QuickSplitItemRowProps {
   item: Item;
