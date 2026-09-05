@@ -19,6 +19,12 @@
 import { globSync, readFileSync } from 'node:fs';
 
 const MAX_SRC_DENSITY = 0.17;
+/*
+ * The gates' own source counts too, at a higher rate than src because a gate's header is mostly
+ * the reason it exists. A check that does not cover itself stops being checked, and a ceiling
+ * comment is exactly where a changelog quietly accumulates.
+ */
+const SCRIPTS_CEILING = 0.25;
 
 /** Comment spans in one file, with string literals blanked first. */
 function comments(source) {
@@ -40,17 +46,25 @@ function comments(source) {
   return out;
 }
 
-const files = globSync('packages/*/src/**/*.{ts,tsx,css}').filter((f) => !/\.test\.tsx?$/.test(f));
+const src = globSync('packages/*/src/**/*.{ts,tsx,css}').filter((f) => !/\.test\.tsx?$/.test(f));
+const own = [...globSync('scripts/*.mjs'), ...globSync('packages/*/scripts/*.mjs')];
+const files = [...src, ...own];
 
 let commentLines = 0;
 let totalLines = 0;
+let scriptComments = 0;
+let scriptTotal = 0;
 const stranded = [];
 
 for (const file of files) {
   const source = readFileSync(file, 'utf8');
-  totalLines += source.split('\n').filter((l) => l.trim() !== '').length;
+  const nonBlank = source.split('\n').filter((l) => l.trim() !== '').length;
+  const isOwn = own.includes(file);
+  if (isOwn) scriptTotal += nonBlank;
+  else totalLines += nonBlank;
   for (const c of comments(source)) {
-    commentLines += c.lines;
+    if (isOwn) scriptComments += c.lines;
+    else commentLines += c.lines;
   }
 
   const lines = source.split('\n');
@@ -103,6 +117,14 @@ if (commentLines > ceiling) {
   );
 }
 
+const scriptsAllowed = Math.floor(scriptTotal * SCRIPTS_CEILING);
+if (scriptComments > scriptsAllowed) {
+  problems.push(
+    `scripts are ${((scriptComments / scriptTotal) * 100).toFixed(1)}% comments, over the ` +
+      `${(SCRIPTS_CEILING * 100).toFixed(0)}% ceiling (${scriptComments} lines, ${scriptsAllowed} allowed).`,
+  );
+}
+
 if (problems.length > 0) {
   console.error('comment check failed:\n');
   for (const p of problems) console.error(`  ${p}\n`);
@@ -110,6 +132,6 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `comments ok: ${(density * 100).toFixed(2)}% of ${totalLines} lines ` +
-    `(${commentLines}/${ceiling}), none stranded`,
+  `comments ok: src ${(density * 100).toFixed(2)}% of ${totalLines} lines (${commentLines}/${ceiling}), ` +
+    `scripts ${((scriptComments / scriptTotal) * 100).toFixed(1)}%, none stranded`,
 );
