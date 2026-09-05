@@ -1,9 +1,8 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dollarsToCents } from '@owewell/shared';
-import { DEFAULT_EXPENSE_CATEGORY, type ExpenseCategory } from '@owewell/core';
 import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
-import { normalizeAmountInput, todayStr } from '../lib/format';
+import { normalizeAmountInput } from '../lib/format';
 import { CategoryPicker } from './CategoryPicker';
 import {
   DateField,
@@ -15,7 +14,8 @@ import {
   inputClass,
 } from './FormFields';
 import { useMoney } from '../lib/currency';
-import { enqueue, isOffline } from '../lib/outbox';
+import { useExpenseDraft } from '../lib/useExpenseDraft';
+import { saveExpense } from '../lib/saveExpense';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -51,12 +51,25 @@ export function AddItemizedExpenseForm({
   template,
 }: Props): ReactNode {
   const fmt = useMoney();
-  const source = editing ?? template;
+  const {
+    source,
+    defaultPayer,
+    description,
+    setDescription,
+    payerId,
+    setPayerId,
+    date,
+    setDate,
+    category,
+    setCategory,
+    note,
+    setNote,
+    error,
+    setError,
+    submitting,
+    setSubmitting,
+  } = useExpenseDraft(members, editing, template);
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
-  const defaultPayer =
-    source && members.some((member) => member.userId === source.payerId)
-      ? source.payerId
-      : (members[0]?.userId ?? '');
   const initialItems = (): ItemDraft[] =>
     source?.items && source.items.length > 0
       ? source.items.map((it) => ({
@@ -69,16 +82,9 @@ export function AddItemizedExpenseForm({
             it.payerId && members.some((member) => member.userId === it.payerId) ? it.payerId : defaultPayer,
         }))
       : [{ name: '', amount: '', participantIds: allMemberIds(), payerId: defaultPayer }];
-  const [description, setDescription] = useState(source?.description ?? '');
-  const [payerId, setPayerId] = useState(defaultPayer);
   const [tax, setTax] = useState(source?.taxCents ? centsToInput(source.taxCents) : '');
   const [tip, setTip] = useState(source?.tipCents ? centsToInput(source.tipCents) : '');
   const [items, setItems] = useState<ItemDraft[]>(initialItems);
-  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
-  const [category, setCategory] = useState<ExpenseCategory>(source?.category ?? DEFAULT_EXPENSE_CATEGORY);
-  const [note, setNote] = useState(source?.note ?? '');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   // Live receipt total (items + tax + tip) so you can check it against the printed total before
   // saving. Computed in integer cents to avoid float drift; blank/invalid fields count as 0.
@@ -161,63 +167,35 @@ export function AddItemizedExpenseForm({
       return;
     }
 
-    // Minted before the request, so a retry carries the same one and is recognised as this receipt.
-    const clientId = crypto.randomUUID();
-    // An edit says which version it was based on; a create has none to be based on.
-    const versioned = editing ? { expectedVersion: editing.version } : {};
-    const payload = {
-      description: trimmedDescription,
-      payerId,
-      taxCents,
-      tipCents,
-      items: payloadItems,
-      category,
-      date,
-      note: note.trim(),
-      clientId,
-      ...versioned,
-    };
     setSubmitting(true);
     try {
-      let saved: Expense;
-      if (editing) {
-        saved = await expensesApi.updateItemized(groupId, editing.id, payload);
-      } else {
-        saved = await expensesApi.createItemized(groupId, payload);
-        clearAfterCreate();
-      }
-      onCreated(saved);
-    } catch (err) {
-      // The receipt is the write most worth keeping: it is the one that takes two minutes to type.
-      if (editing && onQueued && isOffline(err)) {
-        enqueue({
-          clientId,
-          groupId,
-          kind: 'edit-itemized',
-          expenseId: editing.id,
+      const outcome = await saveExpense({
+        groupId,
+        editing,
+        base: {
           description: trimmedDescription,
-          amountCents: payloadItems.reduce((sum, i) => sum + i.amountCents, 0) + taxCents + tipCents,
-          queuedAt: Date.now(),
-          payload,
-        });
-        onQueued(trimmedDescription);
+          payerId,
+          taxCents,
+          tipCents,
+          items: payloadItems,
+          category,
+          date,
+          note: note.trim(),
+        },
+        amountCents: payloadItems.reduce((sum, i) => sum + i.amountCents, 0) + taxCents + tipCents,
+        kinds: { create: 'itemized', edit: 'edit-itemized' },
+        create: expensesApi.createItemized,
+        update: expensesApi.updateItemized,
+        canQueue: onQueued != null,
+        failureMessage: 'Could not save the receipt.',
+      });
+      if (outcome.status === 'failed') {
+        setError(outcome.message);
         return;
       }
-      if (!editing && onQueued && isOffline(err)) {
-        enqueue({
-          clientId,
-          groupId,
-          kind: 'itemized',
-          description: trimmedDescription,
-          amountCents: payloadItems.reduce((sum, i) => sum + i.amountCents, 0) + taxCents + tipCents,
-          queuedAt: Date.now(),
-          payload,
-        });
-        clearAfterCreate();
-        onQueued(trimmedDescription);
-        return;
-      }
-      setError(err instanceof Error ? err.message : 'Could not save the receipt.');
+      if (!editing) clearAfterCreate();
+      if (outcome.status === 'queued') onQueued?.(trimmedDescription);
+      else onCreated(outcome.expense);
     } finally {
       setSubmitting(false);
     }
