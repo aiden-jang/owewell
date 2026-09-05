@@ -23,9 +23,10 @@
     "size": "node scripts/check-size.mjs",
     "comments": "node scripts/check-comments.mjs",
     "check:docs": "node scripts/check-docs.mjs",
-    "verify": "pnpm run gates && pnpm run size && pnpm run comments && pnpm run check:docs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
+    "verify": "pnpm run gates && pnpm run size && pnpm run css-vars && pnpm run comments && pnpm run check:docs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
     "deploy": "pnpm run verify && pnpm run deploy:only",
-    "deploy:only": "pnpm --filter @owewell/api run deploy"
+    "deploy:only": "pnpm --filter @owewell/api run deploy",
+    "css-vars": "node scripts/check-css-vars.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.18.0",
