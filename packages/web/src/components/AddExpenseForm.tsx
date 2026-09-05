@@ -25,7 +25,6 @@ interface Props {
    * ("waiting for signal", not "added"), and nothing exists on the server yet to hand back.
    */
   onQueued?: (description: string) => void;
-  /** The expense saved but its photo did not. Worth saying out loud; not worth failing the save. */
 }
 
 /** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
