@@ -9,6 +9,7 @@ import { previewPaymentPlan } from '../lib/settlementGuide';
 import { normalizeAmountInput } from '../lib/format';
 import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
+import { inputClass } from './FormFields';
 
 interface Props {
   groupId: string;
@@ -169,8 +170,6 @@ export function RecordPaymentForm({
   }
 
   const symbol = currencySymbol();
-  const inputClass =
-    'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">

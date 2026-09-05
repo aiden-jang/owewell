@@ -23,6 +23,7 @@ import {
 } from '../lib/quicksplit';
 import QuickSplitItemRow from '../components/QuickSplitItemRow';
 import { useShareAction } from '../lib/useShareAction';
+import { inputClass } from '../components/FormFields';
 
 /*
  * The draft layer, the split-value parsing and the public header all moved out — see
@@ -334,9 +335,6 @@ export function QuickSplitPage(): ReactNode {
       setSaving(false);
     }
   }
-
-  const inputClass =
-    'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   return (
     <div className="flex-1">
