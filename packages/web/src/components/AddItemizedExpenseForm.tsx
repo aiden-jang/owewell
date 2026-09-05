@@ -31,7 +31,6 @@ interface Props {
   template?: Expense;
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
-  /** The expense saved but its photo did not. Worth saying out loud; not worth failing the save. */
 }
 
 export function AddItemizedExpenseForm({
