@@ -207,9 +207,6 @@ export function QuickSplitPage(): ReactNode {
     setItems((prev) => (prev.length <= 1 ? prev : prev.filter((it) => it.id !== id)));
   }
 
-  // Live running total for one item's non-equal split, so values that don't add
-  // up are visible before saving. Mirrors the group expense form.
-
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
   const activeTip = items.find((item) => item.generatedTip)?.generatedTip ?? null;
   const generatedTipTotal = items.reduce((sum, item) => {
