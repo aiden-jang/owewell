@@ -1,6 +1,6 @@
 # Decisions and trade-offs
 
-*Moved out of the README, which is the front door and was carrying the whole house.*
+_Moved out of the README, which is the front door and was carrying the whole house._
 
 ## Decisions worth explaining
 
