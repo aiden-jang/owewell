@@ -11,7 +11,7 @@ import {
 } from './expenseGuards.js';
 import { listExpenses } from './expenseList.js';
 // Balance reading moved to its own module; re-exported so callers keep one import site.
-export { computeBalances, getBalances, type MemberBalance } from './balances.js';
+export { getBalances } from './balances.js';
 import { expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 
 export type ExpenseErrorCode =

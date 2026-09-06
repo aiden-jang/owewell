@@ -2,14 +2,7 @@ import type { CreateExpensePayload, CreateItemizedPayload, Expense } from '@owew
 import { api } from './api';
 
 // Re-export the shared contract so components can keep importing expense types from here.
-export type {
-  CreateExpensePayload,
-  CreateItemizedPayload,
-  Expense,
-  ExpenseSplit,
-  ExpenseSplitMethod,
-  SplitMethod,
-} from '@owewell/core';
+export type { CreateExpensePayload, CreateItemizedPayload, Expense, SplitMethod } from '@owewell/core';
 
 export const expensesApi = {
   list: (groupId: string): Promise<Expense[]> =>

@@ -26,6 +26,8 @@ jobs:
       - run: pnpm run comments
       # Prose rots with nothing to fail: a rename leaves a doc naming a symbol that is gone.
       - run: pnpm run check:docs
+      # An export nothing imports and a dependency nothing uses are both dead weight nobody notices.
+      - run: pnpm run knip
       - run: pnpm run typecheck
       - run: pnpm run lint
       # The repo is prettier-formatted and the config describes it, so drift is a CI failure rather
