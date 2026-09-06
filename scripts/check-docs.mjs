@@ -65,7 +65,11 @@ for (const doc of DOCS) {
 
       /* Only inside backticks or a fence: English prose says things like "a pnpm command of the
          same name", and that is not an invocation. */
-      const commands = fenced ? [line] : [...line.matchAll(/`([^`]+)`/g)].map((b) => b[1]);
+      /* Inside a fence a `#` starts a shell comment: "corepack enable  # makes pnpm available" is
+         English about pnpm, not an invocation of a script called `available`. */
+      const commands = fenced
+        ? [line.replace(/#.*$/, '')]
+        : [...line.matchAll(/`([^`]+)`/g)].map((b) => b[1]);
       for (const m of commands.join('\n').matchAll(/pnpm (?:run |-r )?([a-z][\w:-]*)/g)) {
         const name = m[1];
         if (['install', 'exec', 'audit', 'why', 'dlx', 'add', 'create', 'run'].includes(name)) continue;

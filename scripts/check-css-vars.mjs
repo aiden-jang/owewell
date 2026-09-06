@@ -46,6 +46,10 @@ for (const file of walk(SRC)) {
     for (const m of source.matchAll(/['"`](--[\w-]+)['"`]/g)) declared.add(m[1]);
   }
 
+  /* Tailwind sets one inline from a class: `[--pad:1rem]` on the element that needs it. Scanned in
+     stylesheets too, since a utility can carry the same syntax. */
+  for (const m of source.matchAll(/\[(--[\w-]+)\s*:/g)) declared.add(m[1]);
+
   /*
    * Comments masked first. A note explaining what `var(--x)` does is prose, and counting it as a
    * reference means the gate reports a property nobody meant to use.
