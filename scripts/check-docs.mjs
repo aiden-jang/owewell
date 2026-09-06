@@ -7,7 +7,7 @@
  */
 import { globSync, readFileSync } from 'node:fs';
 
-const DOCS = ['README.md', 'DEPLOY.md', 'CLAUDE.md', 'AGENTS.md'];
+const DOCS = ['README.md', 'DEPLOY.md', 'DECISIONS.md', 'CLAUDE.md', 'AGENTS.md'];
 
 /* Named in the docs because they are absent, or because they belong to somebody else's API.
    Never add a name the code actually lost. */
