@@ -18,6 +18,21 @@ export interface SettlementReceiptData {
   remainingCents: number;
 }
 
+/**
+ * The receipt, or null once the payment it explains is gone.
+ *
+ * It is a snapshot of one payment against the balances of the moment it was recorded, so undoing that
+ * payment leaves a card describing something that did not happen -- including its loudest line,
+ * "Everyone is settled".
+ */
+export function liveReceipt(
+  receipt: SettlementReceiptData | null,
+  settlements: readonly Settlement[],
+): SettlementReceiptData | null {
+  if (!receipt) return null;
+  return settlements.some((s) => s.id === receipt.settlement.id) ? receipt : null;
+}
+
 /** Turn a ledger refresh into a compact explanation of what one payment actually changed. */
 export function buildSettlementReceipt(
   settlement: Settlement,

@@ -53,7 +53,7 @@ export function FrontingInsight({ balances, expenseCount }: { balances: Balance[
           ))}
         </div>
 
-        <ul className="space-y-2">
+        <ul className="mt-3 space-y-2">
           {insight.shares.map((share, index) => (
             <li key={share.userId} className="flex items-center gap-2 text-xs">
               <Avatar name={share.displayName} size="sm" />
