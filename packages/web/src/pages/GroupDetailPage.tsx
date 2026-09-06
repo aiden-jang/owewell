@@ -31,7 +31,7 @@ import { ExpenseDetail } from '../components/ExpenseDetail';
 import { drop as dropWrite, enqueue as enqueueWrite, isOffline } from '../lib/outbox';
 import { useGroupLedger } from '../lib/useGroupLedger';
 import { useInviteLink } from '../lib/useInviteLink';
-import { buildSettlementReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
+import { buildSettlementReceipt, liveReceipt, type SettlementReceiptData } from '../lib/settlementReceipt';
 import { SettlementReceipt } from '../components/SettlementReceipt';
 import { buildGroupRecap } from '../lib/groupRecap';
 
@@ -453,6 +453,8 @@ export function GroupDetailPage(): ReactNode {
   // outstanding transfers rather than about any one person. The hero derives its own copy of this
   // from the same array; here it decides whether there is a wrapped recap to offer at all.
   const groupSettled = suggested.length === 0;
+  // Derived rather than cleared by hand, so every path that removes a settlement gets it for free.
+  const receipt = liveReceipt(paymentReceipt, settlements);
   const hasActivity = expenses.length > 0 || settlements.length > 0;
   const groupRecap = groupSettled && expenses.length > 0 ? buildGroupRecap(expenses, settlements) : null;
 
@@ -519,9 +521,7 @@ export function GroupDetailPage(): ReactNode {
         }}
       />
 
-      {paymentReceipt && (
-        <SettlementReceipt receipt={paymentReceipt} onClose={() => setPaymentReceipt(null)} />
-      )}
+      {receipt && <SettlementReceipt receipt={receipt} onClose={() => setPaymentReceipt(null)} />}
 
       {/*
        * One block, two readings. While the group still needs people this is the obvious next

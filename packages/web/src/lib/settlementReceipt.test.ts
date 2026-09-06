@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSettlementReceipt } from './settlementReceipt';
+import { buildSettlementReceipt, liveReceipt } from './settlementReceipt';
 
 describe('buildSettlementReceipt', () => {
   it('explains who cleared and what the group still has left', () => {
@@ -53,5 +53,48 @@ describe('buildSettlementReceipt', () => {
     expect(receipt.clearedNames).toEqual(['Bo', 'Ari']);
     expect(receipt.remainingTransfers).toBe(0);
     expect(receipt.remainingCents).toBe(0);
+  });
+});
+
+describe('liveReceipt', () => {
+  const settlement = {
+    id: 'pay-1',
+    fromUserId: 'b',
+    toUserId: 'a',
+    amountCents: 500,
+    method: null,
+    createdAt: '2026-08-11T12:00:00.000Z',
+  };
+  const receipt = buildSettlementReceipt(
+    settlement,
+    [
+      { userId: 'a', displayName: 'Ari', netCents: 500, paidCents: 500, owedCents: 0 },
+      { userId: 'b', displayName: 'Bo', netCents: -500, paidCents: 0, owedCents: 500 },
+    ],
+    [
+      { userId: 'a', displayName: 'Ari', netCents: 0, paidCents: 500, owedCents: 0 },
+      { userId: 'b', displayName: 'Bo', netCents: 0, paidCents: 0, owedCents: 500 },
+    ],
+    [],
+  );
+
+  it('keeps showing while the payment it explains is still on the ledger', () => {
+    expect(liveReceipt(receipt, [settlement])).toBe(receipt);
+  });
+
+  it('goes when that payment is undone, so it cannot keep saying everyone is settled', () => {
+    // The card the group is left looking at claims a payment that no longer exists.
+    expect(receipt.remainingTransfers).toBe(0);
+    expect(liveReceipt(receipt, [])).toBeNull();
+  });
+
+  it('is unmoved by other payments coming and going', () => {
+    const other = { ...settlement, id: 'pay-2' };
+    expect(liveReceipt(receipt, [other, settlement])).toBe(receipt);
+    expect(liveReceipt(receipt, [other])).toBeNull();
+  });
+
+  it('has nothing to show when no payment was recorded', () => {
+    expect(liveReceipt(null, [settlement])).toBeNull();
   });
 });
