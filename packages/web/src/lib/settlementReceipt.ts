@@ -18,13 +18,8 @@ export interface SettlementReceiptData {
   remainingCents: number;
 }
 
-/**
- * The receipt, or null once the payment it explains is gone.
- *
- * It is a snapshot of one payment against the balances of the moment it was recorded, so undoing that
- * payment leaves a card describing something that did not happen -- including its loudest line,
- * "Everyone is settled".
- */
+/* A snapshot of balances at the moment one payment landed, so undoing that payment leaves it
+   describing something that did not happen -- "Everyone is settled" included. */
 export function liveReceipt(
   receipt: SettlementReceiptData | null,
   settlements: readonly Settlement[],
