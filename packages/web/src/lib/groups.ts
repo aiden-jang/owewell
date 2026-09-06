@@ -2,14 +2,7 @@ import type { Balance, GroupDetail, GroupMember, GroupSummary, SharedGroupSummar
 import { api } from './api';
 
 // Re-export the shared contract so components can keep importing group types from here.
-export type {
-  Balance,
-  GroupDetail,
-  GroupMember,
-  GroupRole,
-  GroupSummary,
-  SharedGroupSummary,
-} from '@owewell/core';
+export type { Balance, GroupDetail, GroupMember, GroupSummary, SharedGroupSummary } from '@owewell/core';
 
 export const groupsApi = {
   list: (): Promise<GroupSummary[]> => api.get<{ groups: GroupSummary[] }>('/groups').then((r) => r.groups),
