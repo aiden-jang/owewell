@@ -83,7 +83,6 @@ describe('liveReceipt', () => {
   });
 
   it('goes when that payment is undone, so it cannot keep saying everyone is settled', () => {
-    // The card the group is left looking at claims a payment that no longer exists.
     expect(receipt.remainingTransfers).toBe(0);
     expect(liveReceipt(receipt, [])).toBeNull();
   });
