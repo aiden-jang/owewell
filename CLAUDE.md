@@ -16,7 +16,7 @@ runtime; a script name silently resolved to an npm builtin, so a check reported 
 without ever executing.
 
 So: an impossibly clean result means suspect the scan first. And **green is not proof unless you
-have seen that check fail** — break the thing it guards, watch it go red, then believe it.
+have seen that check fail**: break the thing it guards, watch it go red, then believe it.
 
 ## Writing a new check
 
@@ -59,12 +59,12 @@ this file in the same commit.
 `pnpm run verify` and CI run the same list, and `gates` is what keeps them the same list. The
 homemade ones:
 
-- `gates` — every step of verify, deploy and ci.yml names a real script, and none is shadowed by a
+- `gates`: every step of verify, deploy and ci.yml names a real script, and none is shadowed by a
   pnpm command of the same name.
-- `size` — a line and `useState` ceiling per file.
-- `comments` — capped as a share of the code, not a line count.
-- `check:docs` — the paths, script names, routes and symbols the docs name all exist.
-- `dead-classes` — must run after the build, because it diffs against the CSS Tailwind emitted.
+- `size`: a line and `useState` ceiling per file.
+- `comments`: capped as a share of the code, not a line count.
+- `check:docs`: the paths, script names, routes and symbols the docs name all exist.
+- `dead-classes`: must run after the build, because it diffs against the CSS Tailwind emitted.
 
 `ALREADY_OVER` in `check-size.mjs` holds the files still being decomposed, at the size they were
 when the gate went in. Shrink an entry as the file shrinks and delete it when the file is under the
@@ -100,7 +100,7 @@ on every balance read. They must agree, and only their own tests know it.
 ## Testing
 
 Every API test starts from the production schema: `test/apply-migrations.ts` applies the same
-migrations wrangler does. Stub outbound calls with `vi.stubGlobal('fetch', …)` — the Worker runs in
+migrations wrangler does. Stub outbound calls with `vi.stubGlobal('fetch', …)`, since the Worker runs in
 the test's own isolate, so that is what it calls.
 
 The browser journey needs a stand-in auth service (`packages/web/e2e/fake-auth.mjs`). The session is
