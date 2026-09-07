@@ -36,7 +36,6 @@ import {
 } from './expenses.js';
 import { createItemizedExpense, updateItemizedExpense } from './itemizedExpenses.js';
 import { listExpenses } from './expenseList.js';
-import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS } from '@owewell/core';
 import {
   SettlementError,
   deleteSettlement,
@@ -45,6 +44,8 @@ import {
   recordSettlement,
 } from './settlements.js';
 import { QuickSplitError, createQuickSplit } from './quicksplit.js';
+import { writeEvent } from './events.js';
+import { createExpenseBody, itemizedBody, recordSettlementBody, quickSplitBody } from './bodies.js';
 import { notifyGroupChanged } from './realtime.js';
 
 type Vars = { person: Person };
@@ -170,6 +171,7 @@ api.post('/groups', async (c) => {
     .safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const group = await createGroup(createDb(c.env), c.get('person').id, parsed.data.name);
+  writeEvent(c.env, 'group_created');
   return c.json({ group }, 201);
 });
 
@@ -212,6 +214,7 @@ api.delete('/groups/:id', async (c) => {
 // Create (or fetch) the group's public read-only share token. Members only.
 api.post('/groups/:id/share', async (c) => {
   const token = await getOrCreateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
+  writeEvent(c.env, 'share_link_minted');
   return c.json({ token });
 });
 
@@ -290,24 +293,6 @@ api.get('/groups/:id/expenses', async (c) => {
   return c.json({ expenses: await listExpenses(createDb(c.env), c.get('person').id, c.req.param('id')) });
 });
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const category = z.enum(EXPENSE_CATEGORY_KEYS as [string, ...string[]]).optional();
-// A line of context, not a document. Empty string clears it, which is what an emptied field sends.
-const note = z.string().trim().max(280).nullish();
-const createExpenseBody = z.object({
-  description: z.string().trim().min(1).max(140),
-  amountCents: z.number().int().positive(),
-  payerId: z.string().min(1),
-  splitMethod: z.enum(['EQUAL', 'EXACT', 'PERCENT', 'SHARES']),
-  participants: z.array(z.object({ userId: z.string().min(1), value: z.number().int().optional() })).min(1),
-  category,
-  note,
-  // Opaque to us; the browser generates it. Bounded so it cannot be used as a smuggled payload.
-  clientId: z.string().min(8).max(64).optional(),
-  // Only meaningful on an edit: the version the change was written against.
-  expectedVersion: z.number().int().positive().optional(),
-  date: isoDate.optional(),
-});
 api.post('/groups/:id/expenses', async (c) => {
   const parsed = createExpenseBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
@@ -319,32 +304,11 @@ api.post('/groups/:id/expenses', async (c) => {
     ),
     ...(date ? { date: new Date(date) } : {}),
   });
+  writeEvent(c.env, 'expense_added', rest.splitMethod, '', participants.length);
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ expense }, 201);
 });
 
-const itemizedBody = z.object({
-  description: z.string().trim().min(1).max(140),
-  payerId: z.string().min(1),
-  taxCents: z.number().int().nonnegative().default(0),
-  tipCents: z.number().int().nonnegative().default(0),
-  items: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(140),
-        amountCents: z.number().int().positive(),
-        participantIds: z.array(z.string().min(1)).min(1),
-        payerId: z.string().min(1).optional(),
-      }),
-    )
-    .min(1),
-  category,
-  note,
-  clientId: z.string().min(8).max(64).optional(),
-  // Only meaningful on an edit: the version the change was written against.
-  expectedVersion: z.number().int().positive().optional(),
-  date: isoDate.optional(),
-});
 api.post('/groups/:id/expenses/itemized', async (c) => {
   const parsed = itemizedBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
@@ -425,13 +389,6 @@ api.get('/groups/:id/settlements/suggested', async (c) => {
   });
 });
 
-const recordSettlementBody = z.object({
-  fromUserId: z.string().min(1),
-  toUserId: z.string().min(1),
-  amountCents: z.number().int().positive(),
-  method: z.enum(PAYMENT_METHODS).optional(),
-  clientId: z.string().min(8).max(64).optional(),
-});
 api.post('/groups/:id/settlements', async (c) => {
   const parsed = recordSettlementBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
@@ -442,6 +399,7 @@ api.post('/groups/:id/settlements', async (c) => {
     ...(parsed.data.method ? { method: parsed.data.method } : {}),
     ...(parsed.data.clientId ? { clientId: parsed.data.clientId } : {}),
   });
+  writeEvent(c.env, 'settlement_recorded', parsed.data.method ?? 'unspecified');
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ settlement }, 201);
 });
@@ -467,32 +425,6 @@ api.post('/shared/:token/claim', async (c) => {
   return c.json(result);
 });
 
-const quickSplitBody = z.object({
-  people: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(80),
-        isPayer: z.boolean().optional(),
-        isYou: z.boolean().optional(),
-      }),
-    )
-    .min(2)
-    .max(50),
-  items: z
-    .array(
-      z.object({
-        description: z.string().trim().max(140).default(''),
-        amountCents: z.number().int().positive(),
-        splitMethod: z.enum(['EQUAL', 'EXACT', 'PERCENT', 'SHARES']),
-        // Per-person values aligned to `people`; null for EQUAL / no value.
-        values: z.array(z.number().int().nullable()).optional(),
-        // Index into `people` of who paid for this item; omitted → default payer.
-        payerIndex: z.number().int().nonnegative().optional(),
-      }),
-    )
-    .min(1)
-    .max(50),
-});
 api.post('/quick-splits', async (c) => {
   const parsed = quickSplitBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
@@ -510,6 +442,7 @@ api.post('/quick-splits', async (c) => {
       ...(it.payerIndex === undefined ? {} : { payerIndex: it.payerIndex }),
     })),
   });
+  writeEvent(c.env, 'quick_split_used', '', '', parsed.data.people.length);
   return c.json(result, 201);
 });
 

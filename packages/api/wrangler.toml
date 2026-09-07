@@ -24,6 +24,12 @@ database_id = "1f212b63-ba43-42a4-8b5c-38d7f5c76efb"
 migrations_dir = "migrations"
 
 # Per-group realtime fan-out. One GroupRoom instance per group, addressed by group id.
+# Product events, written fire-and-forget from the route handlers. One dataset across every app,
+# with the app name in index1 and blob1, so a single query can compare them.
+[[analytics_engine_datasets]]
+binding = "EVENTS"
+dataset = "aidenjang_events"
+
 [[durable_objects.bindings]]
 name = "REALTIME"
 class_name = "GroupRoom"
