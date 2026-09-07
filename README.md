@@ -7,7 +7,7 @@ dinner when nobody wants to do the math and everybody remembers it differently.
 
 `TypeScript` · `Hono` · `Cloudflare Workers` · `D1 + Drizzle` · `Durable Objects` · `React` · `Vite` · `Tailwind`
 
-> Part of a [platform of apps](https://github.com/aiden-jang/platform/blob/main/PLATFORM.md) that share one sign-in. Runs entirely on Cloudflare's free tier.
+> Part of a [platform of apps](https://github.com/aiden-jang/auth/blob/main/PLATFORM.md) that share one sign-in. Runs entirely on Cloudflare's free tier.
 
 ---
 
