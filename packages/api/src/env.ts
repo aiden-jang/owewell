@@ -16,6 +16,8 @@ export interface Env {
   API_LIMITER?: RateLimiter;
   // Much tighter, on the one unauthenticated endpoint. A share request spends both.
   SHARE_LIMITER?: RateLimiter;
+  // Optional so local dev and the test worker run without it: an absent binding drops the events.
+  EVENTS?: AnalyticsEngineDataset;
 }
 
 /** Cloudflare's native rate-limit binding. */
