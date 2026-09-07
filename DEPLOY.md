@@ -44,7 +44,7 @@ pnpm run deploy       # the full CI gate, then ship
 pnpm run deploy:only  # skip the gate (know why you're doing this)
 ```
 
-From inside `packages/api`, `pnpm run deploy` is the ship step on its own — the same thing
+From inside `packages/api`, `pnpm run deploy` is the ship step on its own, the same thing
 `deploy:only` calls.
 
 ```bash
@@ -54,7 +54,7 @@ pnpm exec wrangler deploy
 
 - **This applies D1 migrations to the production database**, before the code ships and failing
   hard if they fail. That ordering is deliberate: shipping code whose migration has not run is
-  what once 500'd `/auth/me` for every app. It also means a hand-run deploy is not a dry run —
+  what once 500'd `/auth/me` for every app. It also means a hand-run deploy is not a dry run:
   a migration that lands is landed.
 - The root `deploy` runs `verify` first, which is the same list CI runs and in the same order.
   `dead-classes` has to come after the build; it diffs class names against the CSS Tailwind
@@ -87,7 +87,7 @@ balances + the live activity feed.
 
 ```bash
 # auth service (:34100) + owewell API (:34200) + owewell web (:30001)
-# auth now lives in its own repo — run it from there:
+# auth now lives in its own repo, so run it from there:
 cd ../auth/packages/api && pnpm exec wrangler dev --port 34100 --inspector-port 9229 --local
 # owewell (this repo):
 cd packages/api && pnpm exec wrangler dev --port 34200 --inspector-port 9230 --local --var AUTH_URL:http://localhost:34100
