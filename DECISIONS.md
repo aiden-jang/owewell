@@ -13,7 +13,7 @@ doing that on floats would silently lose or invent money.
 weighted splits, itemized allocation, remainder distribution, balance netting, and the
 minimum-cash-flow settlement suggestion all live in a dependency-free package. The Worker is a thin
 shell that reads D1, calls it, and writes back. The rules I most want to be _correct_ are the ones
-furthest from the network — and because the browser imports the same package, the quick-split
+furthest from the network, and because the browser imports the same package, the quick-split
 preview and the saved expense cannot disagree.
 
 **The odd cent is assigned deterministically, from a seed both sides can derive.** Largest-remainder
@@ -33,11 +33,11 @@ one bar. A write that can't reach the server goes into a localStorage outbox and
 Each kind is queued on its own terms: a create carries an idempotency key so a replay is recognised
 rather than duplicated, a delete needs none (deleting twice is deleting once), and an edit carries
 the version it was written against, so one that would erase somebody else's change comes back as a
-question instead of quietly winning. Not the Background Sync API — Safari doesn't implement it.
+question instead of quietly winning. Not the Background Sync API, which Safari doesn't implement.
 
 **Edits are versioned, and a conflict is a question.** `expectedVersion` on an edit lets the server
 refuse one written against a row that has since moved. The client then asks the person, and if they
-choose their own version it re-sends _without_ the version — otherwise the retry conflicts with the
+choose their own version it re-sends _without_ the version, or the retry conflicts with the
 change it was just told about, forever.
 
 **Deletion is soft, so undo is a flag flip.** The same row comes back with the same id and the same
@@ -54,24 +54,24 @@ later." A placeholder is just a name. A share link lets one of them claim that s
 real member; the seat id travels through sign-in in the return URL, because a full-page redirect
 loses anything held in memory.
 
-**Share links are revocable.** The owner can mint a replacement — which stops every copy of the old
-link resolving — or turn public access off entirely. Members keep their access either way.
+**Share links are revocable.** The owner can mint a replacement, which stops every copy of the
+old link resolving, or turn public access off entirely. Members keep their access either way.
 
 **One currency, on purpose.** A per-group currency setting was removed: it relabelled amounts
 without converting them, which is worse than not offering it.
 
 **Two themes, and the palette is data.** `warm` and `dark`, following `prefers-color-scheme` until
 someone chooses. Every colour lives in `lib/contrast.ts` as well as in `index.css`, and a test
-parses the stylesheet to assert the two copies agree — because a colour that fails contrast is a
+parses the stylesheet to assert the two copies agree, because a colour that fails contrast is a
 real defect, and defects deserve tests. The same tests hold the bars: 4.5:1 for body text, 3:1 for
 UI shapes, and the avatar discs capped so they don't out-saturate the money.
 
 ### The API prefix
 
 The API is at `/api/*`. It used to be `/owewell/*`, which said the app's name twice on its own
-subdomain (`owewell.aidenjang.com/owewell/groups/…`). The prefix itself is load-bearing — one
+subdomain (`owewell.aidenjang.com/owewell/groups/…`). The prefix itself is load-bearing: one
 Worker serves both the SPA and the API from one origin, so something has to separate an API call
-from a page request — but the name was not.
+from a page request, but the name was not.
 
 `/owewell` still answers. Both prefixes mount the same sub-app, so there is nothing to keep in
 step, and a browser holding a cached bundle or an old service worker keeps working. It can be
@@ -90,7 +90,7 @@ guessing at. Two per-IP limits, both native Cloudflare bindings checked at the e
 | `API_LIMITER`   | 240/min across `/api/*`        | Registered **before** the auth guard, because every authenticated request costs a round trip to the shared auth service. A flood here is amplified into a flood there. |
 | `SHARE_LIMITER` | 20/min on `/api/shared/:token` | The guessing target. This is what lets the token be short.                                                                                                             |
 
-Both degrade **open** when the binding is absent — local `wrangler dev` doesn't provide one, and a
+Both degrade **open** when the binding is absent: local `wrangler dev` doesn't provide one, and a
 limiter that closed instead would make the app unusable offline in a way that looks like a bug in
 whatever you were building at the time.
 

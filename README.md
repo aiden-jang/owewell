@@ -44,7 +44,7 @@ dinner when nobody wants to do the math and everybody remembers it differently.
         └────────┼──────────────────────────────────────┘
                  │
         ╔════════▼════════════════════════════════════════╗
-        ║   owewell Worker (Hono)  — one origin            ║
+        ║   owewell Worker (Hono): one origin              ║
         ║   /api/*  API        +   app.all('*') → SPA      ║
         ║      │                                           ║
         ║      ├─ resolveSession  → accounts.aidenjang      ║  (optional; quick split is anonymous)
@@ -159,15 +159,15 @@ Or use the Cloudflare dashboard: **Workers & Pages → D1 → owewell → Consol
 ## Tests
 
 ```bash
-pnpm -r test    # 749 tests: 147 API, 546 web, 56 shared
+pnpm -r test    # every suite: api, web, shared
 ```
 
 Three registers, deliberately:
 
-- **`shared`** — the arithmetic, with no I/O at all. Splits, remainders, netting, settlement.
-- **`api`** — real routes against a real local D1 via `@cloudflare/vitest-pool-workers`, so the
+- **`shared`**: the arithmetic, with no I/O at all. Splits, remainders, netting, settlement.
+- **`api`**: real routes against a real local D1 via `@cloudflare/vitest-pool-workers`, so the
   Drizzle queries and the migrations are exercised rather than mocked.
-- **`web`** — mostly behaviour, not markup: the outbox drain, the focus trap, the session's
+- **`web`**: mostly behaviour rather than markup. The outbox drain, the focus trap, the session's
   person-id remapping, the forms' reconciliation guards, the realtime socket's reconnect.
 
 Four things the suite does that are worth copying:
@@ -175,7 +175,7 @@ Four things the suite does that are worth copying:
 **Authorisation is tested as a property, not per route.** Authentication is middleware and covers
 everything; authorisation is a hand-written `requireMembership(...)` inside each of 26 service
 functions, so a new one that forgets it compiles, lints, and passes every other test. One suite
-walks every mutation and every group read as a signed-in stranger and asserts each is refused —
+walks every mutation and every group read as a signed-in stranger and asserts each is refused,
 including that the refusal is identical for a group that does not exist, so ids stay unguessable.
 The same checks are asserted on the _edit_ paths, not just create: an edit rewrites money already
 in the ledger.
@@ -185,7 +185,7 @@ every colour matches its TypeScript copy, then measures the contrast ratios. A c
 otherwise invisible until somebody complains.
 
 **It is pinned to `America/New_York`.** An expense's date is a calendar day stored at UTC midnight,
-so every bug in handling it is invisible from UTC — and CI runs in UTC. Pinning one zone means the
+so every bug in handling it is invisible from UTC, and CI runs in UTC. Pinning one zone means the
 date tests assert the same thing everywhere, and the zone they assert in is one real users are in.
 
 **Every API test starts from the production schema.** `test/apply-migrations.ts` runs the same
