@@ -9,7 +9,8 @@ import type { MiddlewareHandler } from 'hono';
 
 /**
  * Conservative Content-Security-Policy that our Vite SPAs run under without changes:
- *  - script-src 'self': prod bundles are external files, no inline <script>.
+ *  - script-src: prod bundles are external files, no inline <script>. The beacon belongs here
+ *    as well as in connect-src, because it is a script: connect-src alone never loads it.
  *  - style-src 'unsafe-inline': React `style={}` props and Vite's injected CSS need it.
  *  - font/style google entries: cover Inter loaded via Google Fonts (either @import or <link>).
  *  - img data:/blob:: inline SVG/canvas exports and data-URI icons.
@@ -24,7 +25,7 @@ export const DEFAULT_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  "script-src 'self'",
+  "script-src 'self' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob:",
   "font-src 'self' https://fonts.gstatic.com data:",
