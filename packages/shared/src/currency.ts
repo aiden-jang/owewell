@@ -19,8 +19,8 @@ export const formatMoney: MoneyFormatter = (cents) => Money.fromCents(cents).for
  * Used on the two hero amount fields — add an expense, log a payment — and deliberately not on the
  * seven small inline ones: per-item amounts, tax, tip, per-person exact splits. Nine `$` marks in a
  * dense itemized list is noise, and a column of right-aligned figures under a heading about money
- * is not ambiguous. It went one-of-nine by accident before this was written down; the rule is that
- * the symbol marks the field a form is *about*, not every field that happens to hold money.
+ * is not ambiguous. The rule is that the symbol marks the field a form is *about*, not every
+ * field that happens to hold money.
  */
 export function currencySymbol(): string {
   return '$';

@@ -167,7 +167,7 @@ export function DashboardPage(): ReactNode {
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
-    // Used to return silently, so pressing Create with an empty field looked like the app had frozen.
+    // Touch the field before returning, or Create on an empty name looks like the app froze.
     if (!name.trim()) {
       touchName();
       return;

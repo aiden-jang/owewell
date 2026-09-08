@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { GroupMember } from '../lib/groups';
 
-/** The one field skin. Every form on the site uses it, and they used to each carry their own copy. */
+/** The one field skin. Every form on the site reads it, so a change here lands everywhere. */
 export const inputClass =
   'w-full rounded-xl border border-line bg-field px-3 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
 
