@@ -33,7 +33,7 @@
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "eslint": "^8.57.1",
-    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "knip": "^6.34.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2"
