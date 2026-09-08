@@ -20,7 +20,7 @@
     "@aidenjang/auth-client": "^0.2.0",
     "@owewell/core": "workspace:*",
     "@owewell/shared": "workspace:*",
-    "react": "^18.3.1",
+    "react": "^19.2.8",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"
   },
@@ -32,7 +32,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
     "@types/node": "^26.1.2",
-    "@types/react": "^18.3.10",
+    "@types/react": "^19.2.18",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.6.0",
     "jsdom": "^30.0.1",
