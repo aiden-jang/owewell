@@ -9,12 +9,19 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      # Non-breaking updates batched into one PR; majors still come through individually so
-      # they get their own review.
+      # Non-breaking updates batched into one PR.
       minor-and-patch:
         update-types:
           - minor
           - patch
+
+    # A major is an upgrade with its own work, not something to review in a PR that sits open
+    # going stale. Take them deliberately instead. The trade is real: a fix that only exists in a
+    # new major will not be raised here, so majors still need a look of their own now and then.
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
