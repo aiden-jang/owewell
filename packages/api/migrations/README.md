@@ -9,7 +9,7 @@ ships the code.
 There was, and it is a trap now. `meta/_journal.json` stops at `0011_recurring_rules` and the newest
 snapshot is `0010_snapshot.json`, because `0012`–`0020` were written by hand and never registered.
 Drizzle diffs `schema.ts` against its newest snapshot, so running it today would emit one migration
-re-doing nine that are already applied — and a feature it still thinks exists (`0014` dropped the
+re-doing nine that are already applied, and a feature it still thinks exists (`0014` dropped the
 recurring rules that `0011` added).
 
 The `meta/` directory is kept only so the lineage is readable. Nothing consumes it.
