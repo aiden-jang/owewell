@@ -80,7 +80,7 @@ export function BalanceHero({
   }
 
   return (
-    <div className={`surface rounded-3xl p-6 sm:p-7 ${settled ? 'text-center' : ''}`}>
+    <div className={`balance-hero surface rounded-3xl p-6 sm:p-7 ${settled ? 'text-center' : ''}`}>
       <MemberStrip members={members} onOpen={onOpenMembers} centered={settled} />
       {/* A group with nothing on it is not "settled", it just hasn't started. No mark for that. */}
       {hasActivity && settled && <SettledMark tone={groupSettled ? 'settled' : 'square'} />}

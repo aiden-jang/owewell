@@ -265,25 +265,26 @@
  * back to grey.
  */
 
-/* Direction A — neutral & flat. Deliberately no purple cast and no ambient gradient. */
+/* Dark violet, with flat surfaces and explicit money colors. */
 :root,
 [data-theme='dark'] {
-  --p-canvas: #0b0b0d;
-  --p-card: #121215;
-  --p-surface2: #191920;
-  --p-ink: #ededf0;
-  --p-muted: #9c9ca6;
-  --p-faint: #74747e;
-  --p-line: #1f1f24;
-  --p-line-strong: #2c2c33;
-  --p-accent: #4f46e5;
-  --p-accent-hover: #635bf0;
-  --p-accent-soft: #16161f;
-  --p-accent-ink: #ffffff;
-  --p-field: #101013;
+  color-scheme: dark;
+  --p-canvas: #18161f;
+  --p-card: #211e2a;
+  --p-surface2: #2b2736;
+  --p-ink: #f0edf6;
+  --p-muted: #aaa4b8;
+  --p-faint: #91899f;
+  --p-line: #393342;
+  --p-line-strong: #62586f;
+  --p-accent: #c7b5f3;
+  --p-accent-hover: #d6c8fa;
+  --p-accent-soft: #30283e;
+  --p-accent-ink: #211b31;
+  --p-field: #211e2a;
   --p-pos: #4ade80;
   --p-neg: #f87171;
-  --p-neg-solid: #c9342a;
+  --p-neg-solid: #d34238;
   --p-cat-food: #3987e5;
   --p-cat-groceries: #199e70;
   --p-cat-lodging: #c98500;
@@ -303,24 +304,25 @@
   --p-av-8: #c98afc;
   --p-av-9: #f37ac5;
   --p-av-ink: #1b1a1f;
-  --page-bg: #0b0b0d;
+  --page-bg: #18161f;
   --elevate: 0 1px 2px rgba(0, 0, 0, 0.4);
   --float: 0 10px 30px -6px rgba(0, 0, 0, 0.6);
 }
 
-/* Direction B — warm & soft. Values corrected for AA; the originals from the mock failed. */
+/* Chalk and violet; contrast is checked against every surface. */
 [data-theme='warm'] {
-  --p-canvas: #faf7f2;
+  color-scheme: light;
+  --p-canvas: #f7f5fb;
   --p-card: #ffffff;
-  --p-surface2: #f2ede4;
-  --p-ink: #26221d;
-  --p-muted: #6d645a;
-  --p-faint: #857b70;
-  --p-line: #ece5da;
-  --p-line-strong: #ddd3c5;
-  --p-accent: #1f6f4f;
-  --p-accent-hover: #1a5f43;
-  --p-accent-soft: #eaf3ee;
+  --p-surface2: #eee9f5;
+  --p-ink: #292334;
+  --p-muted: #6d647c;
+  --p-faint: #80758c;
+  --p-line: #e2dcea;
+  --p-line-strong: #cdc3db;
+  --p-accent: #66509c;
+  --p-accent-hover: #564086;
+  --p-accent-soft: #ede7f8;
   --p-accent-ink: #ffffff;
   --p-field: #ffffff;
   --p-pos: #1f6f4f;
@@ -345,7 +347,7 @@
   --p-av-8: #d0acf0;
   --p-av-9: #eca4ce;
   --p-av-ink: #1b1a1f;
-  --page-bg: #faf7f2;
+  --page-bg: #f7f5fb;
   --elevate: 0 1px 2px rgba(35, 28, 20, 0.07), 0 8px 20px -14px rgba(35, 28, 20, 0.18);
   --float: 0 10px 30px -8px rgba(35, 28, 20, 0.28);
 }
@@ -489,7 +491,7 @@ input[type='checkbox'] {
  * The topmost layer, and the only one that has to stay legible on top of another surface.
  *
  * It gets its own background and shadow instead of reusing `.surface`, which is a resting card: a
- * toast fired from inside a sheet lands ON a card, and card-on-card is #121215 on #121215 behind a
+ * toast fired from inside a sheet lands ON a card, and card-on-card is #211e2a on #211e2a behind a
  * 1px hairline, which is nothing. One step lighter than any surface it can land on, and a shadow
  * that reads as floating rather than as sitting still.
  */
@@ -656,7 +658,7 @@ input[type='checkbox'] {
  * UA draws, so without the companion a mouse click still leaves a rectangle behind.
  */
 :focus-visible {
-  outline: 2px solid var(--color-accent, #4f46e5);
+  outline: 2px solid var(--color-accent, #c7b5f3);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -675,4 +677,124 @@ input[type='checkbox'] {
  */
 main[tabindex='-1']:focus {
   outline: none;
+}
+
+.owewell-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: var(--color-muted);
+  margin-bottom: 14px;
+}
+.receipt-art {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin: 24px 0;
+}
+.dashboard-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.dashboard-intro .receipt-art {
+  width: 150px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.overview-balance,
+.balance-hero {
+  border-color: var(--color-line-strong);
+  background: var(--color-accent-soft);
+  box-shadow: none;
+}
+.btn-gradient {
+  border-radius: 14px;
+}
+.surface {
+  box-shadow: 0 2px 3px -2px rgb(30 20 50 / 8%);
+}
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  border-color: var(--color-line-strong);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-accent);
+}
+@media (min-width: 1024px) {
+  .dashboard-page {
+    max-width: 960px;
+    padding-top: 40px;
+  }
+  .dashboard-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .dashboard-groups > li {
+    margin: 0;
+  }
+  .split-intro {
+    padding-top: 20px;
+  }
+}
+@media (max-width: 639px) {
+  .dashboard-intro {
+    gap: 8px;
+  }
+  .dashboard-intro .receipt-art {
+    width: 82px;
+  }
+  .quicksplit-page {
+    padding-top: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-header > div {
+    max-width: 960px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .public-header > div {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+@media (max-width: 639px) {
+  .split-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .split-intro > h1,
+  .split-intro > .owewell-eyebrow,
+  .split-intro > p:nth-last-child(2) {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .split-intro > p:nth-child(3) {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .split-intro .receipt-art {
+    grid-column: 2;
+    grid-row: 3;
+    width: 92px;
+    margin: 0;
+    align-self: center;
+  }
+  .split-intro > p:last-child {
+    display: none;
+  }
+  .split-intro > p:nth-last-child(2) {
+    font-size: 12px;
+  }
 }

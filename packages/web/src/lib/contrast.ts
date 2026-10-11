@@ -52,24 +52,24 @@ export interface Palette {
   negSolid: Hex;
 }
 
-/** Direction A. Neutral, flat, no purple cast. */
+/** Dark violet surfaces. */
 export const DARK: Palette = {
-  canvas: '#0b0b0d',
-  card: '#121215',
-  surface2: '#191920',
-  ink: '#ededf0',
-  muted: '#9c9ca6',
-  faint: '#74747e',
-  line: '#1f1f24',
-  lineStrong: '#2c2c33',
-  accent: '#4f46e5',
-  accentHover: '#635bf0',
-  accentSoft: '#16161f',
-  accentInk: '#ffffff',
-  field: '#101013',
+  canvas: '#18161f',
+  card: '#211e2a',
+  surface2: '#2b2736',
+  ink: '#f0edf6',
+  muted: '#aaa4b8',
+  faint: '#91899f',
+  line: '#393342',
+  lineStrong: '#62586f',
+  accent: '#c7b5f3',
+  accentHover: '#d6c8fa',
+  accentSoft: '#30283e',
+  accentInk: '#211b31',
+  field: '#211e2a',
   pos: '#4ade80',
   neg: '#f87171',
-  negSolid: '#c9342a',
+  negSolid: '#d34238',
 };
 
 /**
@@ -79,17 +79,17 @@ export const DARK: Palette = {
  * one colour to a red-green colourblind reader, in an app whose job is saying which way money goes.
  */
 export const WARM: Palette = {
-  canvas: '#faf7f2',
+  canvas: '#f7f5fb',
   card: '#ffffff',
-  surface2: '#f2ede4',
-  ink: '#26221d',
-  muted: '#6d645a',
-  faint: '#857b70',
-  line: '#ece5da',
-  lineStrong: '#ddd3c5',
-  accent: '#1f6f4f',
-  accentHover: '#1a5f43',
-  accentSoft: '#eaf3ee',
+  surface2: '#eee9f5',
+  ink: '#292334',
+  muted: '#6d647c',
+  faint: '#80758c',
+  line: '#e2dcea',
+  lineStrong: '#cdc3db',
+  accent: '#66509c',
+  accentHover: '#564086',
+  accentSoft: '#ede7f8',
   accentInk: '#ffffff',
   field: '#ffffff',
   pos: '#1f6f4f',
@@ -123,7 +123,7 @@ export const CATEGORY_DARK: CategoryPalette = {
   other: '#d95926',
 };
 
-/** Darkened for the warm canvas, where the dark set washed out against #faf7f2 and #ffffff. */
+/** Darkened for the warm canvas, where the dark set washed out against #f7f5fb and #ffffff. */
 export const CATEGORY_WARM: CategoryPalette = {
   food: '#1e5fa8',
   groceries: '#136b4d',

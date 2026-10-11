@@ -1,3 +1,4 @@
+import { SplitIntro } from '../components/SplitIntro';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Money, dollarsToCents, type Transfer } from '@owewell/shared';
@@ -344,7 +345,7 @@ export function QuickSplitPage(): ReactNode {
       <main
         id="main"
         tabIndex={-1}
-        className={`mx-auto w-full animate-rise px-4 py-10 ${user ? 'max-w-2xl' : 'max-w-2xl lg:max-w-5xl'}`}
+        className={`quicksplit-page mx-auto w-full animate-rise px-4 py-10 ${user ? 'max-w-2xl' : 'max-w-2xl lg:max-w-5xl'}`}
       >
         {/* Pitch beside the tool once there is room, so it stays visible while you use the thing it
             is pitching. Below lg it stacks. */}
@@ -362,30 +363,7 @@ export function QuickSplitPage(): ReactNode {
               </p>
             </>
           ) : (
-            <section className="mb-9 lg:sticky lg:top-24 lg:mb-0">
-              {/* No lg bump: beside the tool the pitch column is ~430px, and 60px type breaks
-                "Keep the friends." across two lines. 48px needs 382px and holds. */}
-              <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-                Split the bill.
-                <br />
-                Keep the friends.
-              </h1>
-              {/* Held to a measure rather than the column: 46 characters of 16px text is a line you
-                read, and the wider column would otherwise stretch this to about 90. */}
-              <p className="mt-3 max-w-[46ch] text-base text-muted">
-                Who owes who, sorted in about ten seconds. Add people, punch in what got spent, and let the
-                math do the awkward part.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                {['No account needed', 'Works on your phone', 'Save it when you get attached'].map((t) => (
-                  <span key={t} className="rounded-full border border-line bg-field px-3 py-1 text-muted">
-                    {t}
-                  </span>
-                ))}
-              </div>
-              {/* On a laptop the tool is beside this, not below it, so "right here" points sideways. */}
-              <p className="mt-6 text-sm font-medium text-muted lg:hidden">Try it right here, no sign-up:</p>
-            </section>
+            <SplitIntro />
           )}
 
           {/* The form, at form width, whatever the page around it is doing. */}

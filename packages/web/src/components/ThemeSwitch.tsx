@@ -4,9 +4,7 @@ import { currentTheme, onThemeChange, setTheme } from '../lib/theme';
 /*
  * Two palettes ship. This is how a person picks one.
  *
- * Not a sun/moon icon, and not in the header: these are named "warm" and "dark" rather than light
- * and dark, and the header already holds the account and the way out. A preference set once and
- * then left alone belongs in the footer.
+ * Labeled choices live in the footer; the header holds the account and the way out.
  *
  * Subscribed rather than local state, so the console handles and this stay in agreement.
  */
@@ -29,7 +27,7 @@ export function ThemeSwitch(): ReactNode {
             theme === name ? 'bg-accent-soft font-medium text-accent' : 'text-muted hover:text-ink'
           }`}
         >
-          {name}
+          {name === 'warm' ? 'Light' : 'Dark'}
         </button>
       ))}
     </span>

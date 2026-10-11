@@ -1,3 +1,4 @@
+import { DashboardIntro } from '../components/SplitIntro';
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useDashboardMode } from './useDashboardMode.js';
 import { Link, useNavigate } from 'react-router-dom';
@@ -300,8 +301,9 @@ export function DashboardPage(): ReactNode {
       <main
         id="main"
         tabIndex={-1}
-        className={`mx-auto w-full max-w-2xl animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}
+        className={`dashboard-page mx-auto w-full max-w-2xl animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}
       >
+        <DashboardIntro />
         {pending && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
             <span className="flex items-center gap-2 text-sm">
@@ -345,12 +347,10 @@ export function DashboardPage(): ReactNode {
         {/* Nothing to total before there is a group: an account on its first day was being shown a
             $0.00 the size of a headline, above an empty state that already says the same thing. */}
         {activeGroups.length > 0 && (
-          <section className="surface rounded-3xl p-6 sm:p-7">
+          <section className="overview-balance surface rounded-3xl p-6 sm:p-7">
             <p className="text-sm font-medium text-muted">
               {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
             </p>
-            {/* A step below the group page's 5xl/6xl figure. The larger type belongs to the number
-                you can act on; this one is a roll-up you can only open. */}
             <p
               className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
                 settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
@@ -491,7 +491,7 @@ export function DashboardPage(): ReactNode {
           ) : (
             <>
               {activeGroups.length > 0 ? (
-                <ul className="space-y-2.5">{activeGroups.map((g) => groupRow(g))}</ul>
+                <ul className="dashboard-groups space-y-2.5">{activeGroups.map((g) => groupRow(g))}</ul>
               ) : (
                 <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
                   No active groups. Your archived ones are below.

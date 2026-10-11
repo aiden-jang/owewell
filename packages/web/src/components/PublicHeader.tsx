@@ -7,7 +7,7 @@ import { BrandMark } from './BrandMark';
 export function PublicHeader(): ReactNode {
   const { login, signup } = useAuth();
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
+    <header className="public-header sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
         <Link
           to="/split"

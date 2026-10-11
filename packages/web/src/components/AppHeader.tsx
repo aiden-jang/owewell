@@ -8,7 +8,7 @@ import { Icon } from './Icon';
 export function AppHeader(): ReactNode {
   const { user, logout, accountUrl } = useAuth();
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas/70 backdrop-blur-xl">
+    <header className="app-header sticky top-0 z-30 border-b border-line bg-canvas/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
         <Link
           to="/"

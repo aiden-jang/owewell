@@ -12,13 +12,13 @@
     honest ceiling. Re-run the gen:icons script after editing, or the committed PNGs keep showing
     whatever this used to be. Font-free so it rasterizes cleanly at every size.
   -->
-  <rect width="512" height="512" rx="120" fill="#1f6f4f" />
+  <rect width="512" height="512" rx="120" fill="#66509c" />
   <path
     d="M150 96 h212 v300 l-30 -20 -30 20 -30 -20 -30 20 -30 -20 -32 20 z"
     fill="#ffffff"
     fill-opacity="0.95"
   />
-  <g stroke="#1f6f4f" stroke-width="26" stroke-linecap="round">
+  <g stroke="#66509c" stroke-width="26" stroke-linecap="round">
     <line x1="196" y1="178" x2="316" y2="178" />
     <line x1="196" y1="238" x2="316" y2="238" />
     <line x1="196" y1="298" x2="282" y2="298" />
