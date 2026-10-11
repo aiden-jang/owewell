@@ -75,19 +75,45 @@ const assert = require('node:assert/strict');
             balances: members.map((m, i) => ({
               userId: m.userId,
               displayName: m.displayName,
-              netCents: i ? -6000 : 6000,
+              netCents: mode === 'settled' ? 0 : i ? -6000 : 6000,
               paidCents: i ? 0 : 12000,
               owedCents: 6000,
             })),
           };
+        else if (p.endsWith('/expenses') && route.request().method() === 'POST')
+          json = {
+            expense: {
+              ...expenses[0],
+              id: 'preview-saved',
+              description: 'Coffee',
+              amountCents: 800,
+              splits: members.map((m) => ({ userId: m.userId, owedCents: 400 })),
+            },
+          };
         else if (p.endsWith('/expenses')) json = { expenses };
         else if (p.endsWith('/settlements/suggested'))
           json = {
-            suggested: [
-              { fromUserId: 'p1', fromName: 'Sam', toUserId: 'p0', toName: 'Alex', amountCents: 6000 },
-            ],
+            suggested:
+              mode === 'settled'
+                ? []
+                : [{ fromUserId: 'p1', fromName: 'Sam', toUserId: 'p0', toName: 'Alex', amountCents: 6000 }],
           };
-        else if (p.endsWith('/settlements')) json = { settlements: [] };
+        else if (p.endsWith('/settlements'))
+          json = {
+            settlements:
+              mode === 'settled'
+                ? [
+                    {
+                      id: 's1',
+                      fromUserId: 'p1',
+                      toUserId: 'p0',
+                      amountCents: 6000,
+                      method: 'cash',
+                      createdAt: now,
+                    },
+                  ]
+                : [],
+          };
         else if (p === '/api/groups/g0') json = { group: { ...groups[0], createdById: 'p0', members } };
         else return route.fulfill({ status: 400, json: { message: 'Preview does not save data.' } });
         return route.fulfill({ json });
@@ -99,6 +125,8 @@ const assert = require('node:assert/strict');
         ['dashboard', '/'],
         ['group', '/groups/g0'],
         ['expense-sheet', '/groups/g0'],
+        ['saved', '/groups/g0'],
+        ['settled', '/groups/g0'],
       ]) {
         if (process.env.OWEWELL_UI_CASE && process.env.OWEWELL_UI_CASE !== name) continue;
         mode = name;
@@ -109,7 +137,7 @@ const assert = require('node:assert/strict');
           await page.addInitScript(() => localStorage.clear());
           await page.goto('http://127.0.0.1:34212' + url);
           await page.locator('h1').waitFor();
-          if (name === 'group' || name === 'expense-sheet')
+          if (name === 'group' || name === 'expense-sheet' || name === 'saved' || name === 'settled')
             await page.getByRole('heading', { name: 'Weekend away', exact: true }).waitFor();
           if (name === 'dashboard') await page.getByRole('link', { name: /Weekend away/ }).waitFor();
           if (name === 'empty') await page.getByText('No groups yet. The calm before the tab.').waitFor();
@@ -119,9 +147,31 @@ const assert = require('node:assert/strict');
             await page.getByPlaceholder('0.00', { exact: true }).first().fill('120');
             await page.getByText('$120.00', { exact: true }).first().waitFor();
           }
-          if (name === 'expense-sheet') {
+          if (name === 'expense-sheet' || name === 'saved') {
             await page.getByRole('button', { name: 'Add expense', exact: true }).click();
             await page.getByRole('dialog').waitFor();
+            const save = page.getByRole('dialog').getByRole('button', { name: 'Add expense', exact: true });
+            const box = await save.boundingBox();
+            assert.ok(
+              box && box.y >= 0 && box.y + box.height <= (width === 1440 ? 900 : 780),
+              'Save button stays visible',
+            );
+            if (name === 'saved') {
+              await page.getByRole('dialog').getByRole('textbox', { name: 'Amount', exact: true }).fill('8');
+              await page.getByPlaceholder('What was it for?').fill('Coffee');
+              await save.click();
+              await page.getByRole('status').getByText('Added to the tab.', { exact: true }).waitFor();
+              assert.equal(
+                await page.locator('.receipt-saved').evaluate((el) => getComputedStyle(el).animationName),
+                'none',
+              );
+              await page.emulateMedia({ reducedMotion: 'no-preference' });
+              assert.equal(
+                await page.locator('.receipt-saved').evaluate((el) => getComputedStyle(el).animationName),
+                'receipt-nod',
+              );
+              await page.emulateMedia({ reducedMotion: 'reduce' });
+            }
           }
           await page.evaluate(() => document.fonts.ready);
           await page.evaluate(() => window.scrollTo(0, 0));

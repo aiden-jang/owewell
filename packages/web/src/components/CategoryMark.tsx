@@ -15,7 +15,7 @@ import { categoryMeta } from '@owewell/core';
 /** Where a category is a thing you recognise. Decorative: the label is always beside it. */
 export function CategoryGlyph({ categoryKey }: { categoryKey: string }): ReactNode {
   return (
-    <span aria-hidden className="shrink-0">
+    <span aria-hidden className="category-glyph shrink-0">
       {categoryMeta(categoryKey).emoji}
     </span>
   );

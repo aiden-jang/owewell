@@ -3,6 +3,7 @@ import { Icon } from './Icon';
 import { MemberStrip } from './MemberStrip';
 import { MoneyText } from './MoneyText';
 import { SettledMark } from './SettledMark';
+import { ReceiptFace } from './ReceiptFace';
 import { useToast } from './Toast';
 import { useMoney } from '../lib/currency';
 import { useShareAction } from '../lib/useShareAction';
@@ -81,6 +82,7 @@ export function BalanceHero({
 
   return (
     <div className={`balance-hero surface rounded-3xl p-6 sm:p-7 ${settled ? 'text-center' : ''}`}>
+      <ReceiptFace className="balance-receipt" />
       <MemberStrip members={members} onOpen={onOpenMembers} centered={settled} />
       {/* A group with nothing on it is not "settled", it just hasn't started. No mark for that. */}
       {hasActivity && settled && <SettledMark tone={groupSettled ? 'settled' : 'square'} />}

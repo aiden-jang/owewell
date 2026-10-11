@@ -227,7 +227,7 @@ export function SettleUpPanel({
                      accent stops meaning "do this one"; START HERE marks the one that earns it. */
                   className={`tap shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
                     key === recommendedPaymentKey
-                      ? 'bg-accent text-white shadow-sm shadow-accent/20 hover:brightness-110'
+                      ? 'bg-accent text-accent-ink shadow-sm shadow-accent/20 hover:brightness-110'
                       : 'border border-line-strong text-ink hover:border-accent hover:text-accent'
                   }`}
                 >
@@ -305,7 +305,7 @@ export function SettleUpPanel({
                       type="button"
                       disabled={nudgeShareStatus !== null}
                       onClick={() => sharePaymentNudge(payment)}
-                      className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+                      className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-accent-ink transition active:scale-[0.98] disabled:opacity-60"
                     >
                       {nudgeShareStatus === 'sharing'
                         ? 'Opening…'

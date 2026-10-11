@@ -105,12 +105,14 @@ export function SubmitButton({
   children: ReactNode;
 }): ReactNode {
   return (
-    <button
-      type="submit"
-      disabled={submitting}
-      className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
-    >
-      {submitting ? 'Saving…' : children}
-    </button>
+    <div className="form-submit-bar">
+      <button
+        type="submit"
+        disabled={submitting}
+        className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+      >
+        {submitting ? 'Saving…' : children}
+      </button>
+    </div>
   );
 }

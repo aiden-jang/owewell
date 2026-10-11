@@ -28,7 +28,7 @@ async function newGroup(page: Page, name: string): Promise<void> {
 test.describe('from an empty account to a balance', () => {
   test('a group, a second person, an expense, and the split it produces', async ({ page }) => {
     await signIn(page);
-    await newGroup(page, 'Trip to Lisbon');
+    await newGroup(page, `Trip to Lisbon ${Date.now()}`);
 
     // --- a second person, or there is nothing to split ------------------------------------
     await page.getByRole('button', { name: /member. Open the member list/ }).click();

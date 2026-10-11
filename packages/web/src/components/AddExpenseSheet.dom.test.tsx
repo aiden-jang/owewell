@@ -97,7 +97,7 @@ describe('picking a mode', () => {
     await user.click(screen.getByRole('button', { name: 'Itemize a receipt' }));
     expect(screen.getByText('itemized form')).toBeInTheDocument();
     expect(screen.queryByText('simple form')).not.toBeInTheDocument();
-    expect(screen.getByText(/each line item plus tax and tip/)).toBeInTheDocument();
+    expect(screen.getByText(/Each item goes to the people who had it/)).toBeInTheDocument();
   });
 
   /*

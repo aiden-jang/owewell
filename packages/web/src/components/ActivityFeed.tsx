@@ -307,7 +307,7 @@ export function ActivityFeed({
               tone="invite"
               icon="receipt"
               title="Nothing yet."
-              body="Add an expense and let the math sort itself out."
+              body="No receipts. Suspiciously peaceful. Add one to start the tab."
               action={
                 <button
                   type="button"
@@ -329,7 +329,7 @@ export function ActivityFeed({
         ) : (
           /* One panel with hairline rows, not a stack of cards: a ledger is a list of the same
              kind of thing, and per-row borders made it read as a pile of objects. */
-          <ul className="panel mt-3">
+          <ul className="activity-ledger panel mt-3">
             {/*
              * Queued writes sit above the ledger, dimmed and inert.
              *
@@ -367,7 +367,7 @@ export function ActivityFeed({
                     type="button"
                     onClick={() => onOpenExpense(item.expense.id)}
                     aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface2"
+                    className="expense-row flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface2"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={payerSummary(item.expense).avatar} size="sm" />

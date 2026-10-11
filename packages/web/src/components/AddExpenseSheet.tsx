@@ -17,9 +17,8 @@ import type { GroupMember } from '../lib/groups';
 export type ExpenseMode = 'simple' | 'itemized';
 
 const BLURB: Record<ExpenseMode, string> = {
-  simple: 'One amount for the whole group. Split evenly, or by custom amounts, shares, or percent.',
-  itemized:
-    'People ordered different things? Add each line item plus tax and tip, and we work out what everyone owes.',
+  simple: 'One total, split equally or your way.',
+  itemized: 'Each item goes to the people who had it. Add tax and tip below.',
 };
 
 const LABEL: Record<ExpenseMode, string> = {
@@ -57,7 +56,7 @@ export function AddExpenseSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title="Add to the tab" autoFocusField>
-      <div className="mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
+      <div className="expense-mode mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
         {(['simple', 'itemized'] as const).map((option) => (
           <button
             key={option}

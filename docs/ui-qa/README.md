@@ -28,3 +28,26 @@ but the assembled-ledger property test exceeded its existing five-second limit w
 concurrently. It passed in isolation with that same limit; no timeout or test assertion was changed.
 The full combined runner therefore is not recorded as green. The UI adds no production fixtures
 and this update does not include a push or deployment.
+
+## Follow-up UI polish — October 10
+
+Balance cards now use paper surfaces and stronger amount hierarchy; mixed overview balances have
+labeled tiles. Expense rows have quieter metadata and aligned amounts. Sheets have clearer selected
+modes, phone grips and visible sticky Save actions. Inviting empty states and saved feedback use a
+decorative receipt face, with a single nod/blink disabled by reduced motion. Dark payment controls
+use contrasting ink against the pastel accent.
+
+The refreshed captures cover both themes at desktop and phone widths, plus saved and settled states.
+Checks at 320, 390, 430, 768 and 1440px found no horizontal overflow or page errors. Save remained
+inside the viewport at each width. The capture helper verified that receipt animation is disabled
+for reduced motion and enabled otherwise. Fixtures stay inside isolated browser contexts.
+
+The verification run passed all static/build gates, 56 shared tests and all 170 API tests. Of the
+552 web tests, one expected the previous sheet copy; its assertion was updated and all six tests
+in that file then passed. No production behavior or test timeout was changed.
+
+The real browser journey passed after giving each run a unique group name; repeated runs had
+otherwise selected an older group with the same name. Final type and lint checks passed. The
+combined verification invocation stopped on the old copy assertion described above; its failed
+file was rerun successfully, and the browser stage was run separately. This polish is committed
+locally on main and does not include a push or deployment.

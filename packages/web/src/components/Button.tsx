@@ -21,7 +21,7 @@ export function Button({
 }: ButtonProps): ReactNode {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-semibold transition duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold transition duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
         block ? 'w-full' : ''
       } ${VARIANTS[variant]} ${className}`}
       {...props}

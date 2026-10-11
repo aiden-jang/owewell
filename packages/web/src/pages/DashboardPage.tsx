@@ -236,7 +236,7 @@ export function DashboardPage(): ReactNode {
         <span className="relative shrink-0">
           <Avatar name={group.name} />
           {selecting && isSel && (
-            <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-accent text-white ring-2 ring-canvas">
+            <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-accent text-accent-ink ring-2 ring-canvas">
               <Icon name="check" size={12} />
             </span>
           )}
@@ -369,7 +369,7 @@ export function DashboardPage(): ReactNode {
             {/* Only when the two sides differ from the headline. Owed everywhere and owing nowhere
                 prints the same figure twice, once as a headline and once as a chip beneath it. */}
             {totals.owed > 0 && totals.owe > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              <div className="overview-sides mt-4 flex flex-wrap gap-2 text-sm">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-pos" />
                   <span className="text-muted">owed to you</span>

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Icon } from './Icon';
+import { ReceiptFace } from './ReceiptFace';
 
 type ToastTone = 'success' | 'error';
 
@@ -64,9 +65,12 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
    * that has to read instantly was also the one drawn differently on every platform — and at 14px
    * a platform emoji is a smudge. These inherit the toast's own text colour.
    */
-  const glyph = (tone: ToastTone): ReactNode => (
-    <Icon name={tone === 'error' ? 'alert' : 'check'} size={14} className="shrink-0" />
-  );
+  const glyph = (tone: ToastTone): ReactNode =>
+    tone === 'error' ? (
+      <Icon name="alert" size={14} className="shrink-0" />
+    ) : (
+      <ReceiptFace className="receipt-saved" />
+    );
 
   const renderToast = (toast: Toast): ReactNode =>
     toast.action ? (
