@@ -1,6 +1,9 @@
-import { afterEach } from 'vitest';
+import { afterEach, expect } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+
+// Register on the same workspace runner used by the tests, independent of hoisting.
+expect.extend(matchers);
 
 /**
  * Unmount between tests.
