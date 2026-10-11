@@ -14,6 +14,7 @@ const svg = readFileSync(resolve(pub, 'icon.svg'), 'utf8');
 const fullBleedSvg = svg.replace('rx="120"', 'rx="0"');
 
 const targets = [
+  ['icon-32.png', 32, svg],
   ['apple-touch-icon.png', 180, fullBleedSvg],
   ['icon-192.png', 192, svg],
   ['icon-512.png', 512, fullBleedSvg],

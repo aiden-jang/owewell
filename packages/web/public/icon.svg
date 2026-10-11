@@ -1,26 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!--
-    owewell mark: a receipt on the accent tile.
-
-    Same glyph and colours as BrandMark and og.svg. It was a violet-to-cyan gradient with a
-    near-black receipt, which is the palette the app left behind; the component and the share card
-    were both moved over and this one was missed, so every browser tab still advertised the old
-    design.
-
-    Colours are WARM from src/lib/contrast.ts. A favicon is fetched once with no user and no
-    localStorage behind it, so it cannot follow a per-person palette; the shipped default is the
-    honest ceiling. Re-run the gen:icons script after editing, or the committed PNGs keep showing
-    whatever this used to be. Font-free so it rasterizes cleanly at every size.
-  -->
   <rect width="512" height="512" rx="120" fill="#66509c" />
-  <path
-    d="M150 96 h212 v300 l-30 -20 -30 20 -30 -20 -30 20 -30 -20 -32 20 z"
-    fill="#ffffff"
-    fill-opacity="0.95"
-  />
-  <g stroke="#66509c" stroke-width="26" stroke-linecap="round">
-    <line x1="196" y1="178" x2="316" y2="178" />
-    <line x1="196" y1="238" x2="316" y2="238" />
-    <line x1="196" y1="298" x2="282" y2="298" />
+  <g transform="rotate(-9 256 256)">
+    <path d="M144 96h224v318l-28-20-28 20-28-20-28 20-28-20-28 20-28-20-28 20Z" fill="#faf7ee" />
+    <path d="M196 176h120M196 238h80" stroke="#66509c" stroke-width="28" stroke-linecap="round" />
+    <circle cx="303" cy="321" r="35" fill="#cbbce9" />
+    <path d="m288 321 10 10 21-23" fill="none" stroke="#66509c" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" />
   </g>
 </svg>
