@@ -581,6 +581,19 @@ export function GroupDetailPage(): ReactNode {
         <FrontingInsight balances={balances} expenseCount={expenses.length} />
       )}
 
+      {ledgerHasRows && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Activity</p>
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="btn-gradient inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+          >
+            <Icon name="plus" size={18} /> Add expense
+          </button>
+        </div>
+      )}
+
       <ActivityFeed
         expenses={expenses}
         settlements={settlements}
@@ -602,25 +615,6 @@ export function GroupDetailPage(): ReactNode {
           />
         }
       />
-
-      {/*
-       * Only once there's a list to add to — the empty state owns the first-expense CTA.
-       *
-       * Bottom LEFT, unusually. Every action in this app is right-aligned, so bottom-right is the
-       * one place a fixed control is guaranteed to land on something: measured, it covered 30px of
-       * Mark paid. Nothing fixed over a scrolling page is zero-overlap; what it lands on now is an
-       * aria-hidden avatar with the same name in text beside it.
-       */}
-      {ledgerHasRows && (
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          aria-label="Add expense"
-          className="btn-gradient fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-5 z-40 flex items-center gap-2 rounded-full p-4 font-semibold shadow-xl shadow-black/30 transition active:scale-[0.97] sm:px-6 sm:py-3.5"
-        >
-          <Icon name="plus" size={20} /> <span className="hidden sm:inline">Add expense</span>
-        </button>
-      )}
 
       {/* Roster management, out of the spending column and behind the group menu where it belongs. */}
       <Sheet open={membersOpen} onClose={() => setMembersOpen(false)} title="Members">

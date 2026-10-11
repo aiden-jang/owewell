@@ -25,3 +25,5 @@ selected modes, and a sticky action bar. Existing keyboard focus and scroll lock
 The receipt face appears in inviting empty states and successful status messages. Its nod and
 blink run once on confirmation and are disabled for reduced motion. Errors retain their alert
 icon and clear copy. Paper illustrations are decorative and do not contain ledger values.
+
+The group ledger has an in-flow Add expense action above its filters. Payment logging is a labeled secondary button; settlement recording retains its primary action, and expense rows separate stronger titles and amounts from quieter payer metadata.

@@ -51,3 +51,5 @@ otherwise selected an older group with the same name. Final type and lint checks
 combined verification invocation stopped on the old copy assertion described above; its failed
 file was rerun successfully, and the browser stage was run separately. This polish is committed
 locally on main and does not include a push or deployment.
+
+The October 10 hierarchy pass moves Add expense into the activity header, away from payment controls. Log a payment has a quiet button boundary; the payment method remains labeled, and ledger titles and amounts are stronger than metadata. Group captures were inspected at desktop and phone sizes in both themes, with additional width checks at 320, 430 and 768px.

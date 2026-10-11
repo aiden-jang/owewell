@@ -167,12 +167,12 @@ export function SettleUpPanel({
        * method.
        */}
       <label className="mt-2 flex items-center justify-between gap-1.5 text-xs text-muted">
-        mark paid via
+        Record payment as
         <select
           value={settleMethod}
           onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
           aria-label="Payment method"
-          className="rounded-lg border border-line bg-field px-2 py-2 text-xs text-ink outline-none focus:border-accent"
+          className="rounded-lg border border-line bg-field px-3 py-2 text-base text-ink sm:text-sm outline-none focus:border-accent"
         >
           {PAYMENT_METHODS.map((m) => (
             <option key={m} value={m}>

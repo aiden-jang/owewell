@@ -367,16 +367,16 @@ export function ActivityFeed({
                     type="button"
                     onClick={() => onOpenExpense(item.expense.id)}
                     aria-label={`${item.expense.description}, ${fmt(item.expense.amountCents)}. See details.`}
-                    className="expense-row flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface2"
+                    className="expense-row flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition hover:bg-surface2"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={payerSummary(item.expense).avatar} size="sm" />
                       <div className="min-w-0">
-                        <p className="truncate font-medium">
+                        <p className="truncate font-semibold">
                           <CategoryGlyph categoryKey={item.expense.category ?? 'other'} />{' '}
                           {item.expense.description}
                         </p>
-                        <p className="flex items-baseline text-sm text-muted">
+                        <p className="mt-1 flex items-baseline text-xs text-muted">
                           <span className="truncate">{payerSummary(item.expense).who}</span>
                           {/* Real space, not a flex gap — a gap reads as "Alicepaid" to a screen
                               reader. */}
@@ -399,7 +399,7 @@ export function ActivityFeed({
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <span className="tnum font-semibold">{fmt(item.expense.amountCents)}</span>
+                      <span className="tnum text-base font-semibold">{fmt(item.expense.amountCents)}</span>
                       <Icon name="chevron-right" size={16} className="text-faint" />
                     </div>
                   </button>

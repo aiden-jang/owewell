@@ -161,7 +161,7 @@ export function BalanceHero({
         </div>
       )}
       {/* One row, so the two links can't sit flush against each other when both are showing. */}
-      <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${settled ? 'justify-center' : ''}`}>
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 ${settled ? 'justify-center' : ''}`}>
         {hasActivity && !settled && (
           <button
             type="button"
@@ -187,7 +187,7 @@ export function BalanceHero({
           <button
             type="button"
             onClick={onLogPayment}
-            className="tap mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink hover:underline"
+            className="tap mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-line-strong bg-surface2 px-3.5 py-2 text-sm font-semibold text-ink transition hover:border-accent"
           >
             <Icon name="wallet" size={15} /> Log a payment
           </button>
