@@ -14,6 +14,7 @@ import { SkeletonList } from '../components/Skeleton';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
+import { clearQuickSplitDraft } from '../lib/quickSplitDraft';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
@@ -153,6 +154,7 @@ export function DashboardPage(): ReactNode {
     try {
       const { groupId } = await quickSplitApi.save(pending);
       clearPendingSplit();
+      clearQuickSplitDraft();
       setPending(null);
       navigate(`/groups/${groupId}`);
     } catch {
@@ -311,7 +313,7 @@ export function DashboardPage(): ReactNode {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
             <span className="flex items-center gap-2 text-sm">
               <Icon name="sparkles" size={16} className="text-accent" />
-              You left a split lying around:{' '}
+              Your split is ready to save:{' '}
               <span className="font-medium">
                 {pending.items[0]?.description || 'Quick split'}
                 {pending.items.length > 1 ? ` +${pending.items.length - 1} more` : ''}
@@ -325,25 +327,25 @@ export function DashboardPage(): ReactNode {
                 disabled={savingPending}
                 className="btn-gradient rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60"
               >
-                {savingPending ? 'Saving…' : 'Save it'}
+                {savingPending ? 'Saving…' : 'Save split'}
               </button>
               <button
                 type="button"
                 onClick={dismissPending}
                 className="rounded-full border border-line px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
               >
-                Dismiss
+                Not now
               </button>
             </div>
           </div>
         )}
 
-        {/* Said here because the totals below do not include it: a queued write is not in anybody's
-            balance until it lands. */}
         {waiting > 0 && (
           <p className="mb-4 flex items-center justify-center gap-2 rounded-full border border-dashed border-line-strong py-2 text-sm text-muted">
             <Icon name="share" size={14} />
-            {waiting === 1 ? 'One change is waiting for signal' : `${waiting} changes are waiting for signal`}
+            {waiting === 1
+              ? 'One change is waiting for a connection'
+              : `${waiting} changes are waiting for a connection`}
           </p>
         )}
 
@@ -403,8 +405,6 @@ export function DashboardPage(): ReactNode {
                   nameTouched && !name.trim() ? 'border-neg' : 'border-line focus:border-accent'
                 }`}
               />
-              {/* Right here rather than buried in settings: it is a two-second choice when the group
-                  is a trip, and an annoying correction once the first expense is in. */}
               <button
                 type="submit"
                 disabled={creating || !name.trim()}

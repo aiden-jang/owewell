@@ -69,9 +69,21 @@ const owedLines = () =>
 beforeEach(() => {
   window.localStorage.clear();
   authStub.signup.mockReset();
+  authStub.login.mockReset();
 });
 
 describe('the split itself', () => {
+  it('keeps an editable bill when leaving to authenticate', async () => {
+    const user = await open();
+    await namePeople(user, 'Alice', 'Bob');
+    await fillItem(user, 1, 'Dinner', '40');
+    await user.click(screen.getByRole('button', { name: 'Sign in to save split' }));
+    expect(authStub.login).toHaveBeenCalledWith(window.location.origin);
+    const draft = JSON.parse(localStorage.getItem('owewell:quick-split-draft')!);
+    expect(draft.people.map((person: { name: string }) => person.name)).toEqual(['Alice', 'Bob']);
+    expect(draft.items[0]).toMatchObject({ description: 'Dinner', amount: '40.00' });
+  });
+
   it('starts with a bill amount and keeps optional controls behind a disclosure', async () => {
     const user = await open();
     expect(screen.getByLabelText('Item 1 amount')).toBeVisible();

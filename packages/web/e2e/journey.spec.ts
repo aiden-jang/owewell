@@ -200,4 +200,18 @@ test('the signed-out calculator keeps both palettes usable', async ({ page }) =>
       }
     }
   }
+  await page.getByRole('button', { name: /Try a \$48 example/ }).click();
+  await expect(page.getByRole('button', { name: 'Sign in to save split' })).toBeEnabled();
+  await expect(page.getByText(/Sign in or create an account to keep this split/)).toBeVisible();
+  if (process.env.UI_PALETTE_CAPTURE) {
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: `../../docs/ui-qa/guest-save-dark-${width}.png`,
+        fullPage: true,
+        animations: 'disabled',
+      });
+    }
+  }
 });

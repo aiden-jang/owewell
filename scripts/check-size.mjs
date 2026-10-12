@@ -20,7 +20,7 @@ const MAX_STATE = 12;
  * entry as the file shrinks; delete it once the file is under the ceiling.
  */
 const ALREADY_OVER = {
-  'packages/web/src/pages/QuickSplitPage.tsx': { lines: 646 },
+  'packages/web/src/pages/QuickSplitPage.tsx': { lines: 645 },
   'packages/web/src/pages/GroupDetailPage.tsx': { lines: 788 },
   'packages/web/src/pages/DashboardPage.tsx': { lines: 530 },
   'packages/api/src/index.ts': { lines: 502 },

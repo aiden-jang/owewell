@@ -243,7 +243,7 @@ export function SharedGroupPage(): ReactNode {
                       <span className="flex min-w-0 flex-1 items-center gap-3">
                         <Avatar name={m.displayName} />
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="truncate font-medium">{m.displayName}</span>
+                          <span className="break-words font-medium">{m.displayName}</span>
                           {label.text && (
                             <span className={`tnum truncate text-xs font-medium ${label.tone}`}>
                               {label.text}
@@ -255,7 +255,7 @@ export function SharedGroupPage(): ReactNode {
                         <button
                           type="button"
                           onClick={() => void claimSeat(m.userId)}
-                          disabled={claiming === m.userId}
+                          disabled={claiming !== null}
                           className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
                         >
                           {claiming === m.userId ? 'Claiming…' : 'This is me'}
@@ -337,7 +337,8 @@ export function SharedGroupPage(): ReactNode {
             ) : hasOpenSeats ? (
               <p className="mt-8 text-sm text-muted">
                 See your name above? Tap <span className="font-medium text-accent">This is me</span> to claim
-                your spot and edit{user ? '.' : ' (you’ll sign in first).'}
+                join this group
+                {user ? '.' : '. Sign in or create an account; we’ll bring you back to this name.'}
               </p>
             ) : (
               <p className="mt-8 text-sm text-muted">

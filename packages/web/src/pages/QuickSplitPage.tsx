@@ -26,11 +26,6 @@ import QuickSplitItemRow from '../components/QuickSplitItemRow';
 import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
 
-/*
- * The draft layer, the split-value parsing and the public header all moved out — see
- * lib/quickSplitDraft.ts, lib/splitValues.ts and components/PublicHeader.tsx. This file is the
- * landing page, the demo and the tool in one component, which is enough for one file to be.
- */
 type Person = DraftPerson;
 type Item = DraftItem;
 
@@ -86,7 +81,7 @@ function splitVerdict(
 }
 
 export function QuickSplitPage(): ReactNode {
-  const { user, signup } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const [initialDraft] = useState(readQuickSplitDraft);
   const [people, setPeople] = useState<Person[]>(initialDraft?.people ?? [newPerson('You'), newPerson('')]);
@@ -332,10 +327,9 @@ export function QuickSplitPage(): ReactNode {
     stashPendingSplit(pending);
 
     if (!user) {
-      // Stash it, send them to sign up on the shared auth service, and land back on the dashboard,
-      // which offers to save the pending split once they're signed in.
-      clearQuickSplitDraft();
-      signup(window.location.origin);
+      // Keep the editable bill if authentication is cancelled or the visitor returns here.
+      writeQuickSplitDraft({ people, items, payerId, splitPayers, youId });
+      login(window.location.origin);
       return;
     }
 
@@ -628,8 +622,13 @@ export function QuickSplitPage(): ReactNode {
               disabled={saving || grandTotal <= 0}
               className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
             >
-              {saving ? 'Saving…' : user ? 'Save to my account' : 'Save split'}
+              {saving ? 'Saving…' : user ? 'Save to my account' : 'Sign in to save split'}
             </button>
+            {!user && grandTotal > 0 && (
+              <p className="mt-2 text-center text-xs text-muted">
+                Sign in or create an account to keep this split. Copying stays free of paperwork.
+              </p>
+            )}
             {user && (
               <Link
                 to="/"

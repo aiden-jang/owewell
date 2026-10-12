@@ -221,3 +221,17 @@ Static gates and the production build passed. The frontend suite, contrast check
 checks and all browser journeys passed. The combined runner stopped on the existing backend
 ledger property timeout; that test passed independently with a longer command-line allowance.
 Repository timeouts and assertions were not relaxed; the combined runner is not recorded as green.
+
+## Guest saving and invite handoff — October 12
+
+Guest saving explains the account requirement and opens shared sign-in. The editable bill
+stays on this device if authentication is cancelled; it is cleared only after a successful
+save. The dashboard names the pending split and offers Save split or Not now. Invite claims
+explain the return to the selected name, block overlapping submissions and wrap long names.
+Existing first-group guidance and queued-change behavior were reviewed and preserved.
+
+The guest-save explanation was inspected at desktop and phone widths in
+`guest-save-dark-1280.png` and `guest-save-dark-390.png`. The frontend suite and browser journeys
+passed. Static gates and the production build passed; the combined runner stopped on the
+backend property timeout, which passed separately with a longer command-line allowance.
+The combined runner is not recorded as green.
