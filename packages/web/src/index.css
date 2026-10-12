@@ -1382,3 +1382,107 @@ input:disabled {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
 }
+
+/* Receipt items use a fine paper rule and quiet participant tags. */
+.entry-form .expense-categories {
+  gap: 6px;
+}
+.entry-form .expense-categories button {
+  min-height: 44px;
+  padding: 7px 10px;
+  border-color: transparent;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 12px;
+}
+.entry-form .expense-categories button[aria-pressed='true'] {
+  border-color: var(--color-line-strong);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.receipt-items {
+  scroll-margin-top: 12px;
+}
+.receipt-item {
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--color-surface2);
+}
+.receipt-item-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  letter-spacing: 0.06em;
+}
+.receipt-item-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 6.5rem) auto;
+  align-items: center;
+}
+.receipt-item-fields input {
+  min-width: 0;
+  width: 100%;
+  font-size: 14px;
+}
+.receipt-item-fields input[inputmode='decimal'] {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.receipt-item-fields button {
+  width: 32px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+}
+.receipt-item-people {
+  gap: 6px;
+  margin-top: 12px;
+}
+.receipt-item-people label {
+  min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.receipt-item-people label:has(input:checked) {
+  background: var(--color-card);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+}
+.receipt-item-people label span {
+  overflow-wrap: anywhere;
+}
+.receipt-item-payer {
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-line-strong);
+  font-size: 12px;
+}
+.receipt-item-payer > span {
+  flex-shrink: 0;
+}
+.receipt-item-payer select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 36px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+}
+@media (max-width: 359px) {
+  .receipt-item {
+    padding: 12px;
+  }
+  .receipt-item-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 5rem) auto;
+    gap: 6px;
+  }
+}

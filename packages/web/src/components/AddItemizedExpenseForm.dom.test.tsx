@@ -78,7 +78,7 @@ async function open(props: Record<string, unknown> = {}) {
 
 /** An item's own block, so its checkboxes and payer are not confused with another line's. */
 const itemBlock = (n: number): HTMLElement =>
-  screen.getByLabelText(`Item ${n} name`).closest<HTMLElement>('li, div[class*="rounded"]')!;
+  screen.getByLabelText(`Item ${n} name`).closest<HTMLElement>('.receipt-item')!;
 
 const submit = (user: Awaited<ReturnType<typeof open>>) =>
   user.click(screen.getByRole('button', { name: /Add receipt|Save changes/ }));

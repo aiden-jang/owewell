@@ -14,7 +14,7 @@ export function CategoryPicker({
   onChange: (category: ExpenseCategory) => void;
 }): ReactNode {
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Category">
+    <div className="expense-categories flex flex-wrap gap-1.5" role="group" aria-label="Category">
       {EXPENSE_CATEGORIES.map((c) => {
         const active = c.key === value;
         return (

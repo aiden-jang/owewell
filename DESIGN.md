@@ -82,3 +82,7 @@ Expense, itemized receipt and payment sheets share a dashed total panel with an 
 and medium-weight numerals. Participant rows sit inside a quiet ruled boundary; sender and
 recipient controls share one panel. Selected entry modes use a soft teal surface and subtle
 shadow. The total panel owns its visible focus outline so the numeric field has one clear cue.
+
+Itemized receipt rows use numbered paper panels, aligned name and amount fields, quiet selected
+participant tags and a dashed payer divider. Category choices use compact rounded rectangles
+and reserve teal for the selection. Form order, native controls and calculation behavior remain.

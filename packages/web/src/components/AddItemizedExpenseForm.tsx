@@ -208,13 +208,7 @@ export function AddItemizedExpenseForm({
 
       <DateField value={date} onChange={setDate} />
 
-      {/*
-       * The total, where the other tab puts the amount.
-       *
-       * It was a small line at the very bottom, under tax and tip, so switching between "Split a
-       * total" and "Itemize a receipt" moved the money from the top of the sheet to the end of it.
-       * Computed rather than typed, but it is the number you check against the printed receipt.
-       */}
+      {/* The computed total lets someone check their entries against the printed receipt. */}
       <div className="entry-amount">
         <span className="entry-amount-label">Receipt total</span>
         <p className="tnum font-display text-4xl font-medium tracking-tight">{fmt(grandTotalCents)}</p>
@@ -227,10 +221,11 @@ export function AddItemizedExpenseForm({
 
       <NoteField value={note} onChange={setNote} />
 
-      <div className="space-y-3">
+      <div className="receipt-items space-y-3">
         {items.map((item, index) => (
-          <div key={index} className="rounded-xl border border-line p-3">
-            <div className="flex gap-2">
+          <div key={index} className="receipt-item">
+            <span className="receipt-item-label">Item {String(index + 1).padStart(2, '0')}</span>
+            <div className="receipt-item-fields flex gap-2">
               <input
                 value={item.name}
                 onChange={(e) => updateItem(index, { name: e.target.value })}
@@ -259,7 +254,7 @@ export function AddItemizedExpenseForm({
                 </button>
               )}
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <div className="receipt-item-people mt-2 flex flex-wrap gap-x-4 gap-y-1">
               {members.map((m) => (
                 <label key={m.userId} className="flex items-center gap-1.5 text-sm">
                   <input
@@ -271,7 +266,7 @@ export function AddItemizedExpenseForm({
                 </label>
               ))}
             </div>
-            <div className="mt-2 flex items-center gap-2 text-sm text-muted">
+            <div className="receipt-item-payer mt-2 flex items-center gap-2 text-sm text-muted">
               <span>paid by</span>
               <select
                 value={item.payerId}

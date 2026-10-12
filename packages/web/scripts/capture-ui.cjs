@@ -176,6 +176,7 @@ const assert = require('node:assert/strict');
         ['payment-sheet', '/groups/g0'],
         ['payment-preview-sheet', '/groups/g0'],
         ['receipt-sheet', '/groups/g0'],
+        ['receipt-items-sheet', '/groups/g0'],
         ['saved', '/groups/g0'],
         ['settled', '/groups/g0'],
       ]) {
@@ -217,15 +218,39 @@ const assert = require('node:assert/strict');
               .boundingBox();
             assert.ok(action && action.y >= 0 && action.y + action.height <= (width === 1440 ? 900 : 780));
           }
-          if (name === 'expense-sheet' || name === 'receipt-sheet' || name === 'saved') {
+          if (
+            name === 'expense-sheet' ||
+            name === 'receipt-sheet' ||
+            name === 'receipt-items-sheet' ||
+            name === 'saved'
+          ) {
             await page.getByRole('button', { name: 'Add expense', exact: true }).click();
             await page.getByRole('dialog').waitFor();
-            if (name === 'receipt-sheet')
+            if (name === 'receipt-sheet' || name === 'receipt-items-sheet')
               await page.getByRole('button', { name: 'Itemize a receipt', exact: true }).click();
             const save = page.getByRole('dialog').getByRole('button', {
-              name: name === 'receipt-sheet' ? 'Add receipt' : 'Add expense',
+              name: name.startsWith('receipt-') ? 'Add receipt' : 'Add expense',
               exact: true,
             });
+            if (name === 'receipt-items-sheet') {
+              const dialog = page.getByRole('dialog');
+              await dialog
+                .getByRole('textbox', { name: 'Item 1 name', exact: true })
+                .fill('Coffee and an ambitious pastry');
+              await dialog.getByRole('textbox', { name: 'Item 1 amount', exact: true }).fill('18.50');
+              await dialog.getByRole('button', { name: '+ Add another item', exact: true }).click();
+              await dialog
+                .getByRole('textbox', { name: 'Item 2 name', exact: true })
+                .fill('The second coffee');
+              await dialog.getByRole('textbox', { name: 'Item 2 amount', exact: true }).fill('6.25');
+              await dialog.getByRole('textbox', { name: 'Tax', exact: true }).fill('2');
+              await dialog.locator('.receipt-items').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+              assert.equal(
+                await dialog.getByRole('textbox', { name: 'Item 1 amount', exact: true }).inputValue(),
+                '18.50',
+              );
+              assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth));
+            }
             const box = await save.boundingBox();
             assert.ok(
               box && box.y >= 0 && box.y + box.height <= (width === 1440 ? 900 : 780),

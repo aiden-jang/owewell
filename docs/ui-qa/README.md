@@ -358,3 +358,19 @@ unit suites passed. The combined browser run passed the regular journeys but the
 journey reached an unexpected post-payment balance. The unchanged keyboard journey passed
 independently, including enlarged text layouts; no application logic or assertions were changed
 to obtain that result. The combined verify command therefore did not finish green.
+
+## Receipt row styling — October 12
+
+Itemized rows use numbered paper panels with aligned amounts, quieter participant selections
+and a fine payer rule. Categories share compact rectangular choices in expense entry forms.
+This pass retains form order, native controls, calculations and submission behavior.
+
+The receipt-items capture case fills two items and tax, then scrolls to the item panels for
+inspection. It verifies retained input values, narrow-width overflow and visible submission.
+
+Desktop and phone receipt captures were inspected in both palettes, including a long-name
+roster. Static gates and the production build passed. The receipt-row test helper was updated
+to locate the new panel class instead of its previous utility class; its assertions remain.
+Frontend tests and browser journeys passed, with keyboard coverage run separately. The combined
+verify command stopped at the existing backend property timeout; the unchanged property passed
+independently without changing repository timeouts or assertions.
