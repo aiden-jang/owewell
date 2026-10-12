@@ -84,3 +84,21 @@ The full frontend suite and real browser journey passed. The permitted backend r
 from the ledger property test timing out under its default limit; that test passed alone with a
 longer command-line allowance. Assertions and repository timeout settings were not changed. The
 combined runner is not recorded as green.
+
+## Amount-first calculator — October 11
+
+Fresh bill rows lead with a larger amount field and a native Details & split options disclosure.
+Described, unequal and multi-item drafts expose their details automatically. Adding items, tips
+and per-item payers retains the existing math and draft representation. The empty running-total
+box stays hidden, and the result emphasizes Your share before the transfer list.
+
+The calculator was inspected at desktop and phone widths in `calculator-1280.png` and
+`calculator-390.png`; `calculator-result-390.png` shows the revised result. A two-person $48
+bill produced a $24 personal share and a $24 transfer in the browser. Component checks cover
+the initial disclosure and existing split calculations.
+
+Static gates, the final build, calculator component checks and the browser journey passed. The
+combined runner stopped on the backend ledger property timeout; that test passed alone with a
+longer command-line allowance. An earlier frontend run passed its other checks and reported a
+stale assertion for the renamed share label; the final calculator checks passed after updating
+that label and exercising the disclosure interaction. The combined runner is not green.

@@ -25,3 +25,7 @@ blink run once on confirmation and are disabled for reduced motion. Errors retai
 icon and clear copy. Paper illustrations are decorative and do not contain ledger values.
 
 The group ledger has an in-flow Add expense action above its filters. Payment logging is a labeled secondary button; settlement recording retains its primary action, and expense rows separate stronger titles and amounts from quieter payer metadata.
+
+The calculator leads each bill row with its amount. Descriptions and split methods live behind
+a native keyboard-accessible disclosure; existing described, itemized or unequal drafts expose
+their details automatically. Results emphasize the visitor’s own share before payment transfers.

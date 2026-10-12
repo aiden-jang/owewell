@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Money, dollarsToCents } from '@owewell/shared';
 import type { SplitMethod } from '@owewell/core';
 import type { DraftItem as Item, DraftPerson as Person } from '../lib/quickSplitDraft';
@@ -82,94 +83,105 @@ export default function QuickSplitItemRow({
   onUpdateValue,
   onRemove,
 }: QuickSplitItemRowProps) {
+  const [expanded, setExpanded] = useState(item.method !== 'EQUAL' || !!item.description || itemCount > 1);
   return (
     <div className="surface space-y-3 rounded-2xl p-4">
-      <div className="flex items-center gap-2">
-        <input
-          value={item.description}
-          onChange={(e) => onUpdate(item.id, { description: e.target.value })}
-          placeholder={`Item ${index + 1} (e.g. Dinner)`}
-          className={inputClass}
-          aria-label={`Item ${index + 1} description`}
-        />
-        {itemCount > 1 && (
-          <button
-            type="button"
-            onClick={() => onRemove(item.id)}
-            className="rounded-lg border border-line px-2 text-muted transition hover:bg-canvas"
-            aria-label={`Remove item ${index + 1}`}
-          >
-            &times;
-          </button>
-        )}
-      </div>
-      <div className="flex gap-2">
+      <label className="split-amount-label">
+        <span>{itemCount === 1 ? 'Bill amount' : `Item ${index + 1} amount`}</span>
         <input
           value={item.amount}
           onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
           onBlur={() => onUpdate(item.id, { amount: normalizeAmountInput(item.amount) })}
           placeholder="0.00"
           inputMode="decimal"
-          className={`${inputClass} tnum`}
+          className={`${inputClass} tnum split-amount-input`}
           aria-label={`Item ${index + 1} amount`}
         />
-        <select
-          value={item.method}
-          onChange={(e) => onUpdate(item.id, { method: e.target.value as SplitMethod })}
-          className={inputClass}
-          aria-label={`Item ${index + 1} split method`}
-        >
-          {SPLIT_METHODS.map((m) => (
-            <option key={m.value} value={m.value}>
-              Split {m.label.toLowerCase()}
-            </option>
-          ))}
-        </select>
-      </div>
-      {splitPayers && named.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <span>paid by</span>
+      </label>
+      <details
+        className="split-item-options"
+        open={expanded || splitPayers}
+        onToggle={(event) => setExpanded(event.currentTarget.open)}
+      >
+        <summary>Details & split options</summary>
+        <div className="flex items-center gap-2">
+          <input
+            value={item.description}
+            onChange={(e) => onUpdate(item.id, { description: e.target.value })}
+            placeholder={`Item ${index + 1} (e.g. Dinner)`}
+            className={inputClass}
+            aria-label={`Item ${index + 1} description`}
+          />
+          {itemCount > 1 && (
+            <button
+              type="button"
+              onClick={() => onRemove(item.id)}
+              className="rounded-lg border border-line px-2 text-muted transition hover:bg-canvas"
+              aria-label={`Remove item ${index + 1}`}
+            >
+              &times;
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2">
           <select
-            value={item.payerId || effectivePayerId}
-            onChange={(e) => onUpdate(item.id, { payerId: e.target.value })}
-            aria-label={`Item ${index + 1} paid by`}
-            className="flex-1 rounded-lg border border-line bg-field px-2 py-1.5 text-ink outline-none focus:border-accent"
+            value={item.method}
+            onChange={(e) => onUpdate(item.id, { method: e.target.value as SplitMethod })}
+            className={inputClass}
+            aria-label={`Item ${index + 1} split method`}
           >
-            {named.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name.trim() || 'Unnamed'}
+            {SPLIT_METHODS.map((m) => (
+              <option key={m.value} value={m.value}>
+                Split {m.label.toLowerCase()}
               </option>
             ))}
           </select>
         </div>
-      )}
-      {item.method !== 'EQUAL' && named.length > 0 && (
-        <div className="space-y-1.5 border-t border-line pt-2">
-          <p className="text-xs text-muted">{splitMethodHint(item.method)}</p>
-          {named.map((p) => (
-            <div key={p.id} className="flex items-center gap-2 text-sm">
-              <span className="flex-1 truncate text-muted">{p.name.trim()}</span>
-              <input
-                value={item.values[p.id] ?? ''}
-                onChange={(e) => onUpdateValue(item.id, p.id, e.target.value)}
-                placeholder="0"
-                inputMode="decimal"
-                className="w-20 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
-                aria-label={`${p.name.trim()} ${splitMethodUnit(item.method)} for item ${index + 1}`}
-              />
-              <span className="w-10 text-xs text-muted">{splitMethodUnit(item.method)}</span>
-            </div>
-          ))}
-          {(() => {
-            const hint = itemSplitHint(item, named);
-            return hint ? (
-              <p className={`text-right text-xs tabular-nums ${hint.tone}`} aria-live="polite">
-                {hint.text}
-              </p>
-            ) : null;
-          })()}
-        </div>
-      )}
+        {splitPayers && named.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span>paid by</span>
+            <select
+              value={item.payerId || effectivePayerId}
+              onChange={(e) => onUpdate(item.id, { payerId: e.target.value })}
+              aria-label={`Item ${index + 1} paid by`}
+              className="flex-1 rounded-lg border border-line bg-field px-2 py-1.5 text-ink outline-none focus:border-accent"
+            >
+              {named.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name.trim() || 'Unnamed'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {item.method !== 'EQUAL' && named.length > 0 && (
+          <div className="space-y-1.5 border-t border-line pt-2">
+            <p className="text-xs text-muted">{splitMethodHint(item.method)}</p>
+            {named.map((p) => (
+              <div key={p.id} className="flex items-center gap-2 text-sm">
+                <span className="flex-1 truncate text-muted">{p.name.trim()}</span>
+                <input
+                  value={item.values[p.id] ?? ''}
+                  onChange={(e) => onUpdateValue(item.id, p.id, e.target.value)}
+                  placeholder="0"
+                  inputMode="decimal"
+                  className="w-20 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
+                  aria-label={`${p.name.trim()} ${splitMethodUnit(item.method)} for item ${index + 1}`}
+                />
+                <span className="w-10 text-xs text-muted">{splitMethodUnit(item.method)}</span>
+              </div>
+            ))}
+            {(() => {
+              const hint = itemSplitHint(item, named);
+              return hint ? (
+                <p className={`text-right text-xs tabular-nums ${hint.tone}`} aria-live="polite">
+                  {hint.text}
+                </p>
+              ) : null;
+            })()}
+          </div>
+        )}
+      </details>
     </div>
   );
 }

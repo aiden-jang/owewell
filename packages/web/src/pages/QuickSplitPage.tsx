@@ -464,7 +464,7 @@ export function QuickSplitPage(): ReactNode {
                */}
               <div
                 className={`rounded-2xl border border-line text-center transition-all ${
-                  grandTotal > 0 ? 'bg-field px-4 py-5' : 'border-dashed px-4 py-3'
+                  grandTotal > 0 ? 'bg-field px-4 py-5' : 'hidden'
                 }`}
               >
                 <p
@@ -573,8 +573,16 @@ export function QuickSplitPage(): ReactNode {
             </div>
             {/* Only once there is an answer: the form is blank for most of the time spent here. */}
             {transfers && (
-              <section className="mt-6">
+              <section className="split-result mt-6">
                 <h2 className="text-sm font-medium text-muted">Who owes what</h2>
+                {yourShareCents !== null && (
+                  <p className="split-your-share">
+                    <span>Your share</span>
+                    <span className="font-semibold tabular-nums text-ink">
+                      {Money.fromCents(yourShareCents).format()}
+                    </span>
+                  </p>
+                )}
                 {transfers.length === 0 ? (
                   <p className="mt-3 text-sm text-muted">All settled up. Nobody owes anybody.</p>
                 ) : (
@@ -602,14 +610,6 @@ export function QuickSplitPage(): ReactNode {
                       </li>
                     ))}
                   </ul>
-                )}
-                {yourShareCents !== null && (
-                  <p className="mt-3 flex items-center justify-between border-t border-line pt-3 text-sm text-muted">
-                    <span>your share of it</span>
-                    <span className="font-medium tabular-nums text-ink">
-                      {Money.fromCents(yourShareCents).format()}
-                    </span>
-                  </p>
                 )}
                 {yourPayment && (
                   <p className="mt-3 rounded-xl border border-line bg-surface2/60 px-4 py-3 text-sm text-ink">

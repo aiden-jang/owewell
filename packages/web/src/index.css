@@ -1109,3 +1109,47 @@ textarea:focus {
     border-radius: 20px;
   }
 }
+
+.split-amount-label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.split-amount-input {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  padding: 14px;
+}
+.split-item-options > summary {
+  cursor: pointer;
+  color: var(--color-accent);
+  font-size: 13px;
+  padding: 6px 0;
+}
+.split-item-options[open] > summary {
+  margin-bottom: 12px;
+}
+.split-item-options > div + div {
+  margin-top: 12px;
+}
+.split-result {
+  border-top: 1px solid var(--color-line);
+  padding-top: 24px;
+}
+.split-your-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 16px;
+  background: var(--color-accent-soft);
+  padding: 18px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+.split-your-share > span:last-child {
+  font-size: 32px;
+  letter-spacing: -0.04em;
+}

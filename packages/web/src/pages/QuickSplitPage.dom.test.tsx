@@ -52,7 +52,10 @@ async function namePeople(user: U, ...names: string[]): Promise<void> {
 }
 
 async function fillItem(user: U, index: number, description: string, amount: string): Promise<void> {
-  await user.type(screen.getByLabelText(`Item ${index} description`), description);
+  const field = screen.getByLabelText(`Item ${index} description`);
+  const details = field.closest('details');
+  if (details && !details.open) await user.click(details.querySelector('summary')!);
+  await user.type(field, description);
   await user.type(screen.getByLabelText(`Item ${index} amount`), amount);
 }
 
@@ -69,6 +72,16 @@ beforeEach(() => {
 });
 
 describe('the split itself', () => {
+  it('starts with a bill amount and keeps optional controls behind a disclosure', async () => {
+    const user = await open();
+    expect(screen.getByLabelText('Item 1 amount')).toBeVisible();
+    expect(screen.getByLabelText('Item 1 description')).not.toBeVisible();
+    await user.click(screen.getByText('Details & split options'));
+    expect(screen.getByLabelText('Item 1 description')).toBeVisible();
+    await user.type(screen.getByLabelText('Item 1 description'), 'Dinner');
+    await user.clear(screen.getByLabelText('Item 1 description'));
+    expect(screen.getByLabelText('Item 1 description')).toBeVisible();
+  });
   it('lets a fresh visitor explore an explicitly labeled example', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /Try a \$48 example/ }));
@@ -78,6 +91,7 @@ describe('the split itself', () => {
 
   it('hides the example action as soon as a visitor starts their own bill', async () => {
     const user = await open();
+    await user.click(screen.getByText('Details & split options'));
     await user.type(screen.getByLabelText('Item 1 description'), 'My dinner');
     expect(screen.queryByRole('button', { name: /Try a \$48 example/ })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Item 1 description')).toHaveValue('My dinner');
@@ -103,7 +117,7 @@ describe('the split itself', () => {
 
     // Alice paid and is owed, so she is absent from the transfers above.
     expect(owedLines().join(' ')).not.toContain('Alice owes');
-    const share = screen.getByText('your share of it').closest('p')!;
+    const share = screen.getByText('Your share').closest('p')!;
     expect(share).toHaveTextContent('$20.00');
   });
 
