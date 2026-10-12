@@ -181,3 +181,25 @@ through creation, the dashboard balance and settlement passed. The combined runn
 on the backend ledger property timeout; that test passed separately with a longer command-line
 allowance. Repository timeout settings and assertions were not relaxed; the combined runner
 is not recorded as green.
+
+## Settings and interaction consistency — October 12
+
+Group options focus their first item, support arrow keys and Home/End, and return focus to
+the trigger on Escape. The menu has more space for archive explanations and separates deletion.
+Renaming supports Enter, Escape and a saving state; repeated submissions are blocked. Member
+edits and adding someone show saving feedback, preserve failed edits, label their fields and
+announce add errors. Name fields respect the existing API limit. Long group and member names,
+notes and large expense figures wrap safely. Invite copying announces its result. Keyboard
+focus and disabled controls use the same theme-aware treatment in light and dark modes.
+
+The isolated browser journey checks long names, keyboard navigation and a large expense with
+an unbroken note. Desktop and phone evidence is saved as `group-title-light-1280.png`,
+`group-title-light-390.png`, `group-options-dark-1280.png`, `group-options-dark-390.png`,
+`group-rename-dark-1280.png`, `group-rename-dark-390.png`, `group-members-dark-1280.png`,
+`group-members-dark-390.png`, `expense-long-dark-1280.png` and `expense-long-dark-390.png`.
+These use the local test ledger; no fixture records ship in the production app.
+
+Static gates and the production build passed. The final frontend suite and both browser
+journeys passed. The combined runner stopped on the backend ledger property timeout; that
+test passed separately with a longer command-line allowance. Repository timeouts and
+assertions were not relaxed, and the combined runner is not recorded as green.

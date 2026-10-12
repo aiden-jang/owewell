@@ -91,7 +91,9 @@ export function ExpenseDetail({
   return (
     <div>
       <div className="text-center">
-        <p className="font-display text-4xl font-semibold tracking-tight tnum">{fmt(expense.amountCents)}</p>
+        <p className="font-display text-4xl font-semibold tracking-tight tnum break-words [overflow-wrap:anywhere]">
+          {fmt(expense.amountCents)}
+        </p>
         <p className="mt-1 text-sm text-muted">
           <CategoryGlyph categoryKey={category.key} /> {category.label} · {fullDate(expense.date)}
         </p>
@@ -181,7 +183,7 @@ export function ExpenseDetail({
       {/* Above the correction line and below the money: it is context for the numbers, not a footnote
           about the row's history. */}
       {expense.note && (
-        <p className="mt-5 whitespace-pre-line rounded-xl border border-line bg-surface2/50 px-3.5 py-3 text-sm text-muted">
+        <p className="mt-5 whitespace-pre-line break-words [overflow-wrap:anywhere] rounded-xl border border-line bg-surface2/50 px-3.5 py-3 text-sm text-muted">
           {expense.note}
         </p>
       )}

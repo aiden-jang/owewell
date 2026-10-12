@@ -98,18 +98,22 @@ export function MembersPanel({
   const [venmo, setVenmo] = useState('');
   const [cashapp, setCashapp] = useState('');
   const [paypal, setPaypal] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const netOf = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
   const balanceOf = Object.fromEntries(balances.map((b) => [b.userId, b]));
 
   async function saveName(memberId: string): Promise<void> {
     const name = renameDraft.trim();
-    if (!name) return;
+    if (!name || busy) return;
+    setBusy(true);
     try {
       await onRename(memberId, name);
       setRenamingId(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not rename them.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -128,18 +132,23 @@ export function MembersPanel({
   }
 
   async function saveHandles(memberId: string): Promise<void> {
+    if (busy) return;
+    setBusy(true);
     try {
       await onSaveHandles(memberId, { venmoHandle: venmo, cashappCashtag: cashapp, paypalHandle: paypal });
       setHandlesId(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save payment handles.');
+    } finally {
+      setBusy(false);
     }
   }
 
   async function addMember(event: FormEvent): Promise<void> {
     event.preventDefault();
     const name = newName.trim();
-    if (!name) return;
+    if (!name || busy) return;
+    setBusy(true);
     setAddError(null);
     try {
       await onAdd(name);
@@ -148,6 +157,8 @@ export function MembersPanel({
       // Inline rather than a toast: the field that caused it is still on screen, and "already in
       // this group" is something you fix by retyping.
       setAddError(err instanceof Error ? err.message : 'Could not add them.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -181,20 +192,35 @@ export function MembersPanel({
                 {renamingId === member.userId ? (
                   <span className="flex w-full items-center gap-2">
                     <input
+                      disabled={busy}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          void saveName(member.userId);
+                        }
+                        if (event.key === 'Escape' && !busy) setRenamingId(null);
+                      }}
+                      maxLength={80}
                       value={renameDraft}
                       onChange={(e) => setRenameDraft(e.target.value)}
                       autoFocus
                       aria-label="Member name"
-                      className="flex-1 rounded-lg border border-line bg-field px-2.5 py-1.5 outline-none focus:border-accent"
+                      className="min-w-0 flex-1 rounded-lg border border-line bg-field px-2.5 py-1.5 outline-none focus:border-accent"
                     />
                     <button
                       type="button"
+                      disabled={busy || !renameDraft.trim()}
                       onClick={() => void saveName(member.userId)}
                       className="text-sm font-medium text-accent"
                     >
-                      Save
+                      {busy ? 'Saving…' : 'Save'}
                     </button>
-                    <button type="button" onClick={() => setRenamingId(null)} className="text-sm text-muted">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setRenamingId(null)}
+                      className="text-sm text-muted"
+                    >
                       Cancel
                     </button>
                   </span>
@@ -204,6 +230,7 @@ export function MembersPanel({
                       {member.displayName}&rsquo;s payment handles
                     </span>
                     <input
+                      disabled={busy}
                       value={venmo}
                       onChange={(e) => setVenmo(e.target.value)}
                       placeholder="Venmo username"
@@ -212,6 +239,7 @@ export function MembersPanel({
                       className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
                     />
                     <input
+                      disabled={busy}
                       value={cashapp}
                       onChange={(e) => setCashapp(e.target.value)}
                       placeholder="Cash App $cashtag"
@@ -219,6 +247,7 @@ export function MembersPanel({
                       className="rounded-lg border border-line bg-field px-2.5 py-1.5 text-sm outline-none focus:border-accent"
                     />
                     <input
+                      disabled={busy}
                       value={paypal}
                       onChange={(e) => setPaypal(e.target.value)}
                       placeholder="PayPal.me username"
@@ -228,12 +257,18 @@ export function MembersPanel({
                     <span className="flex gap-3 pt-0.5">
                       <button
                         type="button"
+                        disabled={busy}
                         onClick={() => void saveHandles(member.userId)}
                         className="text-sm font-medium text-accent"
                       >
-                        Save
+                        {busy ? 'Saving…' : 'Save'}
                       </button>
-                      <button type="button" onClick={() => setHandlesId(null)} className="text-sm text-muted">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setHandlesId(null)}
+                        className="text-sm text-muted"
+                      >
                         Cancel
                       </button>
                     </span>
@@ -250,7 +285,9 @@ export function MembersPanel({
                        * "owner" stays on the name line: it says who someone is, not what they owe.
                        */}
                       <span className="flex items-baseline gap-1.5">
-                        <span className="truncate font-medium">{member.displayName}</span>
+                        <span className="min-w-0 break-words [overflow-wrap:anywhere] font-medium">
+                          {member.displayName}
+                        </span>
                         {member.role === 'OWNER' && (
                           <span className="shrink-0 text-2xs text-faint">owner</span>
                         )}
@@ -261,7 +298,7 @@ export function MembersPanel({
                          * clips, and wrapping pushes the add-someone field off screen. It moves into
                          * the open row below, where it also stops competing with the fronting card.
                          */
-                        <span className={`tnum truncate text-xs font-medium ${label.tone}`}>
+                        <span className={`tnum break-words text-xs font-medium ${label.tone}`}>
                           {label.text}
                         </span>
                       )}
@@ -325,19 +362,29 @@ export function MembersPanel({
         <form onSubmit={(e) => void addMember(e)} className="mt-3 flex gap-2">
           <input
             type="text"
+            disabled={busy}
+            aria-label="Member name to add"
+            aria-invalid={!!addError}
+            aria-describedby={addError ? 'member-add-error' : undefined}
+            maxLength={80}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Add someone by name"
-            className="flex-1 rounded-xl border border-line bg-field px-3.5 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            className="min-w-0 flex-1 rounded-xl border border-line bg-field px-3.5 py-2.5 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
           <button
             type="submit"
+            disabled={busy || !newName.trim()}
             className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
           >
-            <Icon name="user-plus" size={16} /> Add
+            <Icon name="user-plus" size={16} /> {busy ? 'Saving…' : 'Add'}
           </button>
         </form>
-        {addError && <p className="mt-2 text-sm font-medium text-neg">{addError}</p>}
+        {addError && (
+          <p id="member-add-error" role="alert" className="mt-2 text-sm font-medium text-neg">
+            {addError}
+          </p>
+        )}
         <p className="mt-3 text-xs text-muted">
           Added someone by name? Use <span className="font-medium text-ink">Invite</span> up top for a link
           they can use to sign in and claim their spot.

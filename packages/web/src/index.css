@@ -1222,3 +1222,15 @@ textarea:focus {
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+input:disabled {
+  opacity: 0.65;
+}
+[role='menuitem']:focus-visible {
+  background: var(--color-surface2);
+  outline-offset: -3px;
+}

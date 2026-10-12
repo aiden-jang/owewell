@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -198,4 +198,36 @@ describe('the rest of the bar', () => {
     await openMenu(user);
     expect(within(menu()).getByRole('menuitem', { name: /Unarchive/ })).toBeInTheDocument();
   });
+});
+
+it('moves through options with arrow keys and restores focus on Escape', async () => {
+  const user = await open();
+  await openMenu(user);
+  expect(within(menu()).getByRole('menuitem', { name: 'Members' })).toHaveFocus();
+  await user.keyboard('{ArrowDown}');
+  expect(within(menu()).getByRole('menuitem', { name: 'Export activity' })).toHaveFocus();
+  await user.keyboard('{End}');
+  expect(within(menu()).getByRole('menuitem', { name: 'Delete group' })).toHaveFocus();
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Group options' })).toHaveFocus();
+});
+
+it('blocks repeat rename submissions while saving', async () => {
+  let finish!: () => void;
+  handlers.onRename.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const user = await open();
+  await openMenu(user);
+  await user.click(within(menu()).getByRole('menuitem', { name: /Rename/ }));
+  await user.type(screen.getByLabelText('Group name'), ' weekend{Enter}');
+  expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  expect(screen.getByLabelText('Group name')).toBeDisabled();
+  expect(handlers.onRename).toHaveBeenCalledTimes(1);
+  finish();
+  await waitFor(() => expect(screen.queryByLabelText('Group name')).not.toBeInTheDocument());
 });

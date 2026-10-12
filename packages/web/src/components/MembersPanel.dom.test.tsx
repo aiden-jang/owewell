@@ -79,8 +79,7 @@ async function renderPanel(over: Record<string, unknown> = {}) {
   );
 }
 
-const rowFor = (name: string) =>
-  screen.getByText(name, { selector: 'span.truncate.font-medium' }).closest('li')!;
+const rowFor = (name: string) => screen.getByText(name, { exact: true }).closest('li')!;
 
 /*
  * Roster editing lives behind one "Options" button per member rather than a scatter of bare icons.

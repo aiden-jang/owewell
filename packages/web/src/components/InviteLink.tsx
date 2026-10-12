@@ -40,7 +40,7 @@ export function InviteLink({
           value={link}
           onFocus={(e) => e.target.select()}
           aria-label="Share link"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-field px-3 py-2.5 text-sm text-muted outline-none"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-field px-3 py-2.5 text-sm text-muted outline-none focus:border-accent"
         />
         <button
           type="button"
@@ -49,7 +49,8 @@ export function InviteLink({
             copied ? 'bg-pos/15 text-pos' : 'bg-surface2 hover:bg-surface2/70'
           }`}
         >
-          <Icon name={copied ? 'check' : 'copy'} size={15} /> {copied ? 'Copied' : 'Copy'}
+          <Icon name={copied ? 'check' : 'copy'} size={15} />{' '}
+          <span role="status">{copied ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
       {/*

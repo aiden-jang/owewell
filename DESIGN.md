@@ -49,3 +49,8 @@ recorded receipt gives its amount stronger hierarchy and announces the successfu
 Group directory balances include explicit Owed to you / You owe labels. The overall balance
 explains when opposing group balances net to zero without settling either group. Activity dates
 are labeled as updates; new accounts have one first-group action and a labeled group-name field.
+
+Group options support arrow keys, Home/End and Escape with focus returned to the trigger.
+Rename and member edits show saving states and block repeated submissions. Detail-page group
+and member names wrap rather than hiding their full text; notes and large amounts wrap safely.
+Options use the theme’s surface for keyboard focus, and disabled controls retain a visible cue.
