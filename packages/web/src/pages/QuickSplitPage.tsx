@@ -362,8 +362,8 @@ export function QuickSplitPage(): ReactNode {
         tabIndex={-1}
         className={`quicksplit-page mx-auto w-full animate-rise px-4 py-10 ${user ? 'max-w-2xl' : 'max-w-2xl lg:max-w-5xl'}`}
       >
-        {/* Pitch beside the tool once there is room, so it stays visible while you use the thing it
-            is pitching. Below lg it stacks. */}
+        {/* The public welcome leads straight into the working calculator. Signed-in visitors
+            keep the compact tool heading. */}
         <div className={user ? '' : 'split-counter'}>
           {user ? (
             <>
@@ -378,7 +378,7 @@ export function QuickSplitPage(): ReactNode {
           )}
 
           {/* The form, at form width, whatever the page around it is doing. */}
-          <div className={`mx-auto w-full max-w-2xl lg:mx-0 ${user ? '' : 'split-receipt'}`}>
+          <div id="split-bill" className={`mx-auto w-full max-w-2xl ${user ? '' : 'split-receipt'}`}>
             {draftRestored && (
               <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
                 <span>

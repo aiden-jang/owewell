@@ -4,30 +4,30 @@ import { ReceiptArt } from './ReceiptArt';
 export function SplitIntro({ onExample }: { onExample?: (() => void) | undefined }): ReactNode {
   return (
     <section className="split-intro">
-      <p className="owewell-eyebrow">THE BILL, PLEASE.</p>
-      <h1 className="font-display font-semibold tracking-tight">
-        Dinner’s over.
-        <br />
-        Math isn’t.
-      </h1>
-      <p>Add your people, then the bill. The answer updates as you go.</p>
-      <p>No account needed. No one has to pretend they enjoyed the calamari.</p>
-      {onExample && (
-        <button type="button" className="split-example" onClick={onExample}>
-          Try a $48 example ↗
-        </button>
-      )}
-      <ol className="split-steps">
-        <li>
-          <span>01</span> Who was there?
-        </li>
-        <li>
-          <span>02</span> What did you spend?
-        </li>
-        <li>
-          <span>03</span> The answer.
-        </li>
-      </ol>
+      <div className="split-intro-copy">
+        <p className="owewell-eyebrow">LESS MATH. SAME FRIENDS.</p>
+        <h1 className="font-display font-semibold tracking-tight">
+          Split the bill.
+          <br />
+          <span>Keep the peace.</span>
+        </h1>
+        <p>Dinner, rent, the suspiciously expensive weekend. Work out everyone’s share, right here.</p>
+        <div className="split-intro-actions">
+          <a href="#split-bill" className="split-start">
+            Let’s split it ↓
+          </a>
+          {onExample && (
+            <button type="button" className="split-example" onClick={onExample}>
+              Try a $48 example ↗
+            </button>
+          )}
+        </div>
+        <p className="split-aside">No account required. Just a mildly awkward amount of money.</p>
+      </div>
+      <div className="split-intro-art" aria-hidden="true">
+        <ReceiptArt />
+        <span>friendship, balanced.</span>
+      </div>
     </section>
   );
 }

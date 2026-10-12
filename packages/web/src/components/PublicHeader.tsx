@@ -8,7 +8,7 @@ export function PublicHeader(): ReactNode {
   const { login, signup } = useAuth();
   return (
     <header className="public-header sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
         <Link
           to="/split"
           className="tap flex items-center gap-2 font-display text-xl font-semibold tracking-tight"

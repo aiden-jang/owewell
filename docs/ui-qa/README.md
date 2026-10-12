@@ -66,3 +66,21 @@ checks cover the example calculation and protecting a bill already in progress. 
 journey passed. The combined check run hit the existing ledger property test's five-second limit;
 a focused run passed with a longer runtime allowance, without changing assertions or repository
 configuration. The full combined runner is not recorded as green.
+
+## Public welcome redesign — October 11
+
+The rejected sidebar receipt composition is replaced with a spacious violet headline, decorative
+receipt character and a centered calculator below. The introductory copy covers shared spending
+beyond dinner. A direct jump reaches the tool; the optional labeled example retains its existing
+draft protection. The header aligns with the wider welcome. Signed-in layouts retain their
+existing structure.
+
+`landing-redo-1280.png` and `landing-redo-390.png` record the desktop and phone views inspected
+in the browser. The phone view omits decorative art to keep the calculator close to the introduction.
+The example and draft restoration were exercised manually. Static checks and the production build
+passed; the combined runner stopped when sandbox permissions blocked the backend test server.
+
+The full frontend suite and real browser journey passed. The permitted backend run passed apart
+from the ledger property test timing out under its default limit; that test passed alone with a
+longer command-line allowance. Assertions and repository timeout settings were not changed. The
+combined runner is not recorded as green.
