@@ -9,7 +9,13 @@ const assert = require('node:assert/strict');
     ...(process.env.OWEWELL_BROWSER_PATH ? { executablePath: process.env.OWEWELL_BROWSER_PATH } : {}),
   });
   const now = '2026-10-10T12:00:00Z';
-  const members = ['Alex', 'Sam'].map((displayName, i) => ({
+  const stress = !!process.env.OWEWELL_UI_STRESS;
+  const names = stress
+    ? Array.from({ length: 10 }, (_, i) => `AlexandriaMontgomeryWithoutSpaces${i}`)
+    : ['Alex', 'Sam'];
+  const share = stress ? 9999990 : 6000;
+  const total = share * names.length;
+  const members = names.map((displayName, i) => ({
     userId: 'p' + i,
     displayName,
     email: i ? null : 'preview@example.test',
@@ -44,9 +50,17 @@ const assert = require('node:assert/strict');
       date: now,
       note: null,
       version: 1,
-      splits: members.map((m) => ({ userId: m.userId, owedCents: 6000 })),
+      splits: members.map((m) => ({ userId: m.userId, owedCents: share })),
     },
   ];
+  if (stress) {
+    groups[0].name = 'The extraordinarily long weekend away with everyone from the old apartment';
+    groups[0].memberCount = members.length;
+    groups[0].totalSpentCents = total;
+    expenses[0].amountCents = total;
+    expenses[0].description = 'An extraordinarily long dinner description with an unexpectedly large bill';
+    expenses[0].splits = members.map((m) => ({ userId: m.userId, owedCents: share }));
+  }
   try {
     for (const theme of ['warm', 'dark']) {
       const context = await browser.newContext({
@@ -64,10 +78,34 @@ const assert = require('node:assert/strict');
         let json = {};
         if (p === '/api/me')
           json = {
-            user: mode.startsWith('split')
-              ? null
-              : { id: 'p0', email: 'preview@example.test', displayName: 'Alex' },
+            user:
+              mode.startsWith('split') || mode === 'shared'
+                ? null
+                : { id: 'p0', email: 'preview@example.test', displayName: 'Alex' },
             personId: 'p0',
+          };
+        else if (p === '/api/shared/preview')
+          json = {
+            summary: {
+              groupId: 'g0',
+              groupName: groups[0].name,
+              memberCount: members.length,
+              totalSpentCents: total,
+              perPersonCents: share,
+              totalSettledCents: 0,
+              members: members.map((m, i) => ({
+                userId: m.userId,
+                displayName: m.displayName,
+                netCents: i ? -share : share * (members.length - 1),
+                isPlaceholder: m.isPlaceholder,
+              })),
+              suggested: members.slice(1).map((m) => ({
+                fromName: m.displayName,
+                toName: members[0].displayName,
+                amountCents: share,
+              })),
+              breakdown: [{ category: 'food', cents: total }],
+            },
           };
         else if (p === '/api/groups') json = { groups: empty ? [] : groups };
         else if (p.endsWith('/balances'))
@@ -75,9 +113,9 @@ const assert = require('node:assert/strict');
             balances: members.map((m, i) => ({
               userId: m.userId,
               displayName: m.displayName,
-              netCents: mode === 'settled' ? 0 : i ? -6000 : 6000,
-              paidCents: i ? 0 : 12000,
-              owedCents: 6000,
+              netCents: mode === 'settled' ? 0 : i ? -share : share * (members.length - 1),
+              paidCents: i ? 0 : total,
+              owedCents: share,
             })),
           };
         else if (p.endsWith('/expenses') && route.request().method() === 'POST')
@@ -96,7 +134,13 @@ const assert = require('node:assert/strict');
             suggested:
               mode === 'settled'
                 ? []
-                : [{ fromUserId: 'p1', fromName: 'Sam', toUserId: 'p0', toName: 'Alex', amountCents: 6000 }],
+                : members.slice(1).map((m) => ({
+                    fromUserId: m.userId,
+                    fromName: m.displayName,
+                    toUserId: 'p0',
+                    toName: members[0].displayName,
+                    amountCents: share,
+                  })),
           };
         else if (p.endsWith('/settlements'))
           json = {
@@ -123,6 +167,7 @@ const assert = require('node:assert/strict');
         ['split-result', '/split'],
         ['empty', '/'],
         ['dashboard', '/'],
+        ['shared', '/s/preview'],
         ['group', '/groups/g0'],
         ['expense-sheet', '/groups/g0'],
         ['saved', '/groups/g0'],
@@ -138,7 +183,7 @@ const assert = require('node:assert/strict');
           await page.goto('http://127.0.0.1:34212' + url);
           await page.locator('h1').waitFor();
           if (name === 'group' || name === 'expense-sheet' || name === 'saved' || name === 'settled')
-            await page.getByRole('heading', { name: 'Weekend away', exact: true }).waitFor();
+            await page.getByRole('heading', { name: groups[0].name, exact: true }).waitFor();
           if (name === 'dashboard') await page.getByRole('link', { name: /Weekend away/ }).waitFor();
           if (name === 'empty') await page.getByText('No groups yet. The calm before the tab.').waitFor();
           if (name === 'split-result') {
@@ -181,7 +226,7 @@ const assert = require('node:assert/strict');
           );
           if (width === 1440 || width === 390)
             await page.screenshot({
-              path: path.join(dir, name + '-' + theme + '-' + width + '.png'),
+              path: path.join(dir, (stress ? 'stress-' : '') + name + '-' + theme + '-' + width + '.png'),
               fullPage: name !== 'expense-sheet',
               animations: 'disabled',
             });

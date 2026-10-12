@@ -553,8 +553,8 @@ export function GroupDetailPage(): ReactNode {
                     : "Send this to the people you're splitting with",
                 hint:
                   invite.unclaimed > 0
-                    ? `${invite.unclaimed === 1 ? 'One person is' : `${invite.unclaimed} people are`} in here by name only. This link lets them sign in and take over their own spot.`
-                    : "It's just you in here so far. Anyone with the link can see the group and claim their spot.",
+                    ? `${invite.unclaimed === 1 ? 'One person is' : `${invite.unclaimed} people are`} in here by name only. They can view the group, then choose their name and sign in to connect its balances to their account.`
+                    : 'Add people by name first so they have a spot to connect. Anyone with the link can view the group.',
               }
             : {})}
         />

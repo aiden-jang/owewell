@@ -39,13 +39,14 @@ export function SettlementReceipt({
           >
             Payment recorded
           </p>
-          <p className="mt-0.5 font-display text-3xl font-semibold tracking-tight text-ink">
+          <p className="mt-0.5 break-words font-display text-3xl font-semibold tracking-tight text-ink">
             {fmt(settlement.amountCents)}
           </p>
-          <p className="mt-0.5 text-sm text-muted">
+          <p className="mt-0.5 text-sm text-muted [overflow-wrap:anywhere]">
             {receipt.fromName} paid {receipt.toName}
             {settlement.method ? ` via ${PAYMENT_METHOD_LABELS[settlement.method]}` : ''}
           </p>
+          <p className="mt-1 text-xs text-muted">Saved in owewell. No money was transferred by the app.</p>
         </div>
         <button
           type="button"

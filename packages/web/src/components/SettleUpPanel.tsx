@@ -212,7 +212,7 @@ export function SettleUpPanel({
                   <Avatar name={payment.fromName} size="sm" />
                   <span className="flex min-w-0 flex-col">
                     <span className="tnum font-semibold">{fmt(payment.amountCents)}</span>
-                    <span className="text-xs text-muted">
+                    <span className="text-xs text-muted [overflow-wrap:anywhere]">
                       <span className="font-medium text-ink">{payment.fromName}</span> pays{' '}
                       <span className="font-medium text-ink">{payment.toName}</span>
                     </span>

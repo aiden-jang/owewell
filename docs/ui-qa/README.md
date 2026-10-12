@@ -298,3 +298,23 @@ The settled recap now chooses columns from available space and text size, keepin
 readable at enlarged text sizes. Desktop and narrow captures were inspected. Static checks,
 the production build, frontend tests and browser journeys passed. The combined verification
 runner hit the backend property timeout; the unchanged property passed separately.
+
+## Payment records, invites and crowded groups — October 12
+
+The payment form, settle-up panel and confirmation already explained that owewell does not send
+money. The saved receipt now makes that distinction explicit too. Invite copy distinguishes
+viewing from connecting an existing person and balances to a signed-in account.
+
+The capture script’s optional `OWEWELL_UI_STRESS=1` fixture uses a crowded group, long unbroken
+names, a long group title and large amounts. `stress-group` and `stress-shared` captures were
+inspected in both themes at desktop and phone widths, with additional narrow overflow checks.
+Names wrap instead of forcing controls out of their rows; shared totals scale without shortening
+the number. All fixture data stays inside the browser capture script. Native phone keyboards,
+installed-app offline recovery and spoken screen-reader behavior still require a real device;
+desktop browser emulation cannot verify them.
+
+Static gates, the production build and frontend tests passed. Browser journeys passed, with
+the keyboard journey retried separately after the first run closed its member sheet before
+the input-reset assertion. Updated receipt and invite captures were inspected at enlarged text
+sizes. The combined runner stopped on the existing backend ledger-property timeout; the
+unchanged property passed independently without changing repository timeouts or assertions.

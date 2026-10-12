@@ -180,14 +180,23 @@ export function SharedGroupPage(): ReactNode {
                 {hasOpenSeats ? "You've been invited" : 'Shared with you'}
               </p>
             )}
-            <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">{summary.groupName}</h1>
+            <h1 className="mt-1 break-words font-display text-3xl font-semibold tracking-tight">
+              {summary.groupName}
+            </h1>
             <p className="mt-1 text-sm text-muted">
               {summary.memberCount} {summary.memberCount === 1 ? 'person' : 'people'}
             </p>
 
             <div className="surface mt-5 rounded-3xl p-6 sm:p-7">
               <p className="text-sm font-medium text-muted">Spent together</p>
-              <p className="mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl">
+              <p
+                className="mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl"
+                style={
+                  fmt(summary.totalSpentCents).length > 9
+                    ? { fontSize: `clamp(1.5rem, ${90 / fmt(summary.totalSpentCents).length}vw, 3.75rem)` }
+                    : undefined
+                }
+              >
                 {fmt(summary.totalSpentCents)}
               </p>
               <p className="mt-2 text-xs text-faint">
@@ -229,6 +238,12 @@ export function SharedGroupPage(): ReactNode {
 
             <section className="mt-8">
               <h2 className="text-sm font-medium text-muted">Members</h2>
+              {!viewerIsMember && (
+                <p className="mt-2 text-xs text-muted">
+                  Viewing doesn’t join the group. If your name is listed, choose “This is me” to connect that
+                  spot and its balances to your account. Sign-in is required.
+                </p>
+              )}
               <ul className="mt-3 space-y-2">
                 {summary.members.map((m, i) => {
                   const label = balanceLabel(
@@ -250,7 +265,7 @@ export function SharedGroupPage(): ReactNode {
                       <span className="flex min-w-0 flex-1 items-center gap-3">
                         <Avatar name={m.displayName} />
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="break-words font-medium">{m.displayName}</span>
+                          <span className="font-medium [overflow-wrap:anywhere]">{m.displayName}</span>
                           {label.text && (
                             <span className={`tnum truncate text-xs font-medium ${label.tone}`}>
                               {label.text}
@@ -343,9 +358,7 @@ export function SharedGroupPage(): ReactNode {
               </button>
             ) : hasOpenSeats ? (
               <p className="mt-8 text-sm text-muted">
-                See your name above? Tap <span className="font-medium text-accent">This is me</span> to claim
-                join this group
-                {user ? '.' : '. Sign in or create an account; we’ll bring you back to this name.'}
+                Choose only your own name. If it’s missing, ask a member to add you.
               </p>
             ) : (
               <p className="mt-8 text-sm text-muted">

@@ -32,7 +32,7 @@ export function InviteLink({
       <p className="text-sm font-medium">{headline ?? 'Group invite link'}</p>
       <p className="mt-0.5 text-xs text-muted">
         {hint ??
-          'Anyone with this link can view the group. People you added by name can sign in and claim their spot to join and edit.'}
+          'Anyone with this link can view the group. To edit, choose your existing name and sign in. This connects that spot and its balances to your account.'}
       </p>
       <div className="mt-2 flex gap-2">
         <input

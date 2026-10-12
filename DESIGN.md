@@ -69,3 +69,5 @@ Dialog keyboard traps include disclosure summaries and exclude hidden controls. 
 handle their own keys. Closing Members returns to Group options; the first expense returns to
 the replacement Add expense action when the empty state disappears. Saving and payment
 recording expose polite status announcements and busy button states.
+
+Payment receipts explicitly distinguish a saved ledger record from a money transfer. Shared invites explain that viewing is read-only and choosing an existing name connects that spot and its balances to an account. Long unbroken names wrap in payment and shared-member rows; large shared totals scale to fit without shortening the amount.
