@@ -93,7 +93,7 @@ export default function QuickSplitItemRow({
     }
   }
   return (
-    <div className="surface space-y-3 rounded-2xl p-4">
+    <div className="split-bill-row surface space-y-3 rounded-2xl p-4">
       <label className="split-amount-label">
         <span>{itemCount === 1 ? 'Bill amount' : `Item ${index + 1} amount`}</span>
         <input

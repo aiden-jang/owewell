@@ -86,3 +86,8 @@ shadow. The total panel owns its visible focus outline so the numeric field has 
 Itemized receipt rows use numbered paper panels, aligned name and amount fields, quiet selected
 participant tags and a dashed payer divider. Category choices use compact rounded rectangles
 and reserve teal for the selection. Form order, native controls and calculation behavior remain.
+
+Calculator bill rows use soft paper panels, medium-weight amounts and dashed disclosure rules.
+The running total shares the labeled receipt treatment with entry sheets; your share has the
+strongest result hierarchy, with quieter transfer rows. Results fade in once when they appear,
+only when reduced motion is not requested. The existing layout and calculation flow remain.

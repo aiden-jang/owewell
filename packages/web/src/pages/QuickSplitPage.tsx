@@ -457,20 +457,11 @@ export function QuickSplitPage(): ReactNode {
 
             {/* Items — one expense per row, each split its own way among everyone above */}
             <div className="mt-6 space-y-3">
-              {/*
-               * The running total, at the size of the thing it is: the number you check against the
-               * printed receipt before sending anything to anybody.
-               *
-               * Only at that size once it IS a number. At zero it was 48px of nothing — the same
-               * type size as the headline, and the largest thing a first-time visitor saw.
-               */}
-              <div
-                className={`rounded-2xl border border-line text-center transition-all ${
-                  grandTotal > 0 ? 'bg-field px-4 py-5' : 'hidden'
-                }`}
-              >
+              {/* The total stays hidden until the bill has an amount. */}
+              <div className={`split-total entry-amount ${grandTotal > 0 ? '' : 'hidden'}`}>
+                <span className="entry-amount-label">Bill total</span>
                 <p
-                  className={`tnum font-display font-extrabold tracking-tight ${
+                  className={`tnum font-display font-medium tracking-tight ${
                     grandTotal > 0 ? 'text-4xl sm:text-5xl' : 'text-xl text-faint'
                   }`}
                 >

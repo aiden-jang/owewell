@@ -203,9 +203,16 @@ const assert = require('node:assert/strict');
           if (name === 'empty') await page.getByText('No groups yet. The calm before the tab.').waitFor();
           if (name === 'split-result') {
             await page.getByPlaceholder('Person 2').fill('Sam');
+            await page.getByText('Details & split options', { exact: true }).click();
             await page.getByPlaceholder('Item 1 (e.g. Dinner)').fill('Dinner');
             await page.getByPlaceholder('0.00', { exact: true }).first().fill('120');
             await page.getByText('$120.00', { exact: true }).first().waitFor();
+            const result = page.locator('.split-result');
+            await result.waitFor();
+            assert.equal(await result.evaluate((el) => getComputedStyle(el).animationName), 'none');
+            await page.emulateMedia({ reducedMotion: 'no-preference' });
+            assert.equal(await result.evaluate((el) => getComputedStyle(el).animationName), 'fade-in');
+            await page.emulateMedia({ reducedMotion: 'reduce' });
           }
           if (name === 'payment-sheet' || name === 'payment-preview-sheet') {
             await page.getByRole('button', { name: 'Log a payment', exact: true }).click();

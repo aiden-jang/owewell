@@ -374,3 +374,20 @@ to locate the new panel class instead of its previous utility class; its asserti
 Frontend tests and browser journeys passed, with keyboard coverage run separately. The combined
 verify command stopped at the existing backend property timeout; the unchanged property passed
 independently without changing repository timeouts or assertions.
+
+## Calculator visual polish — October 12
+
+Bill rows now use soft paper surfaces, quieter disclosure controls and medium-weight amounts.
+The bill total matches entry-sheet receipt panels; the personal share and transfer amounts
+have clearer visual hierarchy. Results use a brief entrance fade with reduced-motion support.
+Existing layout, draft behavior, split options and calculation flow remain.
+
+Blank and completed calculator captures were inspected at desktop and phone widths in both
+palettes, with narrow-width overflow checks. The completed-bill capture opens the existing
+split-options disclosure before entering a description and verifies reduced-motion behavior.
+Static gates, the production build and frontend tests passed. The combined verify command
+stopped at the existing backend property timeout; the unchanged property passed independently.
+
+Keyboard and enlarged-text coverage passed separately, followed by all remaining browser
+journeys, including the signed-out calculator in both palettes. Repository test timeouts and
+assertions remain unchanged. The combined verify command did not finish green.

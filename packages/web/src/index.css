@@ -1486,3 +1486,69 @@ input:disabled {
     gap: 6px;
   }
 }
+
+/* The calculator uses the same quiet paper hierarchy as expense entry. */
+.split-bill-row {
+  border-radius: 20px;
+  background: var(--color-surface2);
+  box-shadow: none;
+  padding: 20px;
+}
+.split-bill-row .split-amount-label > span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.split-bill-row .split-amount-input {
+  font-size: 30px;
+  font-weight: 500;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+.split-bill-row .split-item-options {
+  border-top: 1px dashed var(--color-line-strong);
+  padding-top: 8px;
+}
+.split-bill-row .split-item-options > summary {
+  color: var(--color-muted);
+  min-height: 36px;
+}
+.split-result {
+  border-top-style: dashed;
+}
+.split-your-share {
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  padding: 22px 20px;
+}
+.split-your-share > span:last-child {
+  font-weight: 500;
+}
+.split-result li {
+  border-radius: 14px;
+  box-shadow: none;
+}
+.split-result li > span:first-child {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.split-result li > span:last-child {
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+.split-total > p:first-of-type {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .split-result {
+    animation: fade-in 220ms ease-out;
+  }
+}
+@media (max-width: 359px) {
+  .split-bill-row {
+    padding: 14px;
+  }
+  .split-your-share {
+    flex-wrap: wrap;
+  }
+}
