@@ -33,6 +33,7 @@ export function GroupActivityShortcut({
       <button
         type="button"
         onClick={onAdd}
+        data-focus-return="add-expense"
         className="btn-gradient inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
       >
         <Icon name="plus" size={18} /> Add expense

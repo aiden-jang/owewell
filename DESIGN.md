@@ -64,3 +64,8 @@ Expense and payment text inputs advance on Enter without submitting. Money field
 mobile Next key; narrow screens constrain large amounts and give participant choices a full
 tap target. Installed apps refresh HTML, icons and metadata online while retaining cached
 hashed bundles offline. Update checks never reload an unfinished form automatically.
+
+Dialog keyboard traps include disclosure summaries and exclude hidden controls. Nested dialogs
+handle their own keys. Closing Members returns to Group options; the first expense returns to
+the replacement Add expense action when the empty state disappears. Saving and payment
+recording expose polite status announcements and busy button states.

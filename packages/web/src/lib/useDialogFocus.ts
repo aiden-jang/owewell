@@ -18,17 +18,34 @@ export function useDialogFocus(
     if (!open) return;
     // Remembered so it can be handed back: closing a dialog should return you where you were.
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    const returnKey = previouslyFocused?.dataset.focusReturn;
 
     const focusable = (): HTMLElement[] =>
       Array.from(
         ref.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
         ) ?? [],
-      );
+      ).filter((element) => {
+        if (element.matches(':disabled') || element.closest('[hidden], [inert], [aria-hidden="true"]'))
+          return false;
+        for (let ancestor: HTMLElement | null = element; ancestor; ancestor = ancestor.parentElement) {
+          const style = getComputedStyle(ancestor);
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
+          if (
+            ancestor instanceof HTMLDetailsElement &&
+            !ancestor.open &&
+            !ancestor.querySelector('summary')?.contains(element)
+          )
+            return false;
+        }
+        return true;
+      });
 
     (initialFocus?.() ?? ref.current)?.focus();
 
     const onKey = (e: KeyboardEvent): void => {
+      const activeDialog = document.activeElement?.closest('[role="dialog"]');
+      if (activeDialog && activeDialog !== ref.current) return;
       if (e.key === 'Escape') {
         onClose();
         return;
@@ -61,7 +78,12 @@ export function useDialogFocus(
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
-      previouslyFocused?.focus?.();
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+      else if (returnKey) {
+        Array.from(document.querySelectorAll<HTMLElement>('[data-focus-return]'))
+          .find((element) => element.dataset.focusReturn === returnKey)
+          ?.focus();
+      }
     };
     // `initialFocus` is read once on open; a caller passing an inline arrow must not restart this.
     // eslint-disable-next-line react-hooks/exhaustive-deps

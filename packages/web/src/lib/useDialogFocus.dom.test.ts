@@ -201,3 +201,41 @@ describe('putting things back', () => {
     expect(document.body.style.overflow).toBe('');
   });
 });
+
+describe('visible dialog controls', () => {
+  it('wraps past controls inside a closed disclosure', () => {
+    const { dialog } = fixture(1);
+    const details = document.createElement('details');
+    details.innerHTML = '<summary>Optional details</summary><input aria-label="Hidden note">';
+    dialog.append(details);
+    mount(dialog, true);
+    details.querySelector('summary')!.focus();
+    expect(tab()).toBe(false);
+    expect(document.activeElement).toBe(dialog.querySelector('button'));
+  });
+  it('does not handle Escape in a different active dialog', () => {
+    const { dialog } = fixture(1);
+    dialog.setAttribute('role', 'dialog');
+    const other = document.createElement('div');
+    other.setAttribute('role', 'dialog');
+    other.tabIndex = -1;
+    document.body.append(other);
+    const { onClose } = mount(dialog, true);
+    other.focus();
+    escape();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+it('returns focus to the replacement action when the empty-state opener is removed', () => {
+  const { dialog, opener } = fixture();
+  opener.dataset.focusReturn = 'add-expense';
+  opener.focus();
+  const { rerender } = mount(dialog, true);
+  opener.remove();
+  const replacement = document.createElement('button');
+  replacement.dataset.focusReturn = 'add-expense';
+  document.body.append(replacement);
+  rerender({ isOpen: false });
+  expect(document.activeElement).toBe(replacement);
+});

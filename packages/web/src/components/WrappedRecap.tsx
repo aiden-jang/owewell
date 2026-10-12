@@ -65,7 +65,7 @@ export function WrappedRecap({
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
         <div className="rounded-2xl border border-line/70 bg-surface2/70 p-3">
           <span className="block text-2xs font-medium uppercase tracking-wide text-faint">Total spent</span>
           <strong className="mt-1 block font-display text-lg text-ink">{fmt(recap.totalCents)}</strong>

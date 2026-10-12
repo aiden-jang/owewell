@@ -14,7 +14,10 @@ createServer((req, res) => {
   if (req.url?.startsWith('/auth/me')) {
     const signedIn = (req.headers.cookie ?? '').includes('platform_session=');
     res.writeHead(signedIn ? 200 : 401, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(signedIn ? { user: USER } : {}));
+    const user = (req.headers.cookie ?? '').includes('platform_session=e2e-a11y')
+      ? { ...USER, id: 'e2e-a11y-user' }
+      : USER;
+    res.end(JSON.stringify(signedIn ? { user } : {}));
     return;
   }
   res.writeHead(404).end();

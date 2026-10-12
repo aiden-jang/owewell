@@ -372,9 +372,13 @@ export function RecordPaymentForm({
       )}
       <FormError message={error} />
       <div className="form-submit-bar">
+        <span role="status" className="sr-only">
+          {submitting ? 'Recording payment…' : ''}
+        </span>
         <button
           type="submit"
           disabled={submitting}
+          aria-busy={submitting}
           className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
         >
           {submitting ? 'Recording…' : 'Record payment'}

@@ -65,6 +65,7 @@ export function GroupHeader({
    */
   const runAndClose = (action: () => void | Promise<void>) => (): void => {
     setMenuOpen(false);
+    triggerRef.current?.focus();
     void action();
   };
 

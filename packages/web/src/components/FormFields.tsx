@@ -126,9 +126,13 @@ export function SubmitButton({
 }): ReactNode {
   return (
     <div className="form-submit-bar">
+      <span role="status" className="sr-only">
+        {submitting ? 'Saving…' : ''}
+      </span>
       <button
         type="submit"
         disabled={submitting}
+        aria-busy={submitting}
         className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
       >
         {submitting ? 'Saving…' : children}

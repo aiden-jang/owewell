@@ -293,8 +293,7 @@ export function ActivityFeed({
             </span>
           )}
         </div>
-        {/* items-start, not items-center: the note runs to two lines on a phone and a centred
-              icon floats against the gap between them. */}
+        {/* Align the icon with the first line when the lock note wraps. */}
         {settlements.length > 0 && (
           <p className="mt-2 flex items-start gap-1.5 text-xs text-faint">
             <Icon name="undo" size={13} className="mt-0.5 shrink-0" />A payment&rsquo;s been recorded, so this
@@ -312,6 +311,7 @@ export function ActivityFeed({
                 <button
                   type="button"
                   onClick={() => onAddExpense()}
+                  data-focus-return="add-expense"
                   className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
                 >
                   <Icon name="plus" size={15} /> Add expense

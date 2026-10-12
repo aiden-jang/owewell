@@ -276,3 +276,25 @@ browser journeys passed. Both narrow captures were inspected; responsive amount 
 a clipped final digit that the horizontal-overflow assertion alone did not detect. The combined
 runner stopped on the known backend property timeout; the property passed separately without
 changing repository timeouts or assertions.
+
+## Keyboard access and enlarged text — October 12
+
+A separate local test account completes group creation, member addition, expense entry and
+payment recording using Tab, Enter and native select keyboard controls. It checks focus after
+sheets close and the announced payment status. Hidden fields in closed disclosures are excluded
+from the dialog trap; summary controls are included. Nested dialogs handle their own keys.
+Group options retains focus across opening Members, and first-expense saving hands focus to
+the replacement Add expense action when the empty-state control disappears. Saving controls
+expose busy state and polite status announcements.
+
+`accessibility-text-200-1280.png` and `accessibility-text-200-640.png` double the root text size
+and rem-based spacing, with no horizontal overflow at either width. This exercises enlarged
+text and reflow, rather than native browser zoom controls. Accessibility roles, labels and
+keyboard behavior were checked in Chromium; spoken VoiceOver and NVDA output is not available
+in this environment and remains a device check.
+
+The matching `accessibility-entry-200` captures inspect the expense sheet at both widths.
+The settled recap now chooses columns from available space and text size, keeping its amounts
+readable at enlarged text sizes. Desktop and narrow captures were inspected. Static checks,
+the production build, frontend tests and browser journeys passed. The combined verification
+runner hit the backend property timeout; the unchanged property passed separately.
