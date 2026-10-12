@@ -4,9 +4,7 @@ Owewell has its own violet, chalk and receipt-paper identity. Warm and dark pref
 available, including the saved choice and automatic device preference. Inter remains locally
 served. Violet identifies actions; green and red retain their money meanings and explicit labels.
 
-The signed-out calculator pairs a short introduction and decorative receipt illustration with
-the existing live form. The drawing contains no example money or account data. On phones it
-stays compact above the tool. The signed-in overview has a page title, a quieter balance card
+The signed-out calculator is a working receipt: a narrow introduction and numbered guide sit beside a paper ledger with dashed section rules. There are no decorative receipt or feature cards around the tool. On phones the compact introduction precedes the receipt. The signed-in overview has a page title, a quieter balance card
 and a two-column group directory on wide screens; phones retain a single column. Group detail
 keeps its focused column, with a paper balance card and consistent form boundaries.
 

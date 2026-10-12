@@ -14,7 +14,6 @@ import {
   type DraftPerson,
 } from '../lib/quickSplitDraft';
 import { AppHeader } from '../components/AppHeader';
-import { Icon } from '../components/Icon';
 import {
   clearPendingSplit,
   quickSplitApi,
@@ -254,6 +253,22 @@ export function QuickSplitPage(): ReactNode {
     });
   }
 
+  const canTryExample =
+    !draftRestored &&
+    people.length === 2 &&
+    people[0]?.name === 'You' &&
+    !people[1]?.name &&
+    items.every((item) => !item.amount && !item.description);
+  function tryExample(): void {
+    const payer = newPerson('You');
+    const guests = [payer, newPerson('Sam'), newPerson('Jo')];
+    setPeople(guests);
+    setPayerId(payer.id);
+    setYouId(payer.id);
+    setItems([{ ...newItem(), description: 'Dinner (example)', amount: '48' }]);
+    setError(null);
+  }
+
   async function onSave(): Promise<void> {
     setError(null);
     if (named.length < 2) {
@@ -349,11 +364,7 @@ export function QuickSplitPage(): ReactNode {
       >
         {/* Pitch beside the tool once there is room, so it stays visible while you use the thing it
             is pitching. Below lg it stacks. */}
-        <div
-          className={
-            user ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] lg:items-start lg:gap-12'
-          }
-        >
+        <div className={user ? '' : 'split-counter'}>
           {user ? (
             <>
               <h1 className="font-display text-4xl font-semibold tracking-tight">Split a bill</h1>
@@ -363,11 +374,11 @@ export function QuickSplitPage(): ReactNode {
               </p>
             </>
           ) : (
-            <SplitIntro />
+            <SplitIntro onExample={canTryExample ? tryExample : undefined} />
           )}
 
           {/* The form, at form width, whatever the page around it is doing. */}
-          <div className="mx-auto w-full max-w-2xl lg:mx-0">
+          <div className={`mx-auto w-full max-w-2xl lg:mx-0 ${user ? '' : 'split-receipt'}`}>
             {draftRestored && (
               <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
                 <span>
@@ -668,36 +679,6 @@ export function QuickSplitPage(): ReactNode {
             )}
           </div>
         </div>
-
-        {!user && (
-          <section className="mt-12 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                icon: 'users' as const,
-                title: 'Split it any way',
-                body: 'Evenly, by shares, by percent, or exact. However the argument shakes out.',
-              },
-              {
-                icon: 'receipt' as const,
-                title: 'Itemize the chaos',
-                body: "Separate line items, because you didn't touch the calamari.",
-              },
-              {
-                icon: 'wallet' as const,
-                title: 'Settle up',
-                body: 'We boil tangled debts down to the fewest Venmos humanly possible.',
-              },
-            ].map((f) => (
-              <div key={f.title} className="surface rounded-2xl p-4">
-                <span className="inline-grid h-9 w-9 place-items-center rounded-xl bg-accent-soft text-accent">
-                  <Icon name={f.icon} size={18} />
-                </span>
-                <h3 className="mt-2 font-display text-lg font-semibold tracking-tight">{f.title}</h3>
-                <p className="mt-1 text-sm text-muted">{f.body}</p>
-              </div>
-            ))}
-          </section>
-        )}
       </main>
     </div>
   );

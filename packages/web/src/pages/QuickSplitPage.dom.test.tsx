@@ -69,6 +69,20 @@ beforeEach(() => {
 });
 
 describe('the split itself', () => {
+  it('lets a fresh visitor explore an explicitly labeled example', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: /Try a \$48 example/ }));
+    expect(screen.getByLabelText('Item 1 description')).toHaveValue('Dinner (example)');
+    expect(owedLines()).toEqual(['Sam owes You$16.00', 'Jo owes You$16.00']);
+  });
+
+  it('hides the example action as soon as a visitor starts their own bill', async () => {
+    const user = await open();
+    await user.type(screen.getByLabelText('Item 1 description'), 'My dinner');
+    expect(screen.queryByRole('button', { name: /Try a \$48 example/ })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Item 1 description')).toHaveValue('My dinner');
+  });
+
   it('divides a bill evenly and names who owes whom', async () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');

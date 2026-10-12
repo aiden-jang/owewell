@@ -1,21 +1,33 @@
 import type { ReactNode } from 'react';
 import { ReceiptArt } from './ReceiptArt';
 
-export function SplitIntro(): ReactNode {
+export function SplitIntro({ onExample }: { onExample?: (() => void) | undefined }): ReactNode {
   return (
-    <section className="split-intro mb-9 lg:sticky lg:top-24 lg:mb-0">
-      <p className="owewell-eyebrow">GOOD COMPANY. CLEAR TABS.</p>
-      <h1 className="font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">
-        Split the bill.
+    <section className="split-intro">
+      <p className="owewell-eyebrow">THE BILL, PLEASE.</p>
+      <h1 className="font-display font-semibold tracking-tight">
+        Dinner’s over.
         <br />
-        Keep the friends.
+        Math isn’t.
       </h1>
-      <p className="mt-5 max-w-[38ch] text-base text-muted">
-        Add the people and what you spent. We’ll work out who owes who. Nobody came for the spreadsheet.
-      </p>
-      <ReceiptArt />
-      <p className="text-sm text-muted">No account needed. Save your split when you want to keep it.</p>
-      <p className="mt-6 text-sm font-medium text-muted lg:hidden">Start your split below ↓</p>
+      <p>Add your people, then the bill. The answer updates as you go.</p>
+      <p>No account needed. No one has to pretend they enjoyed the calamari.</p>
+      {onExample && (
+        <button type="button" className="split-example" onClick={onExample}>
+          Try a $48 example ↗
+        </button>
+      )}
+      <ol className="split-steps">
+        <li>
+          <span>01</span> Who was there?
+        </li>
+        <li>
+          <span>02</span> What did you spend?
+        </li>
+        <li>
+          <span>03</span> The answer.
+        </li>
+      </ol>
     </section>
   );
 }

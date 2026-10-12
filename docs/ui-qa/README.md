@@ -53,3 +53,16 @@ file was rerun successfully, and the browser stage was run separately. This poli
 locally on main and does not include a push or deployment.
 
 The October 10 hierarchy pass moves Add expense into the activity header, away from payment controls. Log a payment has a quiet button boundary; the payment method remains labeled, and ledger titles and amounts are stronger than metadata. Group captures were inspected at desktop and phone sizes in both themes, with additional width checks at 320, 430 and 768px.
+
+## Distinct receipt landing — October 11
+
+The public calculator is a ruled paper receipt beside a compact numbered guide, without decorative
+receipt art or feature cards. The opt-in example labels its dinner item explicitly and disappears
+once a visitor starts their own bill. The real form and saved-draft behavior remain in place.
+
+Desktop (1280 × 900) and phone (390 × 844) previews were inspected in light mode; desktop dark mode
+was inspected as well. The sample divides $48 among three people into $16 shares. The component
+checks cover the example calculation and protecting a bill already in progress. The browser
+journey passed. The combined check run hit the existing ledger property test's five-second limit;
+a focused run passed with a longer runtime allowance, without changing assertions or repository
+configuration. The full combined runner is not recorded as green.
