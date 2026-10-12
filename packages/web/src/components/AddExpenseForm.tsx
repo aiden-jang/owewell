@@ -288,11 +288,17 @@ export function AddExpenseForm({
             onBlur={() => setAmount(normalizeAmountInput(amount))}
             placeholder="0.00"
             inputMode="decimal"
+            enterKeyHint="next"
             aria-label="Amount"
             required
             /* Sized to its own digits so the $ stays next to the number instead of drifting off the
                left edge of a fixed box. Tabular figures make 1ch exact for every digit. */
-            style={{ width: `${Math.max(4, amount.length) + 0.3}ch` }}
+            style={{
+              width: `${Math.max(4, amount.length) + 0.3}ch`,
+              maxWidth: '100%',
+              minWidth: 0,
+              fontSize: `clamp(1.25rem, ${90 / Math.max(4, amount.length)}vw, 3rem)`,
+            }}
             className="tnum bg-transparent text-center font-display text-5xl font-extrabold tracking-tight outline-none placeholder:text-faint"
           />
         </div>
@@ -334,9 +340,9 @@ export function AddExpenseForm({
       <div className="space-y-2">
         {members.map((m) => (
           <div key={m.userId} className="flex items-center gap-3">
-            <label className="flex flex-1 items-center gap-2">
+            <label className="flex min-w-0 flex-1 items-center gap-2">
               <input type="checkbox" checked={selected.has(m.userId)} onChange={() => toggle(m.userId)} />
-              <span>{m.displayName}</span>
+              <span className="min-w-0 break-words">{m.displayName}</span>
             </label>
             {method !== 'EQUAL' && selected.has(m.userId) && (
               <div className="flex items-center gap-1">
@@ -345,6 +351,7 @@ export function AddExpenseForm({
                   onChange={(e) => setValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
                   placeholder="0"
                   inputMode="decimal"
+                  enterKeyHint="next"
                   aria-label={
                     method === 'EXACT'
                       ? `Amount for ${m.displayName}`

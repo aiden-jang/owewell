@@ -38,9 +38,19 @@ createRoot(rootEl).render(
 if ('serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        // Non-fatal: the app works fine without it.
-      });
+      navigator.serviceWorker
+        .register('/sw.js', { updateViaCache: 'none' })
+        .then((registration) => {
+          const check = (): void => {
+            if (document.visibilityState === 'visible' && navigator.onLine)
+              void registration.update().catch(() => undefined);
+          };
+          document.addEventListener('visibilitychange', check);
+          window.addEventListener('online', check);
+        })
+        .catch(() => {
+          // Non-fatal: the app works fine without it.
+        });
     });
   } else {
     void navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => void r.unregister()));

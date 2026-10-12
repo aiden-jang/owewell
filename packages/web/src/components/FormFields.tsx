@@ -18,6 +18,7 @@ export function DescriptionField({
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      enterKeyHint="next"
       placeholder="What was it for?"
       aria-label="What the expense was for"
       required

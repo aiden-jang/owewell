@@ -242,10 +242,16 @@ export function RecordPaymentForm({
             onBlur={() => setAmount(normalizeAmountInput(amount))}
             placeholder="0.00"
             inputMode="decimal"
+            enterKeyHint="next"
             required
             aria-label="Amount"
             /* Sized to its own digits, as in the add sheet, so the symbol stays beside the number. */
-            style={{ width: `${Math.max(4, amount.length) + 0.3}ch` }}
+            style={{
+              width: `${Math.max(4, amount.length) + 0.3}ch`,
+              maxWidth: '100%',
+              minWidth: 0,
+              fontSize: `clamp(1.25rem, ${90 / Math.max(4, amount.length)}vw, 2.25rem)`,
+            }}
             className="tnum bg-transparent text-center font-display text-4xl font-extrabold tracking-tight outline-none placeholder:text-faint"
           />
         </div>

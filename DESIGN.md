@@ -59,3 +59,8 @@ Unfinished expense and payment sheets ask before discarding changes, including b
 and page exits. Expired sign-in errors offer a separate sign-in tab so entered fields remain
 in the original form for retry. Offline payment records remain excluded from balances until
 synced; invite conflicts refresh the roster and invalid links explain how to request a new one.
+
+Expense and payment text inputs advance on Enter without submitting. Money fields request the
+mobile Next key; narrow screens constrain large amounts and give participant choices a full
+tap target. Installed apps refresh HTML, icons and metadata online while retaining cached
+hashed bundles offline. Update checks never reload an unfinished form automatically.

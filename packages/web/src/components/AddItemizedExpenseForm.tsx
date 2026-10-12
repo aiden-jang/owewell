@@ -243,6 +243,7 @@ export function AddItemizedExpenseForm({
                 onBlur={() => updateItem(index, { amount: normalizeAmountInput(item.amount) })}
                 placeholder="0.00"
                 inputMode="decimal"
+                enterKeyHint="next"
                 className="w-28 rounded-xl border border-line bg-field px-3 py-2.5 text-right outline-none focus:border-accent"
                 aria-label={`Item ${index + 1} amount`}
               />
@@ -302,6 +303,7 @@ export function AddItemizedExpenseForm({
           onBlur={() => setTax(normalizeAmountInput(tax))}
           placeholder="Tax (optional)"
           inputMode="decimal"
+          enterKeyHint="next"
           className={inputClass}
           aria-label="Tax"
         />
@@ -311,6 +313,7 @@ export function AddItemizedExpenseForm({
           onBlur={() => setTip(normalizeAmountInput(tip))}
           placeholder="Tip (optional)"
           inputMode="decimal"
+          enterKeyHint="next"
           className={inputClass}
           aria-label="Tip"
         />

@@ -255,3 +255,24 @@ Static gates, type checks, lint, formatting and the production build passed. The
 and browser journeys passed, including a hit-target check that the mobile sign-in link is not
 covered by the sticky action. The combined runner stopped on the known backend property
 timeout; that test passed independently. Assertions and repository timeouts were not relaxed.
+
+## Mobile entry and installed-app updates — October 12
+
+Enter advances visible fields in expense and payment sheets rather than implicitly submitting.
+Money inputs request the Next key, large amounts stay within narrow sheets and mobile member
+labels have a full tap target. The browser journey checks keyboard focus, horizontal overflow
+and target height at narrow widths. `mobile-input-320.png` and `mobile-input-390.png` use a
+shortened viewport to approximate the space available above an on-screen keyboard. Native
+iPhone and Android keyboard behavior cannot be verified in this desktop browser.
+
+The service worker refreshes unversioned icons, metadata and HTML online, caches hashed
+bundles for offline use, and leaves API and cross-origin requests outside its cache. Failed
+responses cannot replace good cached entries. Return-to-app and reconnection trigger update
+checks without automatically reloading entered work. Cache-policy tests run the shipped worker
+with controlled network responses; they do not replace testing an installed app on a phone.
+
+Static gates and the final production build passed. The frontend suite, cache-policy tests and
+browser journeys passed. Both narrow captures were inspected; responsive amount sizing fixed
+a clipped final digit that the horizontal-overflow assertion alone did not detect. The combined
+runner stopped on the known backend property timeout; the property passed separately without
+changing repository timeouts or assertions.

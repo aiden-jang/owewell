@@ -228,7 +228,30 @@ test('unfinished work survives sign-in failures and offline payments', async ({ 
   await expect(page.locator('.toast')).toHaveCount(0);
   await page.getByRole('button', { name: 'Add expense', exact: true }).first().click();
   await page.getByLabel('Amount', { exact: true }).fill('40');
+  await page.getByLabel('Amount', { exact: true }).press('Enter');
+  await expect(page.getByLabel('What the expense was for')).toBeFocused();
   await page.getByLabel('What the expense was for').fill('Recovery dinner');
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 520 });
+    await page.getByLabel('Amount', { exact: true }).fill('123456.78');
+    await page.getByLabel('Amount', { exact: true }).press('Enter');
+    await expect(page.getByLabel('What the expense was for')).toBeFocused();
+    expect(
+      await page.locator('.sheet-content').evaluate((sheet) => sheet.scrollWidth <= sheet.clientWidth),
+    ).toBe(true);
+    const memberChoices = page
+      .getByRole('dialog')
+      .locator('label')
+      .filter({ has: page.locator('input[type=checkbox]') });
+    for (const choice of await memberChoices.all()) {
+      expect((await choice.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    }
+    if (process.env.UI_MOBILE_CAPTURE)
+      await page.screenshot({ path: `../../docs/ui-qa/mobile-input-${width}.png`, animations: 'disabled' });
+  }
+  await page.getByLabel('Amount', { exact: true }).fill('40');
+  await page.setViewportSize({ width: 1280, height: 900 });
+
   await page.route('**/api/groups/*/expenses', (route) => {
     if (route.request().method() === 'POST')
       return route.fulfill({ status: 401, json: { message: 'Unauthorized' } });

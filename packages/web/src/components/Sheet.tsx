@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from './Icon';
+import { advanceFormField } from '../lib/advanceFormField';
 import { SheetNavigationGuard, type BlockedNavigation } from './SheetNavigationGuard';
 import { useDialogFocus } from '../lib/useDialogFocus';
 
@@ -91,6 +92,7 @@ export function Sheet({
     >
       <div
         ref={dialogRef}
+        onKeyDownCapture={advanceFormField}
         onChangeCapture={markChanged}
         onClickCapture={(event) => {
           if ((event.target as HTMLElement).closest('button[aria-pressed]')) markChanged();

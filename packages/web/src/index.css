@@ -1234,3 +1234,9 @@ input:disabled {
   background: var(--color-surface2);
   outline-offset: -3px;
 }
+
+@media (max-width: 639px) {
+  .sheet-content label:has(> input[type='checkbox']) {
+    min-height: 44px;
+  }
+}
