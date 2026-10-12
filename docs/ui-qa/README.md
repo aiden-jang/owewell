@@ -121,3 +121,24 @@ activity feed and backend ledger property check, so it is not recorded as green.
 feed, calculator and copy-action checks passed together on a focused rerun with a longer
 command-line allowance; the ledger test passed alone. The real browser journey passed. No
 assertions or repository timeout settings were relaxed.
+
+## Group overview and expense entry — October 11
+
+The latest real expense and Add expense shortcut sit immediately below the balance, ahead of
+settlement detail. Tapping the latest entry opens its existing details. The simple expense sheet
+keeps amount, description, payer and split controls visible, with optional date, category and note
+in a disclosure. Edits and copied expenses expose their metadata.
+
+New expenses remember the group’s last successful split method and participants on this device.
+Stored IDs are checked against the roster; an empty match falls back to the current members.
+Amounts and exact/percentage values are never remembered. Shares restart at one each. This
+keeps the next expense from silently reusing another bill’s allocations.
+
+Desktop and phone views were inspected in `group-entry-1280.png`, `group-entry-390.png`,
+`expense-entry-1280.png` and `expense-entry-390.png`. A temporary local-only fixture rendered
+the real group page and sheet without saving any data; its source was removed afterward.
+
+Static gates, the production build, the full frontend suite and the real browser journey passed.
+The combined runner stopped on the default backend ledger property timeout; that test passed
+alone with a longer command-line allowance. Repository timeout settings and assertions were
+not relaxed. The combined runner is not recorded as green.

@@ -21,10 +21,9 @@ const MAX_STATE = 12;
  */
 const ALREADY_OVER = {
   'packages/web/src/pages/QuickSplitPage.tsx': { lines: 646 },
-  'packages/web/src/pages/GroupDetailPage.tsx': { lines: 792 },
+  'packages/web/src/pages/GroupDetailPage.tsx': { lines: 788 },
   'packages/web/src/pages/DashboardPage.tsx': { lines: 552 },
   'packages/api/src/index.ts': { lines: 502 },
-  'packages/web/src/components/AddExpenseForm.tsx': { lines: 414 },
   'packages/web/src/components/ActivityFeed.tsx': { lines: 458 },
 };
 

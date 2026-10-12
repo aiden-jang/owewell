@@ -1,3 +1,4 @@
+import { GroupActivityShortcut } from '../components/GroupActivityShortcut';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { type PaymentMethod } from '@owewell/core';
@@ -521,6 +522,14 @@ export function GroupDetailPage(): ReactNode {
         }}
       />
 
+      {ledgerHasRows && (
+        <GroupActivityShortcut
+          expenses={expenses}
+          onAdd={() => setSheetOpen(true)}
+          onOpen={setDetailExpenseId}
+        />
+      )}
+
       {receipt && <SettlementReceipt receipt={receipt} onClose={() => setPaymentReceipt(null)} />}
 
       {/*
@@ -579,19 +588,6 @@ export function GroupDetailPage(): ReactNode {
 
       {expenses.length > 0 && group.members.length > 1 && (
         <FrontingInsight balances={balances} expenseCount={expenses.length} />
-      )}
-
-      {ledgerHasRows && (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Activity</p>
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            className="btn-gradient inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
-          >
-            <Icon name="plus" size={18} /> Add expense
-          </button>
-        </div>
       )}
 
       <ActivityFeed

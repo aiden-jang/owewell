@@ -33,3 +33,10 @@ their details automatically. Results emphasize the visitor’s own share before 
 Payer selection is one labeled Who paid? control. Tips are an optional disclosure. Inline amount
 errors explain valid positive amounts before saving. Copy summary is the primary result action;
 saving stays secondary. Blank calculators explain what is needed to produce an answer.
+
+Signed-in groups pair the latest real expense with Add expense directly below the balance,
+before settlement detail. Expense entry keeps amount, description, payer and split visible;
+optional date, category and note live in a disclosure, expanded when editing or copying.
+Successful new expenses remember only the group’s split method and participants on this device.
+Amounts and exact/percentage allocations always start fresh; shares restart at one each.
+Preferences are checked against the current roster and never override an edit or template.

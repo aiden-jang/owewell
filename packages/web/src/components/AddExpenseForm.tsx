@@ -1,14 +1,8 @@
+import { expenseSplitHint } from '../lib/expenseSplitHint';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { CategoryPicker } from './CategoryPicker';
-import {
-  DateField,
-  DescriptionField,
-  FormError,
-  NoteField,
-  PayerSelect,
-  SubmitButton,
-  inputClass,
-} from './FormFields';
+import { ExpenseExtras } from './ExpenseExtras';
+import { readSplitPreference, writeSplitPreference } from '../lib/splitPreference';
+import { DescriptionField, FormError, PayerSelect, SubmitButton, inputClass } from './FormFields';
 import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput } from '../lib/format';
@@ -77,18 +71,27 @@ export function AddExpenseForm({
     submitting,
     setSubmitting,
   } = useExpenseDraft(members, editing, template);
+  const [preference] = useState(() => readSplitPreference(groupId));
+  const remembered =
+    preference?.participants.filter((id) => members.some((member) => member.userId === id)) ?? [];
   const [amount, setAmount] = useState(source ? (source.amountCents / 100).toFixed(2) : '');
   const [method, setMethod] = useState<SplitMethod>(
-    source && source.splitMethod !== 'ITEMIZED' ? source.splitMethod : 'EQUAL',
+    source && source.splitMethod !== 'ITEMIZED' ? source.splitMethod : (preference?.method ?? 'EQUAL'),
   );
   const [selected, setSelected] = useState<Set<string>>(
     source
       ? new Set(
           source.splits.map((s) => s.userId).filter((id) => members.some((member) => member.userId === id)),
         )
-      : new Set(members.map((m) => m.userId)),
+      : new Set(remembered.length ? remembered : members.map((m) => m.userId)),
   );
-  const [values, setValues] = useState<Record<string, string>>(() => initialValues(source));
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    source
+      ? initialValues(source)
+      : preference?.method === 'SHARES'
+        ? Object.fromEntries(members.map((member) => [member.userId, '1']))
+        : {},
+  );
 
   function clearAfterCreate(): void {
     setDescription('');
@@ -206,7 +209,14 @@ export function AddExpenseForm({
         setError(outcome.message);
         return;
       }
-      if (!editing) clearAfterCreate();
+      if (!editing) {
+        writeSplitPreference(
+          groupId,
+          method,
+          chosen.map((member) => member.userId),
+        );
+        clearAfterCreate();
+      }
       if (outcome.status === 'queued') onQueued?.(trimmedDescription);
       else onCreated(outcome.expense);
     } finally {
@@ -214,62 +224,13 @@ export function AddExpenseForm({
     }
   }
 
-  // Live running total for the non-equal methods, so the user sees whether their per-person
-  // values add up before hitting submit.
-  let splitHint: { text: string; tone: string } | null = null;
-  if (method !== 'EQUAL') {
-    const chosen = members.filter((m) => selected.has(m.userId));
-    const raws = chosen.map((m) => (values[m.userId] ?? '').trim()).filter(Boolean);
-    if (method === 'EXACT') {
-      let sum = 0;
-      let ok = true;
-      for (const raw of raws) {
-        try {
-          sum += dollarsToCents(raw);
-        } catch {
-          ok = false;
-        }
-      }
-      let target = 0;
-      try {
-        target = amount.trim() ? dollarsToCents(amount) : 0;
-      } catch {
-        target = 0;
-      }
-      const tone = !ok
-        ? 'text-neg'
-        : target > 0 && sum === target
-          ? 'text-pos'
-          : sum > target
-            ? 'text-neg'
-            : 'text-muted';
-      splitHint = { text: `${fmt(sum)} of ${fmt(target)} assigned`, tone };
-    } else if (method === 'PERCENT') {
-      let sum = 0;
-      let ok = true;
-      for (const raw of raws) {
-        const n = Number(raw);
-        if (Number.isFinite(n)) sum += n;
-        else ok = false;
-      }
-      const rounded = Math.round(sum * 100) / 100;
-      const tone = !ok
-        ? 'text-neg'
-        : rounded === 100
-          ? 'text-pos'
-          : rounded > 100
-            ? 'text-neg'
-            : 'text-muted';
-      splitHint = { text: `${rounded}% of 100%`, tone };
-    } else {
-      let sum = 0;
-      for (const raw of raws) {
-        const n = Number(raw);
-        if (Number.isFinite(n)) sum += n;
-      }
-      splitHint = { text: `${sum} share${sum === 1 ? '' : 's'} total`, tone: 'text-muted' };
-    }
-  }
+  const splitHint = expenseSplitHint(
+    method,
+    amount,
+    values,
+    members.filter((member) => selected.has(member.userId)),
+    fmt,
+  );
 
   /*
    * What each person will owe, worked out while you type.
@@ -341,14 +302,19 @@ export function AddExpenseForm({
       </div>
 
       <DescriptionField value={description} onChange={setDescription} />
-      <div className="flex gap-2">
+      <label className="block text-xs text-muted">
+        Who paid?
         <PayerSelect members={members} value={payerId} onChange={setPayerId} />
-        <DateField value={date} onChange={setDate} />
-      </div>
-
-      <CategoryPicker value={category} onChange={setCategory} />
-
-      <NoteField value={note} onChange={setNote} />
+      </label>
+      <ExpenseExtras
+        date={date}
+        setDate={setDate}
+        category={category}
+        setCategory={setCategory}
+        note={note}
+        setNote={setNote}
+        expanded={!!source}
+      />
 
       <select
         value={method}

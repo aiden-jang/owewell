@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
@@ -79,6 +79,7 @@ const submit = (user: Awaited<ReturnType<typeof open>>) =>
   user.click(screen.getByRole('button', { name: /Add expense|Save changes/ }));
 
 beforeEach(() => {
+  localStorage.clear();
   offline.value = false;
   for (const fn of [create, update, enqueue, onCreated, onQueued]) fn.mockReset();
   create.mockResolvedValue(expense());
@@ -88,6 +89,33 @@ beforeEach(() => {
   // would pass against a broken retry.
   let n = 0;
   vi.stubGlobal('crypto', { ...globalThis.crypto, randomUUID: () => `cid-${++n}` });
+});
+
+describe('the next expense', () => {
+  it('remembers the group split setup without reusing the last amount', async () => {
+    const user = await open();
+    await fillBasics(user);
+    await user.selectOptions(screen.getByLabelText('Split method'), 'SHARES');
+    await user.type(screen.getByLabelText('Shares for Alice'), '1');
+    await user.type(screen.getByLabelText('Shares for Bob'), '1');
+    await submit(user);
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    cleanup();
+    await open();
+    expect(screen.getByLabelText('Split method')).toHaveValue('SHARES');
+    expect(screen.getByLabelText('Amount')).toHaveValue('');
+    expect(screen.getByLabelText('Shares for Alice')).toHaveValue('1');
+  });
+
+  it('falls back to the current roster when saved participants have left', async () => {
+    localStorage.setItem(
+      'owewell:split-preference:g1',
+      JSON.stringify({ method: 'EQUAL', participants: ['gone'] }),
+    );
+    await open();
+    expect(screen.getByRole('checkbox', { name: 'Alice' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Bob' })).toBeChecked();
+  });
 });
 
 describe('what it refuses to send', () => {

@@ -47,7 +47,7 @@ export function AddExpenseSheet({
   // Remounted when the roster changes: both forms seed their participant rows from the members they
   // were opened with, and a half-filled split that predates a new member is worse than a fresh one.
   const formProps = {
-    key: `${mode}-${members.length}`,
+    key: `${groupId}-${mode}-${members.length}`,
     groupId,
     members,
     onCreated: (saved: Expense) => onCreated(saved, mode),
