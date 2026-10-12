@@ -202,7 +202,7 @@ export function AddItemizedExpenseForm({
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
+    <form onSubmit={(e) => void onSubmit(e)} className="entry-form space-y-3.5">
       <DescriptionField value={description} onChange={setDescription} />
       <PayerSelect members={members} value={payerId} onChange={setPayerId} />
 
@@ -215,8 +215,9 @@ export function AddItemizedExpenseForm({
        * total" and "Itemize a receipt" moved the money from the top of the sheet to the end of it.
        * Computed rather than typed, but it is the number you check against the printed receipt.
        */}
-      <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center">
-        <p className="tnum font-display text-4xl font-extrabold tracking-tight">{fmt(grandTotalCents)}</p>
+      <div className="entry-amount">
+        <span className="entry-amount-label">Receipt total</span>
+        <p className="tnum font-display text-4xl font-medium tracking-tight">{fmt(grandTotalCents)}</p>
         <p className="mt-1 text-sm text-muted">
           {grandTotalCents > 0 ? 'Items, tax and tip' : 'Add the line items below'}
         </p>

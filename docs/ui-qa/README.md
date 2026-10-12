@@ -340,3 +340,21 @@ without modifying repository timeouts or assertions.
 The keyboard journey and the remaining group journeys passed in separate runs. The initial
 combined browser attempts hit a local Wrangler proxy crash between specs; restarting and
 separating the specs verified the flows without changing their assertions.
+
+## Entry sheet polish — October 12
+
+Expense, itemized receipt and payment totals now share labeled receipt-style panels with calmer
+numerals. Participants use separated rows; payment parties share a softly framed panel. Selected
+modes and suggested amounts use quieter teal states. Existing sticky submission, keyboard flow,
+unsaved-change protection and money behavior remain. Success receipts retain their existing
+one-time nod and blink with reduced-motion support.
+
+Sheet captures cover desktop and phone layouts in both palettes; narrow widths are checked for
+horizontal overflow. Payment preview captures include the selected suggested transfer and its
+balance consequences. Capture fixtures remain confined to the local verification script.
+
+Desktop and phone captures were inspected in both palettes. Static gates, production build and
+unit suites passed. The combined browser run passed the regular journeys but the keyboard
+journey reached an unexpected post-payment balance. The unchanged keyboard journey passed
+independently, including enlarged text layouts; no application logic or assertions were changed
+to obtain that result. The combined verify command therefore did not finish green.

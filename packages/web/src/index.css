@@ -928,7 +928,7 @@ textarea:focus {
 .expense-mode button[aria-pressed='true'] {
   background: var(--color-accent-soft);
   color: var(--color-accent);
-  box-shadow: inset 0 0 0 1px var(--color-accent);
+  box-shadow: 0 1px 4px var(--color-line);
 }
 .sheet-content .form-submit-bar {
   position: sticky;
@@ -1324,4 +1324,61 @@ input:disabled {
   .group-card-balance {
     padding-top: 12px;
   }
+}
+
+/* Entry sheets pair a quiet receipt total with clear, labeled controls. */
+.entry-amount {
+  padding: 22px 16px 20px;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 20px;
+  background: var(--color-surface2);
+  text-align: center;
+  transition: border-color 160ms;
+}
+.entry-amount:focus-within {
+  border-color: var(--color-accent);
+  outline: 2px solid var(--color-accent-soft);
+  outline-offset: 2px;
+}
+.entry-amount input:focus-visible {
+  outline: none;
+}
+.entry-amount-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.entry-form > label {
+  font-weight: 500;
+}
+.entry-participants {
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+.entry-participants > div + div {
+  border-top: 1px solid var(--color-line);
+}
+.entry-participants label {
+  min-height: 44px;
+  font-size: 14px;
+}
+.payment-parties {
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-surface2);
+}
+.entry-form fieldset button[aria-pressed] {
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+.entry-form fieldset button[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
 }

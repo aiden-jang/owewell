@@ -173,6 +173,9 @@ const assert = require('node:assert/strict');
         ['shared', '/s/preview'],
         ['group', '/groups/g0'],
         ['expense-sheet', '/groups/g0'],
+        ['payment-sheet', '/groups/g0'],
+        ['payment-preview-sheet', '/groups/g0'],
+        ['receipt-sheet', '/groups/g0'],
         ['saved', '/groups/g0'],
         ['settled', '/groups/g0'],
       ]) {
@@ -203,10 +206,26 @@ const assert = require('node:assert/strict');
             await page.getByPlaceholder('0.00', { exact: true }).first().fill('120');
             await page.getByText('$120.00', { exact: true }).first().waitFor();
           }
-          if (name === 'expense-sheet' || name === 'saved') {
+          if (name === 'payment-sheet' || name === 'payment-preview-sheet') {
+            await page.getByRole('button', { name: 'Log a payment', exact: true }).click();
+            const dialog = page.getByRole('dialog');
+            await dialog.waitFor();
+            if (name === 'payment-preview-sheet')
+              await dialog.getByRole('button', { name: /Sam → Alex/ }).click();
+            const action = await dialog
+              .getByRole('button', { name: 'Record payment', exact: true })
+              .boundingBox();
+            assert.ok(action && action.y >= 0 && action.y + action.height <= (width === 1440 ? 900 : 780));
+          }
+          if (name === 'expense-sheet' || name === 'receipt-sheet' || name === 'saved') {
             await page.getByRole('button', { name: 'Add expense', exact: true }).click();
             await page.getByRole('dialog').waitFor();
-            const save = page.getByRole('dialog').getByRole('button', { name: 'Add expense', exact: true });
+            if (name === 'receipt-sheet')
+              await page.getByRole('button', { name: 'Itemize a receipt', exact: true }).click();
+            const save = page.getByRole('dialog').getByRole('button', {
+              name: name === 'receipt-sheet' ? 'Add receipt' : 'Add expense',
+              exact: true,
+            });
             const box = await save.boundingBox();
             assert.ok(
               box && box.y >= 0 && box.y + box.height <= (width === 1440 ? 900 : 780),
@@ -238,7 +257,7 @@ const assert = require('node:assert/strict');
           if (width === 1440 || width === 390)
             await page.screenshot({
               path: path.join(dir, (stress ? 'stress-' : '') + name + '-' + theme + '-' + width + '.png'),
-              fullPage: name !== 'expense-sheet' && name !== 'directory-select',
+              fullPage: !name.endsWith('-sheet') && name !== 'directory-select',
               animations: 'disabled',
             });
           await page.close();

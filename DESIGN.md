@@ -77,3 +77,8 @@ Balances have calmer medium-weight numerals; a larger receipt face and fine acce
 overview and group heroes together. The latest-expense action uses a dashed paper boundary
 instead of competing with the balance card. Activity has a visible heading and tighter spacing.
 Hover-capable devices get a small card lift and chevron movement unless reduced motion is set.
+
+Expense, itemized receipt and payment sheets share a dashed total panel with an explicit label
+and medium-weight numerals. Participant rows sit inside a quiet ruled boundary; sender and
+recipient controls share one panel. Selected entry modes use a soft teal surface and subtle
+shadow. The total panel owns its visible focus outline so the numeric field has one clear cue.

@@ -269,15 +269,10 @@ export function AddExpenseForm({
   })();
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
-      {/*
-       * The amount, at the size of the thing it is.
-       *
-       * It was a 16px box sharing a row with the payer dropdown, which is the wrong rank: everything
-       * else on this form is a detail about this number. First in the DOM too, so the sheet's focus
-       * trap opens the numeric keypad on a phone instead of the alphabet.
-       */}
-      <div className="rounded-2xl border border-line bg-field px-4 py-5 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+    <form onSubmit={(e) => void onSubmit(e)} className="entry-form space-y-3.5">
+      {/* Keep the amount prominent while preserving digit-based sizing on narrow screens. */}
+      <div className="entry-amount">
+        <span className="entry-amount-label">Expense total</span>
         <div className="flex items-baseline justify-center gap-1">
           <span aria-hidden className="font-display text-2xl font-semibold text-faint">
             {symbol}
@@ -299,7 +294,7 @@ export function AddExpenseForm({
               minWidth: 0,
               fontSize: `clamp(1.25rem, ${90 / Math.max(4, amount.length)}vw, 3rem)`,
             }}
-            className="tnum bg-transparent text-center font-display text-5xl font-extrabold tracking-tight outline-none placeholder:text-faint"
+            className="tnum bg-transparent text-center font-display text-5xl font-medium tracking-tight outline-none placeholder:text-faint"
           />
         </div>
         <p className={`mt-2 text-sm ${perPerson ? 'text-muted' : 'text-faint'}`} aria-live="polite">
@@ -337,7 +332,7 @@ export function AddExpenseForm({
 
       {method !== 'EQUAL' && <p className="-mt-1 text-xs text-muted">{splitMethodHint(method)}</p>}
 
-      <div className="space-y-2">
+      <div className="entry-participants space-y-2">
         {members.map((m) => (
           <div key={m.userId} className="flex items-center gap-3">
             <label className="flex min-w-0 flex-1 items-center gap-2">

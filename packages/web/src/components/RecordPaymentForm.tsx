@@ -173,7 +173,7 @@ export function RecordPaymentForm({
   const symbol = currencySymbol();
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="space-y-3.5">
+    <form onSubmit={(e) => void onSubmit(e)} className="entry-form space-y-3.5">
       <p className="text-sm text-muted">
         Already paid someone back? Log it here so balances update. owewell doesn&rsquo;t move money.
       </p>
@@ -223,15 +223,9 @@ export function RecordPaymentForm({
         setTo={chooseRecipient}
       />
 
-      {/*
-       * The amount, at the rank it has in the add-expense sheet: everything else in this form is a
-       * detail about this number.
-       *
-       * Also the only money input in the app that did not tidy itself on blur — eight others call
-       * normalizeAmountInput, so "8.5" became "8.50" everywhere except the one form whose whole job
-       * is recording an amount somebody paid.
-       */}
-      <div className="rounded-2xl border border-line bg-field px-4 py-4 text-center transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+      {/* Keep the amount prominent while preserving digit-based sizing on narrow screens. */}
+      <div className="entry-amount">
+        <span className="entry-amount-label">Payment amount</span>
         <div className="flex items-baseline justify-center gap-1">
           <span aria-hidden className="font-display text-xl font-semibold text-faint">
             {symbol}
@@ -252,7 +246,7 @@ export function RecordPaymentForm({
               minWidth: 0,
               fontSize: `clamp(1.25rem, ${90 / Math.max(4, amount.length)}vw, 2.25rem)`,
             }}
-            className="tnum bg-transparent text-center font-display text-4xl font-extrabold tracking-tight outline-none placeholder:text-faint"
+            className="tnum bg-transparent text-center font-display text-4xl font-medium tracking-tight outline-none placeholder:text-faint"
           />
         </div>
       </div>

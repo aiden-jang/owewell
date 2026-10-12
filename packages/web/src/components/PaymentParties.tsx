@@ -18,7 +18,7 @@ export function PaymentParties({
   setTo: (id: string) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="payment-parties grid gap-3 sm:grid-cols-2">
       <label className="text-xs text-muted">
         Who paid
         <select
