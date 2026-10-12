@@ -21,14 +21,14 @@ export function PublicHeader(): ReactNode {
             onClick={() => login(window.location.origin)}
             className="tap rounded-full px-3 py-1.5 text-muted transition hover:text-ink"
           >
-            Log in
+            Sign in
           </button>
           <button
             type="button"
             onClick={() => signup(window.location.origin)}
             className="btn-gradient rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98]"
           >
-            Sign up
+            Get started
           </button>
         </div>
       </div>
