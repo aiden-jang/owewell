@@ -1,3 +1,4 @@
+import { PaymentParties } from './PaymentParties';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { currencySymbol, dollarsToCents, type MoneyFormatter } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
@@ -213,33 +214,15 @@ export function RecordPaymentForm({
           </div>
         </fieldset>
       )}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <select
-          value={fromUserId}
-          onChange={(e) => setFromUserId(e.target.value)}
-          className={inputClass}
-          aria-label="Who paid"
-        >
-          {members.map((m) => (
-            <option key={m.userId} value={m.userId}>
-              {labelFor.get(m.userId) ?? m.displayName}
-            </option>
-          ))}
-        </select>
-        <span className="shrink-0 text-sm text-muted">paid</span>
-        <select
-          value={toUserId}
-          onChange={(e) => chooseRecipient(e.target.value)}
-          className={inputClass}
-          aria-label="Paid to"
-        >
-          {members.map((m) => (
-            <option key={m.userId} value={m.userId}>
-              {labelFor.get(m.userId) ?? m.displayName}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PaymentParties
+        members={members}
+        labels={labelFor}
+        from={fromUserId}
+        to={toUserId}
+        setFrom={setFromUserId}
+        setTo={chooseRecipient}
+      />
+
       {/*
        * The amount, at the rank it has in the add-expense sheet: everything else in this form is a
        * detail about this number.
@@ -267,7 +250,8 @@ export function RecordPaymentForm({
           />
         </div>
       </div>
-      <div className="flex gap-2">
+      <label className="block text-xs text-muted">
+        Payment method
         <select
           value={method}
           onChange={(e) => {
@@ -283,7 +267,7 @@ export function RecordPaymentForm({
             </option>
           ))}
         </select>
-      </div>
+      </label>
       {usefulLimit > 0 && (
         <fieldset>
           <legend className="mb-2 text-xs font-medium text-muted">Try a partial payment</legend>
@@ -316,7 +300,9 @@ export function RecordPaymentForm({
           }`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line/70 px-3.5 py-2.5">
-            <span className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">What if?</span>
+            <span className="text-2xs font-semibold uppercase tracking-[0.14em] text-faint">
+              Balance preview
+            </span>
             <span className="tnum text-xs font-semibold text-ink">
               {fmt(preview.outstandingAfterCents)} left
             </span>
@@ -367,23 +353,31 @@ export function RecordPaymentForm({
               </ul>
             )}
             <p className="mt-2 text-2xs text-muted">
-              Preview only. Nothing changes until you log the payment.
+              Preview only. Nothing changes until you record the payment.
             </p>
           </div>
         </section>
+      )}
+      {amountCents > 0 && fromUserId !== toUserId && (
+        <p className="payment-record-summary">
+          {nameOf(fromUserId)} paid {nameOf(toUserId)}{' '}
+          <strong className="tabular-nums">{fmt(amountCents)}</strong> via {PAYMENT_METHOD_LABELS[method]}.
+        </p>
       )}
       {error && (
         <p className="text-sm font-medium text-neg" role="alert">
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
-      >
-        {submitting ? 'Logging…' : 'Log payment'}
-      </button>
+      <div className="form-submit-bar">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn-gradient w-full rounded-full px-4 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+        >
+          {submitting ? 'Recording…' : 'Record payment'}
+        </button>
+      </div>
     </form>
   );
 }

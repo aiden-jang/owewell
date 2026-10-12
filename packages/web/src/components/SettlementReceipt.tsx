@@ -32,10 +32,14 @@ export function SettlementReceipt({
           <Icon name="check" size={19} />
         </span>
         <div className="min-w-0 flex-1">
-          <p id="payment-receipt-title" className="text-xs font-semibold uppercase tracking-wide text-pos">
+          <p
+            role="status"
+            id="payment-receipt-title"
+            className="text-xs font-semibold uppercase tracking-wide text-pos"
+          >
             Payment recorded
           </p>
-          <p className="mt-0.5 font-display text-xl font-semibold tracking-tight text-ink">
+          <p className="mt-0.5 font-display text-3xl font-semibold tracking-tight text-ink">
             {fmt(settlement.amountCents)}
           </p>
           <p className="mt-0.5 text-sm text-muted">

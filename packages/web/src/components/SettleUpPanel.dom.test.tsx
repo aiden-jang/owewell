@@ -121,7 +121,7 @@ describe('the row after a pay link is opened', () => {
   it('asks for confirmation that the money actually moved', async () => {
     const user = await open([BOB_PAYS]);
     await user.click(within(rowFor('Bob')).getByRole('link', { name: 'Venmo' }));
-    expect(markPaidButton('Bob')).toHaveTextContent('Sent it, mark paid');
+    expect(markPaidButton('Bob')).toHaveTextContent('Record sent payment');
     expect(screen.getByRole('status')).toHaveTextContent('Payment app opened');
   });
 
@@ -129,7 +129,7 @@ describe('the row after a pay link is opened', () => {
     const user = await open([BOB_PAYS]);
     await user.click(within(rowFor('Bob')).getByRole('link', { name: 'Venmo' }));
     await user.click(markPaidButton('Bob'));
-    expect(markPaidButton('Bob')).toHaveTextContent('Mark paid');
+    expect(markPaidButton('Bob')).toHaveTextContent('Record payment');
   });
 
   // A declined confirm comes back false, and the payment app is still open behind it.
@@ -138,7 +138,7 @@ describe('the row after a pay link is opened', () => {
     const user = await open([BOB_PAYS]);
     await user.click(within(rowFor('Bob')).getByRole('link', { name: 'Venmo' }));
     await user.click(markPaidButton('Bob'));
-    expect(markPaidButton('Bob')).toHaveTextContent('Sent it, mark paid');
+    expect(markPaidButton('Bob')).toHaveTextContent('Record sent payment');
   });
 });
 

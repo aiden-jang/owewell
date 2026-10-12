@@ -142,3 +142,23 @@ Static gates, the production build, the full frontend suite and the real browser
 The combined runner stopped on the default backend ledger property timeout; that test passed
 alone with a longer command-line allowance. Repository timeout settings and assertions were
 not relaxed. The combined runner is not recorded as green.
+
+## Settlement clarity — October 11
+
+Record payment replaces Mark paid. The panel explains that payment happens in the member’s
+usual app, while the ledger action only records it. The confirmation identifies sender, recipient,
+amount and method. Manual entry has visible payer, recipient and method labels, a final record
+summary and a sticky recording action. The successful receipt emphasizes its amount and
+announces Payment recorded.
+
+Desktop and phone confirmation/receipt views were inspected in `settlement-confirm-1280.png`,
+`settlement-confirm-390.png`, `settlement-receipt-1280.png` and `settlement-receipt-390.png`.
+Manual entry was inspected in `payment-entry-1280.png`, `payment-entry-390.png` and
+`payment-summary-390.png`. The temporary local-only fixture exercised the real confirmation
+and receipt using simulated data, then was removed. No actual payments were recorded.
+
+Static gates and the production build passed. The full frontend suite passed, as did the
+extended browser journey through payment confirmation, the receipt and a settled balance.
+The combined runner stopped on the default backend ledger property timeout; that test passed
+alone with a longer command-line allowance. Repository timeout settings and assertions were
+not relaxed. The combined runner is not recorded as green.

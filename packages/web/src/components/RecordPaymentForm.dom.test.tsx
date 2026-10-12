@@ -45,6 +45,16 @@ function open() {
 }
 
 describe('the amount field', () => {
+  it('summarizes the people, amount and selected method before recording', async () => {
+    const user = open();
+    await user.type(screen.getByLabelText('Amount'), '20');
+    await user.selectOptions(screen.getByLabelText('Payment method'), 'zelle');
+    expect(screen.getByText('Bob paid Alice', { exact: false })).toHaveTextContent(
+      'Bob paid Alice $20.00 via Zelle.',
+    );
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeEnabled();
+  });
+
   it('tidies a half-typed amount on blur, like every other money input', async () => {
     const user = open();
     const amount = screen.getByLabelText('Amount');

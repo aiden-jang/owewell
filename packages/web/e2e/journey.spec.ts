@@ -26,7 +26,7 @@ async function newGroup(page: Page, name: string): Promise<void> {
 }
 
 test.describe('from an empty account to a balance', () => {
-  test('a group, a second person, an expense, and the split it produces', async ({ page }) => {
+  test('a group, an expense, and the recorded payment that settles it', async ({ page }) => {
     await signIn(page);
     await newGroup(page, `Trip to Lisbon ${Date.now()}`);
 
@@ -50,5 +50,16 @@ test.describe('from an empty account to a balance', () => {
     const owed = page.getByText(/You're owed/).locator('..');
     await expect(owed).toContainText('$20.00');
     await expect(page.getByText('1 transfer left')).toBeVisible();
+
+    // Recording is a separate step from paying, with the exact record reviewed first.
+    await page.getByRole('button', { name: 'Record payment', exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Record this payment?' });
+    await expect(confirmation).toContainText('Sam paid Robin $20.00 via Cash.');
+    await confirmation.getByRole('button', { name: 'Record payment', exact: true }).click();
+    const receipt = page.getByRole('region', { name: 'Payment recorded' });
+    await expect(receipt).toContainText('$20.00');
+    await expect(receipt).toContainText('Sam paid Robin via Cash');
+    await expect(receipt).toContainText('Everyone is settled');
+    await expect(page.getByText('All settled', { exact: true })).toBeVisible();
   });
 });

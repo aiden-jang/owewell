@@ -40,3 +40,8 @@ optional date, category and note live in a disclosure, expanded when editing or 
 Successful new expenses remember only the group’s split method and participants on this device.
 Amounts and exact/percentage allocations always start fresh; shares restart at one each.
 Preferences are checked against the current roster and never override an edit or template.
+
+Settlement actions say Record payment and explain that the app only updates the ledger.
+The confirmation identifies sender, recipient, amount and payment method. Manual payment entry
+keeps sender and recipient labels visible and summarizes the record before submission. The
+recorded receipt gives its amount stronger hierarchy and announces the successful recording.

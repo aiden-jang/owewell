@@ -153,7 +153,7 @@ export function SettleUpPanel({
         </div>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-muted">
-        Pay in your usual app, then mark it here so the group stays in sync.
+        Pay in your usual app, then record the payment here. owewell doesn’t send money.
       </p>
       <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
         <span className="text-muted">
@@ -167,7 +167,7 @@ export function SettleUpPanel({
        * method.
        */}
       <label className="mt-2 flex items-center justify-between gap-1.5 text-xs text-muted">
-        Record payment as
+        Payment method
         <select
           value={settleMethod}
           onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
@@ -225,13 +225,13 @@ export function SettleUpPanel({
                   title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
                   /* Filled on the recommended row only. Four identical accent buttons and the
                      accent stops meaning "do this one"; START HERE marks the one that earns it. */
-                  className={`tap shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
+                  className={`tap max-w-[48%] shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
                     key === recommendedPaymentKey
                       ? 'bg-accent text-accent-ink shadow-sm shadow-accent/20 hover:brightness-110'
                       : 'border border-line-strong text-ink hover:border-accent hover:text-accent'
                   }`}
                 >
-                  {paymentInFlight === key ? 'Sent it, mark paid' : 'Mark paid'}
+                  {paymentInFlight === key ? 'Record sent payment' : 'Record payment'}
                 </button>
               </span>
               {/* Indented to the text rather than the avatar, so the row has one left edge. */}

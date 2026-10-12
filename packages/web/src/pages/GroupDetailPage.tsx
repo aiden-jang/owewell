@@ -1,7 +1,7 @@
 import { GroupActivityShortcut } from '../components/GroupActivityShortcut';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { type PaymentMethod } from '@owewell/core';
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
@@ -139,9 +139,9 @@ export function GroupDetailPage(): ReactNode {
   /** Resolves true when the payment reached the ledger, which is the panel's cue to reset the row. */
   async function markPaid(payment: SuggestedPayment, method: PaymentMethod): Promise<boolean> {
     const ok = await confirm({
-      title: `Mark ${payment.fromName}'s payment as paid?`,
-      body: 'This records the payment in owewell and updates everyone’s balances. It does not move money.',
-      confirmLabel: 'Mark paid',
+      title: 'Record this payment?',
+      body: `${payment.fromName} paid ${payment.toName} ${fmt(payment.amountCents)} via ${PAYMENT_METHOD_LABELS[method]}. This updates the group’s balances. No money is sent by owewell.`,
+      confirmLabel: 'Record payment',
     });
     if (!ok) return false;
     setSettling(true);
