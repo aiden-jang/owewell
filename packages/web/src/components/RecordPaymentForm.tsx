@@ -10,7 +10,7 @@ import { previewPaymentPlan } from '../lib/settlementGuide';
 import { normalizeAmountInput } from '../lib/format';
 import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
-import { inputClass } from './FormFields';
+import { FormError, inputClass } from './FormFields';
 
 interface Props {
   groupId: string;
@@ -364,11 +364,7 @@ export function RecordPaymentForm({
           <strong className="tabular-nums">{fmt(amountCents)}</strong> via {PAYMENT_METHOD_LABELS[method]}.
         </p>
       )}
-      {error && (
-        <p className="text-sm font-medium text-neg" role="alert">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
       <div className="form-submit-bar">
         <button
           type="submit"

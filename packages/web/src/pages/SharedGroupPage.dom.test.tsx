@@ -147,6 +147,20 @@ describe('claiming a seat', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/groups/g1'));
   });
 
+  it('refreshes the roster when a name was claimed by someone else', async () => {
+    currentUser = { id: 'u9', email: 'a@x.com', displayName: 'Aiden' };
+    claimSeat.mockRejectedValue(new ApiError(409, 'That seat already belongs to an account.'));
+    const user = await open();
+    await screen.findByText('Tahoe cabin');
+    sharedSummary.mockResolvedValue(
+      summary({ members: summary().members.map((member) => ({ ...member, isPlaceholder: false })) }),
+    );
+    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    await waitFor(() => expect(sharedSummary).toHaveBeenCalledTimes(2));
+    await screen.findByText('Viewing only. Ask a member to add you to edit this group.');
+    expect(screen.queryByRole('button', { name: 'This is me' })).not.toBeInTheDocument();
+  });
+
   it('says why it failed and leaves the seat claimable', async () => {
     currentUser = { id: 'u9', email: 'a@x.com', displayName: 'Aiden' };
     claimSeat.mockRejectedValue(new Error('That spot is taken.'));

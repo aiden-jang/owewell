@@ -45,7 +45,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
         ? data.message
         : `Request failed (${res.status})`;
-    throw new ApiError(res.status, message, data);
+    throw new ApiError(
+      res.status,
+      res.status === 401 ? 'Your sign-in expired. Sign in again, then retry.' : message,
+      data,
+    );
   }
 
   return data as T;

@@ -215,3 +215,78 @@ test('the signed-out calculator keeps both palettes usable', async ({ page }) =>
     }
   }
 });
+
+test('unfinished work survives sign-in failures and offline payments', async ({ page }) => {
+  await signIn(page);
+  await newGroup(page, `Recovery check ${Date.now()}`);
+  await page.getByRole('button', { name: 'Group options', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Members', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Member name to add' }).fill('Sam');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Member name to add' })).toHaveValue('');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.locator('.toast')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add expense', exact: true }).first().click();
+  await page.getByLabel('Amount', { exact: true }).fill('40');
+  await page.getByLabel('What the expense was for').fill('Recovery dinner');
+  await page.route('**/api/groups/*/expenses', (route) => {
+    if (route.request().method() === 'POST')
+      return route.fulfill({ status: 401, json: { message: 'Unauthorized' } });
+    return route.continue();
+  });
+  await page.locator('form').getByRole('button', { name: 'Add expense', exact: true }).click();
+  const recovery = page.getByRole('link', { name: 'Sign in again (opens a new tab)' });
+  await expect(recovery).toBeVisible();
+  await expect(recovery).toHaveAttribute('target', '_blank');
+  await expect(recovery).toHaveAttribute('href', /return_to=.*groups/);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await recovery.evaluate((link) => link.scrollIntoView({ block: 'center' }));
+    expect(
+      await recovery.evaluate((link) => {
+        const rect = link.getBoundingClientRect();
+        return document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) === link;
+      }),
+    ).toBe(true);
+    if (process.env.UI_RECOVERY_CAPTURE)
+      await page.screenshot({
+        path: `../../docs/ui-qa/session-recovery-${width}.png`,
+        animations: 'disabled',
+      });
+  }
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Keep editing' })).toBeFocused();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (process.env.UI_RECOVERY_CAPTURE)
+      await page.screenshot({
+        path: `../../docs/ui-qa/discard-recovery-${width}.png`,
+        animations: 'disabled',
+      });
+  }
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(page.getByLabel('Amount', { exact: true })).toHaveValue('40.00');
+  await expect(page.getByLabel('What the expense was for')).toHaveValue('Recovery dinner');
+  await page.unroute('**/api/groups/*/expenses');
+  await page.locator('form').getByRole('button', { name: 'Add expense', exact: true }).click();
+  await expect(page.getByLabel('Amount', { exact: true })).toBeHidden();
+  await page.getByRole('button', { name: 'Log a payment', exact: true }).click();
+  await page.getByLabel('Who paid', { exact: true }).selectOption({ label: 'Sam' });
+  await page.getByLabel('Paid to', { exact: true }).selectOption({ label: 'Robin' });
+  await page.getByLabel('Amount', { exact: true }).fill('5');
+  await page.context().setOffline(true);
+  await page
+    .getByRole('dialog', { name: 'Log a payment' })
+    .getByRole('button', { name: 'Record payment', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByText('Waiting for signal · not counted yet')).toBeVisible();
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('owewell:outbox') ?? '[]'));
+  expect(before).toHaveLength(1);
+  expect(before[0]).toMatchObject({ kind: 'settlement', amountCents: 500 });
+  await page.context().setOffline(false);
+  await expect(page.getByText('Waiting for signal · not counted yet')).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('owewell:outbox') ?? '[]').length))
+    .toBe(0);
+});

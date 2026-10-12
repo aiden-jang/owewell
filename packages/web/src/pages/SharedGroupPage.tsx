@@ -45,6 +45,7 @@ export function SharedGroupPage(): ReactNode {
   const [claiming, setClaiming] = useState<string | null>(null);
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   const autoClaimed = useRef(false);
+  const loadSummaryAfterClaim = useRef<(() => void) | null>(null);
 
   // Claim a seat. Signed out → sign in and come back with ?claim=<seat> so we finish
   // automatically. Signed in → merge the seat and drop into the now-editable group.
@@ -63,6 +64,11 @@ export function SharedGroupPage(): ReactNode {
         // Surfaces the server's reason, e.g. "You're already in this group." for a member, or a
         // taken/invalid seat.
         toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
+        if (
+          err instanceof ApiError &&
+          (err.status === 400 || err.status === 403 || err.status === 404 || err.status === 409)
+        )
+          loadSummaryAfterClaim.current?.();
         setClaiming(null);
       }
     },
@@ -92,6 +98,7 @@ export function SharedGroupPage(): ReactNode {
       });
   }, [token]);
 
+  loadSummaryAfterClaim.current = loadSummary;
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
@@ -144,7 +151,7 @@ export function SharedGroupPage(): ReactNode {
             tone="problem"
             icon="link"
             title="This link isn't valid."
-            body="Someone turned it off, or the group's long gone."
+            body="This link was turned off or the group was removed. Ask the person who shared it for a new link."
           />
         )}
 

@@ -54,3 +54,8 @@ Group options support arrow keys, Home/End and Escape with focus returned to the
 Rename and member edits show saving states and block repeated submissions. Detail-page group
 and member names wrap rather than hiding their full text; notes and large amounts wrap safely.
 Options use the theme’s surface for keyboard focus, and disabled controls retain a visible cue.
+
+Unfinished expense and payment sheets ask before discarding changes, including browser back
+and page exits. Expired sign-in errors offer a separate sign-in tab so entered fields remain
+in the original form for retry. Offline payment records remain excluded from balances until
+synced; invite conflicts refresh the roster and invalid links explain how to request a new one.

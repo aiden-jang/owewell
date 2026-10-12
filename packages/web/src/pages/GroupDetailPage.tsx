@@ -647,7 +647,7 @@ export function GroupDetailPage(): ReactNode {
         }}
       />
 
-      <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Log a payment">
+      <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Log a payment" protectChanges>
         <RecordPaymentForm
           groupId={group.id}
           members={group.members}
@@ -657,7 +657,7 @@ export function GroupDetailPage(): ReactNode {
           onQueued={(summary) => {
             setPaymentOpen(false);
             refreshPending();
-            toast.success(`Kept the payment ${summary}. It goes out when you have signal.`);
+            toast.success(`Payment ${summary} is queued on this device. Balances update after it syncs.`);
           }}
           onRecorded={(settlement) => {
             const beforeBalances = paymentBeforeRef.current ?? balances;
@@ -695,8 +695,8 @@ export function GroupDetailPage(): ReactNode {
           />
         )}
       </Sheet>
-
       <Sheet
+        protectChanges
         open={!!editingExpense}
         onClose={() => setEditingExpense(null)}
         title={editingExpense?.splitMethod === 'ITEMIZED' ? 'Edit receipt' : 'Edit expense'}
@@ -740,8 +740,8 @@ export function GroupDetailPage(): ReactNode {
             />
           ))}
       </Sheet>
-
       <Sheet
+        protectChanges
         open={!!duplicatingExpense}
         onClose={() => setDuplicatingExpense(null)}
         title={

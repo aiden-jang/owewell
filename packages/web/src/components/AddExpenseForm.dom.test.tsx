@@ -324,6 +324,19 @@ describe('when the write cannot leave the device', () => {
 
   // A failure that is not the network is the server saying no. Queueing it would retry something
   // that will be refused again, so it is reported instead.
+  it('retains all fields after a rejected save and permits retry', async () => {
+    create.mockRejectedValueOnce(new Error('Try again.')).mockResolvedValueOnce(expense());
+    const user = await open();
+    await fillBasics(user);
+    await submit(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Try again.');
+    expect(screen.getByLabelText('Amount')).toHaveValue('90.00');
+    expect(screen.getByLabelText('What the expense was for')).toHaveValue('Dinner');
+    await submit(user);
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(create.mock.calls[1]![1]).toMatchObject({ description: 'Dinner', amountCents: 9000 });
+  });
+
   it('reports a rejection rather than queueing it', async () => {
     create.mockRejectedValue(new Error('That description is too long.'));
     const user = await open();

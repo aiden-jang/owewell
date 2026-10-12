@@ -235,3 +235,23 @@ The guest-save explanation was inspected at desktop and phone widths in
 passed. Static gates and the production build passed; the combined runner stopped on the
 backend property timeout, which passed separately with a longer command-line allowance.
 The combined runner is not recorded as green.
+
+## Recovery states — October 12
+
+Expense entry, expense edits, copied expenses and payment forms guard unsaved input when
+dismissed, when navigating back and when leaving the page. Keep editing retains the form;
+Discard changes explicitly leaves it. Dismissal is blocked while a changed form submits.
+Expired sign-in opens shared auth in a separate tab and keeps the original fields for retry.
+Errors scroll into view above the sticky action bar. Rejected saves retain their fields, while
+offline payment records remain queued and excluded from balances until reconnecting.
+Invite conflicts refresh the roster; revoked links explain how to request a replacement.
+
+Desktop and mobile evidence is in `session-recovery-1280.png`, `session-recovery-390.png`,
+`discard-recovery-1280.png` and `discard-recovery-390.png`. These use the isolated local ledger.
+Automated checks exercise rejected-save retry, back-navigation protection, stale claims and
+offline payment replay. Shared auth itself is represented by the local stand-in service.
+
+Static gates, type checks, lint, formatting and the production build passed. The frontend suite
+and browser journeys passed, including a hit-target check that the mobile sign-in link is not
+covered by the sticky action. The combined runner stopped on the known backend property
+timeout; that test passed independently. Assertions and repository timeouts were not relaxed.

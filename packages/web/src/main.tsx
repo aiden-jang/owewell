@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -17,18 +17,18 @@ if (!rootEl) {
   throw new Error('Root element #root not found');
 }
 
+const router = createBrowserRouter([{ path: '*', element: <App /> }]);
+
 createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <ConfirmProvider>
-              <App />
-            </ConfirmProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
+        </ToastProvider>
+      </AuthProvider>
     </ErrorBoundary>
   </StrictMode>,
 );
