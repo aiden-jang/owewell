@@ -203,3 +203,21 @@ Static gates and the production build passed. The final frontend suite and both 
 journeys passed. The combined runner stopped on the backend ledger property timeout; that
 test passed separately with a longer command-line allowance. Repository timeouts and
 assertions were not relaxed, and the combined runner is not recorded as green.
+
+## Teal and ivory palette — October 12
+
+The action palette is now deep teal, with warm ivory light surfaces and deep teal dark surfaces.
+Receipt illustrations, the favicon, install icons, manifest colors, browser chrome and share
+graphics use the same identity. Purple avatar and entertainment accents were replaced while
+preserving readable initials and category contrast. Existing green/red balance meanings remain.
+The palette data and CSS stay synchronized; existing contrast assertions were not relaxed.
+
+Current dashboard and settings captures replace the previous palette evidence. The signed-out
+calculator is also captured in `landing-teal-light-1280.png`, `landing-teal-light-390.png`,
+`landing-teal-dark-1280.png` and `landing-teal-dark-390.png`. The SVG icon and generated share card
+were inspected independently. Layouts, data behavior and saved theme preferences are preserved.
+
+Static gates and the production build passed. The frontend suite, contrast checks, avatar
+checks and all browser journeys passed. The combined runner stopped on the existing backend
+ledger property timeout; that test passed independently with a longer command-line allowance.
+Repository timeouts and assertions were not relaxed; the combined runner is not recorded as green.

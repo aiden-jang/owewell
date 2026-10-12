@@ -34,7 +34,11 @@ test.describe('from an empty account to a balance', () => {
       await expect(page.getByRole('button', { name: 'Create your first group' })).toBeVisible();
       for (const width of [1280, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        await page.screenshot({ path: `../../docs/ui-qa/dashboard-empty-${width}.png`, fullPage: true });
+        await page.screenshot({
+          path: `../../docs/ui-qa/dashboard-empty-${width}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        });
       }
       await page.unroute('**/api/groups');
     }
@@ -66,7 +70,11 @@ test.describe('from an empty account to a balance', () => {
     if (process.env.UI_QA_CAPTURE) {
       for (const width of [1280, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        await page.screenshot({ path: `../../docs/ui-qa/dashboard-balance-${width}.png`, fullPage: true });
+        await page.screenshot({
+          path: `../../docs/ui-qa/dashboard-balance-${width}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        });
       }
     }
     await page.getByRole('link').filter({ hasText: groupName }).click();
@@ -170,6 +178,26 @@ test('group settings remain usable with long names and dark mode', async ({ page
         fullPage: false,
         animations: 'disabled',
       });
+    }
+  }
+});
+
+test('the signed-out calculator keeps both palettes usable', async ({ page }) => {
+  await page.goto('/split');
+  await expect(page.getByRole('heading', { name: 'Split the bill. Keep the peace.' })).toBeVisible();
+  for (const theme of ['Light', 'Dark']) {
+    await page.getByRole('button', { name: theme, exact: true }).click();
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      if (process.env.UI_PALETTE_CAPTURE) {
+        await page.screenshot({
+          path: `../../docs/ui-qa/landing-teal-${theme.toLowerCase()}-${width}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        });
+      }
     }
   }
 });

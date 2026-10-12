@@ -265,23 +265,23 @@
  * back to grey.
  */
 
-/* Dark violet, with flat surfaces and explicit money colors. */
+/* Deep teal, with flat surfaces and explicit money colors. */
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --p-canvas: #18161f;
-  --p-card: #211e2a;
-  --p-surface2: #2b2736;
-  --p-ink: #f0edf6;
-  --p-muted: #aaa4b8;
-  --p-faint: #91899f;
-  --p-line: #393342;
-  --p-line-strong: #62586f;
-  --p-accent: #c7b5f3;
-  --p-accent-hover: #d6c8fa;
-  --p-accent-soft: #30283e;
-  --p-accent-ink: #211b31;
-  --p-field: #211e2a;
+  --p-canvas: #151d1e;
+  --p-card: #1d2829;
+  --p-surface2: #222e2f;
+  --p-ink: #f3f0e7;
+  --p-muted: #a5b7b6;
+  --p-faint: #8ca3a1;
+  --p-line: #354647;
+  --p-line-strong: #607977;
+  --p-accent: #98cec9;
+  --p-accent-hover: #b0ddd7;
+  --p-accent-soft: #243f40;
+  --p-accent-ink: #142d2f;
+  --p-field: #1d2829;
   --p-pos: #4ade80;
   --p-neg: #f87171;
   --p-neg-solid: #d34238;
@@ -289,7 +289,7 @@
   --p-cat-groceries: #199e70;
   --p-cat-lodging: #c98500;
   --p-cat-transport: #1f9a9e;
-  --p-cat-entertainment: #9085e9;
+  --p-cat-entertainment: #6dabc3;
   --p-cat-shopping: #e66767;
   --p-cat-utilities: #d55181;
   --p-cat-other: #d95926;
@@ -301,30 +301,30 @@
   --p-av-5: #00c2ca;
   --p-av-6: #14b8ff;
   --p-av-7: #8ea4ff;
-  --p-av-8: #c98afc;
+  --p-av-8: #aeaba0;
   --p-av-9: #f37ac5;
   --p-av-ink: #1b1a1f;
-  --page-bg: #18161f;
+  --page-bg: #151d1e;
   --elevate: 0 1px 2px rgba(0, 0, 0, 0.4);
   --float: 0 10px 30px -6px rgba(0, 0, 0, 0.6);
 }
 
-/* Chalk and violet; contrast is checked against every surface. */
+/* Ivory and teal; contrast is checked against every surface. */
 [data-theme='warm'] {
   color-scheme: light;
-  --p-canvas: #f7f5fb;
-  --p-card: #ffffff;
-  --p-surface2: #eee9f5;
-  --p-ink: #292334;
-  --p-muted: #6d647c;
-  --p-faint: #80758c;
-  --p-line: #e2dcea;
-  --p-line-strong: #cdc3db;
-  --p-accent: #66509c;
-  --p-accent-hover: #564086;
-  --p-accent-soft: #ede7f8;
+  --p-canvas: #f7f4ec;
+  --p-card: #fffdf7;
+  --p-surface2: #eeeade;
+  --p-ink: #243636;
+  --p-muted: #5d6d69;
+  --p-faint: #697b75;
+  --p-line: #dedfd4;
+  --p-line-strong: #bbc8bf;
+  --p-accent: #215c60;
+  --p-accent-hover: #194b50;
+  --p-accent-soft: #e3eeeb;
   --p-accent-ink: #ffffff;
-  --p-field: #ffffff;
+  --p-field: #fffdf7;
   --p-pos: #1f6f4f;
   --p-neg: #8a2b1a;
   --p-neg-solid: #8a2b1a;
@@ -332,7 +332,7 @@
   --p-cat-groceries: #136b4d;
   --p-cat-lodging: #8a5b00;
   --p-cat-transport: #146b6e;
-  --p-cat-entertainment: #5b52a8;
+  --p-cat-entertainment: #356781;
   --p-cat-shopping: #a83f3f;
   --p-cat-utilities: #9c3459;
   --p-cat-other: #9c3e1a;
@@ -344,10 +344,10 @@
   --p-av-5: #64d1d7;
   --p-av-6: #7bc8f6;
   --p-av-7: #a8baff;
-  --p-av-8: #d0acf0;
+  --p-av-8: #c1bdb3;
   --p-av-9: #eca4ce;
   --p-av-ink: #1b1a1f;
-  --page-bg: #f7f5fb;
+  --page-bg: #f7f4ec;
   --elevate: 0 1px 2px rgba(35, 28, 20, 0.07), 0 8px 20px -14px rgba(35, 28, 20, 0.18);
   --float: 0 10px 30px -8px rgba(35, 28, 20, 0.28);
 }
@@ -491,7 +491,7 @@ input[type='checkbox'] {
  * The topmost layer, and the only one that has to stay legible on top of another surface.
  *
  * It gets its own background and shadow instead of reusing `.surface`, which is a resting card: a
- * toast fired from inside a sheet lands ON a card, and card-on-card is #211e2a on #211e2a behind a
+ * toast fired from inside a sheet lands ON a card, and card-on-card is #1d2829 on #1d2829 behind a
  * 1px hairline, which is nothing. One step lighter than any surface it can land on, and a shadow
  * that reads as floating rather than as sitting still.
  */
@@ -658,7 +658,7 @@ input[type='checkbox'] {
  * UA draws, so without the companion a mouse click still leaves a rectangle behind.
  */
 :focus-visible {
-  outline: 2px solid var(--color-accent, #c7b5f3);
+  outline: 2px solid var(--color-accent, #98cec9);
   outline-offset: 2px;
   border-radius: 2px;
 }

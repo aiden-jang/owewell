@@ -52,21 +52,21 @@ export interface Palette {
   negSolid: Hex;
 }
 
-/** Dark violet surfaces. */
+/** Deep teal surfaces. */
 export const DARK: Palette = {
-  canvas: '#18161f',
-  card: '#211e2a',
-  surface2: '#2b2736',
-  ink: '#f0edf6',
-  muted: '#aaa4b8',
-  faint: '#91899f',
-  line: '#393342',
-  lineStrong: '#62586f',
-  accent: '#c7b5f3',
-  accentHover: '#d6c8fa',
-  accentSoft: '#30283e',
-  accentInk: '#211b31',
-  field: '#211e2a',
+  canvas: '#151d1e',
+  card: '#1d2829',
+  surface2: '#222e2f',
+  ink: '#f3f0e7',
+  muted: '#a5b7b6',
+  faint: '#8ca3a1',
+  line: '#354647',
+  lineStrong: '#607977',
+  accent: '#98cec9',
+  accentHover: '#b0ddd7',
+  accentSoft: '#243f40',
+  accentInk: '#142d2f',
+  field: '#1d2829',
   pos: '#4ade80',
   neg: '#f87171',
   negSolid: '#d34238',
@@ -79,19 +79,19 @@ export const DARK: Palette = {
  * one colour to a red-green colourblind reader, in an app whose job is saying which way money goes.
  */
 export const WARM: Palette = {
-  canvas: '#f7f5fb',
-  card: '#ffffff',
-  surface2: '#eee9f5',
-  ink: '#292334',
-  muted: '#6d647c',
-  faint: '#80758c',
-  line: '#e2dcea',
-  lineStrong: '#cdc3db',
-  accent: '#66509c',
-  accentHover: '#564086',
-  accentSoft: '#ede7f8',
+  canvas: '#f7f4ec',
+  card: '#fffdf7',
+  surface2: '#eeeade',
+  ink: '#243636',
+  muted: '#5d6d69',
+  faint: '#697b75',
+  line: '#dedfd4',
+  lineStrong: '#bbc8bf',
+  accent: '#215c60',
+  accentHover: '#194b50',
+  accentSoft: '#e3eeeb',
   accentInk: '#ffffff',
-  field: '#ffffff',
+  field: '#fffdf7',
   pos: '#1f6f4f',
   neg: '#8a2b1a',
   negSolid: '#8a2b1a',
@@ -117,19 +117,19 @@ export const CATEGORY_DARK: CategoryPalette = {
   groceries: '#199e70',
   lodging: '#c98500',
   transport: '#1f9a9e',
-  entertainment: '#9085e9',
+  entertainment: '#6dabc3',
   shopping: '#e66767',
   utilities: '#d55181',
   other: '#d95926',
 };
 
-/** Darkened for the warm canvas, where the dark set washed out against #f7f5fb and #ffffff. */
+/** Darkened for the warm canvas, where the dark set washed out against #f7f4ec and #ffffff. */
 export const CATEGORY_WARM: CategoryPalette = {
   food: '#1e5fa8',
   groceries: '#136b4d',
   lodging: '#8a5b00',
   transport: '#146b6e',
-  entertainment: '#5b52a8',
+  entertainment: '#356781',
   shopping: '#a83f3f',
   utilities: '#9c3459',
   other: '#9c3e1a',
@@ -155,7 +155,7 @@ export const AVATAR_DARK: AvatarPalette = [
   '#00c2ca',
   '#14b8ff',
   '#8ea4ff',
-  '#c98afc',
+  '#aeaba0',
   '#f37ac5',
 ];
 
@@ -169,7 +169,7 @@ export const AVATAR_WARM: AvatarPalette = [
   '#64d1d7',
   '#7bc8f6',
   '#a8baff',
-  '#d0acf0',
+  '#c1bdb3',
   '#eca4ce',
 ];
 

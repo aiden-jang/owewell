@@ -11,8 +11,8 @@
       status bar over a near-black page until the bundle parsed. These match --page-bg in index.css.
       The script below narrows them further once a stored choice is known.
     -->
-    <meta name="theme-color" content="#f7f5fb" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#18161f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f4ec" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151d1e" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=20261010" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg?v=20261010" />
     <!-- PNG fallback for surfaces that don't render SVG favicons (some share sheets, link
@@ -43,7 +43,7 @@
                 : 'warm';
           document.documentElement.dataset.theme = name;
           if (stored) {
-            var color = name === 'dark' ? '#18161f' : '#f7f5fb';
+            var color = name === 'dark' ? '#151d1e' : '#f7f4ec';
             document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
               m.setAttribute('content', color);
               m.removeAttribute('media');
