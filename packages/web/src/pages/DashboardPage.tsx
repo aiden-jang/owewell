@@ -238,8 +238,10 @@ export function DashboardPage(): ReactNode {
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
-            <span className="truncate font-medium">{group.name}</span>
-            <span className={`tnum shrink-0 text-right text-sm font-semibold ${label.className}`}>
+            <span className="group-card-title truncate font-medium">{group.name}</span>
+            <span
+              className={`group-card-balance tnum shrink-0 text-right text-sm font-semibold ${label.className}`}
+            >
               {group.netCents !== 0 && (
                 <span className="block text-xs font-normal text-muted">
                   {group.netCents > 0 ? 'Owed to you' : 'You owe'}
@@ -251,7 +253,7 @@ export function DashboardPage(): ReactNode {
           {/* xs and wrapping. At sm these three facts overflowed by 13px at 375px and clipped
               "$90.00 unsettled"; xs alone only moves the cliff. A name can be cut and still read as
               a cut name, but a list of facts with one severed mid-word says less than two facts. */}
-          <span className="block text-xs text-muted">
+          <span className="group-card-meta block text-xs text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
             {activity && (
               <span className="text-faint">
@@ -267,17 +269,13 @@ export function DashboardPage(): ReactNode {
             )}
           </span>
         </span>
-        {/*
-          The chevron's SLOT is always here, even in select mode. Hiding the icon outright reflowed
-          every row, so entering select mode made all the names and dates jump sideways — the most
-          noticeable thing on the screen on a phone.
-        */}
+        {/* Keep the chevron slot in selection mode so names and dates stay aligned. */}
         <span className="grid w-[18px] shrink-0 place-items-center">
           {!selecting && <Icon name="chevron-right" size={18} className="text-faint" />}
         </span>
       </>
     );
-    const cls = `row-interactive surface flex min-h-[92px] items-center gap-4 rounded-2xl p-4 hover:shadow-lg hover:shadow-black/20 ${
+    const cls = `group-card row-interactive surface flex min-h-[92px] items-center gap-4 rounded-2xl p-4 hover:shadow-lg hover:shadow-black/20 ${
       group.archived ? 'opacity-60' : ''
     } ${selecting && isSel ? 'ring-1 ring-accent' : ''}`;
     return (

@@ -22,7 +22,7 @@ const MAX_STATE = 12;
 const ALREADY_OVER = {
   'packages/web/src/pages/QuickSplitPage.tsx': { lines: 645 },
   'packages/web/src/pages/GroupDetailPage.tsx': { lines: 788 },
-  'packages/web/src/pages/DashboardPage.tsx': { lines: 530 },
+  'packages/web/src/pages/DashboardPage.tsx': { lines: 528 },
   'packages/api/src/index.ts': { lines: 502 },
   'packages/web/src/components/ActivityFeed.tsx': { lines: 458 },
 };

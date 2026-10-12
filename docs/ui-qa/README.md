@@ -318,3 +318,25 @@ the keyboard journey retried separately after the first run closed its member sh
 the input-reset assertion. Updated receipt and invite captures were inspected at enlarged text
 sizes. The combined runner stopped on the existing backend ledger-property timeout; the
 unchanged property passed independently without changing repository timeouts or assertions.
+
+## Visual hierarchy — October 12
+
+The overview directory now separates group titles, balances and update details inside spacious
+cards. Balance numerals use quieter weight, with a larger receipt mark and finer accent rule.
+The group’s expense action has a dashed paper edge; the ledger has a visible Activity heading
+and tighter spacing. Card hover movement is limited to hover-capable devices without reduced
+motion. Existing data, selection controls, form behavior and explicit balance labels remain.
+
+Desktop and phone overview and group captures were inspected in both palettes, alongside
+narrow-width overflow checks. The optional stress fixture checks the redesigned directory
+with long names and large amounts.
+
+Selection-mode captures include a selected group and the fixed bulk-action bar. Stress
+inspection caught a subtotal wrapping before its cents; wide amounts now take a wider tile
+on phones. Static gates, the production build and frontend tests passed. The combined runner
+stopped on the known backend ledger-property timeout; the unchanged property passed separately
+without modifying repository timeouts or assertions.
+
+The keyboard journey and the remaining group journeys passed in separate runs. The initial
+combined browser attempts hit a local Wrangler proxy crash between specs; restarting and
+separating the specs verified the flows without changing their assertions.

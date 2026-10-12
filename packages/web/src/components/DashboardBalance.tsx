@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useMoney } from '../lib/currency';
+import { ReceiptFace } from './ReceiptFace';
 import { MoneyText } from './MoneyText';
 
 export function DashboardBalance({
@@ -16,6 +17,7 @@ export function DashboardBalance({
   const owed = totals.net > 0;
   return (
     <section className="overview-balance surface rounded-3xl p-6 sm:p-7">
+      <ReceiptFace className="balance-receipt" />
       <p className="text-sm font-medium text-muted">
         {settled ? 'Across your active groups' : owed ? "You're owed, overall" : 'You owe, overall'}
       </p>
@@ -37,7 +39,14 @@ export function DashboardBalance({
       {/* Only when the two sides differ from the headline. Owed everywhere and owing nowhere
                 prints the same figure twice, once as a headline and once as a chip beneath it. */}
       {totals.owed > 0 && totals.owe > 0 && (
-        <div className="overview-sides mt-4 flex flex-wrap gap-2 text-sm">
+        <div
+          className="overview-sides mt-4 flex flex-wrap gap-2 text-sm"
+          style={
+            Math.max(fmt(totals.owed).length, fmt(totals.owe).length) > 9
+              ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 11rem), 1fr))' }
+              : undefined
+          }
+        >
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-pos" />
             <span className="text-muted">owed to you</span>

@@ -273,9 +273,9 @@ export function ActivityFeed({
         </div>
       )}
 
-      <section className="mt-6">
-        <div className="flex items-baseline justify-end gap-3">
-          <h2 className="sr-only">Activity</h2>
+      <section className="mt-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-ink">Activity</h2>
           {visibleTotal > 0 && (
             <span className="tnum text-sm text-muted">
               {fmt(visibleTotal)}{' '}

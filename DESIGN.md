@@ -71,3 +71,9 @@ the replacement Add expense action when the empty state disappears. Saving and p
 recording expose polite status announcements and busy button states.
 
 Payment receipts explicitly distinguish a saved ledger record from a money transfer. Shared invites explain that viewing is read-only and choosing an existing name connects that spot and its balances to an account. Long unbroken names wrap in payment and shared-member rows; large shared totals scale to fit without shortening the amount.
+
+The visual directory uses distinct title, balance and activity rows inside each group card.
+Balances have calmer medium-weight numerals; a larger receipt face and fine accent rule tie
+overview and group heroes together. The latest-expense action uses a dashed paper boundary
+instead of competing with the balance card. Activity has a visible heading and tighter spacing.
+Hover-capable devices get a small card lift and chevron movement unless reduced motion is set.

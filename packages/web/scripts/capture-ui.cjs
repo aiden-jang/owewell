@@ -56,6 +56,8 @@ const assert = require('node:assert/strict');
   if (stress) {
     groups[0].name = 'The extraordinarily long weekend away with everyone from the old apartment';
     groups[0].memberCount = members.length;
+    groups[0].netCents = share * (members.length - 1);
+    groups[0].totalUnsettledCents = groups[0].netCents;
     groups[0].totalSpentCents = total;
     expenses[0].amountCents = total;
     expenses[0].description = 'An extraordinarily long dinner description with an unexpectedly large bill';
@@ -167,6 +169,7 @@ const assert = require('node:assert/strict');
         ['split-result', '/split'],
         ['empty', '/'],
         ['dashboard', '/'],
+        ['directory-select', '/'],
         ['shared', '/s/preview'],
         ['group', '/groups/g0'],
         ['expense-sheet', '/groups/g0'],
@@ -184,7 +187,15 @@ const assert = require('node:assert/strict');
           await page.locator('h1').waitFor();
           if (name === 'group' || name === 'expense-sheet' || name === 'saved' || name === 'settled')
             await page.getByRole('heading', { name: groups[0].name, exact: true }).waitFor();
-          if (name === 'dashboard') await page.getByRole('link', { name: /Weekend away/ }).waitFor();
+          if (name === 'dashboard')
+            await page.getByRole('link', { name: new RegExp(groups[0].name) }).waitFor();
+          if (name === 'directory-select') {
+            await page.getByRole('button', { name: 'Select', exact: true }).click();
+            await page.getByRole('button', { name: 'Cancel', exact: true }).waitFor();
+            const firstCard = page.getByRole('button', { name: new RegExp(groups[0].name) });
+            await firstCard.click();
+            assert.equal(await firstCard.getAttribute('aria-pressed'), 'true');
+          }
           if (name === 'empty') await page.getByText('No groups yet. The calm before the tab.').waitFor();
           if (name === 'split-result') {
             await page.getByPlaceholder('Person 2').fill('Sam');
@@ -227,7 +238,7 @@ const assert = require('node:assert/strict');
           if (width === 1440 || width === 390)
             await page.screenshot({
               path: path.join(dir, (stress ? 'stress-' : '') + name + '-' + theme + '-' + width + '.png'),
-              fullPage: name !== 'expense-sheet',
+              fullPage: name !== 'expense-sheet' && name !== 'directory-select',
               animations: 'disabled',
             });
           await page.close();
