@@ -9,7 +9,7 @@ import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
-import { MoneyText } from '../components/MoneyText';
+import { DashboardBalance } from '../components/DashboardBalance';
 import { SkeletonList } from '../components/Skeleton';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
@@ -200,8 +200,6 @@ export function DashboardPage(): ReactNode {
     }
   }
 
-  const settled = totals.net === 0;
-  const owed = totals.net > 0;
   const activeGroups = (groups ?? []).filter((g) => !g.archived);
   const archivedGroups = (groups ?? []).filter((g) => g.archived);
   // "All settled" only makes sense once there's been spending somewhere; a set of brand-new,
@@ -221,12 +219,7 @@ export function DashboardPage(): ReactNode {
       group.totalUnsettledCents > 0,
       fmt,
     );
-    // Last activity, not creation date: it answers "is this still going on", which is the only date
-    // question a dashboard row raises. A group with no expenses yet says when it was started.
-    //
-    // Short form, as in the feed. "3 people · 4 days ago" did not fit beside the amount at 375px and
-    // truncated to "3 people · 4 d...", which spends a line saying nothing. Four characters shorter
-    // is the whole fix.
+    // Empty groups show their creation date; spending groups show the latest activity.
     const activity =
       group.totalSpentCents > 0 ? timeAgo(group.lastActivityAt) : `started ${timeAgo(group.createdAt)}`;
     const isSel = selected.has(group.id);
@@ -241,20 +234,30 @@ export function DashboardPage(): ReactNode {
             </span>
           )}
         </span>
-        {/* Primary facts on the first line, secondary facts together on the second. Sharing a
-            column with the amount, the meta line always loses: "3 people · 4 d…" tells you nothing.
-            Same shape as a member row, deliberately. */}
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
             <span className="truncate font-medium">{group.name}</span>
-            <span className={`tnum shrink-0 text-sm font-semibold ${label.className}`}>{label.text}</span>
+            <span className={`tnum shrink-0 text-right text-sm font-semibold ${label.className}`}>
+              {group.netCents !== 0 && (
+                <span className="block text-xs font-normal text-muted">
+                  {group.netCents > 0 ? 'Owed to you' : 'You owe'}
+                </span>
+              )}
+              {label.text}
+            </span>
           </span>
           {/* xs and wrapping. At sm these three facts overflowed by 13px at 375px and clipped
               "$90.00 unsettled"; xs alone only moves the cliff. A name can be cut and still read as
               a cut name, but a list of facts with one severed mid-word says less than two facts. */}
           <span className="block text-xs text-muted">
             {group.memberCount} {group.memberCount === 1 ? 'person' : 'people'}
-            {activity && <span className="text-faint"> &middot; {activity}</span>}
+            {activity && (
+              <span className="text-faint">
+                {' '}
+                &middot; {group.totalSpentCents > 0 ? 'updated ' : ''}
+                {activity}
+              </span>
+            )}
             {/* Dropped when it is only your own figure again, which is what it is whenever you are
                 the group's sole creditor. */}
             {group.totalUnsettledCents > 0 && group.totalUnsettledCents !== Math.abs(group.netCents) && (
@@ -272,7 +275,7 @@ export function DashboardPage(): ReactNode {
         </span>
       </>
     );
-    const cls = `row-interactive surface flex items-center gap-4 rounded-2xl p-4 hover:shadow-lg hover:shadow-black/20 ${
+    const cls = `row-interactive surface flex min-h-[92px] items-center gap-4 rounded-2xl p-4 hover:shadow-lg hover:shadow-black/20 ${
       group.archived ? 'opacity-60' : ''
     } ${selecting && isSel ? 'ring-1 ring-accent' : ''}`;
     return (
@@ -344,45 +347,8 @@ export function DashboardPage(): ReactNode {
           </p>
         )}
 
-        {/* Nothing to total before there is a group: an account on its first day was being shown a
-            $0.00 the size of a headline, above an empty state that already says the same thing. */}
         {activeGroups.length > 0 && (
-          <section className="overview-balance surface rounded-3xl p-6 sm:p-7">
-            <p className="text-sm font-medium text-muted">
-              {settled ? 'Across all your groups' : owed ? "You're owed, overall" : 'You owe, overall'}
-            </p>
-            <p
-              className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
-                settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
-              }`}
-            >
-              {settled && hasAnySpend ? (
-                othersStillOwe ? (
-                  "You're square"
-                ) : (
-                  'All settled'
-                )
-              ) : (
-                <MoneyText cents={Math.abs(totals.net)} />
-              )}
-            </p>
-            {/* Only when the two sides differ from the headline. Owed everywhere and owing nowhere
-                prints the same figure twice, once as a headline and once as a chip beneath it. */}
-            {totals.owed > 0 && totals.owe > 0 && (
-              <div className="overview-sides mt-4 flex flex-wrap gap-2 text-sm">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-pos" />
-                  <span className="text-muted">owed to you</span>
-                  <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-neg" />
-                  <span className="text-muted">you owe</span>
-                  <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
-                </span>
-              </div>
-            )}
-          </section>
+          <DashboardBalance totals={totals} hasAnySpend={hasAnySpend} othersStillOwe={othersStillOwe} />
         )}
 
         <div className="mt-8 flex items-center justify-between">
@@ -424,6 +390,7 @@ export function DashboardPage(): ReactNode {
             <div className="flex gap-2">
               <input
                 autoFocus
+                aria-label="Group name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -456,7 +423,11 @@ export function DashboardPage(): ReactNode {
             </p>
           </form>
         )}
-        {error && <p className="mt-2 text-sm font-medium text-neg">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-2 text-sm font-medium text-neg">
+            {error}
+          </p>
+        )}
 
         <div className="mt-4">
           {loadError ? (
@@ -478,13 +449,20 @@ export function DashboardPage(): ReactNode {
               tone="invite"
               icon="users"
               title="No groups yet. The calm before the tab."
+              action={
+                !creatingOpen && (
+                  <Button block={false} onClick={openCreate}>
+                    Create your first group
+                  </Button>
+                )
+              }
               body={
                 <>
                   Make one to start splitting, or{' '}
                   <Link to="/split" className="font-medium text-accent hover:underline">
                     split a bill
                   </Link>{' '}
-                  without an account.
+                  for a one-off expense.
                 </>
               }
             />

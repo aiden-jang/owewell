@@ -28,7 +28,18 @@ async function newGroup(page: Page, name: string): Promise<void> {
 test.describe('from an empty account to a balance', () => {
   test('a group, an expense, and the recorded payment that settles it', async ({ page }) => {
     await signIn(page);
-    await newGroup(page, `Trip to Lisbon ${Date.now()}`);
+    if (process.env.UI_QA_CAPTURE) {
+      await page.route('**/api/groups', (route) => route.fulfill({ json: { groups: [] } }));
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Create your first group' })).toBeVisible();
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.screenshot({ path: `../../docs/ui-qa/dashboard-empty-${width}.png`, fullPage: true });
+      }
+      await page.unroute('**/api/groups');
+    }
+    const groupName = `Trip to Lisbon ${Date.now()}`;
+    await newGroup(page, groupName);
 
     // --- a second person, or there is nothing to split ------------------------------------
     await page.getByRole('button', { name: /member. Open the member list/ }).click();
@@ -49,6 +60,16 @@ test.describe('from an empty account to a balance', () => {
     await expect(page.getByText('Dinner').first()).toBeVisible();
     const owed = page.getByText(/You're owed/).locator('..');
     await expect(owed).toContainText('$20.00');
+    await expect(page.getByText('1 transfer left')).toBeVisible();
+    await page.goto('/');
+    await expect(page.getByText('Owed to you', { exact: true }).first()).toBeVisible();
+    if (process.env.UI_QA_CAPTURE) {
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.screenshot({ path: `../../docs/ui-qa/dashboard-balance-${width}.png`, fullPage: true });
+      }
+    }
+    await page.getByRole('link').filter({ hasText: groupName }).click();
     await expect(page.getByText('1 transfer left')).toBeVisible();
 
     // Recording is a separate step from paying, with the exact record reviewed first.

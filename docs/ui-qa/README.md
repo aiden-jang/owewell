@@ -162,3 +162,22 @@ extended browser journey through payment confirmation, the receipt and a settled
 The combined runner stopped on the default backend ledger property timeout; that test passed
 alone with a longer command-line allowance. Repository timeout settings and assertions were
 not relaxed. The combined runner is not recorded as green.
+
+## Overview clarity — October 12
+
+Group cards label Owed to you and You owe, retain neutral no-expense and settled states,
+and identify their dates as updates. Cards have a consistent minimum height. The overview
+explains that an overall zero can combine opposing group balances without settling them.
+New accounts have a direct first-group action; its name field has an accessible label and
+creation errors announce themselves. Existing expense and payment actions remain in place.
+
+Desktop and phone states were inspected in `dashboard-balance-1280.png`,
+`dashboard-balance-390.png`, `dashboard-empty-1280.png` and `dashboard-empty-390.png`.
+The browser journey uses the isolated local test ledger; the empty-account capture intercepts
+only the test browser’s group-list response. No demonstration records ship with the app.
+
+Static gates and the production build passed. The full frontend suite and the browser journey
+through creation, the dashboard balance and settlement passed. The combined runner stopped
+on the backend ledger property timeout; that test passed separately with a longer command-line
+allowance. Repository timeout settings and assertions were not relaxed; the combined runner
+is not recorded as green.

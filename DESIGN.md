@@ -45,3 +45,7 @@ Settlement actions say Record payment and explain that the app only updates the 
 The confirmation identifies sender, recipient, amount and payment method. Manual payment entry
 keeps sender and recipient labels visible and summarizes the record before submission. The
 recorded receipt gives its amount stronger hierarchy and announces the successful recording.
+
+Group directory balances include explicit Owed to you / You owe labels. The overall balance
+explains when opposing group balances net to zero without settling either group. Activity dates
+are labeled as updates; new accounts have one first-group action and a labeled group-name field.

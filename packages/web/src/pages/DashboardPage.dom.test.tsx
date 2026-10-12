@@ -235,3 +235,24 @@ describe('the overall total and its breakdown', () => {
     expect(screen.getByText('you owe')).toBeInTheDocument();
   });
 });
+
+test('equal owed and owing totals explain that groups still need settling', async () => {
+  await open([
+    group({ id: 'a', name: 'Trip', netCents: 2500, totalUnsettledCents: 2500 }),
+    group({ id: 'b', name: 'Flat', netCents: -2500, totalUnsettledCents: 2500 }),
+  ]);
+  expect(screen.getByText("You're square")).toBeInTheDocument();
+  expect(
+    screen.getByText('The overall total combines both sides. Each group keeps its own balance.'),
+  ).toBeInTheDocument();
+  expect(screen.queryByText('All settled')).not.toBeInTheDocument();
+  expect(within(screen.getByText('Trip').closest('li')!).getByText('Owed to you')).toBeInTheDocument();
+  expect(within(screen.getByText('Flat').closest('li')!).getByText('You owe')).toBeInTheDocument();
+});
+
+test('the first-group action opens a labeled name field', async () => {
+  const user = await open([]);
+  await user.click(screen.getByRole('button', { name: 'Create your first group' }));
+  expect(screen.getByRole('textbox', { name: 'Group name' })).toHaveFocus();
+  expect(screen.queryByRole('button', { name: 'Create your first group' })).not.toBeInTheDocument();
+});
