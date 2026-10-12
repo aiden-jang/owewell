@@ -29,3 +29,7 @@ The group ledger has an in-flow Add expense action above its filters. Payment lo
 The calculator leads each bill row with its amount. Descriptions and split methods live behind
 a native keyboard-accessible disclosure; existing described, itemized or unequal drafts expose
 their details automatically. Results emphasize the visitor’s own share before payment transfers.
+
+Payer selection is one labeled Who paid? control. Tips are an optional disclosure. Inline amount
+errors explain valid positive amounts before saving. Copy summary is the primary result action;
+saving stays secondary. Blank calculators explain what is needed to produce an answer.

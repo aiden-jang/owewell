@@ -84,6 +84,14 @@ export default function QuickSplitItemRow({
   onRemove,
 }: QuickSplitItemRowProps) {
   const [expanded, setExpanded] = useState(item.method !== 'EQUAL' || !!item.description || itemCount > 1);
+  let amountError: string | null = null;
+  if (item.amount.trim()) {
+    try {
+      if (dollarsToCents(item.amount) <= 0) amountError = 'Enter an amount greater than zero.';
+    } catch {
+      amountError = 'Enter a valid amount, such as 24.50.';
+    }
+  }
   return (
     <div className="surface space-y-3 rounded-2xl p-4">
       <label className="split-amount-label">
@@ -96,8 +104,15 @@ export default function QuickSplitItemRow({
           inputMode="decimal"
           className={`${inputClass} tnum split-amount-input`}
           aria-label={`Item ${index + 1} amount`}
+          aria-invalid={amountError !== null}
+          aria-describedby={amountError ? `amount-error-${item.id}` : undefined}
         />
       </label>
+      {amountError && (
+        <p id={`amount-error-${item.id}`} className="text-sm text-neg" role="alert">
+          {amountError}
+        </p>
+      )}
       <details
         className="split-item-options"
         open={expanded || splitPayers}

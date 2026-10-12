@@ -42,6 +42,17 @@ afterEach(() => {
 });
 
 describe('the share sheet', () => {
+  it('copies directly when the action explicitly asks for the clipboard', async () => {
+    const share = vi.fn();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubNavigator({ share, clipboard: { writeText } });
+    const { result } = renderHook(() => useShareAction(report));
+    await act(() => result.current.share({ ...payload, copyOnly: true }));
+    expect(share).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith(payload.text);
+    expect(result.current.status).toBe('copied');
+  });
+
   it('gets the title and the text', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     stubNavigator({ share });

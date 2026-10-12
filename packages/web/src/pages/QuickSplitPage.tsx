@@ -1,3 +1,4 @@
+import { QuickSplitTip } from '../components/QuickSplitTip';
 import { SplitIntro } from '../components/SplitIntro';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -229,7 +230,7 @@ export function QuickSplitPage(): ReactNode {
   /**
    * The result as plain text, for pasting into the group chat.
    *
-   * Deliberately joke-free, unlike the button that produces it. This lands in a conversation with
+   * Deliberately joke-free. This lands in a conversation with
    * other people in it, and a bill that arrives with a punchline attached reads as the sender being
    * funny at everyone else's expense. The numbers are the whole payload.
    */
@@ -249,7 +250,8 @@ export function QuickSplitPage(): ReactNode {
     void share({
       title: 'owewell split',
       text: summaryText(),
-      failureMessage: 'Couldn’t share the split. Try again in a moment.',
+      failureMessage: 'Couldn’t copy the split. Try again in a moment.',
+      copyOnly: true,
     });
   }
 
@@ -407,15 +409,6 @@ export function QuickSplitPage(): ReactNode {
                     className={inputClass}
                     aria-label={`Person ${index + 1} name`}
                   />
-                  <label className="flex items-center gap-1 text-xs text-muted">
-                    <input
-                      type="radio"
-                      name="payer"
-                      checked={effectivePayerId === person.id}
-                      onChange={() => setPayerId(person.id)}
-                    />
-                    paid
-                  </label>
                   {people.length > 2 && (
                     <button
                       type="button"
@@ -436,6 +429,21 @@ export function QuickSplitPage(): ReactNode {
                 + Add person
               </button>
 
+              <label className="block pt-2 text-sm">
+                <span className="mb-1 block text-xs font-medium text-muted">Who paid?</span>
+                <select
+                  value={effectivePayerId}
+                  onChange={(event) => setPayerId(event.target.value)}
+                  className={inputClass}
+                  aria-label="Who paid?"
+                >
+                  {people.map((person, index) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name.trim() || `Person ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="block pt-2 text-sm">
                 <span className="mb-1 block text-xs font-medium text-muted">Which one are you?</span>
                 <select
@@ -512,65 +520,18 @@ export function QuickSplitPage(): ReactNode {
               >
                 + Add item
               </button>
-              {/* Its own row. Tipping is not a sibling of "add another line", and sharing one left
-                  five small controls crowded against a text link. */}
-              <div
-                className="flex flex-wrap items-center justify-end gap-1.5 border-t border-line pt-3"
-                aria-label="Add tip"
-              >
-                <span className="text-xs text-muted">
-                  {generatedTipTotal > 0 ? `tip ${Money.fromCents(generatedTipTotal).format()}` : 'add tip'}
-                </span>
-                {[18, 20, 25].map((percent) => (
-                  <button
-                    key={percent}
-                    type="button"
-                    onClick={() => addTip(percent)}
-                    aria-pressed={activeTip === percent}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition active:scale-[0.96] ${
-                      activeTip === percent
-                        ? 'border-accent bg-accent-soft text-accent'
-                        : 'border-line bg-field text-muted hover:border-accent hover:text-accent'
-                    }`}
-                  >
-                    {percent}%
-                  </button>
-                ))}
-                <label className="flex items-center rounded-full border border-line bg-field pl-2.5 text-xs text-muted focus-within:border-accent">
-                  <span className="sr-only">Custom tip percentage</span>
-                  <input
-                    value={customTip}
-                    onChange={(event) => setCustomTip(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        addTip(Number(customTip));
-                      }
-                    }}
-                    placeholder="other"
-                    inputMode="decimal"
-                    className="w-12 bg-transparent py-1 outline-none placeholder:text-muted/70"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addTip(Number(customTip))}
-                    className="px-2 py-1 font-semibold text-muted transition hover:text-ink"
-                    aria-label="Apply custom tip"
-                  >
-                    %
-                  </button>
-                </label>
-                {activeTip !== null && (
-                  <button
-                    type="button"
-                    onClick={clearGeneratedTip}
-                    className="text-xs text-muted transition hover:text-ink hover:underline"
-                  >
-                    remove
-                  </button>
-                )}
-              </div>
+              <QuickSplitTip
+                generatedTipTotal={generatedTipTotal}
+                activeTip={activeTip}
+                customTip={customTip}
+                setCustomTip={setCustomTip}
+                addTip={addTip}
+                clearGeneratedTip={clearGeneratedTip}
+              />
             </div>
+            {!transfers && !error && (
+              <p className="split-empty">Add another person and a valid amount to see the split.</p>
+            )}
             {/* Only once there is an answer: the form is blank for most of the time spent here. */}
             {transfers && (
               <section className="split-result mt-6">
@@ -648,15 +609,15 @@ export function QuickSplitPage(): ReactNode {
                 onClick={shareSummary}
                 disabled={shareStatus !== null}
                 aria-live="polite"
-                className="mt-5 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+                className="btn-gradient mt-5 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
               >
                 {shareStatus === 'sharing'
-                  ? 'Opening share…'
+                  ? 'Copying…'
                   : shareStatus === 'shared'
                     ? 'Split shared'
                     : shareStatus === 'copied'
                       ? 'Split copied'
-                      : 'Send it to the group chat'}
+                      : 'Copy summary'}
               </button>
             )}
             {/* Disabled until there is a split to save. Full-width accent over an empty form is the
@@ -665,9 +626,9 @@ export function QuickSplitPage(): ReactNode {
               type="button"
               onClick={() => void onSave()}
               disabled={saving || grandTotal <= 0}
-              className="btn-gradient mt-3 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+              className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
             >
-              {saving ? 'Saving…' : user ? 'Save to my account' : "Save it before someone 'forgets'"}
+              {saving ? 'Saving…' : user ? 'Save to my account' : 'Save split'}
             </button>
             {user && (
               <Link

@@ -15,7 +15,12 @@ export type ShareStatus = 'sharing' | 'shared' | 'copied' | null;
 
 export function useShareAction(reportFailure: (message: string) => void): {
   status: ShareStatus;
-  share: (input: { title: string; text: string; failureMessage: string }) => Promise<void>;
+  share: (input: {
+    title: string;
+    text: string;
+    failureMessage: string;
+    copyOnly?: boolean;
+  }) => Promise<void>;
   /** Drop the confirmation early, for a surface that reopens somewhere else before it fades. */
   reset: () => void;
 } {
@@ -42,16 +47,18 @@ export function useShareAction(reportFailure: (message: string) => void): {
       title,
       text,
       failureMessage,
+      copyOnly = false,
     }: {
       title: string;
       text: string;
       failureMessage: string;
+      copyOnly?: boolean;
     }): Promise<void> => {
       if (busy.current) return;
       busy.current = true;
       setStatus('sharing');
       try {
-        if (navigator.share) {
+        if (!copyOnly && navigator.share) {
           try {
             await navigator.share({ title, text });
             settleBack('shared');

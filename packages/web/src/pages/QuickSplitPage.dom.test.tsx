@@ -82,6 +82,20 @@ describe('the split itself', () => {
     await user.clear(screen.getByLabelText('Item 1 description'));
     expect(screen.getByLabelText('Item 1 description')).toBeVisible();
   });
+  it('labels the payer and flags an invalid amount before saving', async () => {
+    const user = await open();
+    await namePeople(user, 'Alice', 'Bob');
+    const payer = screen.getByRole('combobox', { name: 'Who paid?' });
+    await user.selectOptions(payer, payer.querySelectorAll('option')[1]!);
+    await user.type(screen.getByLabelText('Item 1 amount'), '-5');
+    expect(screen.getByLabelText('Item 1 amount')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('greater than zero');
+    await user.clear(screen.getByLabelText('Item 1 amount'));
+    await user.type(screen.getByLabelText('Item 1 amount'), '40');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(owedLines()).toEqual(['Alice owes Bob$20.00']);
+  });
+
   it('lets a fresh visitor explore an explicitly labeled example', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /Try a \$48 example/ }));
@@ -143,6 +157,7 @@ describe('adding a tip', () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '100.00');
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
 
     expect(screen.getByLabelText('Item 2 description')).toHaveValue('Dinner tip (20%)');
@@ -158,7 +173,9 @@ describe('adding a tip', () => {
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '100.00');
 
+    if (!screen.queryByRole('button', { name: '18%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '18%' }));
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
 
     expect(screen.queryByDisplayValue('Dinner tip (18%)')).not.toBeInTheDocument();
@@ -171,6 +188,7 @@ describe('adding a tip', () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '100.00');
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
     await user.click(screen.getByRole('button', { name: '25%' }));
 
@@ -183,6 +201,7 @@ describe('adding a tip', () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Service tip', '15.00');
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Add an item amount before calculating a tip.');
@@ -198,6 +217,7 @@ describe('adding a tip', () => {
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '100.00');
     await user.selectOptions(screen.getByLabelText('Item 1 split method'), 'EXACT');
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Add the tip manually');
@@ -207,6 +227,7 @@ describe('adding a tip', () => {
   it('says there is nothing to tip rather than doing nothing', async () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Add an item amount before calculating a tip.');
@@ -216,6 +237,7 @@ describe('adding a tip', () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '100.00');
+    await user.click(screen.getByText(/^Add a tip/));
     await user.type(screen.getByPlaceholderText('other'), '150');
     await user.click(screen.getByRole('button', { name: 'Apply custom tip' }));
 
@@ -226,6 +248,7 @@ describe('adding a tip', () => {
     const user = await open();
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '100.00');
+    if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
     await user.click(screen.getByRole('button', { name: 'remove' }));
 

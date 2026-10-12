@@ -102,3 +102,22 @@ combined runner stopped on the backend ledger property timeout; that test passed
 longer command-line allowance. An earlier frontend run passed its other checks and reported a
 stale assertion for the renamed share label; the final calculator checks passed after updating
 that label and exercising the disclosure interaction. The combined runner is not green.
+
+## Calculator finishing pass — October 11
+
+Who paid? replaces the repeated payer radios. Add a tip exposes optional controls; applied tips
+remain visible. Copy summary writes directly to the clipboard, keeps failure feedback visible
+and takes visual priority over Save split. Inline amount errors are associated with their fields,
+and the empty calculator explains how to produce a result.
+
+The desktop, phone and small-phone dark views were inspected in `calculator-final-1280.png`,
+`calculator-final-390.png`, `calculator-final-result-390.png` and
+`calculator-final-dark-320.png`. The small-phone view had no horizontal overflow. The tip
+disclosure opened with Enter, negative amounts showed a field error, a valid $48 bill produced
+$24 shares, and Copy summary confirmed the clipboard write.
+
+Static gates and the production build passed. The combined runner hit default timeouts in the
+activity feed and backend ledger property check, so it is not recorded as green. The activity
+feed, calculator and copy-action checks passed together on a focused rerun with a longer
+command-line allowance; the ledger test passed alone. The real browser journey passed. No
+assertions or repository timeout settings were relaxed.

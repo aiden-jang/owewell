@@ -1153,3 +1153,19 @@ textarea:focus {
   font-size: 32px;
   letter-spacing: -0.04em;
 }
+
+.split-tip {
+  border-top: 1px solid var(--color-line);
+  padding-top: 12px;
+}
+.split-tip > summary {
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: 13px;
+}
+.split-empty {
+  margin-top: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
