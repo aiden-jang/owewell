@@ -3,12 +3,15 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 (async () => {
-  const dir = path.resolve(__dirname, '../../../docs/ui-qa');
+  const dir = process.env.OWEWELL_UI_OUTPUT
+    ? path.resolve(process.env.OWEWELL_UI_OUTPUT)
+    : path.resolve(__dirname, '../../../docs/ui-qa');
   await fs.mkdir(dir, { recursive: true });
   const browser = await chromium.launch({
     ...(process.env.OWEWELL_BROWSER_PATH ? { executablePath: process.env.OWEWELL_BROWSER_PATH } : {}),
   });
   const now = '2026-10-10T12:00:00Z';
+  const baseUrl = process.env.OWEWELL_UI_URL ?? 'http://localhost:30001';
   const stress = !!process.env.OWEWELL_UI_STRESS;
   const names = stress
     ? Array.from({ length: 10 }, (_, i) => `AlexandriaMontgomeryWithoutSpaces${i}`)
@@ -76,6 +79,8 @@ const assert = require('node:assert/strict');
       await context.route('**/api/**', (route) => {
         const p = new URL(route.request().url()).pathname;
         if (!p.startsWith('/api/')) return route.continue();
+        if (p === '/api/me' && mode === 'session-error')
+          return route.fulfill({ status: 429, json: { error: 'TOO_MANY_REQUESTS' } });
         const empty = mode === 'empty';
         let json = {};
         if (p === '/api/me')
@@ -109,7 +114,14 @@ const assert = require('node:assert/strict');
               breakdown: [{ category: 'food', cents: total }],
             },
           };
-        else if (p === '/api/groups') json = { groups: empty ? [] : groups };
+        else if (p === '/api/groups')
+          json = {
+            groups: empty
+              ? []
+              : mode === 'archived'
+                ? groups.map((g, index) => (index === 0 ? { ...g, archived: true } : g))
+                : groups,
+          };
         else if (p.endsWith('/balances'))
           json = {
             balances: members.map((m, i) => ({
@@ -168,7 +180,9 @@ const assert = require('node:assert/strict');
         ['split', '/split'],
         ['split-result', '/split'],
         ['empty', '/'],
+        ['session-error', '/'],
         ['dashboard', '/'],
+        ['archived', '/'],
         ['directory-select', '/'],
         ['shared', '/s/preview'],
         ['group', '/groups/g0'],
@@ -187,12 +201,17 @@ const assert = require('node:assert/strict');
           const page = await context.newPage();
           await page.setViewportSize({ width, height: width === 1440 ? 900 : 780 });
           await page.addInitScript(() => localStorage.clear());
-          await page.goto('http://127.0.0.1:34212' + url);
-          await page.locator('h1').waitFor();
+          await page.goto(new URL(url, baseUrl).href);
+          await (
+            name === 'session-error'
+              ? page.getByRole('heading', { name: 'Couldn’t check your sign-in.' })
+              : page.locator('h1')
+          ).waitFor();
           if (name === 'group' || name === 'expense-sheet' || name === 'saved' || name === 'settled')
             await page.getByRole('heading', { name: groups[0].name, exact: true }).waitFor();
           if (name === 'dashboard')
             await page.getByRole('link', { name: new RegExp(groups[0].name) }).waitFor();
+          if (name === 'archived') await page.getByRole('button', { name: /^Archived/ }).click();
           if (name === 'directory-select') {
             await page.getByRole('button', { name: 'Select', exact: true }).click();
             await page.getByRole('button', { name: 'Cancel', exact: true }).waitFor();
@@ -201,6 +220,7 @@ const assert = require('node:assert/strict');
             assert.equal(await firstCard.getAttribute('aria-pressed'), 'true');
           }
           if (name === 'empty') await page.getByText('No groups yet. The calm before the tab.').waitFor();
+          if (name === 'session-error') await page.getByText('Couldn’t check your sign-in.').waitFor();
           if (name === 'split-result') {
             await page.getByPlaceholder('Person 2').fill('Sam');
             await page.getByText('Details & split options', { exact: true }).click();

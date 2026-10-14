@@ -1,5 +1,6 @@
+import { handleApiError } from './apiErrors.js';
+import { registerGroupRoutes } from './groupRoutes.js';
 import { Hono } from 'hono';
-import { SettleError } from '@owewell/shared';
 import { z } from 'zod';
 import { resolveSession } from '@aidenjang/auth-client';
 import { harden } from './harden.js';
@@ -8,42 +9,14 @@ import { perIp } from './rateLimit.js';
 import type { Env } from './env.js';
 import { createDb } from './db/client.js';
 import { getOrCreatePerson, type Person } from './people.js';
-import {
-  GroupError,
-  createGroup,
-  deleteGroup,
-  getGroup,
-  listGroups,
-  renameGroup,
-  requireMembership,
-  setGroupArchived,
-} from './groups.js';
-import {
-  claimPlaceholder,
-  getOrCreateShareToken,
-  getSharedSummary,
-  revokeShareToken,
-  rotateShareToken,
-} from './sharing.js';
+import { requireMembership } from './groups.js';
+import { claimPlaceholder, getSharedSummary } from './sharing.js';
 import { addPlaceholderMember, removeMember, renameMember, setPaymentHandles } from './members.js';
-import {
-  ExpenseError,
-  createExpense,
-  deleteExpense,
-  getBalances,
-  restoreExpense,
-  updateExpense,
-} from './expenses.js';
+import { createExpense, deleteExpense, getBalances, restoreExpense, updateExpense } from './expenses.js';
 import { createItemizedExpense, updateItemizedExpense } from './itemizedExpenses.js';
 import { listExpenses } from './expenseList.js';
-import {
-  SettlementError,
-  deleteSettlement,
-  getSuggestedPayments,
-  listSettlements,
-  recordSettlement,
-} from './settlements.js';
-import { QuickSplitError, createQuickSplit } from './quicksplit.js';
+import { deleteSettlement, getSuggestedPayments, listSettlements, recordSettlement } from './settlements.js';
+import { createQuickSplit } from './quicksplit.js';
 import { writeEvent } from './events.js';
 import { createExpenseBody, itemizedBody, recordSettlementBody, quickSplitBody } from './bodies.js';
 import { notifyGroupChanged } from './realtime.js';
@@ -165,70 +138,7 @@ api.use('*', async (c, next) => {
   await next();
 });
 
-api.post('/groups', async (c) => {
-  const parsed = z
-    .object({ name: z.string().trim().min(1).max(80) })
-    .safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const group = await createGroup(createDb(c.env), c.get('person').id, parsed.data.name);
-  writeEvent(c.env, 'group_created');
-  return c.json({ group }, 201);
-});
-
-api.get('/groups', async (c) => {
-  return c.json({ groups: await listGroups(createDb(c.env), c.get('person').id) });
-});
-
-api.get('/groups/:id', async (c) => {
-  return c.json({ group: await getGroup(createDb(c.env), c.get('person').id, c.req.param('id')) });
-});
-
-api.patch('/groups/:id', async (c) => {
-  const parsed = z
-    .object({ name: z.string().trim().min(1).max(80) })
-    .safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const group = await renameGroup(createDb(c.env), c.get('person').id, c.req.param('id'), parsed.data.name);
-  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
-  return c.json({ group });
-});
-
-api.post('/groups/:id/archive', async (c) => {
-  const parsed = z.object({ archived: z.boolean() }).safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const group = await setGroupArchived(
-    createDb(c.env),
-    c.get('person').id,
-    c.req.param('id'),
-    parsed.data.archived,
-  );
-  c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
-  return c.json({ group });
-});
-
-api.delete('/groups/:id', async (c) => {
-  await deleteGroup(createDb(c.env), c.get('person').id, c.req.param('id'));
-  return c.json({ ok: true });
-});
-
-// Create (or fetch) the group's public read-only share token. Members only.
-api.post('/groups/:id/share', async (c) => {
-  const token = await getOrCreateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
-  writeEvent(c.env, 'share_link_minted');
-  return c.json({ token });
-});
-
-// Mint a replacement, killing every copy of the old link. Owner-only.
-api.post('/groups/:id/share/rotate', async (c) => {
-  const token = await rotateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
-  return c.json({ token });
-});
-
-// Remove the public view entirely. Owner-only.
-api.delete('/groups/:id/share', async (c) => {
-  await revokeShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
-  return c.json({ ok: true });
-});
+registerGroupRoutes(api);
 
 // Add a member: a name-only placeholder seat. Real people join by claiming their seat via the
 // group's share link (see /owewell/shared/:token/claim); there's no separate invite flow.
@@ -458,35 +368,7 @@ api.get('/groups/:id/ws', async (c) => {
   return stub.fetch(new Request(url.toString(), c.req.raw));
 });
 
-app.onError((err, c) => {
-  if (err instanceof GroupError) {
-    const status =
-      err.code === 'NOT_FOUND'
-        ? 404
-        : err.code === 'NOT_OWNER' || err.code === 'CANNOT_REMOVE_OWNER'
-          ? 403
-          : 409;
-    return c.json({ error: err.code, message: err.message }, status);
-  }
-  if (err instanceof ExpenseError) {
-    const status = err.code === 'NOT_FOUND' ? 404 : err.code === 'CONFLICT' ? 409 : 422;
-    return c.json({ error: err.code, message: err.message }, status);
-  }
-  if (err instanceof SettlementError) {
-    return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
-  }
-  if (err instanceof QuickSplitError) {
-    return c.json({ error: err.code, message: err.message }, 422);
-  }
-  // A broken ledger invariant. Still a 500 (the data is wrong, not the request), but it carries the
-  // message: reporting this as a bare INTERNAL is what turned a one-line diagnosis into an afternoon.
-  if (err instanceof SettleError) {
-    console.error('owewell ledger invariant broken', err);
-    return c.json({ error: 'LEDGER_INVARIANT', message: err.message }, 500);
-  }
-  console.error('owewell api error', err);
-  return c.json({ error: 'INTERNAL' }, 500);
-});
+app.onError(handleApiError);
 
 // Everything that isn't the API (/health, /owewell/*) is the web SPA: real files, or the
 // index.html fallback for client routes. run_worker_first routes it all through here.

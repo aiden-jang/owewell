@@ -26,10 +26,13 @@ const assign = vi.fn();
 const realLocation = window.location;
 
 function Probe(): ReactNode {
-  const { user, loading, login, signup, logout, accountUrl } = useAuth();
+  const { user, loading, login, signup, logout, accountUrl, sessionError, retrySession } = useAuth();
   return (
     <div>
-      <span data-testid="state">{loading ? 'loading' : (user?.id ?? 'signed-out')}</span>
+      <span data-testid="state">
+        {loading ? 'loading' : sessionError ? 'check-failed' : (user?.id ?? 'signed-out')}
+      </span>
+      <button onClick={() => void retrySession()}>retry</button>
       <span data-testid="account">{accountUrl}</span>
       <button onClick={() => login()}>login</button>
       <button onClick={() => signup()}>signup</button>
@@ -107,7 +110,19 @@ describe('who the session says you are', () => {
     get.mockRejectedValue(new Error('offline'));
     await mount();
     expect(state()).toBe('loading');
-    await waitFor(() => expect(state()).toBe('signed-out'));
+    await waitFor(() => expect(state()).toBe('check-failed'));
+  });
+
+  it('retries an unavailable session check without sending the visitor to sign-in', async () => {
+    get.mockRejectedValueOnce(new Error('rate limited')).mockResolvedValue({
+      user: { id: 'account', email: 'a@x.com', displayName: 'Aiden' },
+      personId: 'person',
+    });
+    const user = await mount();
+    await waitFor(() => expect(state()).toBe('check-failed'));
+    await user.click(screen.getByRole('button', { name: /^retry$/ }));
+    await waitFor(() => expect(state()).toBe('person'));
+    expect(assign).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { groupsApi, type GroupDetail } from './groups';
 import { useToast } from '../components/Toast';
+import { useAsyncScope } from './useAsyncScope';
 
 /*
  * The link that gets other people into the group.
@@ -51,6 +52,13 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
 
   const groupId = group?.id;
+  const { begin } = useAsyncScope(groupId);
+  useLayoutEffect(() => {
+    setLink(null);
+    setRevoked(false);
+    setCopied(false);
+    window.clearTimeout(copiedTimer.current);
+  }, [groupId]);
   const mint = useCallback(async (): Promise<string | null> => {
     if (!groupId) return null;
     const token = await groupsApi.createShareLink(groupId);
@@ -62,25 +70,27 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   useEffect(() => {
     if (!needsPeople || link || revoked) return;
     let alive = true;
+    const current = begin();
     void mint()
       .then((url) => {
-        if (alive && url) setLink(url);
+        if (alive && current() && url) setLink(url);
       })
       .catch(() => undefined); // the header's Invite button still works
     return () => {
       alive = false;
     };
-  }, [needsPeople, link, mint, revoked]);
+  }, [needsPeople, link, mint, revoked, begin]);
 
   const reveal = useCallback(async (): Promise<void> => {
+    const current = begin();
     let url: string | null;
     try {
       url = await mint();
     } catch {
-      toast.error('Could not create a share link.');
+      if (current()) toast.error('Could not create a share link.');
       return;
     }
-    if (!url) return;
+    if (!current() || !url) return;
     // On screen no matter what the browser supports, before anything else is attempted.
     setRevoked(false);
     setLink(url);
@@ -96,7 +106,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
         /* dismissed */
       }
     }
-  }, [group?.name, mint, toast]);
+  }, [group?.name, mint, toast, begin]);
 
   /*
    * Both of these break links other people already hold, which is the point of them, so both say so
@@ -107,38 +117,46 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
    */
   const rotate = useCallback(async (): Promise<void> => {
     if (!groupId) return;
+    const current = begin();
     try {
       const token = await groupsApi.rotateShare(groupId);
+      if (!current()) return;
       setRevoked(false);
       setLink(`${window.location.origin}/s/${token}`);
       toast.success('New link ready. The old one stopped working.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not make a new link.');
+      if (current()) toast.error(err instanceof Error ? err.message : 'Could not make a new link.');
     }
-  }, [groupId, toast]);
+  }, [groupId, toast, begin]);
 
   const revoke = useCallback(async (): Promise<void> => {
     if (!groupId) return;
+    const current = begin();
     try {
       await groupsApi.revokeShare(groupId);
+      if (!current()) return;
       setRevoked(true);
       setLink(null);
       toast.success('Link turned off. Members keep their access.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not turn the link off.');
+      if (current()) toast.error(err instanceof Error ? err.message : 'Could not turn the link off.');
     }
-  }, [groupId, toast]);
+  }, [groupId, toast, begin]);
 
   const copy = useCallback(async (): Promise<void> => {
     if (!link) return;
+    const current = begin();
+    window.clearTimeout(copiedTimer.current);
+    setCopied(false);
     try {
       await navigator.clipboard.writeText(link);
+      if (!current()) return;
       setCopied(true);
       copiedTimer.current = window.setTimeout(() => setCopied(false), COPIED_MS);
     } catch {
-      toast.error('Copy failed. Select the link and copy it manually.');
+      if (current()) toast.error('Copy failed. Select the link and copy it manually.');
     }
-  }, [link, toast]);
+  }, [link, toast, begin]);
 
   return { link, copied, needsPeople, unclaimed, reveal, copy, rotate, revoke };
 }

@@ -79,6 +79,14 @@ afterEach(() => {
 });
 
 describe('when the link is fetched without being asked for', () => {
+  it('does not show another group’s link after switching groups', async () => {
+    const { result, rerender } = await open(SOLO);
+    await waitFor(() => expect(result.current.link).toContain('tok123'));
+    createShareLink.mockReturnValue(new Promise(() => {}));
+    rerender({ current: { ...SOLO, id: 'g2' } });
+    expect(result.current.link).toBeNull();
+    expect(createShareLink).toHaveBeenCalledWith('g2');
+  });
   /*
    * The whole reason the gate exists. Minting is a write, so a group that has no use for an invite
    * must not get a token created on it just because somebody opened the page.

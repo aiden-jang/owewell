@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 # Served only on the custom domain (owewell.aidenjang.com), not a *.workers.dev route.
 workers_dev = false
 
-# Local dev port — matches the owewell-web Vite proxy target (apps/owewell/web/vite.config.ts).
+# Local dev port — matches the owewell-web Vite proxy target (packages/web/vite.config.ts).
 [dev]
 port = 34200
 
@@ -14,9 +14,8 @@ port = 34200
 [vars]
 AUTH_URL = "https://accounts.aidenjang.com"
 
-# owewell's own data (groups, expenses, splits, settlements, invites, and the local
+# owewell's own data (groups, expenses, splits, settlements, and the local
 # `people` registry). Identity accounts live in the separate auth service's D1.
-# database_id is filled in at deploy (step 2.11) from `wrangler d1 create owewell`.
 [[d1_databases]]
 binding = "DB"
 database_name = "owewell"
@@ -40,9 +39,9 @@ class_name = "GroupRoom"
 tag = "v1"
 new_sqlite_classes = ["GroupRoom"]
 
-# Serve the built web SPA (apps/owewell/web) from this same Worker, so the UI and the
+# Serve the built web SPA (packages/web/dist) from this same Worker, so the UI and the
 # /owewell/* API share the owewell.aidenjang.com origin (no CORS, one deploy).
-# run_worker_first = true → the Worker routes everything; /health + /owewell/* are the API,
+# run_worker_first = true → the Worker routes everything; /health + /api/* are the API,
 # the app.all('*') catch-all serves assets (real files + SPA fallback to index.html).
 [assets]
 directory = "../web/dist"
@@ -50,12 +49,6 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
-# Custom domain. Requires the aidenjang.com zone on this Cloudflare account; provisioned on
-# `wrangler deploy`. Ignored by local `wrangler dev`.
-# Per-IP rate limit on the PUBLIC share lookup, which is the only unauthenticated endpoint and
-# so the only one worth guessing at. This is what lets the share token be short: without it, the
-# token's length is the sole defence and has to carry all the weight on its own.
-# period must be 10 or 60.
 # Ceiling across the whole API. Opening the app and moving between a few groups is a couple of
 # dozen requests, so this only ever catches a script. Checked before the auth guard, because
 # every authenticated request costs a call to the shared auth service.
@@ -64,11 +57,13 @@ name = "API_LIMITER"
 namespace_id = "2002"
 simple = { limit = 240, period = 60 }
 
+# Public share lookup has a tighter per-IP limit before D1 access.
 [[ratelimits]]
 name = "SHARE_LIMITER"
 namespace_id = "2001"
 simple = { limit = 20, period = 60 }
 
+# Custom domain; ignored by local Wrangler.
 [[routes]]
 pattern = "owewell.aidenjang.com"
 custom_domain = true

@@ -2,8 +2,8 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs"],
-      "project": ["scripts/*.mjs"],
+      "entry": ["scripts/*.{mjs,cjs}"],
+      "project": ["scripts/*.{mjs,cjs}"],
     },
     // Pure types and constants, reached through the package index.
     "packages/core": { "project": ["src/**/*.ts"] },
@@ -15,8 +15,8 @@
     },
     "packages/web": {
       // The SPA entry comes from index.html, which knip reads for itself.
-      "entry": ["src/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts", "scripts/*.mjs"],
-      "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts", "scripts/*.mjs"],
+      "entry": ["src/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts", "scripts/*.{mjs,cjs}"],
+      "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts", "scripts/*.{mjs,cjs}"],
     },
   },
   // `cloudflare:test` is the vitest-pool-workers virtual module, not a package on disk.

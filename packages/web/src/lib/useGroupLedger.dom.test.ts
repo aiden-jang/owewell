@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api';
+import type { GroupDetail } from './groups';
 import type { Expense } from './expenses';
 import type { QueuedWrite } from './outbox';
 
@@ -69,7 +70,14 @@ const expense = (id: string, description: string): Expense => ({
   splits: [{ userId: 'a', owedCents: 1_000 }],
 });
 
-const GROUP = { id: 'g1', name: 'Tahoe', members: [], archived: false } as never;
+const GROUP: GroupDetail = {
+  id: 'g1',
+  name: 'Tahoe',
+  members: [],
+  archived: false,
+  createdById: 'a',
+  createdAt: '2026-08-10T12:00:00.000Z',
+};
 const BALANCES = [{ userId: 'a', displayName: 'Alice', netCents: 500, paidCents: 500, owedCents: 0 }];
 const SUGGESTED = [{ fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 500 }];
 
@@ -103,6 +111,97 @@ beforeEach(() => {
  */
 
 describe('loading', () => {
+  it('offers recovery if realtime fails while the initial ledger is still loading', async () => {
+    let finish!: (value: GroupDetail) => void;
+    get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { result } = await open();
+    get.mockRejectedValueOnce(new TypeError('offline'));
+    await act(async () => {
+      fireRealtime();
+    });
+    await waitFor(() => expect(result.current.loadFailed).toBe(true));
+    await act(async () => finish(GROUP));
+    expect(result.current.group).toBeNull();
+    expect(result.current.loadFailed).toBe(true);
+    serveOk();
+    await act(() => result.current.load());
+    expect(result.current.group).toBe(GROUP);
+    expect(result.current.loadFailed).toBe(false);
+  });
+
+  it('does not replace a just-saved group with an older background read', async () => {
+    const { result } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+    let finish!: (value: GroupDetail) => void;
+    get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    let refreshing!: ReturnType<typeof result.current.refreshLedger>;
+    act(() => {
+      refreshing = result.current.refreshLedger();
+    });
+    const saved = { ...GROUP, archived: true, name: 'Saved name' };
+    act(() => result.current.setGroup(saved));
+    await act(async () => {
+      finish(GROUP);
+      await refreshing;
+    });
+    expect(result.current.group).toBe(saved);
+  });
+  it('clears the previous group while a different ledger loads', async () => {
+    const { result, rerender } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+    get.mockReturnValue(new Promise(() => {}));
+    rerender({ id: 'g2' });
+    expect(result.current.group).toBeNull();
+    expect(result.current.balances).toEqual([]);
+    expect(result.current.expenses).toEqual([]);
+  });
+
+  it('discards a response for a group the viewer has already left', async () => {
+    let finish!: (value: typeof GROUP) => void;
+    get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { result, rerender } = await open();
+    const next = { ...GROUP, id: 'g2', name: 'Dinner' };
+    get.mockResolvedValue(next);
+    rerender({ id: 'g2' });
+    await waitFor(() => expect(result.current.group).toBe(next));
+    await act(async () => finish(GROUP));
+    expect(result.current.group).toBe(next);
+  });
+
+  it('keeps the newest refresh when an earlier response arrives late', async () => {
+    const { result } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+    let finish!: (value: typeof GROUP) => void;
+    get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    let older!: ReturnType<typeof result.current.refreshLedger>;
+    act(() => {
+      older = result.current.refreshLedger();
+    });
+    const next = { ...GROUP, name: 'Renamed' };
+    get.mockResolvedValue(next);
+    await act(() => result.current.refreshLedger());
+    await act(async () => {
+      finish(GROUP);
+      await older;
+    });
+    expect(result.current.group).toBe(next);
+  });
   it('fetches the whole ledger for the group it was given', async () => {
     const { result } = await open();
     await waitFor(() => expect(result.current.expenses).toHaveLength(1));
@@ -160,6 +259,56 @@ describe('the two ways loading fails', () => {
 });
 
 describe('refreshing after a write', () => {
+  it('keeps successful receipt data when a newer realtime refresh overtakes it', async () => {
+    const { result } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+    let finish!: (value: GroupDetail) => void;
+    get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    let receipt!: ReturnType<typeof result.current.refreshLedger>;
+    act(() => {
+      receipt = result.current.refreshLedger();
+    });
+    const next = { ...GROUP, name: 'Latest' };
+    get.mockResolvedValue(next);
+    await act(() => result.current.refreshLedger());
+    let data: unknown;
+    await act(async () => {
+      finish(GROUP);
+      data = await receipt;
+    });
+    expect(data).toEqual({ balances: BALANCES, suggested: SUGGESTED });
+    expect(result.current.group).toBe(next);
+  });
+
+  it('does not give a receipt data from a group the viewer has left', async () => {
+    const { result, rerender } = await open();
+    await waitFor(() => expect(result.current.group).toBe(GROUP));
+    let finish!: (value: GroupDetail) => void;
+    get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    let receipt!: ReturnType<typeof result.current.refreshLedger>;
+    act(() => {
+      receipt = result.current.refreshLedger();
+    });
+    const next = { ...GROUP, id: 'g2', name: 'Next group' };
+    get.mockResolvedValue(next);
+    rerender({ id: 'g2' });
+    await waitFor(() => expect(result.current.group).toBe(next));
+    let data: unknown;
+    await act(async () => {
+      finish(GROUP);
+      data = await receipt;
+    });
+    expect(data).toBeNull();
+    expect(result.current.group).toBe(next);
+  });
   it('hands back the new balances so the caller can build a receipt', async () => {
     const { result } = await open();
     await waitFor(() => expect(result.current.group).toBe(GROUP));

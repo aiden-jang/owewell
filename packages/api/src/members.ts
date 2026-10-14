@@ -1,5 +1,7 @@
+import { insertRows } from './db/rows.js';
+import { inIds } from './db/ids.js';
 import { allocateCents, computeItemizedSplit, computeSplit } from '@owewell/shared';
-import { and, count, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, count, eq, isNull, or } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { pruneOrphanPlaceholders } from './people.js';
 import {
@@ -130,11 +132,11 @@ async function replaceSplits(
   shares: { userId: string; owedCents: number }[],
 ): Promise<void> {
   await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await db
-    .insert(expenseSplits)
-    .values(
-      shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-    );
+  await insertRows(
+    db,
+    expenseSplits,
+    shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
+  );
 }
 
 const sameSet = (ids: string[], set: Set<string>): boolean =>
@@ -193,7 +195,7 @@ async function resplitSharedExpenses(
         .select({ itemId: expenseItemShares.itemId, personId: expenseItemShares.personId })
         .from(expenseItemShares)
         .where(
-          inArray(
+          inIds(
             expenseItemShares.itemId,
             itemRows.map((i) => i.id),
           ),
@@ -205,9 +207,11 @@ async function resplitSharedExpenses(
       // Only receipts where *every* item was shared by everyone.
       if (!itemRows.every((i) => sameSet(partsByItem.get(i.id) ?? [], priorSet))) continue;
       for (const i of itemRows) {
-        await db
-          .insert(expenseItemShares)
-          .values({ id: crypto.randomUUID(), itemId: i.id, personId: newMemberId });
+        await db.insert(expenseItemShares).values({
+          id: crypto.randomUUID(),
+          itemId: i.id,
+          personId: newMemberId,
+        });
       }
       const shares = computeItemizedSplit({
         items: itemRows.map((i) => ({ amountCents: i.amountCents, participantIds: everyone })),
@@ -314,7 +318,7 @@ async function unaddFromLedger(db: DB, groupId: string, personId: string, ownerI
     if (itemIds.length) {
       await db
         .delete(expenseItemShares)
-        .where(and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, personId)));
+        .where(and(inIds(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, personId)));
     }
   }
 

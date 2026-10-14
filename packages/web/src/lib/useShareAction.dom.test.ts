@@ -117,6 +117,29 @@ describe('without a share sheet', () => {
 });
 
 describe('what the button says afterwards', () => {
+  it('discards a pending copy when its surface resets', async () => {
+    let finish!: () => void;
+    stubNavigator({
+      share: undefined,
+      clipboard: {
+        writeText: () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      },
+    });
+    const { result } = renderHook(() => useShareAction(report));
+    let copying!: Promise<void>;
+    act(() => {
+      copying = result.current.share(payload);
+    });
+    act(() => result.current.reset());
+    await act(async () => {
+      finish();
+      await copying;
+    });
+    expect(result.current.status).toBeNull();
+  });
   it('goes back to resting after a couple of seconds', async () => {
     vi.useFakeTimers();
     stubNavigator({ share: vi.fn().mockResolvedValue(undefined) });

@@ -7,11 +7,11 @@ export interface Env {
   AUTH_URL: string;
   // Per-group WebSocket fan-out (GroupRoom Durable Object, one instance per group).
   REALTIME: DurableObjectNamespace;
-  // The built web SPA (apps/owewell/web/dist), served from this same Worker so the UI and
-  // the /owewell/* API share one origin.
+  // The built web SPA (packages/web/dist), served from this same Worker so the UI and
+  // the /api/* API share one origin.
   ASSETS: Fetcher;
-  // Per-IP limiters. Both optional: local `wrangler dev` and the test worker do not provide
-  // them, and the API degrades to unlimited rather than refusing everyone.
+  // Per-IP limiters. Optional for runtimes without native bindings; absent bindings or client-IP
+  // headers leave requests unlimited. Local Wrangler may provide these bindings.
   // A ceiling across the whole API, sized so only a script ever meets it.
   API_LIMITER?: RateLimiter;
   // Much tighter, on the one unauthenticated endpoint. A share request spends both.

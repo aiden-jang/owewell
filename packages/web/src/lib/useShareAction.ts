@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CONFIRM_MS } from './timing';
+import { useAsyncScope } from './useAsyncScope';
 
 /*
  * Handing a line of text to whoever is next to you: try the share sheet, treat a dismissal as a
@@ -31,10 +32,9 @@ export function useShareAction(reportFailure: (message: string) => void): {
   report.current = reportFailure;
   const busy = useRef(false);
   const timer = useRef<number | undefined>(undefined);
+  const { begin, invalidate } = useAsyncScope();
 
-  // The old copies left their timer running. Nothing broke, because the component that owned the
-  // state was usually still mounted, but a settle-up panel that disappears the moment the last debt
-  // clears is exactly the case where it was not.
+  // The settle-up panel can disappear as soon as the final debt clears.
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const settleBack = useCallback((landed: 'shared' | 'copied'): void => {
@@ -55,15 +55,19 @@ export function useShareAction(reportFailure: (message: string) => void): {
       copyOnly?: boolean;
     }): Promise<void> => {
       if (busy.current) return;
+      const current = begin();
+      window.clearTimeout(timer.current);
       busy.current = true;
       setStatus('sharing');
       try {
         if (!copyOnly && navigator.share) {
           try {
             await navigator.share({ title, text });
+            if (!current()) return;
             settleBack('shared');
             return;
           } catch (err) {
+            if (!current()) return;
             // Backing out of the sheet is an answer, not an error: fall no further, copy nothing.
             if (err instanceof Error && err.name === 'AbortError') {
               setStatus(null);
@@ -73,22 +77,26 @@ export function useShareAction(reportFailure: (message: string) => void): {
         }
         try {
           await navigator.clipboard.writeText(text);
+          if (!current()) return;
           settleBack('copied');
         } catch {
+          if (!current()) return;
           setStatus(null);
           report.current(failureMessage);
         }
       } finally {
-        busy.current = false;
+        if (current()) busy.current = false;
       }
     },
-    [settleBack],
+    [settleBack, begin],
   );
 
   const reset = useCallback((): void => {
+    invalidate();
+    busy.current = false;
     window.clearTimeout(timer.current);
     setStatus(null);
-  }, []);
+  }, [invalidate]);
 
   return { status, share, reset };
 }

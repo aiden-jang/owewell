@@ -5,7 +5,7 @@
   "description": "Split bills, settle up, keep friends.",
   "license": "MIT",
   "engines": {
-    "node": ">=22"
+    "node": "^22.22.2 || ^24.13.0 || >=26.0.0"
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {

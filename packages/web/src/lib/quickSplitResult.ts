@@ -14,7 +14,7 @@ import { serverValue } from './splitValues';
  */
 
 export interface QuickSplitResult {
-  /** The fewest transfers that settle it, or null until at least one item has a usable amount. */
+  /** A short list of transfers that settles it, or null until at least one item has a usable amount. */
   transfers: Transfer[] | null;
   /** Everything entered so far, in cents. */
   grandTotal: number;
@@ -102,7 +102,7 @@ export function computeQuickSplit(input: {
 
     if (!any) return { ...empty, grandTotal };
 
-    // Net each person, then reduce to the fewest transfers — the same math the saved group shows.
+    // Net each person, then derive the settlement transfers — the same math the saved group shows.
     const transfers = simplifyDebts(
       named.map((p) => ({ userId: p.id, netCents: (paid[p.id] ?? 0) - (owed[p.id] ?? 0) })),
     );

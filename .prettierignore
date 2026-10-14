@@ -11,3 +11,6 @@ packages/web/public/
 # Playwright artefacts
 test-results/
 playwright-report/
+
+.wrangler/
+coverage/

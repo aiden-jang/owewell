@@ -32,15 +32,16 @@ beforeEach(async () => {
 });
 
 describe('the assembled ledger', () => {
-  test('nets to zero through any mix of expenses, receipts, settlements and deletions', async () => {
-    const db = testDb();
+  test.each(Array.from({ length: 12 }, (_, run) => run + 1))(
+    'nets to zero through expenses, receipts, settlements and deletions (seed %i)',
+    async (seed) => {
+      const db = testDb();
 
-    for (let run = 0; run < 12; run++) {
-      const random = rng(run + 1);
+      const random = rng(seed);
       const pick = <T>(xs: readonly T[]): T => xs[Math.floor(random() * xs.length)]!;
       const cents = (max: number): number => 1 + Math.floor(random() * max);
 
-      const group = await createGroup(db, alice, `Run ${run}`);
+      const group = await createGroup(db, alice, `Seed ${seed}`);
       const members = [alice];
       for (const name of ['Bob', 'Carol', 'Dan']) {
         members.push((await addPlaceholderMember(db, alice, group.id, name)).userId);
@@ -104,10 +105,10 @@ describe('the assembled ledger', () => {
 
         const balances = await getBalances(db, alice, group.id);
         const net = balances.reduce((sum, b) => sum + b.netCents, 0);
-        expect(net, `run ${run} step ${step} left ${net} cents unaccounted for`).toBe(0);
+        expect(net, `seed ${seed} step ${step} left ${net} cents unaccounted for`).toBe(0);
       }
-    }
-  });
+    },
+  );
 });
 
 /** EXACT amounts have to add up to the total, so hand out the remainder rather than rounding. */

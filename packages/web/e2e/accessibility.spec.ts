@@ -1,10 +1,15 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 
 async function tabTo(page: Page, target: Locator): Promise<void> {
   await expect(target).toBeVisible();
+  // macOS WebKit uses Option-Tab to include clickable controls in keyboard navigation.
+  const tab =
+    process.platform === 'darwin' && page.context().browser()?.browserType().name() === 'webkit'
+      ? 'Alt+Tab'
+      : 'Tab';
   for (let step = 0; step < 150; step++) {
     if (await target.evaluate((element) => element === document.activeElement)) return;
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(tab);
   }
   throw new Error('The target could not be reached with Tab.');
 }

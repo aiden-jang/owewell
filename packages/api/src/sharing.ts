@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { inIds } from './db/ids.js';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import {
   expenseItemShares,
@@ -122,7 +123,7 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
     .select({ id: people.id, isPlaceholder: people.isPlaceholder })
     .from(people)
     .where(
-      inArray(
+      inIds(
         people.id,
         balances.map((b) => b.userId),
       ),
@@ -208,7 +209,7 @@ export async function claimPlaceholder(
           owedCents: expenseSplits.owedCents,
         })
         .from(expenseSplits)
-        .where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, placeholderId)))
+        .where(and(inIds(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, placeholderId)))
         .all()
     : [];
   const theirs = expIds.length
@@ -219,7 +220,7 @@ export async function claimPlaceholder(
           owedCents: expenseSplits.owedCents,
         })
         .from(expenseSplits)
-        .where(and(inArray(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, callerPersonId)))
+        .where(and(inIds(expenseSplits.expenseId, expIds), eq(expenseSplits.personId, callerPersonId)))
         .all()
     : [];
   const callerSplitByExpense = new Map(theirs.map((t) => [t.expenseId, t]));
@@ -229,7 +230,7 @@ export async function claimPlaceholder(
         await db
           .select({ id: expenseItems.id })
           .from(expenseItems)
-          .where(inArray(expenseItems.expenseId, expIds))
+          .where(inIds(expenseItems.expenseId, expIds))
           .all()
       ).map((i) => i.id)
     : [];
@@ -239,9 +240,7 @@ export async function claimPlaceholder(
     ? await db
         .select({ id: expenseItemShares.id, itemId: expenseItemShares.itemId })
         .from(expenseItemShares)
-        .where(
-          and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, callerPersonId)),
-        )
+        .where(and(inIds(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, callerPersonId)))
         .all()
     : [];
   const dupShareIds = itemIds.length
@@ -249,9 +248,7 @@ export async function claimPlaceholder(
         await db
           .select({ id: expenseItemShares.id, itemId: expenseItemShares.itemId })
           .from(expenseItemShares)
-          .where(
-            and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)),
-          )
+          .where(and(inIds(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)))
           .all()
       )
         .filter((ph) => theirsShares.some((t) => t.itemId === ph.itemId))
@@ -276,7 +273,7 @@ export async function claimPlaceholder(
       db
         .update(expenseItems)
         .set({ payerId: callerPersonId })
-        .where(and(inArray(expenseItems.expenseId, expIds), eq(expenseItems.payerId, placeholderId))),
+        .where(and(inIds(expenseItems.expenseId, expIds), eq(expenseItems.payerId, placeholderId))),
     );
 
     for (const ph of mine) {
@@ -299,14 +296,14 @@ export async function claimPlaceholder(
 
     if (itemIds.length) {
       if (dupShareIds.length) {
-        writes.push(db.delete(expenseItemShares).where(inArray(expenseItemShares.id, dupShareIds)));
+        writes.push(db.delete(expenseItemShares).where(inIds(expenseItemShares.id, dupShareIds)));
       }
       writes.push(
         db
           .update(expenseItemShares)
           .set({ personId: callerPersonId })
           .where(
-            and(inArray(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)),
+            and(inIds(expenseItemShares.itemId, itemIds), eq(expenseItemShares.personId, placeholderId)),
           ),
       );
     }

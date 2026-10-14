@@ -1,0 +1,71 @@
+# Quality checks
+
+Use the Node ranges and pnpm version in [package.json](../package.json). The latest
+Node 22 release matches CI. `corepack pnpm` selects the pinned package manager;
+enable its shim so nested workspace calls to `pnpm` use that version too.
+
+## Complete verification
+
+```sh
+pnpm --filter @owewell/web exec playwright install chromium webkit
+pnpm run verify
+```
+
+CI installs browser system dependencies as well. Verification checks gate parity,
+module size/state, CSS variables, comments, docs, unused code, types, lint,
+formatting, the build, emitted CSS, unit/DOM behavior and real browser tasks.
+Each gate can run independently through its named root script.
+
+API tests run in the Cloudflare Worker runtime with real local D1 and the
+production migrations. The assembled-ledger scenarios each retain their seeded
+sequence and per-step zero-net assertion, with separate cases for failure reporting
+and runtime budgets. Test timeouts and accounting assertions remain unchanged.
+
+Shared-package tests cover arithmetic. Web tests cover pure presentation logic and
+DOM interactions, including drafts, sheets, sharing, stale requests and outbox
+replay. The core package contains wire types and constants; typechecking validates
+that contract.
+
+## Browser integration
+
+```sh
+pnpm run e2e
+pnpm --filter @owewell/web run e2e --grep keyboard
+```
+
+The suite starts fake auth, the real API Worker and the web server on its dedicated
+ports (auth on 34499, API on 34200 and web on 30001), with migrations applied to `.wrangler/e2e-state`. That directory is separate
+from development state. A signed-in identity belongs to each browser scenario.
+Each scenario also uses an independent local IP budget while native rate limiting
+remains active. Auth is the stand-in; the group data, API and balances are real local results.
+
+Keep these ports free and stop manual development servers before the suite. Tests
+must not reuse a server pointed at the development database or production auth.
+Failed tests retain traces; generated reports, screenshots and local Worker state
+are excluded from repository scans and Git.
+
+Journeys cover group creation, membership, expenses, payment recording, offline
+replay, recovery and signed-out calculation. Keyboard checks include sheets,
+focus return and enlarged text. Browser tests run in Chromium and WebKit. WebKit is an engine check, not a
+physical iPhone Safari check. On macOS, the keyboard journey uses
+[Apple’s Option-Tab navigation](https://support.apple.com/en-gb/guide/safari/cpsh003/mac)
+to reach clickable controls.
+
+## Visual review
+
+```sh
+pnpm run dev:web
+# In a separate terminal:
+pnpm --filter @owewell/web run capture:ui
+```
+
+The capture script intercepts API responses inside its own browser. Fixtures never
+enter D1 or ship with the app. It reviews warm/dark layouts, forms, recovery and
+narrow viewports; `OWEWELL_UI_STRESS=1` enables long names, large totals and crowded
+rosters. Review pixels as well as overflow assertions. Preserve useful evidence
+in `docs/ui-qa/` and identify the reviewed revision. `OWEWELL_UI_OUTPUT` chooses
+a separate capture directory and `OWEWELL_UI_URL` selects a running preview.
+
+A viewport resize cannot establish native phone-keyboard behavior, installed-app
+recovery, device performance or spoken screen-reader output. Those remain manual
+checks on physical devices. Explicitly report unavailable checks.

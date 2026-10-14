@@ -3,9 +3,6 @@ import { useEffect, type RefObject } from 'react';
 /*
  * What an aria-modal dialog owes a keyboard, in one place: Escape, a Tab trap, focus restored on
  * close, and the page behind locked.
- *
- * Extracted rather than copied. Two focus traps is two things to keep correct, and the second copy
- * is always the one missing a case.
  */
 export function useDialogFocus(
   ref: RefObject<HTMLElement | null>,

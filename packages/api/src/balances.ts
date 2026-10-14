@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { inIds } from './db/ids.js';
+import { and, eq, isNull } from 'drizzle-orm';
 import { computeItemizedPayers } from '@owewell/shared';
 import type { DB } from './db/client.js';
 import { expenseItems, expenseSplits, expenses, groupMembers, people, settlements } from './db/schema.js';
@@ -83,7 +84,7 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
         payerId: expenseItems.payerId,
       })
       .from(expenseItems)
-      .where(inArray(expenseItems.expenseId, itemizedIds))
+      .where(inIds(expenseItems.expenseId, itemizedIds))
       .all();
     for (const it of itemRows) {
       const arr = itemsByExpense.get(it.expenseId) ?? [];
@@ -114,7 +115,7 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
       .select({ personId: expenseSplits.personId, owedCents: expenseSplits.owedCents })
       .from(expenseSplits)
       .where(
-        inArray(
+        inIds(
           expenseSplits.expenseId,
           exps.map((e) => e.id),
         ),
@@ -163,7 +164,7 @@ export async function computeBalances(db: DB, groupId: string): Promise<MemberBa
         await db
           .select({ id: people.id, displayName: people.displayName })
           .from(people)
-          .where(inArray(people.id, strays))
+          .where(inIds(people.id, strays))
           .all()
       ).map((p) => [p.id, p.displayName] as const),
     );

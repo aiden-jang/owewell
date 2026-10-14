@@ -274,7 +274,7 @@
   --p-surface2: #222e2f;
   --p-ink: #f3f0e7;
   --p-muted: #a5b7b6;
-  --p-faint: #8ca3a1;
+  --p-faint: #98aeac;
   --p-line: #354647;
   --p-line-strong: #607977;
   --p-accent: #98cec9;
@@ -317,7 +317,7 @@
   --p-surface2: #eeeade;
   --p-ink: #243636;
   --p-muted: #5d6d69;
-  --p-faint: #697b75;
+  --p-faint: #5d6d67;
   --p-line: #dedfd4;
   --p-line-strong: #bbc8bf;
   --p-accent: #215c60;
@@ -1251,6 +1251,9 @@ input:disabled {
   padding: 22px;
   border-radius: 20px;
   box-shadow: none;
+}
+.group-card.border-dashed {
+  border-style: dashed;
 }
 .group-card > span:first-child {
   grid-column: 1;

@@ -391,3 +391,9 @@ stopped at the existing backend property timeout; the unchanged property passed 
 Keyboard and enlarged-text coverage passed separately, followed by all remaining browser
 journeys, including the signed-out calculator in both palettes. Repository test timeouts and
 assertions remain unchanged. The combined verify command did not finish green.
+
+## Complete repository and interaction review — October 14
+
+The [October 14 review](october-14/README.md) covers architecture, lifecycle fixes,
+sign-in recovery, contrast, docs, repository guards and Chromium/WebKit coverage.
+It records a successful complete verification run and its physical-device limits.

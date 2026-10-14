@@ -1,19 +1,15 @@
+import { useQuickSplitDraft } from '../lib/useQuickSplitDraft';
+import { QuickSplitResult } from '../components/QuickSplitResult';
 import { QuickSplitTip } from '../components/QuickSplitTip';
 import { SplitIntro } from '../components/SplitIntro';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Money, dollarsToCents, type Transfer } from '@owewell/shared';
+import { Money, dollarsToCents } from '@owewell/shared';
 import { useAuth } from '../auth/AuthContext';
 import { PublicHeader } from '../components/PublicHeader';
 import { serverValue } from '../lib/splitValues';
 import { computeQuickSplit } from '../lib/quickSplitResult';
-import {
-  clearQuickSplitDraft,
-  readQuickSplitDraft,
-  writeQuickSplitDraft,
-  type DraftItem,
-  type DraftPerson,
-} from '../lib/quickSplitDraft';
+import { clearQuickSplitDraft, writeQuickSplitDraft } from '../lib/quickSplitDraft';
 import { AppHeader } from '../components/AppHeader';
 import {
   clearPendingSplit,
@@ -26,209 +22,47 @@ import QuickSplitItemRow from '../components/QuickSplitItemRow';
 import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
 
-type Person = DraftPerson;
-type Item = DraftItem;
-
-function newPerson(name = ''): Person {
-  return { id: crypto.randomUUID(), name };
-}
-
-function newItem(): Item {
-  return { id: crypto.randomUUID(), description: '', amount: '', method: 'EQUAL', values: {}, payerId: '' };
-}
-
-/**
- * One dry line about the shape of the split, read off the numbers.
- *
- * Generated, not decorative: every branch is a fact the app already computed, so the line is only
- * ever true. Deliberately absent from the text you send to the group (see summaryText) — the app
- * can be funny at your bill, but a joke arriving in everyone else's chat reads as the sender being
- * funny at them. Returns null far more often than not.
- */
-function splitVerdict(
-  named: Person[],
-  shares: Record<string, number>,
-  transfers: Transfer[],
-  payerId: string,
-): string | null {
-  if (named.length < 2 || transfers.length === 0) return null;
-  const nameOf = (id: string): string => named.find((p) => p.id === id)?.name.trim() || 'Someone';
-  const values = named.map((p) => shares[p.id] ?? 0);
-  if (values.reduce((a, b) => a + b, 0) <= 0) return null;
-
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-
-  // Ordered rarest first. An earlier version led with "one person paid for everything", which is
-  // the default arrangement and therefore fired on nearly every bill — it shadowed both of the
-  // observations below and stopped reading as a remark within about three splits.
-  if (min === 0) {
-    const free = named.find((p) => (shares[p.id] ?? 0) === 0);
-    if (free) return `${free.name.trim()} owes nothing. Must be nice.`;
-  }
-  // Lopsided on purpose, not by a rounding cent: twice the smallest share and at least $5 apart.
-  if (max >= min * 2 && max - min > 500) {
-    const biggest = named.find((p) => (shares[p.id] ?? 0) === max);
-    if (biggest) return `${biggest.name.trim()} got the steak.`;
-  }
-  // One person carrying a genuine crowd. Four is the threshold where it stops being a normal
-  // dinner and starts being a favour.
-  const owedTo = new Set(transfers.map((t) => t.toUserId));
-  if (named.length >= 4 && owedTo.size === 1 && owedTo.has(payerId)) {
-    return `${nameOf(payerId)} fronted for ${named.length - 1} people. A saint, allegedly.`;
-  }
-  return null;
-}
-
 export function QuickSplitPage(): ReactNode {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [initialDraft] = useState(readQuickSplitDraft);
-  const [people, setPeople] = useState<Person[]>(initialDraft?.people ?? [newPerson('You'), newPerson('')]);
-  const [items, setItems] = useState<Item[]>(initialDraft?.items ?? [newItem()]);
-  const [payerId, setPayerId] = useState<string>(initialDraft?.payerId ?? '');
-  // Off by default: one payer for the whole bill. On: a per-item "paid by" for split tabs.
-  const [splitPayers, setSplitPayers] = useState(initialDraft?.splitPayers ?? false);
-  const [youId, setYouId] = useState<string>(initialDraft?.youId ?? '');
-  const [error, setError] = useState<string | null>(null);
+  const {
+    people,
+    items,
+    payerId,
+    setPayerId,
+    splitPayers,
+    setSplitPayers,
+    youId,
+    setYouId,
+    error,
+    setError,
+    customTip,
+    setCustomTip,
+    draftRestored,
+    startFresh,
+    updatePerson,
+    addPerson,
+    removePerson,
+    updateItem,
+    updateItemValue,
+    addItem,
+    addTip,
+    clearGeneratedTip,
+    removeItem,
+    activeTip,
+    generatedTipTotal,
+    canTryExample,
+    tryExample,
+  } = useQuickSplitDraft();
   const [saving, setSaving] = useState(false);
-  // An inline error rather than a toast: this page has no toast provider above it.
   const { status: shareStatus, share } = useShareAction(setError);
-  const [customTip, setCustomTip] = useState('');
-  const [draftRestored, setDraftRestored] = useState(initialDraft !== null);
-
-  // A bill can take a while to enter on a phone. Keep a short-lived, on-device working copy so a
-  // refresh, browser eviction, or accidental back gesture does not erase the table's progress.
-  useEffect(() => {
-    const meaningful =
-      people.length > 2 ||
-      people.some((person, index) => person.name.trim() && !(index === 0 && person.name.trim() === 'You')) ||
-      items.some((item) => item.description.trim() || item.amount.trim());
-    if (!meaningful) {
-      clearQuickSplitDraft();
-      return;
-    }
-    const timer = window.setTimeout(
-      () => writeQuickSplitDraft({ people, items, payerId, splitPayers, youId }),
-      350,
-    );
-    return () => window.clearTimeout(timer);
-  }, [people, items, payerId, splitPayers, youId]);
-
-  function startFresh(): void {
-    clearQuickSplitDraft();
-    setPeople([newPerson('You'), newPerson('')]);
-    setItems([newItem()]);
-    setPayerId('');
-    setSplitPayers(false);
-    setYouId('');
-    setCustomTip('');
-    setError(null);
-    setDraftRestored(false);
-  }
 
   // All of it in one place, and tested: see lib/quickSplitResult.ts.
   const { named, effectivePayerId, effectiveYouId, transfers, grandTotal, yourShareCents, sharesByPerson } =
     computeQuickSplit({ people, items, payerId, youId, splitPayers });
 
-  function updatePerson(id: string, patch: Partial<Person>): void {
-    setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  }
-  function addPerson(): void {
-    setPeople((prev) => [...prev, newPerson('')]);
-  }
-  function removePerson(id: string): void {
-    if (people.length <= 2) return;
-    setPeople((prev) => prev.filter((p) => p.id !== id));
-    // Drop any per-item payer pointing at the removed person so it can't linger as a dangling
-    // reference (which would silently reassign that item's payment on save).
-    setItems((prev) => prev.map((it) => (it.payerId === id ? { ...it, payerId: '' } : it)));
-  }
-
-  function updateItem(id: string, patch: Partial<Item>): void {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-  }
-  function updateItemValue(itemId: string, personId: string, value: string): void {
-    setItems((prev) =>
-      prev.map((it) => (it.id === itemId ? { ...it, values: { ...it.values, [personId]: value } } : it)),
-    );
-  }
-  function addItem(): void {
-    setItems((prev) => [...prev, newItem()]);
-  }
-  function addTip(percent: number): void {
-    if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
-      setError('Enter a tip percentage from 1 to 100.');
-      return;
-    }
-    const tipItems: Item[] = [];
-    for (const item of items) {
-      if (item.generatedTip || /\btip\b/i.test(item.description) || !item.amount.trim()) continue;
-      if (item.method === 'EXACT') {
-        setError('Add the tip manually when an item uses exact dollar amounts.');
-        return;
-      }
-      try {
-        const amountCents = dollarsToCents(item.amount);
-        if (amountCents <= 0) continue;
-        tipItems.push({
-          ...newItem(),
-          description: `${item.description.trim() || 'Bill'} tip (${percent}%)`,
-          amount: (Math.round((amountCents * percent) / 100) / 100).toFixed(2),
-          // Each tip follows the item that created it, including custom shares and who paid. That
-          // keeps a split-tab tip aligned with the food instead of silently making it equal.
-          method: item.method,
-          values: { ...item.values },
-          payerId: item.payerId,
-          generatedTip: percent,
-        });
-      } catch {
-        // Invalid amounts are already called out by the item and save validation.
-      }
-    }
-    if (tipItems.length === 0) {
-      setError('Add an item amount before calculating a tip.');
-      return;
-    }
-    setError(null);
-    // A preset is a choice, not an additive action. Switching 18 → 20 replaces the generated tip
-    // rows instead of quietly charging both percentages.
-    setItems((current) => [...current.filter((item) => !item.generatedTip), ...tipItems]);
-  }
-  function clearGeneratedTip(): void {
-    setItems((current) => current.filter((item) => !item.generatedTip));
-    setCustomTip('');
-  }
-  function removeItem(id: string): void {
-    setItems((prev) => (prev.length <= 1 ? prev : prev.filter((it) => it.id !== id)));
-  }
-
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
-  const activeTip = items.find((item) => item.generatedTip)?.generatedTip ?? null;
-  const generatedTipTotal = items.reduce((sum, item) => {
-    if (!item.generatedTip) return sum;
-    try {
-      return sum + dollarsToCents(item.amount);
-    } catch {
-      return sum;
-    }
-  }, 0);
-  // Surface the one next step that applies to the person holding the phone. The full transfer list
-  // still matters for the group chat, but making everyone scan it to learn their own move is where
-  // a simple split starts feeling like admin.
-  const yourPayment = transfers?.find((transfer) => transfer.fromUserId === effectiveYouId) ?? null;
-  const yourReceive = transfers?.find((transfer) => transfer.toUserId === effectiveYouId) ?? null;
-
-  const verdict =
-    sharesByPerson && transfers ? splitVerdict(named, sharesByPerson, transfers, effectivePayerId) : null;
-
-  /**
-   * The result as plain text, for pasting into the group chat.
-   *
-   * Deliberately joke-free. This lands in a conversation with
-   * other people in it, and a bill that arrives with a punchline attached reads as the sender being
-   * funny at everyone else's expense. The numbers are the whole payload.
-   */
+  // Shared summaries contain the amounts and names, without decorative copy.
   function summaryText(): string {
     const title = items.find((i) => i.description.trim())?.description.trim() ?? 'Split';
     const lines = [`${title} · ${Money.fromCents(grandTotal).format()}`, ''];
@@ -248,22 +82,6 @@ export function QuickSplitPage(): ReactNode {
       failureMessage: 'Couldn’t copy the split. Try again in a moment.',
       copyOnly: true,
     });
-  }
-
-  const canTryExample =
-    !draftRestored &&
-    people.length === 2 &&
-    people[0]?.name === 'You' &&
-    !people[1]?.name &&
-    items.every((item) => !item.amount && !item.description);
-  function tryExample(): void {
-    const payer = newPerson('You');
-    const guests = [payer, newPerson('Sam'), newPerson('Jo')];
-    setPeople(guests);
-    setPayerId(payer.id);
-    setYouId(payer.id);
-    setItems([{ ...newItem(), description: 'Dinner (example)', amount: '48' }]);
-    setError(null);
   }
 
   async function onSave(): Promise<void> {
@@ -348,11 +166,6 @@ export function QuickSplitPage(): ReactNode {
   return (
     <div className="flex-1">
       {user ? <AppHeader /> : <PublicHeader />}
-      {/*
-       * Two widths, the only place in the app with them: everything else is max-w-2xl end to end.
-       * This page is also a landing page, and a headline penned into 672px on a laptop reads as a
-       * centred phone screenshot. The tool itself stays at 2xl — a form doesn't get better wider.
-       */}
       <main
         id="main"
         tabIndex={-1}
@@ -519,66 +332,15 @@ export function QuickSplitPage(): ReactNode {
             )}
             {/* Only once there is an answer: the form is blank for most of the time spent here. */}
             {transfers && (
-              <section className="split-result mt-6">
-                <h2 className="text-sm font-medium text-muted">Who owes what</h2>
-                {yourShareCents !== null && (
-                  <p className="split-your-share">
-                    <span>Your share</span>
-                    <span className="font-semibold tabular-nums text-ink">
-                      {Money.fromCents(yourShareCents).format()}
-                    </span>
-                  </p>
-                )}
-                {transfers.length === 0 ? (
-                  <p className="mt-3 text-sm text-muted">All settled up. Nobody owes anybody.</p>
-                ) : (
-                  <ul className="mt-3 space-y-2">
-                    {transfers.map((t) => (
-                      <li
-                        key={`${t.fromUserId}-${t.toUserId}`}
-                        className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm ${
-                          t.fromUserId === effectiveYouId || t.toUserId === effectiveYouId
-                            ? 'border border-accent/25 bg-accent-soft'
-                            : 'surface'
-                        }`}
-                      >
-                        {/* min-w-0 so this is the item that gives when a name is long: a flex child
-                        will not shrink below its longest word without it, and one long name pushed
-                        the whole page to 659px inside a 375px phone. The amount never shrinks —
-                        it is the number everyone came for. */}
-                        <span className="min-w-0">
-                          <span className="font-medium">{nameById(t.fromUserId)}</span> owes{' '}
-                          <span className="font-medium">{nameById(t.toUserId)}</span>
-                        </span>
-                        <span className="shrink-0 pl-3 font-medium tabular-nums">
-                          {Money.fromCents(t.amountCents).format()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {yourPayment && (
-                  <p className="mt-3 rounded-xl border border-line bg-surface2/60 px-4 py-3 text-sm text-ink">
-                    <span className="text-muted">your next step</span>
-                    <br />
-                    pay <span className="font-medium">{nameById(yourPayment.toUserId)}</span>{' '}
-                    <span className="font-medium tabular-nums">
-                      {Money.fromCents(yourPayment.amountCents).format()}
-                    </span>
-                  </p>
-                )}
-                {!yourPayment && yourReceive && (
-                  <p className="mt-3 rounded-xl border border-line bg-surface2/60 px-4 py-3 text-sm text-ink">
-                    <span className="text-muted">your next step</span>
-                    <br />
-                    <span className="font-medium">{nameById(yourReceive.fromUserId)}</span> pays you{' '}
-                    <span className="font-medium tabular-nums">
-                      {Money.fromCents(yourReceive.amountCents).format()}
-                    </span>
-                  </p>
-                )}
-                {verdict && <p className="mt-2 text-sm italic text-muted">{verdict}</p>}
-              </section>
+              <QuickSplitResult
+                named={named}
+                shares={sharesByPerson}
+                transfers={transfers}
+                payerId={effectivePayerId}
+                yourId={effectiveYouId}
+                yourShareCents={yourShareCents}
+                nameById={nameById}
+              />
             )}
 
             {error && (

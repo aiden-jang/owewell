@@ -1,4 +1,5 @@
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { inIds } from './db/ids.js';
+import { and, count, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import {
   expenseItemShares,
@@ -97,7 +98,7 @@ export async function clearItemizedRows(db: DB, expenseId: string): Promise<void
     .all();
   if (itemRows.length === 0) return;
   await db.delete(expenseItemShares).where(
-    inArray(
+    inIds(
       expenseItemShares.itemId,
       itemRows.map((r) => r.id),
     ),

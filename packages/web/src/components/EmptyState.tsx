@@ -20,6 +20,7 @@ export function EmptyState({
   title,
   body,
   action,
+  titleAs = 'h2',
 }: {
   tone: 'invite' | 'problem';
   icon: IconName;
@@ -27,8 +28,10 @@ export function EmptyState({
   body?: ReactNode;
   /** A button or a link. Optional: a dead end with nothing to offer says so by offering nothing. */
   action?: ReactNode;
+  titleAs?: 'h1' | 'h2';
 }): ReactNode {
   const invite = tone === 'invite';
+  const Heading = titleAs;
   return (
     <div
       className={`empty-state rounded-3xl p-10 text-center ${invite ? 'surface' : 'border border-dashed border-line'}`}
@@ -42,7 +45,7 @@ export function EmptyState({
           <Icon name={icon} size={22} />
         </div>
       )}
-      <p className="mt-4 text-lg font-medium text-ink">{title}</p>
+      <Heading className="mt-4 text-lg font-medium text-ink">{title}</Heading>
       {body && <p className="mt-1 text-sm text-muted">{body}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>

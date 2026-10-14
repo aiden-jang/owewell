@@ -15,7 +15,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Migrations run against the local D1 before the Worker starts, in the same order production does
  * it, so a schema change that nobody applied fails here rather than after a deploy.
  */
-const AUTH_PORT = 34199;
+const AUTH_PORT = 34499;
 const API_PORT = 34200;
 const WEB_PORT = 30001;
 const STATE = '.wrangler/e2e-state';
@@ -35,12 +35,16 @@ export default defineConfig({
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+  ],
   webServer: [
     {
       command: `node e2e/fake-auth.mjs`,
+      env: { FAKE_AUTH_PORT: String(AUTH_PORT) },
       port: AUTH_PORT,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       stdout: 'ignore',
     },
     {
@@ -55,14 +59,14 @@ export default defineConfig({
         `--var AUTH_URL:http://localhost:${AUTH_PORT} --port ${API_PORT}`,
       cwd: '../api',
       port: API_PORT,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       stdout: 'ignore',
     },
     {
       command: `pnpm run dev`,
       port: WEB_PORT,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       stdout: 'ignore',
     },

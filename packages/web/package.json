@@ -14,7 +14,8 @@
     "gen:og": "node scripts/gen-og.mjs",
     "test:watch": "vitest",
     "og": "node scripts/og.mjs",
-    "dead-classes": "node scripts/dead-classes.mjs"
+    "dead-classes": "node scripts/dead-classes.mjs",
+    "capture:ui": "node scripts/capture-ui.cjs"
   },
   "dependencies": {
     "@aidenjang/auth-client": "^0.2.0",

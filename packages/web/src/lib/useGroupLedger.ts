@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useAsyncScope } from './useAsyncScope';
 import { ApiError } from './api';
 import { groupsApi, type Balance, type GroupDetail } from './groups';
 import { expensesApi, type Expense } from './expenses';
@@ -70,22 +71,51 @@ export function useGroupLedger(groupId: string): GroupLedger {
   // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
   const [loadFailed, setLoadFailed] = useState(false);
   const [pending, setPending] = useState<QueuedWrite[]>(() => queued(groupId));
-
-  const fetchAll = useCallback(async (): Promise<{ balances: Balance[]; suggested: SuggestedPayment[] }> => {
-    const [g, b, e, st, s] = await Promise.all([
-      groupsApi.get(groupId),
-      groupsApi.balances(groupId),
-      expensesApi.list(groupId),
-      settlementsApi.list(groupId),
-      settlementsApi.suggested(groupId),
-    ]);
-    setGroup(g);
-    setBalances(b);
-    setExpenses(e);
-    setSettlements(st);
-    setSuggested(s);
-    return { balances: b, suggested: s };
+  const { begin, invalidate, captureScope } = useAsyncScope(groupId);
+  const hasLoaded = useRef(false);
+  useLayoutEffect(() => {
+    hasLoaded.current = false;
+    setGroup(null);
+    setBalances([]);
+    setExpenses([]);
+    setSettlements([]);
+    setSuggested([]);
+    setNotFound(false);
+    setLoadFailed(false);
+    setPending(queued(groupId));
   }, [groupId]);
+
+  const fetchAll = useCallback(async (): Promise<{
+    balances: Balance[];
+    suggested: SuggestedPayment[];
+  } | null> => {
+    const belongs = captureScope(groupId);
+    if (!belongs()) return null;
+    const current = begin();
+    try {
+      const [g, b, e, st, s] = await Promise.all([
+        groupsApi.get(groupId),
+        groupsApi.balances(groupId),
+        expensesApi.list(groupId),
+        settlementsApi.list(groupId),
+        settlementsApi.suggested(groupId),
+      ]);
+      if (!belongs()) return null;
+      if (current()) {
+        hasLoaded.current = true;
+        setGroup(g);
+        setBalances(b);
+        setExpenses(e);
+        setSettlements(st);
+        setSuggested(s);
+      }
+      // A post-write receipt still needs its successful snapshot when realtime starts a newer read.
+      return { balances: b, suggested: s };
+    } catch (error) {
+      if (current()) throw error;
+      return null;
+    }
+  }, [groupId, begin, captureScope]);
 
   const load = useCallback(async (): Promise<void> => {
     setNotFound(false);
@@ -111,10 +141,21 @@ export function useGroupLedger(groupId: string): GroupLedger {
     try {
       return await fetchAll();
     } catch {
+      if (!hasLoaded.current) setLoadFailed(true);
       toast.error('Could not load the latest changes. Reload if the numbers look off.');
       return null;
     }
   }, [fetchAll, toast]);
+
+  const showSavedGroup = useCallback(
+    (saved: GroupDetail) => {
+      if (!captureScope(groupId)() || saved.id !== groupId) return;
+      invalidate();
+      hasLoaded.current = true;
+      setGroup(saved);
+    },
+    [captureScope, groupId, invalidate],
+  );
 
   const refreshPending = useCallback(() => setPending(queued(groupId)), [groupId]);
 
@@ -178,7 +219,7 @@ export function useGroupLedger(groupId: string): GroupLedger {
     pendingEdits,
     load,
     refreshLedger,
-    setGroup,
+    setGroup: showSavedGroup,
     showSavedExpense,
     dropExpense,
     refreshPending,

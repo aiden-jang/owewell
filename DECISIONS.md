@@ -1,7 +1,5 @@
 # Decisions and trade-offs
 
-_Moved out of the README, which is the front door and was carrying the whole house._
-
 ## Decisions worth explaining
 
 **Money is integer cents, everywhere.** Floats and money don't mix: `0.1 + 0.2` alone should end
@@ -11,7 +9,7 @@ doing that on floats would silently lose or invent money.
 
 **The split math is a pure package (`@owewell/shared`), tested without any I/O.** Even splits,
 weighted splits, itemized allocation, remainder distribution, balance netting, and the
-minimum-cash-flow settlement suggestion all live in a dependency-free package. The Worker is a thin
+greedy settlement suggestion all live in a dependency-free package. The Worker is a thin
 shell that reads D1, calls it, and writes back. The rules I most want to be _correct_ are the ones
 furthest from the network, and because the browser imports the same package, the quick-split
 preview and the saved expense cannot disagree.
@@ -105,7 +103,7 @@ never does. Old tokens still resolve, so links already in people's messages keep
 
 ## Trade-offs
 
-- **Settlement suggests, it doesn't move money.** owewell computes the fewest transfers and tags
+- **Settlement suggests, it doesn't move money.** owewell suggests a short list of transfers and tags
   the method; the actual payment happens in Venmo/cash/etc. Integrating a payments API is a whole
   different trust-and-compliance surface I deliberately stayed out of.
 - **Realtime is a "refetch" nudge, not a CRDT.** The DO broadcasts "group changed" and clients
@@ -115,7 +113,7 @@ never does. Old tokens still resolve, so links already in people's messages keep
   phone. Syncing the queue itself would need a server-side store, which is most of the way to
   building the thing the queue exists to avoid.
 - **`expense.date` is stored as UTC midnight.** It's a calendar day, not an instant, so the client
-  formats it in UTC and never builds a `Date` from the stored value. Storing a plain `YYYY-MM-DD`
+  formats it in UTC rather than shifting it to the device’s timezone. Storing a plain `YYYY-MM-DD`
   would be cleaner; it isn't worth a migration.
 - **The PWA manifest hardcodes the warm palette.** Manifests can't respond to colour scheme, so a
   dark-mode user gets a cream splash screen. Platform limit, not a decision.

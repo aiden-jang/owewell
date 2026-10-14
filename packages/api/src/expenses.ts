@@ -1,3 +1,4 @@
+import { insertRows } from './db/rows.js';
 import { changedFields, computeSplit, type SplitMethod } from '@owewell/shared';
 import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
@@ -149,7 +150,9 @@ export async function createExpense(
     note: input.note ?? null,
     clientId: input.clientId ?? null,
   });
-  await db.insert(expenseSplits).values(
+  await insertRows(
+    db,
+    expenseSplits,
     shares.map((s) => ({
       id: crypto.randomUUID(),
       expenseId: id,
@@ -255,7 +258,9 @@ export async function updateExpense(
 
   await clearItemizedRows(db, expenseId); // in case it used to be itemized
   await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await db.insert(expenseSplits).values(
+  await insertRows(
+    db,
+    expenseSplits,
     shares.map((s) => ({
       id: crypto.randomUUID(),
       expenseId,

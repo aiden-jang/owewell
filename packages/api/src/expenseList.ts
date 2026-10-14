@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { inIds } from './db/ids.js';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { expenseItemShares, expenseItems, expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 import { requireMembership } from './groups.js';
@@ -25,7 +26,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     })
     .from(expenseSplits)
     .where(
-      inArray(
+      inIds(
         expenseSplits.expenseId,
         rows.map((r) => r.id),
       ),
@@ -50,7 +51,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
     .select()
     .from(expenseRevisions)
     .where(
-      inArray(
+      inIds(
         expenseRevisions.expenseId,
         rows.map((r) => r.id),
       ),
@@ -84,7 +85,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
         payerId: expenseItems.payerId,
       })
       .from(expenseItems)
-      .where(inArray(expenseItems.expenseId, itemizedIds))
+      .where(inIds(expenseItems.expenseId, itemizedIds))
       .all();
     const sharesByItem = new Map<string, string[]>();
     if (itemRows.length > 0) {
@@ -92,7 +93,7 @@ export async function listExpenses(db: DB, personId: string, groupId: string): P
         .select({ itemId: expenseItemShares.itemId, personId: expenseItemShares.personId })
         .from(expenseItemShares)
         .where(
-          inArray(
+          inIds(
             expenseItemShares.itemId,
             itemRows.map((i) => i.id),
           ),

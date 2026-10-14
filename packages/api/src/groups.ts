@@ -1,5 +1,6 @@
+import { inIds } from './db/ids.js';
 import { computeItemizedPayers } from '@owewell/shared';
-import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { pruneOrphanPlaceholders } from './people.js';
 import {
@@ -191,7 +192,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
   const counts = await db
     .select({ groupId: groupMembers.groupId, c: count() })
     .from(groupMembers)
-    .where(inArray(groupMembers.groupId, ids))
+    .where(inIds(groupMembers.groupId, ids))
     .groupBy(groupMembers.groupId)
     .all();
   const countMap = new Map(counts.map((r) => [r.groupId, Number(r.c)]));
@@ -222,7 +223,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       date: expenses.date,
     })
     .from(expenses)
-    .where(and(inArray(expenses.groupId, ids), isNull(expenses.deletedAt)))
+    .where(and(inIds(expenses.groupId, ids), isNull(expenses.deletedAt)))
     .all();
   const groupOfExpense = new Map(exps.map((e) => [e.id, e.groupId]));
 
@@ -242,7 +243,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
         payerId: expenseItems.payerId,
       })
       .from(expenseItems)
-      .where(inArray(expenseItems.expenseId, itemizedIds))
+      .where(inIds(expenseItems.expenseId, itemizedIds))
       .all();
     for (const it of itemRows) {
       const arr = itemsByExpense.get(it.expenseId) ?? [];
@@ -275,7 +276,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       })
       .from(expenseSplits)
       .where(
-        inArray(
+        inIds(
           expenseSplits.expenseId,
           exps.map((e) => e.id),
         ),
@@ -297,7 +298,7 @@ export async function listGroups(db: DB, personId: string): Promise<GroupSummary
       createdAt: settlements.createdAt,
     })
     .from(settlements)
-    .where(inArray(settlements.groupId, ids))
+    .where(inIds(settlements.groupId, ids))
     .all();
   for (const s of setl) {
     bump(s.groupId, s.fromPersonId, s.amountCents);
@@ -360,13 +361,13 @@ export async function deleteGroup(db: DB, personId: string, groupId: string): Pr
     const items = await db
       .select({ id: expenseItems.id })
       .from(expenseItems)
-      .where(inArray(expenseItems.expenseId, expIds))
+      .where(inIds(expenseItems.expenseId, expIds))
       .all();
     const itemIds = items.map((i) => i.id);
-    if (itemIds.length) await db.delete(expenseItemShares).where(inArray(expenseItemShares.itemId, itemIds));
-    await db.delete(expenseItems).where(inArray(expenseItems.expenseId, expIds));
-    await db.delete(expenseSplits).where(inArray(expenseSplits.expenseId, expIds));
-    await db.delete(expenses).where(inArray(expenses.id, expIds));
+    if (itemIds.length) await db.delete(expenseItemShares).where(inIds(expenseItemShares.itemId, itemIds));
+    await db.delete(expenseItems).where(inIds(expenseItems.expenseId, expIds));
+    await db.delete(expenseSplits).where(inIds(expenseSplits.expenseId, expIds));
+    await db.delete(expenses).where(inIds(expenses.id, expIds));
   }
   await db.delete(settlements).where(eq(settlements.groupId, groupId));
   await db.delete(groupMembers).where(eq(groupMembers.groupId, groupId));

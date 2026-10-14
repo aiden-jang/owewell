@@ -42,7 +42,7 @@ jobs:
       # The layer nothing else sees: whether a person can get from an empty account to a correct
       # balance, in a browser, against the real Worker and a real migrated D1.
       - name: Install Playwright browser
-        run: pnpm --filter @owewell/web exec playwright install --with-deps chromium
+        run: pnpm --filter @owewell/web exec playwright install --with-deps chromium webkit
       - run: pnpm run e2e
 
   # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.

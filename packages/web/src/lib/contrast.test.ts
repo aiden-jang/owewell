@@ -30,10 +30,11 @@ const AA_LARGE = 3.0; // 18.66px+ bold or 24px+, and UI boundaries
 
 /** Every surface a given text colour actually sits on in this app. */
 const SURFACES = ['canvas', 'card', 'surface2'] as const satisfies readonly (keyof Palette)[];
+const TEXT_SURFACES = [...SURFACES, 'field', 'accentSoft'] as const;
 
 describe.each(Object.entries(THEMES))('%s theme', (_name, p) => {
   test.each(['ink', 'muted'] as const)('%s is readable on every surface', (role) => {
-    for (const surface of SURFACES) {
+    for (const surface of TEXT_SURFACES) {
       const ratio = contrast(p[role], p[surface]);
       expect(ratio, `${role} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_TEXT);
     }
@@ -59,11 +60,9 @@ describe.each(Object.entries(THEMES))('%s theme', (_name, p) => {
     }
   });
 
-  test('faint text clears the large-text bar at least', () => {
-    // `faint` is used for timestamps and secondary counts. Held to the large-text bar rather than
-    // body, and named here so nobody assumes it is safe for a paragraph.
-    for (const surface of SURFACES) {
-      expect(contrast(p.faint, p[surface])).toBeGreaterThanOrEqual(AA_LARGE);
+  test('secondary timestamps, counts and hints meet normal-text contrast', () => {
+    for (const surface of TEXT_SURFACES) {
+      expect(contrast(p.faint, p[surface])).toBeGreaterThanOrEqual(AA_TEXT);
     }
   });
 

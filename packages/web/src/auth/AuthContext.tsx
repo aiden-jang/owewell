@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAsyncScope } from '../lib/useAsyncScope';
 import { loginUrl, logoutUrl, signupUrl } from '@aidenjang/auth-client';
 import { api, AUTH_ORIGIN } from '../lib/api';
 
@@ -11,6 +12,8 @@ export interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
+  sessionError: boolean;
+  retrySession: () => Promise<void>;
   /** Send the visitor to the shared sign-in page, returning them here afterward. */
   login: (returnTo?: string) => void;
   /** Send the visitor to the shared sign-up page, returning them here afterward. */
@@ -28,22 +31,34 @@ const here = (): string => window.location.href;
 export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState(false);
+  const { begin } = useAsyncScope();
 
+  const retrySession = useCallback(async () => {
+    const current = begin();
+    setLoading(true);
+    setSessionError(false);
+    try {
+      const res = await api.get<{ user: AuthUser | null; personId?: string }>('/me');
+      if (!current()) return;
+      // Ledger membership compares app-local person IDs rather than Accounts user IDs.
+      setUser(res.user ? { ...res.user, id: res.personId ?? res.user.id } : null);
+    } catch {
+      if (current()) setSessionError(true);
+    } finally {
+      if (current()) setLoading(false);
+    }
+  }, [begin]);
   useEffect(() => {
-    api
-      .get<{ user: AuthUser | null; personId?: string }>('/me')
-      // The client compares against owewell person ids everywhere (group members,
-      // balances, payers), so expose the person id as `user.id` rather than the
-      // auth-service user id — otherwise isOwner, balances, and "you" never match.
-      .then((res) => setUser(res.user ? { ...res.user, id: res.personId ?? res.user.id } : null))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
-  }, []);
+    void retrySession();
+  }, [retrySession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
+      sessionError,
+      retrySession,
       login: (returnTo?: string) => {
         window.location.assign(loginUrl(AUTH_ORIGIN, returnTo ?? here()));
       },
@@ -55,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
       },
       accountUrl: new URL('/account', AUTH_ORIGIN).toString(),
     }),
-    [user, loading],
+    [user, loading, sessionError, retrySession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,7 +1,5 @@
-// This app's own API is served from its own origin under the /owewell prefix (callers pass
-// bare paths like "/groups"). Locally the same prefix is proxied by Vite, so dev matches prod.
-// The server also answers on /owewell, the prefix this used to use, so an older cached bundle
-// keeps working. New requests all go here.
+// Callers pass resource paths such as /groups. Both the Worker and local Vite proxy serve
+// the current /api prefix; the Worker also retains /owewell for cached clients.
 export const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 // The shared auth service (login/logout/account pages + session). Sign-in and sign-out are
 // full-page redirects here; the browser never fetches it cross-origin (identity comes from

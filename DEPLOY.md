@@ -83,16 +83,17 @@ Then open `https://owewell.aidenjang.com`, use the signed-out quick split, click
 (redirects to `accounts.aidenjang.com`, then back), create a group, add an expense, and confirm
 balances + the live activity feed.
 
-## Local dev (no Cloudflare needed)
+## Local development
 
-```bash
-# auth service (:34100) + owewell API (:34200) + owewell web (:30001)
-# auth now lives in its own repo, so run it from there:
-cd ../auth/packages/api && pnpm exec wrangler dev --port 34100 --inspector-port 9229 --local
-# owewell (this repo):
-cd packages/api && pnpm exec wrangler dev --port 34200 --inspector-port 9230 --local --var AUTH_URL:http://localhost:34100
-cd packages/web && pnpm dev
+Run the sibling Accounts service on port 34100 using its own development setup.
+From this repository root, apply migrations and start the API and web app in
+separate terminals:
+
+```sh
+pnpm --filter @owewell/api run db:migrate:local
+pnpm run dev:api
+pnpm run dev:web
 ```
 
-The `--var AUTH_URL:...` overrides the committed prod value; the web dev server proxies
+The API development script overrides the committed production auth URL; the web dev server proxies
 `/api` (including the realtime WebSocket) to `:34200`. `/owewell`, the old prefix, is proxied too.

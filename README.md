@@ -1,219 +1,93 @@
 # owewell
 
-Split a bill, see who owes who, settle up. The kind of thing you reach for at the end of a group
-dinner when nobody wants to do the math and everybody remembers it differently.
+Split bills, see who owes whom and record payments with friends.
 
-**Live:** [owewell.aidenjang.com](https://owewell.aidenjang.com)
+**[Use owewell](https://owewell.aidenjang.com)**
 
-`TypeScript` · `Hono` · `Cloudflare Workers` · `D1 + Drizzle` · `Durable Objects` · `React` · `Vite` · `Tailwind`
+![Owewell dashboard with example groups](docs/ui-qa/october-14/dashboard-warm-1440.png)
 
-> Part of a [platform of apps](https://github.com/aiden-jang/auth/blob/main/PLATFORM.md) that share one sign-in. Runs entirely on Cloudflare's free tier.
+_Dashboard preview using browser-only review fixtures._
 
----
+Built with TypeScript, React, Vite, Tailwind CSS, Hono, Cloudflare Workers,
+D1, Drizzle and Durable Objects. Part of the [shared Accounts platform](https://github.com/aiden-jang/auth/blob/main/PLATFORM.md).
 
 ## What it does
 
-- **Groups with real members and placeholders.** Add people who have accounts _and_ people who
-  don't (a placeholder is just a name). Rename or remove placeholders; a share link lets someone
-  claim their own seat and become a real member. Balances recompute whenever membership changes.
-- **Two kinds of expense.** A simple "one payer, split evenly (or by weight, percent, or exact
-  amounts)" expense, or an **itemized** one where each line goes to specific people, with its own
-  payer, plus tax and tip apportioned across the lines. Expenses can be backdated.
-- **Corrections are on the record.** Editing an expense writes a revision, so the feed can say what
-  changed and from what. Deleting is soft, and undo restores the same row down to the odd cent.
-- **Settle up, honestly.** Record payments with a method (Venmo, PayPal, Cash App, Zelle, cash),
-  including partial and manual ones, and undo one if you fat-finger it. owewell suggests the
-  **fewest transfers** that clear everyone.
-- **Works with no signal.** Writes typed offline are queued and replayed, with idempotency keys so
-  a retry doesn't become a second dinner, and version checks so a late edit can't silently erase
-  somebody else's.
-- **Quick split, no login.** A signed-out one-shot splitter for "just tell me the number."
-- **A read-only share link**, revocable, for people who aren't in the group.
-- **Live.** Everyone in a group sees expenses and payments appear in real time.
-- **Two themes**, following the device until you choose, and **archive** for groups you're done with.
+- Split a bill without an account, including unequal shares and different payers.
+- Keep groups with account holders and name-only placeholders. Share a read-only
+  view and let someone connect an existing seat to their account.
+- Add simple or itemized expenses, dates, categories and notes. Edits retain
+  revision history; soft deletion supports undo.
+- Suggest settlement transfers and record partial, manual or over payments.
+  owewell records payments; it does not send money.
+- Queue supported changes offline with idempotency and edit-conflict handling.
+  Queued changes remain visibly separate from confirmed balances.
+- Follow live group changes, archive groups and choose warm or dark appearance.
 
-## Architecture
+Money uses integer cents. The server computes and validates saved expense shares;
+settlement suggestions use a greedy algorithm, without promising a mathematical
+minimum. See [Decisions](DECISIONS.md) for the constraints behind these choices.
 
-```
-                Browser (React + Vite + Tailwind)
-        ┌──────────────────────────────────────────────┐
-        │  Dashboard · GroupDetail · QuickSplit · /s/:token │
-        │        │ fetch /api/*            ▲ live        │
-        │        │                          │            │
-        │   localStorage outbox ────────────┘ WebSocket  │
-        └────────┼──────────────────────────────────────┘
-                 │
-        ╔════════▼════════════════════════════════════════╗
-        ║   owewell Worker (Hono): one origin              ║
-        ║   /api/*  API        +   app.all('*') → SPA      ║
-        ║      │                                           ║
-        ║      ├─ resolveSession  → accounts.aidenjang      ║  (optional; quick split is anonymous)
-        ║      ├─ D1 + Drizzle   the ledger                ║
-        ║      ├─ @owewell/shared  pure money/split math   ║
-        ║      └─ GroupRoom (Durable Object) realtime      ║
-        ╚══════════════════════════════════════════════════╝
+## Run locally
+
+Use the latest Node 22 release, at least 22.22.2, and the pnpm version pinned in
+[package.json](package.json). The supported Node ranges match the DOM test runtime. Bare `pnpm` must also
+resolve to the pinned version because workspace scripts call it.
+
+```sh
+corepack enable pnpm
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @owewell/api run db:migrate:local
 ```
 
-Four packages, and the split between the middle two is the one worth knowing:
+Start these in separate terminals from the repository root:
 
-| package           | what's in it                                             | why separate                                                                                                                              |
-| ----------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `@owewell/api`    | Hono Worker, Drizzle queries, the `GroupRoom` DO         | the only thing that touches I/O                                                                                                           |
-| `@owewell/web`    | React SPA                                                |                                                                                                                                           |
-| `@owewell/shared` | `Money`, `allocateCents`, split methods, `simplifyDebts` | pure and dependency-free, so it can be tested without a network or a database, and the browser and the Worker run **the same** arithmetic |
-| `@owewell/core`   | wire types, payment methods, expense categories          | shared vocabulary with no behaviour, so neither side can drift on the shape of a payload                                                  |
-
-## Project layout
-
-```
-packages/
-  api/       owewell Worker (Hono)
-    src/index.ts        routes: /api/* API (+ /owewell alias) + SPA fallback; harden()
-    src/groups.ts       groups and membership
-    src/sharing.ts      the share link, and claiming a spot through one
-    src/members.ts      real accounts + placeholders, seat claiming
-    src/expenses.ts     writing a plain expense, and revisions
-    src/itemizedExpenses.ts  writing a receipt: per-item people, payers, tax and tip
-    src/expenseGuards.ts  the checks every expense write runs first
-    src/expenseList.ts  assembling the tab
-    src/balances.ts     reading the ledger: who is up, who is down
-    src/settlements.ts  payments (methods, partial/manual) + min-cash-flow suggestions
-    src/quicksplit.ts   anonymous one-shot split
-    src/realtime.ts     GroupRoom Durable Object, live fan-out
-    src/harden.ts       security headers + same-origin CSRF guard
-    src/rateLimit.ts    per-IP limiting middleware
-    src/shareToken.ts   share-link tokens (short, and the legacy shape)
-    src/db/             Drizzle schema + client; migrations/ alongside
-  web/       React + Vite + Tailwind SPA
-    src/pages/          Dashboard, GroupDetail, QuickSplit, SharedGroup
-    src/lib/            outbox, ledger hook, palettes, money formatting, CSV
-  shared/    pure money/split math (@owewell/shared)
-  core/      wire types, payment methods, categories (@owewell/core)
+```sh
+corepack pnpm run dev:api
+corepack pnpm run dev:web
 ```
 
-Nine D1 tables: `people`, `groups`, `group_members`, `expenses`, `expense_revisions`,
-`expense_splits`, `expense_items`, `expense_item_shares`, `settlements`.
+The web app runs at `http://localhost:30001`; its API proxy reaches the local
+Worker at `http://localhost:34200`. The development API and web sign-in use the
+local Accounts service at `http://localhost:34100`. Run that sibling service for
+manual sign-in, or use the isolated browser tests below, which supply fake auth.
 
-## Running locally
+## Verify
 
-Requires **Node 22** (repo `.nvmrc`) and pnpm.
-
-```bash
-pnpm install
-
-# API Worker on :34200 (Hono + local D1/DO via Miniflare). The dev script points AUTH_URL at the
-# local auth service (:34100), so a local login is validated there (not production). Run auth too.
-pnpm --filter @owewell/api dev
-
-# web SPA (proxies /owewell to the Worker) - http://localhost:30001
-pnpm --filter @owewell/web dev
+```sh
+corepack pnpm --filter @owewell/web exec playwright install chromium webkit
+corepack pnpm run verify
 ```
 
-Apply D1 migrations locally with `pnpm --filter @owewell/api db:migrate:local`.
+Verification runs the repository guards, unused-code analysis, types, lint,
+formatting, production build, generated-CSS checks, unit/DOM tests and browser
+journeys. CI runs the same gates in the same order. Browser tests use a separate
+local D1 directory and fake auth; they do not use production data.
 
-`pnpm run verify` is the whole gate, and its last step drives a real browser. That needs Chromium
-downloaded once:
+[Quality checks](docs/quality.md) describes focused runs, browser setup, review
+fixtures and checks that require a physical device.
 
-```bash
-pnpm --filter @owewell/web exec playwright install chromium
-```
+## Repository
 
-Without it `verify` gets all the way to the browser suite before failing, which is a slow way to
-find out. The suite starts its own Worker against its own database (`.wrangler/e2e-state`), so it
-neither needs `dev:api` running nor touches what you have been developing against.
+| Package           | Responsibility                                                              |
+| ----------------- | --------------------------------------------------------------------------- |
+| `packages/web`    | React interface, recovery drafts, offline outbox and API client             |
+| `packages/api`    | Authenticated Worker routes, ledger services, D1 and realtime notifications |
+| `packages/shared` | Dependency-free money, allocation and settlement arithmetic                 |
+| `packages/core`   | Wire types, payment methods and expense categories                          |
 
-See [DEPLOY.md](DEPLOY.md) for the production runbook, including the optional extras that are built
-but not switched on.
+- [Architecture](docs/architecture.md): runtime boundaries, data flow and module ownership.
+- [Contributing](CONTRIBUTING.md): development, review and commit conventions.
+- [Repository conventions](CONVENTIONS.md): engineering rules and ledger invariants.
+- [Design](DESIGN.md): interface and accessibility decisions.
+- [Deployment runbook](DEPLOY.md): the existing merge-to-main workflow and database operations.
+- [Visual review evidence](docs/ui-qa/README.md): historical captures and their verification limits.
 
-## Data & database access
-
-owewell's data lives in **Cloudflare D1** (SQLite), reached through **Drizzle** (schema in
-`api/src/db/schema.ts`: `people`, `groups`, `group_members`, `expenses`, `expense_splits`,
-`expense_items`, `expense_item_shares`, `settlements`, `invites`). Realtime state is _not_ in D1;
-it stays in the in-memory `GroupRoom` Durable Object. Identity (users and sessions) is a separate
-D1 owned by the auth service, not this one.
-
-**Local.** `wrangler dev` uses a Miniflare-managed SQLite file under `api/.wrangler/state`, created
-on first run and seeded by the local migrations. Inspect or edit it:
-
-```bash
-pnpm --filter @owewell/api exec wrangler d1 execute owewell --local \
-  --command "SELECT id, name FROM groups LIMIT 5"
-pnpm --filter @owewell/api exec wrangler d1 migrations apply owewell --local   # or: db:migrate:local
-```
-
-**Production.** The real D1. Same command with `--remote` (this is live user data, so keep it
-read-only unless you mean it):
-
-```bash
-pnpm --filter @owewell/api exec wrangler d1 execute owewell --remote \
-  --command "SELECT count(*) AS expenses FROM expenses"
-pnpm --filter @owewell/api exec wrangler d1 migrations apply owewell --remote
-```
-
-Or use the Cloudflare dashboard: **Workers & Pages → D1 → owewell → Console** for an ad-hoc query UI.
-
-**Changing the schema:** edit `api/src/db/schema.ts`, run `pnpm --filter @owewell/api db:generate`
-(Drizzle writes a new file into `migrations/`), then apply it locally and, on deploy, remotely.
-
-## Tests
-
-```bash
-pnpm -r test    # every suite: api, web, shared
-```
-
-Three registers, deliberately:
-
-- **`shared`**: the arithmetic, with no I/O at all. Splits, remainders, netting, settlement.
-- **`api`**: real routes against a real local D1 via `@cloudflare/vitest-pool-workers`, so the
-  Drizzle queries and the migrations are exercised rather than mocked.
-- **`web`**: mostly behaviour rather than markup. The outbox drain, the focus trap, the session's
-  person-id remapping, the forms' reconciliation guards, the realtime socket's reconnect.
-
-Four things the suite does that are worth copying:
-
-**Authorisation is tested as a property, not per route.** Authentication is middleware and covers
-everything; authorisation is a hand-written `requireMembership(...)` inside each of 26 service
-functions, so a new one that forgets it compiles, lints, and passes every other test. One suite
-walks every mutation and every group read as a signed-in stranger and asserts each is refused,
-including that the refusal is identical for a group that does not exist, so ids stay unguessable.
-The same checks are asserted on the _edit_ paths, not just create: an edit rewrites money already
-in the ledger.
-
-**It asserts the palette against the stylesheet.** `contrast.test.ts` parses `index.css` and checks
-every colour matches its TypeScript copy, then measures the contrast ratios. A colour regression is
-otherwise invisible until somebody complains.
-
-**It is pinned to `America/New_York`.** An expense's date is a calendar day stored at UTC midnight,
-so every bug in handling it is invisible from UTC, and CI runs in UTC. Pinning one zone means the
-date tests assert the same thing everywhere, and the zone they assert in is one real users are in.
-
-**Every API test starts from the production schema.** `test/apply-migrations.ts` runs the same
-migrations wrangler applies, so a query is checked against the columns that actually exist rather
-than a hand-written fixture of them.
-
-**And one journey runs in a browser.** `packages/web/e2e` drives the real Worker against a real
-local D1: sign in, make a group, add somebody, add an expense, read the balance it produces. Only
-the auth service is a stand-in, because the session is checked server-side and there is no seam in
-the browser to intercept it. It is the only layer that knows whether a person can actually get from
-an empty account to a number they would act on.
-
-`pnpm run verify` is the whole gate and CI runs the same list: `gates`, `size`, `comments`,
-`check:docs`, typecheck, lint, `format:check`, build, `dead-classes`, unit tests, then the browser
-journey.
-`dead-classes` diffs the class names in the source against the CSS the build actually emitted: a
-Tailwind class that never gets generated produces no CSS and no error, and it once caught a
-`@custom-variant` shorthand that silently deleted all 114 hover styles while typecheck, lint and the
-whole suite stayed green. It runs after `build` because it needs the emitted stylesheet.
-
-## Observability
-
-- **Errors + requests:** Workers Logs is enabled (`[observability]` in `wrangler.toml`), so uncaught
-  throws and handled errors (via `app.onError`) are captured. Tail live with
-  `pnpm --filter @owewell/api exec wrangler tail`.
-- **Uptime:** `GET /health` returns `{ status: 'ok' }`, ready for a free external monitor (e.g.
-  UptimeRobot).
+The committed [schema](packages/api/src/db/schema.ts) and
+[migrations](packages/api/migrations/README.md) define the database. Apply local
+migrations before developing against a changed schema. Authentication has its own
+database in the Accounts service; realtime rooms notify clients to refetch D1.
 
 ## License
 
-[MIT](LICENSE) © Aiden Jang
+[MIT](LICENSE) © Aiden Jang. Font assets retain their included licenses.

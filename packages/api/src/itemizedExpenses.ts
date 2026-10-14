@@ -1,3 +1,4 @@
+import { insertRows } from './db/rows.js';
 import { computeItemizedSplit } from '@owewell/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
@@ -73,7 +74,9 @@ export async function createItemizedExpense(
     note: input.note ?? null,
     clientId: input.clientId ?? null,
   });
-  await db.insert(expenseSplits).values(
+  await insertRows(
+    db,
+    expenseSplits,
     shares.map((s) => ({
       id: crypto.randomUUID(),
       expenseId: id,
@@ -90,9 +93,11 @@ export async function createItemizedExpense(
       amountCents: item.amountCents,
       payerId: item.payerId ?? null,
     });
-    await db
-      .insert(expenseItemShares)
-      .values(item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })));
+    await insertRows(
+      db,
+      expenseItemShares,
+      item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
+    );
   }
   return {
     id,
@@ -168,11 +173,11 @@ export async function updateItemizedExpense(
     .where(eq(expenses.id, expenseId));
   await clearItemizedRows(db, expenseId);
   await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await db
-    .insert(expenseSplits)
-    .values(
-      shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-    );
+  await insertRows(
+    db,
+    expenseSplits,
+    shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
+  );
   for (const item of input.items) {
     const itemId = crypto.randomUUID();
     await db.insert(expenseItems).values({
@@ -182,9 +187,11 @@ export async function updateItemizedExpense(
       amountCents: item.amountCents,
       payerId: item.payerId ?? null,
     });
-    await db
-      .insert(expenseItemShares)
-      .values(item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })));
+    await insertRows(
+      db,
+      expenseItemShares,
+      item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
+    );
   }
   return {
     id: expenseId,

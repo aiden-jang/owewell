@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 /*
  * One person's path through owewell, in a real browser against the real Worker and a real D1.

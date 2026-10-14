@@ -4,8 +4,8 @@ import type { Env, RateLimiter } from './env.js';
 /**
  * Per-IP rate limiting, keyed on Cloudflare's own client-IP header.
  *
- * Degrades OPEN when the binding is missing, which is the case under local `wrangler dev` and in
- * the test worker. A limiter that closed instead would make the whole API unusable offline, and
+ * Degrades open when the binding or client-IP header is absent. Local Wrangler may supply
+ * the native binding; integration tests retain it with independent caller IPs. A limiter that closed instead would make the whole API unusable offline, and
  * the failure would look like a bug in whatever you were building at the time.
  *
  * `message` is the field the web client shows; without it a 429 surfaces as "Request failed (429)".

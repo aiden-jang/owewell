@@ -8,7 +8,7 @@
     "dev": "wrangler dev --var AUTH_URL:http://localhost:34100",
     "deploy": "pnpm --filter @owewell/web build && wrangler d1 migrations apply owewell --remote && wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply owewell --local"
   },
   "dependencies": {
