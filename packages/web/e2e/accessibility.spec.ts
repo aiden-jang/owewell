@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from './fixtures';
+import { expectNoHorizontalOverflow, expect, test, type Locator, type Page } from './fixtures';
 
 async function tabTo(page: Page, target: Locator): Promise<void> {
   await expect(target).toBeVisible();
@@ -22,6 +22,11 @@ test('a complete group task works with keyboard controls and enlarged text', asy
   await page
     .context()
     .addCookies([{ name: 'platform_session', value: 'e2e-a11y', domain: 'localhost', path: '/' }]);
+  // Keep the switcher in this layout even when the scenario runs on a fresh database.
+  const earlierGroup = await page.request.post('/api/groups', {
+    data: { name: `Earlier keyboard group ${Date.now()}` },
+  });
+  expect(earlierGroup.ok()).toBe(true);
   await page.goto('/');
   await activate(page, page.getByRole('button', { name: 'New', exact: true }));
   await expect(page.getByRole('textbox', { name: 'Group name' })).toBeFocused();
@@ -30,6 +35,7 @@ test('a complete group task works with keyboard controls and enlarged text', asy
   await activate(page, page.getByRole('button', { name: 'Create', exact: true }));
   await activate(page, page.getByRole('link').filter({ hasText: name }));
   await expect(page.getByRole('heading', { name })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Switch group', exact: true })).toBeVisible();
   const options = page.getByRole('button', { name: 'Group options', exact: true });
   await activate(page, options);
   await expect(page.getByRole('menuitem', { name: 'Members', exact: true })).toBeFocused();
@@ -83,7 +89,7 @@ test('a complete group task works with keyboard controls and enlarged text', asy
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
   for (const width of [1280, 640]) {
     await page.setViewportSize({ width, height: 900 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expectNoHorizontalOverflow(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     if (process.env.UI_A11Y_CAPTURE)
       await page.screenshot({

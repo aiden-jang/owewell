@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { expectNoHorizontalOverflow, expect, test, type Page } from './fixtures';
 
 /*
  * One person's path through owewell, in a real browser against the real Worker and a real D1.
@@ -95,8 +95,13 @@ test.describe('from an empty account to a balance', () => {
 
 test('group settings remain usable with long names and dark mode', async ({ page }) => {
   await signIn(page);
+  const earlierGroup = await page.request.post('/api/groups', {
+    data: { name: `Earlier settings group ${Date.now()}` },
+  });
+  expect(earlierGroup.ok()).toBe(true);
   const name = `A long weekend with friends, dinners and questionable plans ${Date.now()}`;
   await newGroup(page, name);
+  await expect(page.getByRole('combobox', { name: 'Switch group', exact: true })).toBeVisible();
   if (process.env.UI_CONSISTENCY_CAPTURE) {
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
@@ -154,7 +159,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
         animations: 'disabled',
       });
     }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expectNoHorizontalOverflow(page);
     await page.getByRole('button', { name: 'Close', exact: true }).first().click();
   }
   await page.getByRole('button', { name: 'Add expense', exact: true }).first().click();
@@ -171,7 +176,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
   await expect(page.locator('.toast')).toHaveCount(0);
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expectNoHorizontalOverflow(page);
     if (process.env.UI_CONSISTENCY_CAPTURE) {
       await page.screenshot({
         path: `../../docs/ui-qa/expense-long-dark-${width}.png`,
@@ -190,7 +195,7 @@ test('the signed-out calculator keeps both palettes usable', async ({ page }) =>
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.evaluate(() => window.scrollTo(0, 0));
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expectNoHorizontalOverflow(page);
       if (process.env.UI_PALETTE_CAPTURE) {
         await page.screenshot({
           path: `../../docs/ui-qa/landing-teal-${theme.toLowerCase()}-${width}.png`,

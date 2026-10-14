@@ -1,13 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type Ref,
-} from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useDialogFocus } from '../lib/useDialogFocus';
 
 interface ConfirmOptions {
@@ -56,16 +47,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
   const cancel = useCallback(() => settle(false), [settle]);
   useDialogFocus(dialogRef, pending !== null, cancel, () => confirmRef.current);
 
-  // Enter confirms. Escape is handled by the hook above, along with everything else it owns.
-  useEffect(() => {
-    if (!pending) return;
-    function onKey(event: KeyboardEvent): void {
-      if (event.key === 'Enter') settle(true);
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [pending, settle]);
-
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
@@ -73,7 +54,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
         <div
           className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
           role="presentation"
-          onClick={() => settle(false)}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) settle(false);
+          }}
         >
           {/* The dialog is the panel, not the backdrop: a trap that includes the backdrop would
               have nothing to trap against, and aria-modal belongs on the thing being modal. */}
@@ -83,11 +66,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
             aria-modal="true"
             aria-label={pending.title}
             tabIndex={-1}
-            /* Enters the way a sheet does: up from the bottom on a phone, centred on a wider
-               screen. Centring at every size puts a destructive confirm's buttons furthest from a
-               thumb. */
-            className="animate-sheet surface w-full rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
-            onClick={(e) => e.stopPropagation()}
+            /* Fade in without moving the answer while somebody is trying to press it. */
+            className="animate-fade surface w-full rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
           >
             <h2 className="font-display text-xl font-semibold tracking-tight">{pending.title}</h2>
             {pending.body && <p className="mt-2 text-sm text-muted">{pending.body}</p>}

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { QuickSplitPage } from './QuickSplitPage';
 
 /**
  * Splitting a bill without an account, which is the page that does arithmetic in public.
@@ -30,7 +31,6 @@ vi.mock('../lib/quicksplit', () => ({
 }));
 
 async function open() {
-  const { QuickSplitPage } = await import('./QuickSplitPage');
   render(
     <MemoryRouter>
       <QuickSplitPage />

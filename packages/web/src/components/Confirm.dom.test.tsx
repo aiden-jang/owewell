@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -13,12 +14,17 @@ import { ConfirmProvider, useConfirm } from './Confirm';
 
 function Harness(): React.ReactNode {
   const confirm = useConfirm();
+  const [answer, setAnswer] = useState<boolean | null>(null);
   return (
     <>
-      <button type="button" onClick={() => void confirm({ title: 'Delete group?', body: 'Gone for good.' })}>
+      <button
+        type="button"
+        onClick={() => void confirm({ title: 'Delete group?', body: 'Gone for good.' }).then(setAnswer)}
+      >
         Open
       </button>
       <button type="button">Behind the dialog</button>
+      {answer !== null && <p role="status">{answer ? 'Confirmed' : 'Cancelled'}</p>}
     </>
   );
 }
@@ -74,19 +80,36 @@ describe('the confirm dialog', () => {
     expect(screen.getByRole('button', { name: 'Open' })).toHaveFocus();
   });
 
-  it('DEBUG enter', async () => {
+  it('confirms with Enter', async () => {
     const user = await open();
-    // eslint-disable-next-line no-console
-    console.log('focus before enter:', (document.activeElement as HTMLElement)?.textContent);
-    let sawWindowKeydown = false;
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sawWindowKeydown = true;
-    });
     await user.keyboard('{Enter}');
-    // eslint-disable-next-line no-console
-    console.log('window saw Enter keydown:', sawWindowKeydown);
-    // eslint-disable-next-line no-console
-    console.log('dialog after enter:', !!screen.queryByRole('dialog'));
-    expect(true).toBe(true);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('Confirmed');
+  });
+
+  it('cancels with Enter when Cancel has focus', async () => {
+    const user = await open();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('Cancelled');
+  });
+
+  it('does not dismiss when a press starts inside and ends on the backdrop', async () => {
+    const user = await open();
+    const dialog = screen.getByRole('dialog');
+    const backdrop = dialog.parentElement!;
+    await user.pointer([
+      { target: screen.getByRole('button', { name: 'Confirm' }), keys: '[MouseLeft>]' },
+      { target: backdrop, keys: '[/MouseLeft]' },
+    ]);
+    expect(dialog).toBeInTheDocument();
+  });
+
+  it('dismisses when a press starts on the backdrop', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('dialog').parentElement!);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
