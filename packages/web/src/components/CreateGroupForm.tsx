@@ -20,7 +20,7 @@ export function CreateGroupForm({
   onSubmit,
 }: Props) {
   return (
-    <form onSubmit={onSubmit} className="mt-3">
+    <form id="create-group-form" onSubmit={onSubmit} className="mt-3">
       <div className="flex gap-2">
         <input
           autoFocus

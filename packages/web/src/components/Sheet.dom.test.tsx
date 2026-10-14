@@ -51,12 +51,17 @@ describe('unfinished forms', () => {
     const user = userEvent.setup();
     open({ protectChanges: true, onClose: close });
     await user.type(screen.getByLabelText('Add someone by name'), 'Dinner');
+    const content = screen.getByLabelText('Add someone by name').parentElement!;
+    content.scrollTop = 400;
     await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(content.scrollTop).toBe(0);
     expect(close).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Keep editing' })).toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Keep editing' }));
     expect(screen.getByLabelText('Add someone by name')).toHaveValue('Dinner');
+    content.scrollTop = 400;
     await user.keyboard('{Escape}');
+    expect(content.scrollTop).toBe(0);
     await user.click(screen.getByRole('button', { name: 'Discard changes' }));
     expect(close).toHaveBeenCalledTimes(1);
   });

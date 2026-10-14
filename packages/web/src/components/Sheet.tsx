@@ -26,6 +26,7 @@ export function Sheet({
   protectChanges?: boolean;
 }): ReactNode {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const dirtyRef = useRef(false);
@@ -53,7 +54,9 @@ export function Sheet({
     return () => window.removeEventListener('beforeunload', warn);
   }, [open, dirty]);
   useEffect(() => {
-    if (asking) keepRef.current?.focus();
+    if (!asking) return;
+    keepRef.current?.focus({ preventScroll: true });
+    if (contentRef.current) contentRef.current.scrollTop = 0;
   }, [asking]);
   const requestClose = useCallback((): void => {
     if (dirtyRef.current && dialogRef.current?.querySelector('button[type="submit"]:disabled')) return;
@@ -115,7 +118,10 @@ export function Sheet({
             <Icon name="x" size={18} />
           </button>
         </div>
-        <div className="sheet-content overflow-y-auto px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+        <div
+          ref={contentRef}
+          className="sheet-content overflow-y-auto px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+        >
           {asking && (
             <section role="alert" className="mb-5 rounded-2xl border border-line-strong bg-surface2 p-4">
               <h3 className="font-semibold">Discard unsaved changes?</h3>

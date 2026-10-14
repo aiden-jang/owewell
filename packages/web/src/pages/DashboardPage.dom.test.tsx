@@ -161,14 +161,17 @@ describe('New and Select are one at a time', () => {
     await user.click(screen.getByRole('button', { name: /cancel/i }));
     await user.click(screen.getByRole('button', { name: /new/i }));
     expect(screen.getByRole('textbox')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });
 
-  test('New toggles itself shut on a second click', async () => {
+  test('Cancel closes the new-group form and clears its draft', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /new/i }));
-    await user.click(screen.getByRole('button', { name: /new/i }));
+    await user.type(screen.getByRole('textbox'), 'Ski trip');
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /new/i }));
+    expect(screen.getByRole('textbox')).toHaveValue('');
   });
 });
 

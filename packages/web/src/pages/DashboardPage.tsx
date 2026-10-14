@@ -249,9 +249,12 @@ export function DashboardPage(): ReactNode {
                 <button
                   type="button"
                   onClick={() => (creatingOpen ? closeCreate() : openCreate())}
+                  aria-expanded={creatingOpen}
+                  aria-controls={creatingOpen ? 'create-group-form' : undefined}
                   className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
                 >
-                  <Icon name="plus" size={16} /> New
+                  <Icon name={creatingOpen ? 'x' : 'plus'} size={16} />
+                  {creatingOpen ? 'Cancel' : 'New'}
                 </button>
               </>
             )}

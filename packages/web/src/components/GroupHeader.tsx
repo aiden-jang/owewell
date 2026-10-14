@@ -94,14 +94,14 @@ export function GroupHeader({
         </Link>
         {groups.length > 1 && groups.some((g) => g.id === groupId) && (
           // WebKit's native selected label can overflow even when the select's box fits.
-          <div className="min-w-0 max-w-[55%] overflow-hidden rounded-full">
+          <div className="relative min-w-0 max-w-[55%] overflow-hidden rounded-full border border-line bg-field transition focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
             <select
               value={groupId}
               onChange={(e) => {
                 if (e.target.value !== groupId) onSwitchGroup(e.target.value);
               }}
               aria-label="Switch group"
-              className="block w-full min-w-0 truncate rounded-full border border-line bg-field px-3 py-1.5 text-sm text-muted outline-none transition hover:text-ink focus:border-accent"
+              className="block w-full min-w-0 appearance-none truncate border-0 bg-transparent py-1.5 pl-3 pr-8 text-sm text-muted outline-none transition hover:text-ink"
             >
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -109,6 +109,11 @@ export function GroupHeader({
                 </option>
               ))}
             </select>
+            <Icon
+              name="chevron-right"
+              size={14}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-muted"
+            />
           </div>
         )}
       </div>
