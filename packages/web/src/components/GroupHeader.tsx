@@ -148,8 +148,8 @@ export function GroupHeader({
         </form>
       ) : (
         <div className="mt-3 flex items-start justify-between gap-3">
-          <h1 className="flex min-w-0 flex-wrap items-center gap-2 font-display text-3xl font-semibold tracking-tight">
-            <span className="break-words [overflow-wrap:anywhere]">{groupName}</span>
+          <h1 className="flex min-w-0 flex-1 flex-wrap items-center gap-2 font-display text-3xl font-semibold tracking-tight">
+            <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]">{groupName}</span>
             {archived && (
               <span className="shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-muted">
                 archived

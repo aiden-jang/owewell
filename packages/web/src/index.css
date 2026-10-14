@@ -366,7 +366,8 @@
 @keyframes sheet-in {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.99);
+    /* Keep 44px touch targets full-sized throughout the entrance. */
+    transform: translateY(16px);
   }
   to {
     opacity: 1;

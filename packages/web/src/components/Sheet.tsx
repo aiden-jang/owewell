@@ -102,7 +102,7 @@ export function Sheet({
         aria-label={title}
         tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
-        className="sheet-dialog animate-sheet surface flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-b-0 sm:mx-4 sm:max-w-lg sm:rounded-3xl sm:border-b"
+        className="sheet-dialog animate-sheet surface flex min-w-0 max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-b-0 sm:mx-4 sm:max-w-[min(32rem,calc(100%-2rem))] sm:rounded-3xl sm:border-b"
       >
         <div className="sheet-header flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
