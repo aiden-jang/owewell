@@ -24,6 +24,7 @@ export function GroupHeader({
   onDelete,
   onInvite,
   onExport,
+  onPrint,
   onOpenMembers,
 }: {
   groupId: string;
@@ -38,6 +39,7 @@ export function GroupHeader({
   onDelete: () => Promise<void>;
   onInvite: () => void;
   onExport: () => void;
+  onPrint: () => void;
   /** Who is in the group is roster management, so it lives here rather than beside the spending. */
   onOpenMembers: () => void;
 }): ReactNode {
@@ -234,6 +236,14 @@ export function GroupHeader({
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
                   >
                     <Icon name="receipt" size={15} /> Export activity
+                  </button>
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={runAndClose(onPrint)}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition hover:bg-surface2"
+                  >
+                    <Icon name="receipt" size={15} /> Print recap / Save PDF
                   </button>
                   {isOwner && (
                     <button

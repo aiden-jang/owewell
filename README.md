@@ -91,3 +91,12 @@ database in the Accounts service; realtime rooms notify clients to refetch D1.
 ## License
 
 [MIT](LICENSE) © Aiden Jang. Font assets retain their included licenses.
+
+Group options include **Print recap / Save PDF**. The paper layout contains saved
+expenses, recorded payments, and server-provided balances. A waiting-to-save notice
+keeps queued changes distinct from saved records. The browser print dialog handles
+paper or PDF. Group names also identify their browser tabs.
+
+The app manifest offers **Split a bill** and includes current phone and desktop
+captures in `packages/web/public/screenshots/`. They use the public $48 example,
+not a personal group. Recapture the public splitter when its layout changes.

@@ -1,3 +1,5 @@
+import { PrintRecap } from '../components/PrintRecap';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { GroupShell, GroupLoadingState } from '../components/GroupShell';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ExpenseEditorSheets } from '../components/ExpenseEditorSheets';
@@ -55,6 +57,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
     refreshPending,
     pendingCount,
   } = ledger;
+  usePageTitle(group?.name ?? 'Opening group');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   // All the viewer's groups, for the header switcher. Fetched once; the list rarely changes.
@@ -139,6 +142,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
 
   return (
     <GroupShell>
+      <PrintRecap ledger={ledger} />
       <GroupHeader
         groupId={id}
         groupName={group.name}
@@ -151,6 +155,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         onDelete={deleteGroup}
         onInvite={() => void invite.reveal()}
         onExport={exportActivity}
+        onPrint={() => window.print()}
         onOpenMembers={() => setMembersOpen(true)}
       />
 

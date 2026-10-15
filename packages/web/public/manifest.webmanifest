@@ -31,5 +31,36 @@
       "sizes": "any",
       "type": "image/svg+xml"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Split a bill",
+      "short_name": "Split a bill",
+      "description": "Open the quick bill splitter.",
+      "url": "/split",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/app-desktop.png",
+      "sizes": "1425x891",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "owewell on desktop."
+    },
+    {
+      "src": "/screenshots/app-mobile.png",
+      "sizes": "375x806",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "owewell on a phone."
+    }
   ]
 }

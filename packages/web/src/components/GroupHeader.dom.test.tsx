@@ -34,6 +34,7 @@ const handlers = {
   onDelete: vi.fn<() => Promise<void>>(),
   onInvite: vi.fn(),
   onExport: vi.fn(),
+  onPrint: vi.fn(),
   onOpenMembers: vi.fn(),
 };
 

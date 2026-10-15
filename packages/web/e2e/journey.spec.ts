@@ -62,6 +62,33 @@ test.describe('from an empty account to a balance', () => {
     // --- the split it produces ------------------------------------------------------------
     // Forty dollars, paid by Robin, split two ways: Sam owes twenty and the group says so.
     await expect(page.getByText('Dinner', { exact: true }).first()).toBeVisible();
+    await expect(page).toHaveTitle(`${groupName} · owewell`);
+    await page.evaluate(() => {
+      window.print = () => {
+        document.documentElement.dataset.printRequested = 'yes';
+      };
+    });
+    await page.getByRole('button', { name: 'Group options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Print recap / Save PDF' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-print-requested', 'yes');
+    await page.emulateMedia({ media: 'print' });
+    const print = page.getByRole('article', { name: 'Printable group recap' });
+    await expect(print).toBeVisible();
+    await expect(page.locator('.app-header')).toBeHidden();
+    await expect(print.getByRole('heading', { name: groupName })).toBeVisible();
+    await expect(print.getByRole('row', { name: 'Sam Owes $20.00' })).toBeVisible();
+    await expect(print.getByText('Dinner', { exact: false })).toBeVisible();
+    await expect(print.getByText('No payments recorded.')).toBeVisible();
+    if (process.env.UI_QA_CAPTURE) {
+      await page.screenshot({
+        path: '../../docs/ui-qa/print-recap.png',
+        fullPage: true,
+        animations: 'disabled',
+      });
+      if (test.info().project.name === 'chromium')
+        await page.pdf({ path: '../../docs/ui-qa/print-recap.pdf', format: 'A4' });
+    }
+    await page.emulateMedia({ media: 'screen' });
     const owed = page.getByText(/You're owed/).locator('..');
     await expect(owed).toContainText('$20.00');
     await expect(page.getByText('1 transfer left')).toBeVisible();

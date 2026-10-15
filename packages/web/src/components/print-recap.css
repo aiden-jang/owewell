@@ -1,0 +1,98 @@
+.print-recap {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 16mm;
+  }
+  body:has(.print-recap) > :not(.print-recap) {
+    display: none !important;
+  }
+  body:has(.print-recap) {
+    background: white !important;
+    color: #182d2e !important;
+  }
+  .print-recap {
+    display: block;
+    font: 11pt/1.5 sans-serif;
+    color: #182d2e;
+  }
+  .print-recap header {
+    border-bottom: 2pt solid #215c60;
+    padding-bottom: 16pt;
+  }
+  .print-recap header > span {
+    font-size: 9pt;
+    letter-spacing: 0.12em;
+  }
+  .print-recap h1 {
+    font-size: 30pt;
+    line-height: 1.15;
+    margin: 12pt 0;
+    overflow-wrap: anywhere;
+  }
+  .print-recap h2 {
+    font-size: 14pt;
+    margin: 24pt 0 8pt;
+    break-after: avoid;
+  }
+  .print-recap-total {
+    display: flex;
+    justify-content: space-between;
+    gap: 20pt;
+    padding: 16pt 0;
+    border-bottom: 1pt solid #bdc9c5;
+  }
+  .print-recap-total strong {
+    font-size: 22pt;
+  }
+  .print-recap table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .print-recap thead {
+    display: table-header-group;
+  }
+  .print-recap tr {
+    break-inside: avoid;
+  }
+  .print-recap th,
+  .print-recap td {
+    padding: 9pt 8pt 9pt 0;
+    border-bottom: 0.5pt solid #bdc9c5;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+  .print-recap th {
+    font-weight: 500;
+  }
+  .print-recap th:first-child {
+    width: 50%;
+  }
+  .print-recap th:last-child,
+  .print-recap td:last-child {
+    text-align: right;
+    width: 24%;
+    padding-right: 0;
+  }
+  .print-recap thead th {
+    font-size: 9pt;
+    font-weight: 700;
+  }
+  .print-recap small {
+    display: block;
+    font-size: 9pt;
+    color: #526361;
+  }
+  .print-recap-notice {
+    border: 1pt solid #526361;
+    padding: 10pt;
+  }
+  .print-recap footer {
+    margin-top: 24pt;
+    font-size: 9pt;
+    color: #526361;
+  }
+}

@@ -1,3 +1,4 @@
+import { usePageTitle } from '../hooks/usePageTitle';
 import { useQuickSplitDraft } from '../lib/useQuickSplitDraft';
 import { QuickSplitResult } from '../components/QuickSplitResult';
 import { QuickSplitTip } from '../components/QuickSplitTip';
@@ -23,6 +24,7 @@ import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
 
 export function QuickSplitPage(): ReactNode {
+  usePageTitle('Split a bill');
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const {
