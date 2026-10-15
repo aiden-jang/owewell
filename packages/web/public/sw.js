@@ -16,6 +16,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  if (request.cache === 'no-store') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || request.method !== 'GET') return;
   if (url.pathname.startsWith('/api') || url.pathname.startsWith('/owewell')) return;

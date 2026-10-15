@@ -1,6 +1,6 @@
 import type { MoneyFormatter } from '@owewell/shared';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { SettlementReceiptData } from '../lib/settlementReceipt';
 import { Icon } from './Icon';
 import { useMoney } from '../lib/currency';
@@ -13,10 +13,13 @@ function balanceCopy(cents: number, fmt: MoneyFormatter): string {
 export function SettlementReceipt({
   receipt,
   onClose,
+  onUndo,
 }: {
   receipt: SettlementReceiptData;
   onClose: () => void;
+  onUndo?: () => Promise<void>;
 }): ReactNode {
+  const [undoing, setUndoing] = useState(false);
   const fmt = useMoney();
   const { settlement } = receipt;
   return (
@@ -47,6 +50,12 @@ export function SettlementReceipt({
             {settlement.method ? ` via ${PAYMENT_METHOD_LABELS[settlement.method]}` : ''}
           </p>
           <p className="mt-1 text-xs text-muted">Saved in owewell. No money was transferred by the app.</p>
+          <time className="mt-1 block text-xs text-muted" dateTime={settlement.createdAt}>
+            {new Date(settlement.createdAt).toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'long',
+            })}
+          </time>
         </div>
         <button
           type="button"
@@ -61,7 +70,7 @@ export function SettlementReceipt({
       <div className="grid gap-px bg-line sm:grid-cols-2">
         {receipt.changes.map((change) => (
           <div key={change.userId} className="bg-card px-4 py-3">
-            <p className="text-xs font-medium text-muted">{change.name}</p>
+            <p className="text-xs font-medium text-muted [overflow-wrap:anywhere]">{change.name}</p>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
               <span className="tnum text-faint line-through">{balanceCopy(change.beforeCents, fmt)}</span>
               <Icon name="arrow-right" size={13} className="text-faint" />
@@ -85,6 +94,26 @@ export function SettlementReceipt({
             : `${fmt(receipt.remainingCents)} left in ${receipt.remainingTransfers} ${receipt.remainingTransfers === 1 ? 'transfer' : 'transfers'}`}
         </strong>
       </div>
+      {onUndo && (
+        <div className="px-4 pb-3">
+          <button
+            type="button"
+            disabled={undoing}
+            className="min-h-11 rounded-lg border border-line px-4 text-sm font-medium text-ink hover:bg-surface2 disabled:opacity-50"
+            onClick={async () => {
+              if (undoing) return;
+              setUndoing(true);
+              try {
+                await onUndo();
+              } finally {
+                setUndoing(false);
+              }
+            }}
+          >
+            {undoing ? 'Undoing…' : 'Undo this payment'}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

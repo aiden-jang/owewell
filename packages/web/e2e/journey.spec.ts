@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { expectNoHorizontalOverflow, expect, test, type Page } from './fixtures';
 
 /*
@@ -117,6 +118,27 @@ test.describe('from an empty account to a balance', () => {
     await expect(receipt).toContainText('Sam paid Robin via Cash');
     await expect(receipt).toContainText('Everyone is settled');
     await expect(page.getByText('All settled', { exact: true })).toBeVisible();
+    if (process.env.CAPTURE_DETAILS) {
+      const folder = new URL('../../../docs/ui-qa/finishing-details/', import.meta.url).pathname;
+      await mkdir(folder, { recursive: true });
+      for (const [name, width, height] of [
+        ['desktop', 1440, 900],
+        ['mobile', 390, 844],
+      ] as const) {
+        await page.setViewportSize({ width, height });
+        await receipt.scrollIntoViewIfNeeded();
+        await page.screenshot({
+          path: `${folder}receipt-${name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+      }
+    }
+    await receipt.getByRole('button', { name: 'Undo this payment', exact: true }).click();
+    const undo = page.getByRole('dialog', { name: 'Undo this payment?' });
+    await undo.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(receipt).toBeHidden();
+    await expect(page.getByText('1 transfer left')).toBeVisible();
   });
 });
 

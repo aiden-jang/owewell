@@ -1,3 +1,4 @@
+import { AppUpdate } from './AppUpdate';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
@@ -42,6 +43,7 @@ export function App(): ReactNode {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
+      <AppUpdate />
       <SiteFooter />
     </div>
   );

@@ -197,7 +197,13 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         />
       )}
 
-      {receipt && <SettlementReceipt receipt={receipt} onClose={() => setPaymentReceipt(null)} />}
+      {receipt && (
+        <SettlementReceipt
+          receipt={receipt}
+          onClose={() => setPaymentReceipt(null)}
+          onUndo={() => undoSettlement(receipt.settlement.id)}
+        />
+      )}
 
       {/*
        * One block, two readings. While the group still needs people this is the obvious next
