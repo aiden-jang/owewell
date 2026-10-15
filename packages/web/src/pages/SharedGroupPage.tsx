@@ -1,3 +1,4 @@
+import { usePageTitle } from '../hooks/usePageTitle';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { type MoneyFormatter } from '@owewell/shared';
@@ -42,6 +43,7 @@ export function SharedGroupPage(): ReactNode {
   const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'ready' | 'notfound' | 'failed'>('loading');
   const [summary, setSummary] = useState<SharedGroupSummary | null>(null);
+  usePageTitle(status === 'ready' && summary ? summary.groupName : 'Shared group');
   const [claiming, setClaiming] = useState<string | null>(null);
   const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
   const autoClaimed = useRef(false);
