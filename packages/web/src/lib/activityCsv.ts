@@ -85,10 +85,15 @@ export function activityCsv({
 }
 
 /** Turn a group name into something a filesystem is happy with. */
-export function csvFileName(groupName: string): string {
+export function csvFileName(groupName: string, exportedAt: Date): string {
   const slug = groupName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-  return `${slug || 'owewell'}-activity.csv`;
+  const date = [
+    exportedAt.getFullYear(),
+    String(exportedAt.getMonth() + 1).padStart(2, '0'),
+    String(exportedAt.getDate()).padStart(2, '0'),
+  ].join('-');
+  return `${slug || 'owewell'}-activity-${date}.csv`;
 }

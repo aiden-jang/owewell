@@ -70,6 +70,23 @@ test.describe('from an empty account to a balance', () => {
       };
     });
     await page.getByRole('button', { name: 'Group options', exact: true }).click();
+    const downloadWait = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Export activity', exact: true }).click();
+    const csv = await downloadWait;
+    const exportDay = await page.evaluate(() => {
+      const now = new Date();
+      return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+      ].join('-');
+    });
+    const slug = groupName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    expect(csv.suggestedFilename()).toBe(`${slug}-activity-${exportDay}.csv`);
+    await page.getByRole('button', { name: 'Group options', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Print recap / Save PDF' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-print-requested', 'yes');
     await page.emulateMedia({ media: 'print' });

@@ -135,13 +135,15 @@ describe('the exported ledger', () => {
 });
 
 describe('the file it lands as', () => {
+  const at = new Date(2026, 9, 15, 23, 59);
   it('slugs the group name', () => {
-    expect(csvFileName('Tahoe Trip 2026')).toBe('tahoe-trip-2026-activity.csv');
-    expect(csvFileName('  Big Sur!  ')).toBe('big-sur-activity.csv');
+    expect(csvFileName('Tahoe Trip 2026', at)).toBe('tahoe-trip-2026-activity-2026-10-15.csv');
+    expect(csvFileName('  Big Sur!  ', at)).toBe('big-sur-activity-2026-10-15.csv');
+    expect(csvFileName('Big Sur', new Date(2026, 9, 16))).toBe('big-sur-activity-2026-10-16.csv');
   });
 
   // A group named entirely in emoji still has to produce a filename.
   it('falls back when the name slugs to nothing', () => {
-    expect(csvFileName('🏔️🎿')).toBe('owewell-activity.csv');
+    expect(csvFileName('🏔️🎿', at)).toBe('owewell-activity-2026-10-15.csv');
   });
 });

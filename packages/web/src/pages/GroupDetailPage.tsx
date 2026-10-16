@@ -134,7 +134,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
     );
     const link = document.createElement('a');
     link.href = href;
-    link.download = csvFileName(group.name);
+    link.download = csvFileName(group.name, new Date());
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(href), 0);
     toast.success('Activity exported as a CSV.');
