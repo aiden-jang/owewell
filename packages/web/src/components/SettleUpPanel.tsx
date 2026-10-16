@@ -241,6 +241,7 @@ export function SettleUpPanel({
                     key={link.label}
                     href={link.url}
                     target="_blank"
+                    aria-describedby="external-link-hint"
                     rel="noreferrer"
                     onClick={() => {
                       // Opening the app is the last thing we see, so default the ledger to it.
