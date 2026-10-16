@@ -119,7 +119,7 @@ test.describe('from an empty account to a balance', () => {
     await expect(receipt).toContainText('Everyone is settled');
     await expect(page.getByText('All settled', { exact: true })).toBeVisible();
     if (process.env.CAPTURE_DETAILS) {
-      const folder = new URL('../../../docs/ui-qa/finishing-details/', import.meta.url).pathname;
+      const folder = new URL('../../../docs/ui-qa/refinements-oct15/', import.meta.url).pathname;
       await mkdir(folder, { recursive: true });
       for (const [name, width, height] of [
         ['desktop', 1440, 900],
@@ -366,4 +366,35 @@ test('unfinished work survives sign-in failures and offline payments', async ({ 
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('owewell:outbox') ?? '[]').length))
     .toBe(0);
+});
+
+test('an uneven equal split explains the preview and names its saved rounding share', async ({ page }) => {
+  await signIn(page);
+  await newGroup(page, `Rounding review ${Date.now()}`);
+  await page.getByRole('button', { name: /member. Open the member list/ }).click();
+  for (const name of ['Sam', 'Alex']) {
+    await page.getByPlaceholder('Add someone by name').fill(name);
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(page.getByRole('button', { name: `Options for ${name}`, exact: true })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Close', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Add expense', exact: true }).first().click();
+  await page.getByLabel('Amount', { exact: true }).fill('1.00');
+  await page.getByLabel('What the expense was for').fill('One dollar, three people');
+  await expect(page.getByText(/The total needs a rounding cent/)).toBeVisible();
+  await page.locator('form').getByRole('button', { name: 'Add expense', exact: true }).click();
+  await page.getByText('One dollar, three people', { exact: true }).first().click();
+  const rounding = page.getByText(/The total doesn’t divide evenly/);
+  await expect(rounding).toBeVisible();
+  await expect(rounding).toContainText('one extra cent');
+  await expect(page.locator('.toast')).toHaveCount(0);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await rounding.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: test.info().outputPath(`refinement-rounding-${width}.png`),
+      animations: 'disabled',
+    });
+    await expectNoHorizontalOverflow(page);
+  }
 });

@@ -80,6 +80,12 @@ export function ExpenseDetail({
     itemized && expense.items?.length
       ? [...new Set(expense.items.map((i) => i.payerId ?? expense.payerId))]
       : [expense.payerId];
+  const equalRounding =
+    expense.splitMethod === 'EQUAL' && expense.splits.length > 1
+      ? expense.splits.filter(
+          (split) => split.owedCents > Math.floor(expense.amountCents / expense.splits.length),
+        )
+      : [];
   const myShare = expense.splits.find((s) => s.userId === viewerId);
   const iPaid = payers.includes(viewerId ?? '');
   const items = expense.items ?? [];
@@ -128,6 +134,13 @@ export function ExpenseDetail({
           {SPLIT_METHOD_LABELS[expense.splitMethod] ?? 'Split'} · {expense.splits.length}{' '}
           {expense.splits.length === 1 ? 'person' : 'people'}
         </p>
+        {equalRounding.length > 0 && (
+          <p className="mt-2 text-xs leading-relaxed text-muted [overflow-wrap:anywhere]">
+            The total doesn’t divide evenly. {equalRounding.map((split) => nameOf(split.userId)).join(', ')}
+            {equalRounding.length === 1 ? ' has' : ' have'} one extra cent included below so the shares add up
+            exactly.
+          </p>
+        )}
         <ul aria-label="Every share" className="mt-1 divide-y divide-line">
           {expense.splits.map((split) => {
             const note = inputNote(expense.splitMethod, split.inputValue);

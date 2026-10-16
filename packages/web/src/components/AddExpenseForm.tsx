@@ -375,6 +375,11 @@ export function AddExpenseForm({
         </p>
       )}
 
+      {method === 'EQUAL' && shares && new Set(shares.map((share) => share.owedCents)).size > 1 && (
+        <p className="text-xs leading-relaxed text-muted">
+          The total needs a rounding cent. The saved expense will show who has it.
+        </p>
+      )}
       <FormError message={error} />
       <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add expense'}</SubmitButton>
     </form>

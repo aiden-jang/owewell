@@ -1556,3 +1556,20 @@ input:disabled {
     flex-wrap: wrap;
   }
 }
+
+input:is(:autofill, :-webkit-autofill),
+textarea:is(:autofill, :-webkit-autofill) {
+  -webkit-text-fill-color: var(--color-ink);
+  caret-color: var(--color-ink);
+  box-shadow: 0 0 0 1000px var(--color-field) inset;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+input::selection,
+textarea::selection {
+  -webkit-text-fill-color: var(--color-accent-ink);
+}

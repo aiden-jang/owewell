@@ -236,3 +236,20 @@ describe('a correction someone already made', () => {
     expect(document.body.textContent ?? '').not.toMatch(/changed/i);
   });
 });
+
+it('names the actual saved odd-cent share without attributing rounding to exact amounts', () => {
+  const value = expense({
+    amountCents: 100,
+    splits: [
+      { userId: 'u1', owedCents: 33 },
+      { userId: 'u2', owedCents: 34 },
+      { userId: 'u3', owedCents: 33 },
+    ],
+  });
+  const { rerender } = render(<ExpenseDetail {...props} expense={value} />);
+  expect(screen.getByText(/The total doesn’t divide evenly/)).toHaveTextContent(/one extra cent/);
+  const person = props.members.find((member) => member.userId === 'u2')!.displayName;
+  expect(screen.getByText(/The total doesn’t divide evenly/)).toHaveTextContent(person);
+  rerender(<ExpenseDetail {...props} expense={{ ...value, splitMethod: 'EXACT' }} />);
+  expect(screen.queryByText(/The total doesn’t divide evenly/)).not.toBeInTheDocument();
+});
