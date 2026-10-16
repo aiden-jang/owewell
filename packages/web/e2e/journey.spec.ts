@@ -55,6 +55,15 @@ test.describe('from an empty account to a balance', () => {
 
     // --- an expense Robin paid for both of them -------------------------------------------
     await page.getByRole('button', { name: 'Add expense' }).first().click();
+    for (const [raw, formatted] of [
+      ['.50', '0.50'],
+      ['12.', '12.00'],
+      ['$1,200.50', '1200.50'],
+    ]) {
+      await page.getByLabel('Amount').fill(raw!);
+      await page.getByLabel('What the expense was for').focus();
+      await expect(page.getByLabel('Amount')).toHaveValue(formatted!);
+    }
     await page.getByLabel('Amount').fill('40.00');
     await page.getByLabel('What the expense was for').fill('Dinner');
     // The form's submit carries the same words as the button that opened it.

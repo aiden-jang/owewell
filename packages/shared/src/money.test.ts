@@ -3,6 +3,21 @@ import fc from 'fast-check';
 import { Money, MoneyError, allocateCents, dollarsToCents } from './money.js';
 
 describe('dollarsToCents', () => {
+  test.each([
+    ['.50', 50],
+    ['.5', 50],
+    ['12.', 1200],
+    ['$.50', 50],
+    ['$1,200.50', 120050],
+  ])('accepts a pasted or shorthand amount %s without rounding', (text, cents) => {
+    expect(dollarsToCents(text as string)).toBe(cents);
+  });
+  test.each(['.', '-.', '.123', '12.345', '1.2.3', '1$0', '1,50', '12,34', '1.2,3', ',50'])(
+    'keeps malformed amount %s invalid',
+    (text) => {
+      expect(() => dollarsToCents(text)).toThrow(MoneyError);
+    },
+  );
   test('parses well-formed strings exactly', () => {
     expect(dollarsToCents('19.99')).toBe(1999);
     expect(dollarsToCents('0.05')).toBe(5);

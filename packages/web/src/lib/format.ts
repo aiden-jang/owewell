@@ -17,8 +17,7 @@ export function todayStr(now = new Date()): string {
 /**
  * Tidy a money input on blur: "20" → "20.00", "5.5" → "5.50". Leaves blank or
  * still-invalid/in-progress values untouched (so we never fight the user mid-type
- * or clobber something the parser would reject). No thousands separators — the
- * amount parser rejects commas, and displayed amounts are formatted separately.
+ * or clobber something the parser would reject). Displayed amounts are formatted separately.
  */
 export function normalizeAmountInput(raw: string): string {
   const trimmed = raw.trim();

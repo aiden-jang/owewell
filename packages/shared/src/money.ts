@@ -39,22 +39,15 @@ export function dollarsToCents(value: number | string): number {
     return Math.round(value * 100);
   }
 
-  // Commas are only ever separators, so they go anywhere. A currency symbol is only stripped at the
-  // front (after an optional sign), so "1$0" stays an error instead of quietly becoming 10.
-  const cleaned = value
-    .trim()
-    .replace(/,/g, '')
-    .replace(/^(-?)\s*[$£€]\s*/, '$1');
-  const match = /^(-)?(\d+)(?:\.(\d{1,2}))?$/.exec(cleaned);
+  // Strip a currency symbol only at the front. Grouping must be valid so "1,50" cannot become $150.
+  const cleaned = value.trim().replace(/^(-?)\s*[$£€]\s*/, '$1');
+  const match = /^(-)?(?:(\d+|\d{1,3}(?:,\d{3})+)(?:\.(\d{0,2}))?|\.(\d{1,2}))$/.exec(cleaned);
   if (!match) {
     throw new MoneyError(`Invalid money string: "${value}"`);
   }
   const sign = match[1];
-  const whole = match[2];
-  const fraction = match[3] ?? '';
-  if (whole === undefined) {
-    throw new MoneyError(`Invalid money string: "${value}"`);
-  }
+  const whole = (match[2] ?? '0').replace(/,/g, '');
+  const fraction = match[3] ?? match[4] ?? '';
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
   return sign ? -cents : cents;
 }
