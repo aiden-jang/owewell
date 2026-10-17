@@ -6,7 +6,6 @@
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"],
     "lib": ["ES2022"]
   },
-  // `test` is not optional here. It was left out once, and a rename that broke every test import
-  // still passed `pnpm typecheck` — the failure only showed up as 62 red tests.
+  // Include Worker tests so broken test imports fail typechecking.
   "include": ["src", "test", "drizzle.config.ts", "vitest.config.ts"]
 }

@@ -1,14 +1,6 @@
 import type { Env } from './env.js';
 
-/**
- * One Durable Object instance per group (addressed by `idFromName(groupId)`), holding
- * that group's live WebSocket connections. Uses the hibernation API so idle rooms cost
- * nothing: the runtime evicts the object between events and rehydrates it on the next
- * message or broadcast, so a group whose members are away keeps no billed wall-clock.
- *
- * Auth and membership are enforced in the Worker before the upgrade is ever routed here,
- * so any socket this object holds is already an authorized member of the group.
- */
+/** Hibernating notification sockets per group. The Worker checks auth and membership before upgrade. */
 export class GroupRoom {
   constructor(private readonly ctx: DurableObjectState) {}
 

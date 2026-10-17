@@ -1,17 +1,9 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { useState, type ReactNode } from 'react';
 import { CategoryDot } from './CategoryMark';
 import { SpendDonut } from './SpendDonut';
-import { useMoney } from '../lib/currency';
 import { lensTotal, spendByCategory as computeSpendByCategory } from '../lib/activityFilters';
 import type { Expense } from '../lib/expenses';
-
-/*
- * Where the money went, folded into the feed it filters. The chart and the list are one
- * interaction, so tapping a category filters where you are standing.
- *
- * Open, with no disclosure: the public share page renders the same section open, so collapsing it
- * here would leave an owner hunting for a chevron to see what a guest is shown outright.
- */
 
 export function SpendBreakdown({
   expenses,
@@ -22,7 +14,6 @@ export function SpendBreakdown({
   categoryFilter: string | null;
   onSelectCategory: (key: string | null) => void;
 }): ReactNode {
-  const fmt = useMoney();
   const [view, setView] = useState<'bars' | 'donut'>('bars');
 
   // Whole-group answers: the person lens belongs to the feed below, not to the spending shape.

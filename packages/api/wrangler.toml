@@ -14,8 +14,7 @@ port = 34200
 [vars]
 AUTH_URL = "https://accounts.aidenjang.com"
 
-# owewell's own data (groups, expenses, splits, settlements, and the local
-# `people` registry). Identity accounts live in the separate auth service's D1.
+# App data lives here; identity accounts remain in the separate Accounts database.
 [[d1_databases]]
 binding = "DB"
 database_name = "owewell"
@@ -39,19 +38,14 @@ class_name = "GroupRoom"
 tag = "v1"
 new_sqlite_classes = ["GroupRoom"]
 
-# Serve the built web SPA (packages/web/dist) from this same Worker, so the UI and the
-# /owewell/* API share the owewell.aidenjang.com origin (no CORS, one deploy).
-# run_worker_first = true → the Worker routes everything; /health + /api/* are the API,
-# the app.all('*') catch-all serves assets (real files + SPA fallback to index.html).
+# Serve the SPA and API on one origin; the Worker handles API routes before falling back to assets.
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
-# Ceiling across the whole API. Opening the app and moving between a few groups is a couple of
-# dozen requests, so this only ever catches a script. Checked before the auth guard, because
-# every authenticated request costs a call to the shared auth service.
+# Limit requests before authentication to bound calls to the shared Accounts service.
 [[ratelimits]]
 name = "API_LIMITER"
 namespace_id = "2002"
@@ -68,8 +62,7 @@ simple = { limit = 20, period = 60 }
 pattern = "owewell.aidenjang.com"
 custom_domain = true
 
-# Workers Logs — native, free-tier error/log observability. Tail live with `wrangler tail`;
-# browse + query in the dashboard (Workers & Pages → the worker → Logs).
+# Worker logs are available through `wrangler tail` and the Cloudflare dashboard.
 [observability]
 enabled = true
 head_sampling_rate = 1

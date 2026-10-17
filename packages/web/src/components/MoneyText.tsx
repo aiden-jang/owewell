@@ -1,5 +1,5 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useMoney } from '../lib/currency';
 
 const REDUCED =
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -17,7 +17,6 @@ export function MoneyText({
   className?: string;
   duration?: number;
 }): ReactNode {
-  const fmt = useMoney();
   const [shown, setShown] = useState(cents);
   const fromRef = useRef(cents);
   const frameRef = useRef<number>(0);

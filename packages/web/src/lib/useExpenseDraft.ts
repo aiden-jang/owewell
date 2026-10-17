@@ -25,13 +25,7 @@ interface Draft {
   setSubmitting: Dispatch<SetStateAction<boolean>>;
 }
 
-/**
- * The state both expense forms hold. They differ only in how the money is entered: one takes a
- * total and a split, the other a list of items.
- *
- * A template keeps today's date while an edit keeps the original's, which is the one place the two
- * prefill sources are not interchangeable.
- */
+/** Templates use today; edits retain the saved expense date. */
 export function useExpenseDraft(
   members: GroupMember[],
   editing: Expense | undefined,

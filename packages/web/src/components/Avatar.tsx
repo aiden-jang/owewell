@@ -1,15 +1,6 @@
 import type { ReactNode } from 'react';
 
-/*
- * A person, as a coloured disc with their initial in it.
- *
- * Ten hues evenly spaced around the OKLCH wheel at one lightness. Even spacing keeps neighbours
- * distinguishable once five sit side by side; one lightness stops any disc looking heavier, since
- * OKLCH's L is perceptual. Chroma is whatever each hue can hold there.
- *
- * The ink is dark, not white, and that is what lets the discs stay bright: white on a friendly
- * mid-tone fails 4.5:1. Checked in `Avatar.test.ts`.
- */
+// Evenly spaced OKLCH hues share perceptual lightness. Dark ink preserves label contrast.
 
 /* Hexes live in lib/contrast.ts, read here as CSS vars so a disc follows the theme by itself. */
 const BUCKETS = 10;

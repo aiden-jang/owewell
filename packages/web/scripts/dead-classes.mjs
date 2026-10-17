@@ -1,21 +1,4 @@
-/*
- * Find class names the stylesheet never defines.
- *
- * There is a gap no tool in this repo covers: TypeScript does not read CSS, eslint does not read
- * CSS, and an undefined class is legal HTML that renders as nothing. Two bugs shipped through it.
- * `.glass` was deleted in favour of `.surface` and the toast kept referencing it, so it rendered as
- * bare text on a transparent background. `bg-surface` was written in ten places across six
- * components, but the palette has `canvas`, `card` and `surface2` — there has never been a
- * `--color-surface` — so all ten had no background at all.
- *
- * The check needs the built CSS rather than index.css, because most classes here are Tailwind
- * utilities that only exist once Tailwind has seen them used. A token missing from the build output
- * is a token that produces no CSS anywhere.
- *
- *   pnpm --filter @owewell/web build && node scripts/dead-classes.mjs
- *
- * Exits non-zero on a finding, so it can be wired into CI after the build step.
- */
+// Check referenced classes against the built CSS, including generated utilities.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

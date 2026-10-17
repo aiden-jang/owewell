@@ -1,12 +1,4 @@
-/*
- * Every gate in the chains below has to name a script that exists and actually runs.
- *
- * `pnpm <name>` is not the same as `pnpm run <name>`. Where pnpm has a command of its own the
- * command wins, and the script is quietly unreachable: `pnpm deploy` is pnpm's own
- * workspace-deploy, not this repo's deploy script. The sibling auth repo lost a day to the npm
- * version of this, where `pnpm docs` resolved to a builtin that exits 0 without running anything,
- * so a gate reported green for a day while checking nothing.
- */
+// Check that verification and CI run the same real scripts with unambiguous command names.
 import { readFileSync } from 'node:fs';
 
 /* pnpm's own commands. One of these is only a problem when a script shares its name, because

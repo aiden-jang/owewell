@@ -1,10 +1,4 @@
-/*
- * Mechanical checks on the docs, run by `pnpm run verify`. Only claims a machine can settle:
- * paths, script names, routes and symbols. Whether the prose is any good is a reading job.
- *
- * Prose rots with nothing to fail. The request diagram still named `getSessionUser` a phase after
- * the auth client stopped exporting it, and the sentence read fine.
- */
+// Validate documented paths, scripts, routes, symbols, and local links.
 import { globSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 

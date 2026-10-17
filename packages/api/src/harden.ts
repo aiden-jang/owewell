@@ -7,20 +7,7 @@
 
 import type { MiddlewareHandler } from 'hono';
 
-/**
- * Conservative Content-Security-Policy that our Vite SPAs run under without changes:
- *  - script-src: prod bundles are external files, no inline <script>. The beacon belongs here
- *    as well as in connect-src, because it is a script: connect-src alone never loads it.
- *  - style-src 'unsafe-inline': React `style={}` props and Vite's injected CSS need it.
- *  - font/style google entries: cover Inter loaded via Google Fonts (either @import or <link>).
- *  - img data:/blob:: inline SVG/canvas exports and data-URI icons.
- *  - connect-src 'self': same-origin fetch AND same-origin ws/wss (owewell realtime) — 'self'
- *    matches the ws/wss upgrade to the same host per CSP3.
- *  - cloudflareinsights: the (optional) Web Analytics beacon.
- * Tighten per app after browser-verifying on deploy; anything cross-origin a specific app needs
- * (e.g. wherever's places API, iguess if it ever calls a cross-origin AI host) goes through
- * the `csp` override rather than loosening this default for everyone.
- */
+/** React needs inline styles; CSP3 'self' includes same-origin sockets. Extend cross-origin sources via csp. */
 export const DEFAULT_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -66,20 +53,8 @@ export function applySecurityHeaders(headers: Headers, opts: SecurityHeaderOptio
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/**
- * Defense-in-depth CSRF guard. The primary defense is the session cookie's SameSite=Lax, which
- * stops the browser attaching it to cross-site POSTs; this rejects a state-changing request whose
- * Origin host differs from its own.
- *
- * Only on a *present, mismatched* Origin. Same-origin fetches always send a matching one, and a
- * request that genuinely omits it is cookie-less cross-site anyway, so it is left to SameSite.
- *
- * Localhost is always allowed: under `wrangler dev` a Worker with a custom-domain route sees every
- * request as that production host, so a real local call would never match. A browser only sends a
- * localhost Origin from a page actually on localhost, so an attacker cannot forge it.
- *
- * @returns a 403 Response to short-circuit with, or null when the request is allowed.
- */
+/** Reject mismatched Origins on writes; missing Origins rely on SameSite.
+ * Loopback Origins support Wrangler custom-domain development. Return null when allowed. */
 export function enforceSameOrigin(request: Request): Response | null {
   if (SAFE_METHODS.has(request.method)) return null;
   const origin = request.headers.get('Origin');
@@ -107,15 +82,7 @@ export interface HardenOptions extends SecurityHeaderOptions {
   csrf?: boolean;
 }
 
-/**
- * One-line hardening for a Hono Worker: `app.use('*', harden())`. Guards state-changing requests
- * (CSRF) up front, then stamps the security headers onto the response on the way out.
- *
- * Two Workers realities it handles:
- *  - WebSocket upgrades (status 101, e.g. owewell realtime) pass through untouched.
- *  - Static-asset responses from `env.ASSETS.fetch` carry immutable headers, so we rebuild the
- *    Response with a fresh, mutable Headers rather than mutating in place (which would throw).
- */
+/** Preserve WebSocket upgrades; copy immutable asset headers before applying response policy. */
 export function harden(opts: HardenOptions = {}): MiddlewareHandler {
   const { csrf = true, ...headerOpts } = opts;
   return async (c, next) => {

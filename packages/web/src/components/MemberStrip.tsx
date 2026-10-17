@@ -3,14 +3,6 @@ import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import type { GroupMember } from '../lib/groups';
 
-/*
- * Who is in this group, above the money. Seeing the roster is a glance you take often; editing it
- * is a thing you do once, so the faces are visible and the editing is behind a tap.
- *
- * Faces rather than names: five names is a list, five faces is one object. The ring is the card
- * colour so the stack reads as a stack rather than as five things that failed to lay out.
- */
-
 /** Past this the stack stops being a glance and starts being a queue. The rest become "+n". */
 const SHOWN = 5;
 

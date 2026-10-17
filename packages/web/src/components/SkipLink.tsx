@@ -1,15 +1,6 @@
 import type { ReactNode } from 'react';
 
-/*
- * The first thing in the tab order, invisible until reached. Every page opens with a sticky header,
- * so without it a keyboard user tabs through four stops of chrome on every navigation.
- *
- * `sr-only` until focused, not `display: none` — hidden takes it out of the tab order entirely,
- * which is the usual way this ships broken.
- *
- * The target needs tabIndex={-1} or following the fragment scrolls without moving focus, and the
- * next Tab continues from the skip link, back into the header it just skipped.
- */
+// The destination needs tabIndex=-1 so skipping chrome moves keyboard focus as well as scrolling.
 export function SkipLink(): ReactNode {
   return (
     <a

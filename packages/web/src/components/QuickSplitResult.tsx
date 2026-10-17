@@ -2,14 +2,7 @@ import type { ReactNode } from 'react';
 import { Money, type Transfer } from '@owewell/shared';
 import type { DraftPerson as Person } from '../lib/quickSplitDraft';
 
-/**
- * One dry line about the shape of the split, read off the numbers.
- *
- * Generated, not decorative: every branch is a fact the app already computed, so the line is only
- * ever true. Deliberately absent from the text you send to the group (see summaryText) — the app
- * can be funny at your bill, but a joke arriving in everyone else's chat reads as the sender being
- * funny at them. Returns null far more often than not.
- */
+/** Keep computed commentary out of shared payment requests, where it would speak for the sender. */
 function splitVerdict(
   named: Person[],
   shares: Record<string, number>,

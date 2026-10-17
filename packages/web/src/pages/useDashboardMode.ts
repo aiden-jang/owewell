@@ -1,13 +1,6 @@
 import { useState } from 'react';
 
-/*
- * What the dashboard header is doing: nothing, naming a new group, or selecting several.
- *
- * These were separate pieces of state that every transition had to remember to reset, and the two
- * modes are mutually exclusive for a real reason — select mode hides the New button, so leaving
- * both open strands the name field under the selection UI with no way back. Keeping them in one
- * place makes that structural instead of something each handler has to get right.
- */
+// Creation and selection are mutually exclusive so neither mode can hide the other's controls.
 export interface DashboardMode {
   creatingOpen: boolean;
   name: string;

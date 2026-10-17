@@ -5,14 +5,7 @@ import type { DB } from './db/client.js';
 import { expenseItems, expenseSplits, expenses, groupMembers, people, settlements } from './db/schema.js';
 import { requireMembership } from './groups.js';
 
-/*
- * Reading the ledger, kept apart from writing it.
- *
- * Nothing here changes a row; it only adds up what is already there. It is also the half carrying
- * an invariant: what it returns has to net to zero, because simplifyDebts
- * throws on a set that does not, so the settle-up screen would stop working rather than be
- * slightly wrong. test/ledger-nets-to-zero.test.ts is what holds that.
- */
+// Ledger balances must net to zero before settlement suggestions are computed.
 
 export interface MemberBalance {
   userId: string;

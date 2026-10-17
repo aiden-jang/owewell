@@ -1,6 +1,6 @@
 import { PaymentParties } from './PaymentParties';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { currencySymbol, dollarsToCents, type MoneyFormatter } from '@owewell/shared';
+import { formatMoney as fmt, currencySymbol, dollarsToCents, type MoneyFormatter } from '@owewell/shared';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
@@ -8,7 +8,6 @@ import type { GroupMember } from '../lib/groups';
 import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
 import { normalizeAmountInput } from '../lib/format';
-import { useMoney } from '../lib/currency';
 import { enqueue, isOffline } from '../lib/outbox';
 import { FormError, inputClass } from './FormFields';
 
@@ -42,7 +41,6 @@ export function RecordPaymentForm({
   onRecorded,
   onQueued,
 }: Props): ReactNode {
-  const fmt = useMoney();
   const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
   const nameOf = (id: string): string => memberOf(id)?.displayName ?? 'Someone';
   const firstFrom = defaultFromId ?? members[0]?.userId ?? '';
@@ -144,13 +142,7 @@ export function RecordPaymentForm({
       onRecorded(await settlementsApi.record(groupId, payload));
     } catch (err) {
       if (onQueued && isOffline(err)) {
-        /*
-         * Queued, and safe to send whenever.
-         *
-         * Handing somebody cash already happened; the record of it is not a guess about the balances,
-         * so it stays true however long this waits. The client id is what stops the replay logging
-         * the same handover twice.
-         */
+        // Reuse the client ID when queuing a payment so later replay cannot duplicate it.
         const summary = `${nameOf(fromUserId)} → ${nameOf(toUserId)}`;
         enqueue({
           clientId,

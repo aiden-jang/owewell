@@ -1,5 +1,5 @@
 import { insertRows } from './db/rows.js';
-import { changedFields, computeSplit, type SplitMethod } from '@owewell/shared';
+import { changedFields, computeSplit } from '@owewell/shared';
 import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
@@ -11,93 +11,12 @@ import {
   memberPersonIds,
 } from './expenseGuards.js';
 import { listExpenses } from './expenseList.js';
-// Balance reading moved to its own module; re-exported so callers keep one import site.
 export { getBalances } from './balances.js';
 import { expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 
-export type ExpenseErrorCode =
-  'INVALID_PAYER' | 'INVALID_PARTICIPANT' | 'INVALID_SPLIT' | 'NOT_FOUND' | 'LOCKED' | 'CONFLICT';
-
-export class ExpenseError extends Error {
-  constructor(
-    readonly code: ExpenseErrorCode,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ExpenseError';
-  }
-}
-
-export interface CreateExpenseInput {
-  description: string;
-  amountCents: number;
-  payerId: string;
-  splitMethod: SplitMethod;
-  participants: { userId: string; value?: number }[];
-  /** Spend category key. Omit to default to "other". */
-  category?: string | undefined;
-  /** Optional free text: why this cost what it did. Omit or null to clear. */
-  note?: string | null | undefined;
-  /**
-   * Client-chosen id, so a create that is retried after a dropped connection is recognised rather
-   * than duplicated. Omit for writes that cannot be replayed.
-   */
-  clientId?: string | undefined;
-  /**
-   * The version this edit was written against. Omit to overwrite whatever is there now, which is
-   * what "apply mine anyway" does after a conflict has been shown to a person.
-   */
-  expectedVersion?: number | undefined;
-  /** The date the expense happened (backdatable). Omit to use "now". */
-  date?: Date;
-  /**
-   * Overrides the odd-cent tie-break seed, which normally comes from the expense id.
-   *
-   * Only for callers that must show the split before it exists. Quick split previews exact
-   * per-person cents in the browser, and it cannot predict a server-side randomUUID — so on an
-   * uneven bill the number shown was often not the number saved.
-   */
-  splitSeed?: string;
-}
-
-export interface CreateItemizedExpenseInput {
-  description: string;
-  payerId: string;
-  taxCents: number;
-  tipCents: number;
-  items: { name: string; amountCents: number; participantIds: string[]; payerId?: string | undefined }[];
-  category?: string | undefined;
-  /** Optional free text: why this cost what it did. Omit or null to clear. */
-  note?: string | null | undefined;
-  /** Client-chosen id, so a retried create is recognised rather than duplicated. */
-  clientId?: string | undefined;
-  /** The version this edit was written against. Omit to overwrite unconditionally. */
-  expectedVersion?: number | undefined;
-  date?: Date;
-}
-
-export interface ExpenseView {
-  id: string;
-  description: string;
-  amountCents: number;
-  payerId: string;
-  splitMethod: string;
-  category: string | null;
-  createdAt: Date;
-  /** The effective expense date (user-set date, else createdAt). Drives feed order + display. */
-  date: Date;
-  /** Optional free text from whoever entered it. Null when they didn't write one. */
-  note: string | null;
-  /** Bumped on every edit. Hand it back on an edit to be told when the row has moved on. */
-  version: number;
-  splits: { userId: string; owedCents: number; inputValue?: number | null }[];
-  // Present only for ITEMIZED expenses, so the edit form can prefill the receipt.
-  taxCents?: number;
-  tipCents?: number;
-  items?: { name: string; amountCents: number; participantIds: string[] }[];
-  /** The most recent correction, when there has been one. Older ones stay in the table, unread. */
-  lastEdit?: { at: Date; byId: string; fields: string[]; formerAmountCents: number };
-}
+import { ExpenseError, type CreateExpenseInput, type ExpenseView } from './expenseContracts.js';
+export { ExpenseError } from './expenseContracts.js';
+export type { CreateExpenseInput, ExpenseView } from './expenseContracts.js';
 
 export async function createExpense(
   db: DB,
@@ -106,14 +25,7 @@ export async function createExpense(
   input: CreateExpenseInput,
 ): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
-  /*
-   * A retry of a write that already landed returns what landed. A request that times out mid-flight
-   * looks, from the client, identical to one that never arrived — without this, "send it again" is
-   * how a $180 dinner shows up twice.
-   *
-   * Checked before validation on purpose: re-validating a replay against a group that has since
-   * changed would reject a retry of something already in the ledger.
-   */
+  // Return an existing write before validating against membership that may have changed since it landed.
   if (input.clientId) {
     const already = await findByClientId(db, groupId, input.clientId);
     if (already) return already;
@@ -301,16 +213,7 @@ export async function deleteExpense(
   await db.update(expenses).set({ deletedAt: new Date() }).where(eq(expenses.id, expenseId));
 }
 
-/**
- * Put back an expense that was just deleted.
- *
- * Deletion is a soft delete, so undo is a flag flip: same row, same splits, same odd-cent
- * assignment. A re-create would quietly move a penny between two people.
- *
- * Not time-limited on the server. The toast that offers it is, but a rule enforced only by how long
- * a message stays on screen is not a rule — and the ledger has to be unlocked either way, so nobody
- * has settled against the balances in between.
- */
+/** Restore the same row and splits to preserve odd-cent allocation. The ledger must be unlocked. */
 export async function restoreExpense(
   db: DB,
   personId: string,

@@ -3,15 +3,7 @@ import type { Transfer } from '@owewell/shared';
 import type { DraftItem, DraftPerson } from './quickSplitDraft';
 import { serverValue } from './splitValues';
 
-/*
- * Who owes whom, worked out from the form. The only money math in the app that runs entirely in the
- * browser — `@owewell/shared` covers the primitives, and the group page gets its numbers from the
- * server.
- *
- * Pure, and returns nulls rather than throwing. A half-typed form is the normal state of this
- * screen: every field is a string somebody is still editing, so anything unparseable means "no
- * answer yet" and the UI shows nothing.
- */
+// Incomplete input is normal while typing; return no preview until it can be calculated.
 
 export interface QuickSplitResult {
   /** A short list of transfers that settles it, or null until at least one item has a usable amount. */

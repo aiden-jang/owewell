@@ -42,13 +42,7 @@ export interface Palette {
   field: Hex;
   pos: Hex;
   neg: Hex;
-  /**
-   * Fill for a destructive button. Don't use `neg` — it's a foreground, so in dark it's a light red
-   * and white on it measures 2.77:1.
-   *
-   * Dark has to clear 3:1 against the page and 4.5:1 against white text at once, a luminance band
-   * about 0.06 wide. Warm has no such squeeze and reuses `neg`.
-   */
+  /** Destructive fills must contrast with both the surface and white labels; neg is a foreground token. */
   negSolid: Hex;
 }
 
@@ -99,13 +93,6 @@ export const WARM: Palette = {
 
 export const THEMES = { dark: DARK, warm: WARM } as const;
 
-/*
- * Categorical hues for the spend charts. One source for both themes, so bars and donut can't colour
- * the same data differently.
- *
- * A category keeps its hue across groups, and identity is never carried by colour alone: every
- * legend row pairs the swatch with a label.
- */
 export type CategoryPalette = Record<
   'food' | 'groceries' | 'lodging' | 'transport' | 'entertainment' | 'shopping' | 'utilities' | 'other',
   Hex
@@ -135,14 +122,7 @@ export const CATEGORY_WARM: CategoryPalette = {
   other: '#9c3e1a',
 };
 
-/*
- * Avatar discs, per theme. Ten hues at one lightness; see `Avatar.tsx` for why, and for the dark ink.
- *
- * Only lightness and the chroma cap differ, so a person keeps their hue across themes. Warm caps
- * chroma at 0.10 so the discs don't outrank the money (0.132) and the accent (0.093) on a near-white
- * page. That costs separation — ten hues at one lightness separate mostly by chroma — so the closest
- * warm pair is 0.061 apart against dark's 0.097.
- */
+// Keep each person's hue across themes; adjust lightness/chroma to suit the surface.
 export type AvatarPalette = readonly [Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex, Hex];
 
 /** L 0.74, chroma as high as each hue can hold. Vivid, for a near-black page. */

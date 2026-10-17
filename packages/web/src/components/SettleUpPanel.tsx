@@ -1,9 +1,9 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { useState, type ReactNode } from 'react';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
-import { useMoney } from '../lib/currency';
 import { payLinks } from '../lib/payLinks';
 import { bestSettlementStep } from '../lib/settlementGuide';
 import { paymentNudgeText, type NudgeTone } from '../lib/paymentNudge';
@@ -36,7 +36,6 @@ export function SettleUpPanel({
    */
   onMarkPaid: (payment: SuggestedPayment, method: PaymentMethod) => Promise<boolean>;
 }): ReactNode {
-  const fmt = useMoney();
   const toast = useToast();
   const [settleMethod, setSettleMethod] = useState<PaymentMethod>('cash');
   const { status: settleShareStatus, share: sharePlan } = useShareAction(toast.error);

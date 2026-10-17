@@ -69,14 +69,7 @@ export function Sheet({
     setDirty(true);
   }
 
-  /*
-   * Focus the sheet itself; reach for a field only when the sheet asks. On a phone, focusing an
-   * input slides the keyboard up over the sheet the moment it opens, and typing is the point of
-   * exactly one sheet.
-   *
-   * Never the close button, which is the first focusable thing in the header: a sheet that opens
-   * with "Close" under the cursor is offering to undo itself.
-   */
+  // Focus the sheet unless a field was requested; focusing an input opens the phone keyboard immediately.
   useDialogFocus(dialogRef, open, requestClose, () =>
     autoFocusField
       ? dialogRef.current?.querySelector<HTMLElement>(

@@ -8,7 +8,7 @@ import { groupsApi, type Balance } from './groups';
 import { expensesApi } from './expenses';
 import { settlementsApi, type Settlement, type SuggestedPayment } from './settlements';
 import { drop as dropWrite, enqueue as enqueueWrite, isOffline } from './outbox';
-import { useMoney } from './currency';
+import { formatMoney as fmt } from '@owewell/shared';
 import type { GroupLedger } from './useGroupLedger';
 import type { InviteLink } from './useInviteLink';
 import { buildSettlementReceipt, type SettlementReceiptData } from './settlementReceipt';
@@ -29,7 +29,6 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
-  const fmt = useMoney();
   const [settling, setSettling] = useState(false);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
@@ -104,14 +103,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     }
   }
 
-  /*
-   * Delete, then offer it back. No modal: a confirm asks you to predict a mistake you have not made
-   * yet, so it costs a step every time and catches almost nothing. Undoing a recorded payment two
-   * sections up already works this way.
-   *
-   * The restore is honest because deletion is soft: the same row returns with the same splits, down
-   * to which person absorbed the odd cent.
-   */
+  // Undo restores the soft-deleted row and its original odd-cent allocation.
   async function deleteExpense(expenseId: string): Promise<void> {
     const removed = expenses.find((e) => e.id === expenseId);
     const name = removed ? `Deleted ${removed.description}.` : 'Expense deleted.';
@@ -216,13 +208,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     }
   }
 
-  /*
-   * The four member writes.
-   *
-   * Each does its work, refetches, and says so on success — and lets the failure through rather than
-   * swallowing it, because where the message belongs depends on which editor is still open. The
-   * panel decides that. See `MembersPanel`.
-   */
+  // Let editor-specific callers handle failures; announce success only after writes and refresh complete.
   async function removeFromGroup(targetUserId: string, netCents: number): Promise<void> {
     const reSplit =
       netCents !== 0

@@ -18,29 +18,21 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # `pnpm <name>` is not `pnpm run <name>`: where pnpm has a command of its own it wins and
-      # the script is unreachable. `deploy` is one of those. This checks the whole chain.
+      # Use `pnpm run` so built-in pnpm commands cannot shadow repository scripts.
       - run: pnpm run gates
       - run: pnpm run size
       - run: pnpm run css-vars
       - run: pnpm run comments
-      # Prose rots with nothing to fail: a rename leaves a doc naming a symbol that is gone.
       - run: pnpm run check:docs
-      # An export nothing imports and a dependency nothing uses are both dead weight nobody notices.
       - run: pnpm run knip
       - run: pnpm run typecheck
       - run: pnpm run lint
-      # The repo is prettier-formatted and the config describes it, so drift is a CI failure rather
-      # than something the next person's editor silently fixes half of.
       - run: pnpm run format:check
       - run: pnpm run build
-      # After the build, because it diffs the source's class names against the CSS Tailwind actually
-      # emitted. A class that never gets generated produces no CSS and no error: typecheck, lint and
-      # the whole suite stayed green while a bad @custom-variant deleted all 114 hover styles.
+      # Check emitted CSS after building; valid source classes can still produce no styles.
       - run: pnpm run dead-classes
       - run: pnpm run test
-      # The layer nothing else sees: whether a person can get from an empty account to a correct
-      # balance, in a browser, against the real Worker and a real migrated D1.
+      # Exercise the browser against the real Worker and migrated D1.
       - name: Install Playwright browser
         run: pnpm --filter @owewell/web exec playwright install --with-deps chromium webkit
       - run: pnpm run e2e
@@ -53,11 +45,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
-  # Requires a CLOUDFLARE_API_TOKEN repo secret with BOTH Workers Scripts:Edit and D1:Edit.
-  # D1 is not optional: `pnpm run deploy` applies pending migrations before it ships the code, and a
-  # Workers-only token fails that step with a 7403 and never reaches the deploy.
-  # Wrangler infers the account from the token, so no account_id is needed here.
+  # Deploy after checks pass. The token needs Workers Scripts:Edit and D1:Edit for migrations.
   deploy:
     needs: check
     if: github.ref == 'refs/heads/main'
@@ -75,11 +63,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Migrations first, then the code, in that order and failing hard if the migration fails.
-      # Shipping code whose migration has not run is what 500'd /auth/me for every app once: the
-      # column was missing in production and every session lookup threw. `pnpm run deploy` chains
-      # `d1 migrations apply owewell --remote` ahead of `wrangler deploy` so the two cannot
-      # drift apart. Applying by hand was the old contract and is what allowed that drift.
+      # Apply migrations before deploying code that depends on their schema.
       - name: Deploy to Cloudflare
         run: pnpm run deploy
         working-directory: packages/api

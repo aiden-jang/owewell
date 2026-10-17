@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/*
- * Fails the build when a `var(--x)` names a custom property nothing declares.
- *
- * This failure mode is silent by construction: with a fallback the rule quietly uses the fallback,
- * and without one `color` inherits while `fill` renders black. Six of these shipped before the
- * check existed, and every one was found by accident.
- *
- * A fallback does not make a reference legitimate, so a reference is reported either way.
- */
+// Reject references to undeclared CSS custom properties, including references with fallbacks.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -6,6 +6,8 @@ One Cloudflare Worker serves the API and the built SPA. The API lives under
 `/api`; `/owewell` remains an alias for cached clients. Vite proxies both prefixes
 in development. The Worker serves client routes through its assets binding.
 
+`formatMoney` is a pure shared formatter imported directly by the interface; it has no React state.
+
 `packages/core` owns JSON wire contracts and shared vocabulary. Its timestamps are
 strings; database/service types may use dates. `packages/shared` owns integer-cent
 allocation and greedy settlement arithmetic, without I/O. The API is the authority
@@ -25,6 +27,9 @@ histories within D1's statement parameter budget. `db/rows.ts` splits bulk inser
 into bounded statements within one database batch transaction. Empty ID lists,
 quoted IDs and database subqueries retain their filtering semantics. This follows
 [D1's documented JSON-array predicates](https://developers.cloudflare.com/d1/sql-api/query-json/).
+
+`expenseContracts.ts` owns service inputs, views, and typed errors without database or route dependencies.
+Guards, readers, and both write paths depend on that contract; guards never import their caller.
 
 Simple and itemized expense writes share guards; revisions, expected versions and
 client IDs preserve corrections and retry behavior. The production schema is in

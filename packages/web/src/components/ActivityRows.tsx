@@ -1,9 +1,9 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import type { ReactNode } from 'react';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
 import type { Expense } from '../lib/expenses';
 import type { Settlement } from '../lib/settlements';
 import type { GroupMember } from '../lib/groups';
-import { useMoney } from '../lib/currency';
 import { timeAgoShort as timeAgo, dayAgo } from '../lib/relativeTime';
 import { Avatar } from './Avatar';
 import { CategoryGlyph } from './CategoryMark';
@@ -28,7 +28,6 @@ export function ActivityRows({
   onOpenExpense,
   onUndoSettlement,
 }: Props): ReactNode {
-  const fmt = useMoney();
   const nameOf = (userId: string): string =>
     members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
   // Who actually paid an expense. For itemized receipts we read the per-item payers

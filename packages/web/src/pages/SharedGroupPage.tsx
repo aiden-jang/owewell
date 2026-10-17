@@ -1,8 +1,7 @@
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { type MoneyFormatter } from '@owewell/shared';
-import { useMoney } from '../lib/currency';
+import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
 import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
@@ -117,8 +116,6 @@ export function SharedGroupPage(): ReactNode {
     // `claimSeat`, `navigate` and `setSearchParams` are listed for honesty rather than because they
     // gate anything: the ref above makes this a once-per-mount effect whatever their identities do.
   }, [claimSeat, navigate, searchParams, setSearchParams, status, summary, user, viewerIsMember]);
-
-  const fmt = useMoney();
 
   return (
     <div className="flex flex-1 flex-col">

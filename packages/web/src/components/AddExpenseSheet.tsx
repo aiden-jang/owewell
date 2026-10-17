@@ -5,14 +5,7 @@ import { AddItemizedExpenseForm } from './AddItemizedExpenseForm';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 
-/*
- * Two ways to put something on the tab, behind one sheet.
- *
- * Which one you are using survives the sheet closing on purpose: somebody itemising one receipt is
- * usually about to itemise the next. The forms differ in what they ask for, not in what happens
- * after, so the callbacks are shared — `onCreated` is told which kind it was, because "added to the
- * tab" and "receipt added to the tab" are different news and the page owns the wording.
- */
+// Preserve the chosen entry mode when the sheet closes.
 
 export type ExpenseMode = 'simple' | 'itemized';
 

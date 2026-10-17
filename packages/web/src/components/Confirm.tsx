@@ -37,13 +37,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
 
-  /*
-   * The same trap, restore and scroll lock the sheet has. This dialog guards Delete group and Turn
-   * off link, so Tab must not walk into the page behind it.
-   *
-   * Opens on the confirm button rather than the dialog, unlike a sheet: a confirm has two buttons
-   * and one obvious answer, and the point is that the answer is one keypress away.
-   */
+  // Trap focus and restore it to the trigger; confirmations initially focus their primary action.
   const cancel = useCallback(() => settle(false), [settle]);
   useDialogFocus(dialogRef, pending !== null, cancel, () => confirmRef.current);
 

@@ -1,14 +1,5 @@
 import { todayStr } from './format';
 
-/**
- * "3 days ago", "2 weeks ago", "in March".
- *
- * Deliberately vague and deliberately not `Intl.RelativeTimeFormat` alone. What matters on a dashboard
- * is "is this group still alive", so the useful answers are today / this week / a few weeks / a while
- * back. An exact "17 days ago" is precision nobody asked for, and a bare date makes you do the
- * arithmetic yourself.
- */
-
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -76,16 +67,7 @@ export function timeAgoShort(at: Date | string | number, now: Date | number = Da
   });
 }
 
-/*
- * An expense's date is a calendar day, not a moment.
- *
- * An <input type="date"> gives "2026-08-24" in the user's calendar and the API stores it as UTC
- * midnight. Formatting that instant in local time lands on the previous day anywhere west of UTC,
- * so a New York user adding an expense today sees yesterday's date on it.
- *
- * So these work on the date string and never build a Date from the stored instant. `slice(0, 10)`
- * recovers the day that was picked, whatever zone the reader is in.
- */
+// Stored expense dates represent calendar days. Formatting UTC midnight locally can shift that day.
 
 /** The stored day, as the YYYY-MM-DD the user originally chose. */
 export function expenseDay(iso: string): string {

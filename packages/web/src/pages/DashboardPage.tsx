@@ -105,13 +105,6 @@ export function DashboardPage(): ReactNode {
     loadGroups();
   }, [loadGroups]);
 
-  /*
-   * The whole queue, not one group's worth.
-   *
-   * This is the screen you land on, and the group page can only drain its own group. Without this,
-   * an expense added to one tab on a train would sit in localStorage for as long as you kept opening
-   * a different tab, while the totals above quietly left it out.
-   */
   useOutboxSync({
     onChanged: () => loadGroups(),
     onQueueChanged: () => setWaiting(queued().length),

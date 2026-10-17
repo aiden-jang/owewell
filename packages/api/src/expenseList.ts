@@ -3,7 +3,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { expenseItemShares, expenseItems, expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 import { requireMembership } from './groups.js';
-import type { ExpenseView } from './expenses.js';
+import type { ExpenseView } from './expenseContracts.js';
 
 /* Reading the tab. Separate from the writers because it shares nothing with them but the row
    shape: no guards, no version checks, no idempotency, just the query that assembles a view. */

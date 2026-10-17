@@ -1,13 +1,7 @@
 import { dollarsToCents } from '@owewell/shared';
 import type { SplitMethod } from '@owewell/core';
 
-/**
- * Turn one raw per-person input into the number the server wants.
- *
- * Throws rather than returning a sentinel: every caller is inside a try that already knows how to
- * say "check the amounts", and a NaN travelling on into a split is the failure this prevents.
- * EQUAL has no per-person value at all, hence undefined.
- */
+/** Reject unparseable input before it reaches allocation; EQUAL has no per-person value. */
 export function serverValue(method: SplitMethod, raw: string): number | undefined {
   const trimmed = raw.trim();
   if (method === 'EQUAL') return undefined;

@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { dollarsToCents } from '@owewell/shared';
+import { formatMoney as fmt, dollarsToCents } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 import { normalizeAmountInput } from '../lib/format';
@@ -13,7 +13,6 @@ import {
   SubmitButton,
   inputClass,
 } from './FormFields';
-import { useMoney } from '../lib/currency';
 import { useExpenseDraft } from '../lib/useExpenseDraft';
 import { saveExpense } from '../lib/saveExpense';
 
@@ -50,7 +49,6 @@ export function AddItemizedExpenseForm({
   editing,
   template,
 }: Props): ReactNode {
-  const fmt = useMoney();
   const {
     source,
     defaultPayer,

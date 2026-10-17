@@ -3,12 +3,17 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { ExpenseExtras } from './ExpenseExtras';
 import { readSplitPreference, writeSplitPreference } from '../lib/splitPreference';
 import { DescriptionField, FormError, PayerSelect, SubmitButton, inputClass } from './FormFields';
-import { computeSplit, currencySymbol, dollarsToCents, type SplitMethod } from '@owewell/shared';
+import {
+  formatMoney as fmt,
+  computeSplit,
+  currencySymbol,
+  dollarsToCents,
+  type SplitMethod,
+} from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
-import { useMoney } from '../lib/currency';
 import { useExpenseDraft } from '../lib/useExpenseDraft';
 import { saveExpense } from '../lib/saveExpense';
 
@@ -52,7 +57,6 @@ export function AddExpenseForm({
   editing,
   template,
 }: Props): ReactNode {
-  const fmt = useMoney();
   const symbol = currencySymbol();
   const {
     source,
@@ -232,14 +236,7 @@ export function AddExpenseForm({
     fmt,
   );
 
-  /*
-   * What each person will owe, worked out while you type.
-   *
-   * Deliberately the same `computeSplit` the API runs, so the sentence under the amount is a preview
-   * rather than a guess that rounds differently. No seed is passed (the expense has no id yet), so on
-   * an uneven total the odd cent may land on somebody else in the end. That's why an uneven split is
-   * shown as a range instead of one confident number.
-   */
+  // The server assigns the expense ID/rounding seed; show a range when the odd cent is not yet known.
   const shares = ((): { userId: string; owedCents: number }[] | null => {
     let cents: number;
     try {

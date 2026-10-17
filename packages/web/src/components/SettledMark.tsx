@@ -1,13 +1,6 @@
 import type { ReactNode } from 'react';
 
-/*
- * The check that says the tab is over. The ring scales in and the tick draws itself, once, when the
- * state flips. Deliberately not confetti: this is somebody's money settling, and the feeling is
- * relief rather than a party.
- *
- * `tone` separates the two endings. "square" is your own column being clear while other people
- * still owe each other, which is quieter than the whole group being done.
- */
+// Personal settlement is quieter than the whole group being settled.
 export function SettledMark({ tone = 'settled' }: { tone?: 'settled' | 'square' }): ReactNode {
   const done = tone === 'settled';
   return (

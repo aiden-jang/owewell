@@ -3,13 +3,7 @@ import { groupsApi, type GroupDetail } from './groups';
 import { useToast } from '../components/Toast';
 import { useAsyncScope } from './useAsyncScope';
 
-/*
- * The link that gets other people into the group.
- *
- * Minting the token is a WRITE — the server creates one if the group has none — so it cannot be
- * done speculatively on every group anyone opens. It is fetched up front exactly when `needsPeople`
- * says it is about to be shown, and otherwise waits to be asked for.
- */
+// Minting an invite writes a token; request it only when inviting is needed or explicitly chosen.
 
 /** How long the Copy button admits it copied. */
 const COPIED_MS = 1600;
@@ -34,14 +28,7 @@ export interface InviteLink {
 export function useInviteLink(group: GroupDetail | null): InviteLink {
   const toast = useToast();
   const [link, setLink] = useState<string | null>(null);
-  /*
-   * Blocks the auto-mint below after a deliberate revoke.
-   *
-   * That effect mints whenever the group still needs people and there is no link in hand — which is
-   * exactly the state revoking produces. Without this, turning the link off immediately created a
-   * replacement and the button appeared to do nothing at all. Session-only: reopening the group is a
-   * fresh decision, and the group genuinely does still need people.
-   */
+  // Suppress auto-mint after revocation for this visit so turning the link off stays off.
   const [revoked, setRevoked] = useState(false);
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<number | undefined>(undefined);
@@ -108,13 +95,6 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     }
   }, [group?.name, mint, toast, begin]);
 
-  /*
-   * Both of these break links other people already hold, which is the point of them, so both say so
-   * plainly afterwards rather than succeeding in silence.
-   *
-   * Rotating keeps the panel open on the replacement, because the next thing you want is to send it.
-   * Revoking clears it, because there is nothing left to send.
-   */
   const rotate = useCallback(async (): Promise<void> => {
     if (!groupId) return;
     const current = begin();

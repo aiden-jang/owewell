@@ -1,9 +1,8 @@
-import type { MoneyFormatter } from '@owewell/shared';
+import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
 import { useState, type ReactNode } from 'react';
 import type { SettlementReceiptData } from '../lib/settlementReceipt';
 import { Icon } from './Icon';
-import { useMoney } from '../lib/currency';
 
 function balanceCopy(cents: number, fmt: MoneyFormatter): string {
   if (cents === 0) return 'settled up';
@@ -20,7 +19,6 @@ export function SettlementReceipt({
   onUndo?: () => Promise<void>;
 }): ReactNode {
   const [undoing, setUndoing] = useState(false);
-  const fmt = useMoney();
   const { settlement } = receipt;
   return (
     <section

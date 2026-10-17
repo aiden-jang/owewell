@@ -1,13 +1,5 @@
 import type { ReactNode } from 'react';
 
-/*
- * Placeholders, shaped like the thing they stand in for.
- *
- * A skeleton only earns its place if the layout does not move when the content lands, so these come
- * in the two shapes this app actually uses: separate cards, like the dashboard's group rows, and one
- * hairline-divided panel, like the activity feed. Measured against the real pages at 375px.
- */
-
 /** A shimmering placeholder block for loading states. */
 export function Skeleton({ className = '' }: { className?: string }): ReactNode {
   return <div className={`animate-pulse rounded-xl bg-line/60 ${className}`} aria-hidden />;

@@ -5,15 +5,7 @@ import type { Expense } from './expenses';
 import type { Settlement } from './settlements';
 import { fullDay } from './relativeTime';
 
-/*
- * The ledger as a spreadsheet.
- *
- * Deliberately ledger-shaped rather than an attempt to recreate the whole UI in a grid: expenses and
- * payments share one sorted timeline, with the current balances tacked on the end. Names are
- * resolved at export time so the file stays readable after somebody changes their display name.
- *
- * Pure, and separate from the download it feeds, because the part worth testing is `csvCell`.
- */
+// Resolve names at export time and retain a ledger timeline plus current balances.
 
 /** Escape one cell, and defuse it. */
 export function csvCell(value: string | number): string {

@@ -11,14 +11,7 @@ interface State {
   where: string | null;
 }
 
-/**
- * Catches render-time crashes so a thrown component doesn't blank the whole app.
- *
- * It shows what broke, collapsed. Logging to console only means a crash reported as "this page says
- * Well, that broke" carries no information: reading it needs devtools, which on a phone does not
- * happen. Everyone can screenshot, so the screenshot has to be enough. Collapsed, because the point
- * of the friendly copy is that a crash shouldn't look like a stack trace until you ask.
- */
+/** Expose crash details in a disclosure so a phone screenshot can carry diagnostics. */
 export class ErrorBoundary extends Component<Props, State> {
   override state: State = { hasError: false, message: null, where: null };
 

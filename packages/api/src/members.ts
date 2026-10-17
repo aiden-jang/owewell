@@ -15,17 +15,7 @@ import {
 } from './db/schema.js';
 import { GroupError, memberView, requireMembership, requireOwner, type GroupMemberView } from './groups.js';
 
-/*
- * Who is in a group, and what happens to the ledger when that changes.
- *
- * The group functions next door are about the group as a thing — name, share link, archive — and
- * none of them touch the ledger. Everything here does: adding or removing somebody re-splits the
- * expenses they were part of. The dependency runs one way, members -> groups, so the shared guards
- * live over there.
- *
- * `claimPlaceholder` stays in groups.ts despite being about a member: it is authorised by a share
- * token rather than by membership, so it belongs with the flow it is the last step of.
- */
+// Membership changes recompute affected splits. Token-authorized seat claims belong in groups.ts.
 
 /**
  * Rename a member. Only name-only placeholders can be renamed here; a real account owns its
@@ -117,15 +107,8 @@ export async function setPaymentHandles(
   return memberView(db, groupId, targetPersonId);
 }
 
-/**
- * When a member joins, fold them into expenses shared by *everyone*: EQUAL expenses split
- * across the whole prior membership re-divide to include them, and itemized receipts where
- * every line item was shared by everyone add them to every item and recompute.
- *
- * Left untouched on purpose: subset splits (deliberately just some people) and EXACT / PERCENT
- * / SHARES expenses (their per-person allocations have no defined value for a newcomer). Those
- * stay manual.
- */
+/** Add newcomers only to EQUAL splits and itemized receipts previously shared by the whole group.
+ * Subset, EXACT, PERCENT, and SHARES allocations remain unchanged. */
 async function replaceSplits(
   db: DB,
   expenseId: string,

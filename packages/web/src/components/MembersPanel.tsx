@@ -1,18 +1,11 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { Balance, GroupMember } from '../lib/groups';
-import type { MoneyFormatter } from '@owewell/shared';
+import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
-import { useMoney } from '../lib/currency';
 
-/*
- * The member list, and the three small editors inside it.
- *
- * The page's handlers do the work and throw on failure; this panel decides what failure looks like.
- * That differs by case: a failed add belongs under the field you just typed in, a failed rename has
- * no field left on screen to sit under.
- */
+// Handlers throw; each editor owns the placement of its failure message.
 
 export interface PaymentHandles {
   venmoHandle: string;
@@ -87,7 +80,6 @@ export function MembersPanel({
   /** Owns the confirmation, because the re-split it warns about is the page's business. */
   onRemove: (memberId: string, netCents: number) => Promise<void>;
 }): ReactNode {
-  const fmt = useMoney();
   const toast = useToast();
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);

@@ -1,13 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { currentTheme, onThemeChange, setTheme } from '../lib/theme';
 
-/*
- * Two palettes ship. This is how a person picks one.
- *
- * Labeled choices live in the footer; the header holds the account and the way out.
- *
- * Subscribed rather than local state, so the console handles and this stay in agreement.
- */
 export function ThemeSwitch(): ReactNode {
   const [theme, setLocal] = useState(currentTheme);
   useEffect(() => onThemeChange(setLocal), []);

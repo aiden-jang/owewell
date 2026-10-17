@@ -1,6 +1,6 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import type { Expense } from '../lib/expenses';
 import { Icon } from './Icon';
-import { useMoney } from '../lib/currency';
 
 /** The latest real entry and the everyday action sit together before settlement detail. */
 export function GroupActivityShortcut({
@@ -12,7 +12,6 @@ export function GroupActivityShortcut({
   onAdd: () => void;
   onOpen: (id: string) => void;
 }) {
-  const fmt = useMoney();
   const latest = expenses.reduce<Expense | null>(
     (last, expense) => (!last || expense.createdAt > last.createdAt ? expense : last),
     null,

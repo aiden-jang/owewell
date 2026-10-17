@@ -1,14 +1,6 @@
 import { categoryMeta, type Expense } from '@owewell/core';
 
-/**
- * The "person lens" used by the group's activity feed and "Where it went" breakdown: pick a person
- * and how they relate to an expense. Pure, framework-free, and unit-tested — the component just
- * feeds it state and renders the result.
- *
- *  - involved: the person paid it, or owes a share of it
- *  - owes:     the person has a share they didn't pay (so it feeds their balance)
- *  - paid:     the person paid it
- */
+/** Involved: paid or owes a share. Owes: has an unpaid share. Paid: credited as a payer. */
 export type Relation = 'involved' | 'owes' | 'paid';
 
 /** The person's owed share of an expense in cents (0 if they aren't a participant). */

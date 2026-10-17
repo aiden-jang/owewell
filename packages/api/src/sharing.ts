@@ -18,14 +18,7 @@ import { mintShareToken } from './shareToken.js';
 import { pruneOrphanPlaceholders } from './people.js';
 import { GroupError, requireMembership, requireOwner } from './groups.js';
 
-/*
- * The share link, and what somebody can do with one.
- *
- * The only part of owewell a stranger can reach: a read-only summary behind an unguessable token,
- * and the claim that turns a name-only member into a real account. Kept apart from the group
- * itself because the access rule is different here. Everywhere else asks who you are; this asks
- * only what you are holding.
- */
+// Read-only summaries and placeholder claims are authorized by the share token.
 
 /** The read-only view served on the public share page. Deliberately excludes payment handles
  *  and individual line items — just totals, balances, and who-owes-who. */
@@ -57,14 +50,7 @@ export async function getOrCreateShareToken(db: DB, personId: string, groupId: s
   return token;
 }
 
-/*
- * Taking a share link back. Without it the only remedy for a forwarded URL is deleting the group,
- * which takes the ledger with it.
- *
- * Owner-only, matching rename and delete: it changes what everybody outside the group can see.
- * Members are unaffected — a claimed seat is a real membership and does not depend on the token
- * that introduced it.
- */
+// Only the owner can revoke a link. Claimed seats retain membership independently of that token.
 
 /** Replace the token, so every copy of the old link stops resolving. Returns the new one. */
 export async function rotateShareToken(db: DB, personId: string, groupId: string): Promise<string> {

@@ -22,14 +22,8 @@ interface Args<P extends ExpensePayload> {
   failureMessage: string;
 }
 
-/**
- * The save both expense forms perform, including what happens when the network is missing.
- *
- * The id is minted before the request rather than after, so it survives a failed attempt and a
- * retry carries the same one and is recognised as the same expense. Only a create can be queued:
- * an edit needs the row it edits to still be there, and by the time the connection returns somebody
- * else may have changed it out from under this one.
- */
+/** Mint the create ID before requesting so retries keep the same identity.
+ * Queue creates only; edits require conflict handling against the current row. */
 export async function saveExpense<P extends ExpensePayload>({
   groupId,
   editing,

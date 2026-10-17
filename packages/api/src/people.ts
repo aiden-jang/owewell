@@ -59,13 +59,7 @@ export async function getOrCreatePerson(db: DB, authUser: AuthUser): Promise<Per
   return row;
 }
 
-/**
- * Delete placeholder people who are no longer referenced anywhere (orphaned by a removal or a
- * group delete). "Referenced" means a current group membership OR any surviving expense,
- * split, item, item-share, or settlement row. Removing a settled member keeps their history,
- * so their placeholder is still referenced and must survive — deleting it would break foreign
- * keys. Only truly dangling placeholders get cleaned up.
- */
+/** Delete only unreferenced placeholders. Retained ledger history still owns its people. */
 export async function pruneOrphanPlaceholders(db: DB): Promise<void> {
   const referenced = new Set<string>();
   const collect = (rows: { id: string | null }[]): void => {

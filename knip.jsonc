@@ -21,7 +21,6 @@
   },
   // `cloudflare:test` is the vitest-pool-workers virtual module, not a package on disk.
   "ignoreDependencies": ["cloudflare"],
-  // Plenty here is exported so a sibling test can reach it while still being used only inside its
-  // own file. Reporting those buries the finding that matters: a symbol used nowhere at all.
+  // Include exports used only by their own file or tests; report symbols with no consumers.
   "ignoreExportsUsedInFile": true,
 }

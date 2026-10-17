@@ -1,21 +1,4 @@
-/*
- * Two checks on comments, run by `pnpm run verify`.
- *
- * A ceiling, because a cleanup pass is a moment and drift is permanent. And a stranded check,
- * because moving code leaves its comment behind describing something that is no longer underneath
- * it: `itemSplitHint` moved into its own component and its comment stayed on the page above a name
- * lookup it has nothing to do with.
- *
- * The ceiling is a share of the code rather than a line count. A count charges a new module for
- * its own header, so it blocks a genuine explanation exactly as hard as it blocks padding.
- *
- * 17% is high next to other repos here and that is deliberate: these comments were read before the
- * number was set, and they are mostly design rules with the bug that prompted them attached — why
- * an empty state must not look like a failure, why a category is a glyph in a list and a dot in a
- * chart, why localhost is safe to allow past the CSRF check. None of that is recoverable from the
- * code. What this catches is prose added to code that already exists: three hundred lines of it
- * with no new code trips the ceiling, a new module documented at this rate does not.
- */
+// Check comment budgets, repeated explanations, and comments stranded by moves.
 import { globSync, readFileSync } from 'node:fs';
 
 const MAX_SRC_DENSITY = 0.17;

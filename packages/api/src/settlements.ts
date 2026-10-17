@@ -3,7 +3,7 @@ import type { PaymentMethod } from '@owewell/core';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
-import { getBalances } from './expenses.js';
+import { getBalances } from './balances.js';
 import { groupMembers, settlements } from './db/schema.js';
 
 export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND';
@@ -53,13 +53,7 @@ export async function recordSettlement(
 ): Promise<SettlementView> {
   await requireMembership(db, personId, groupId);
 
-  /*
-   * A payment is a fact about the past, so replaying one is only ever a duplicate risk.
-   *
-   * Unlike an edit, this appends rather than overwrites: "Bob handed Alice $30" stays true however
-   * much the balances moved while it sat in an outbox. The one thing that must not happen is logging
-   * the same handover twice, which is what the client id prevents.
-   */
+  // Payments append a historical fact; retain the client ID so outbox replay cannot record it twice.
   if (input.clientId) {
     const already = await db
       .select()

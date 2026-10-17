@@ -1,5 +1,5 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import type { ReactNode } from 'react';
-import { useMoney } from '../lib/currency';
 import { ReceiptFace } from './ReceiptFace';
 import { MoneyText } from './MoneyText';
 
@@ -12,7 +12,6 @@ export function DashboardBalance({
   hasAnySpend: boolean;
   othersStillOwe: boolean;
 }): ReactNode {
-  const fmt = useMoney();
   const settled = totals.net === 0;
   const owed = totals.net > 0;
   return (

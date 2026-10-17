@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { MoneyFormatter } from '@owewell/shared';
+import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
 import type { GroupSummary } from '../lib/groups';
-import { useMoney } from '../lib/currency';
 import { timeAgoShort as timeAgo } from '../lib/relativeTime';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
@@ -33,7 +32,6 @@ type Props = {
 };
 
 export function DashboardGroupCard({ group, selectMode, selected, onToggle }: Props): ReactNode {
-  const fmt = useMoney();
   const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0, fmt);
   // Empty groups show their creation date; spending groups show the latest activity.
   const activity =

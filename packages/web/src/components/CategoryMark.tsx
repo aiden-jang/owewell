@@ -1,16 +1,7 @@
 import { type ReactNode } from 'react';
 import { categoryMeta } from '@owewell/core';
 
-/*
- * A category, shown two ways, and the rule for which.
- *
- *   CategoryGlyph  where a category is a THING you recognise — the picker, a feed row, an expense.
- *   CategoryDot    where a category is a VALUE being encoded — bars, slices, legends.
- *
- * In a chart the colour carries the data, so a glyph beside it is decoration competing with the
- * swatch. In a list nothing else identifies the category, so the glyph is the identity and a dot is
- * a colour nobody has a key for.
- */
+// Glyphs identify categories in lists; color swatches encode them in charts.
 
 /** Where a category is a thing you recognise. Decorative: the label is always beside it. */
 export function CategoryGlyph({ categoryKey }: { categoryKey: string }): ReactNode {

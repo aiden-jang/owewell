@@ -3,15 +3,6 @@ import { Link } from 'react-router-dom';
 import { Icon } from './Icon';
 import type { GroupSummary } from '../lib/groups';
 
-/*
- * The name of the group, and everything you can do to the group itself.
- *
- * Three pieces of state live here and nowhere else: whether the options menu is open, whether the
- * name is being edited, and the draft of that name. Everything the menu items actually DO belongs
- * to the page, because all of it is a write against the group — so this is a toolbar with a lot of
- * callbacks, which is the honest shape of a toolbar.
- */
-
 export function GroupHeader({
   groupId,
   groupName,

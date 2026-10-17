@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import { SettlementReceipt } from './SettlementReceipt';
 import type { SettlementReceiptData } from '../lib/settlementReceipt';
-vi.mock('../lib/currency', () => ({ useMoney: () => (amount: number) => `$${(amount / 100).toFixed(2)}` }));
 const receipt: SettlementReceiptData = {
   settlement: {
     id: 'pay',

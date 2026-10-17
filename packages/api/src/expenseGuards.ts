@@ -9,7 +9,7 @@ import {
   groupMembers,
   settlements,
 } from './db/schema.js';
-import { ExpenseError, type ExpenseView } from './expenses.js';
+import { ExpenseError, type ExpenseView } from './expenseContracts.js';
 
 /* The checks every expense write makes before it touches a row, and the teardown one of them
    needs. Shared by the plain and the itemized paths, which is why they are not in either. */
@@ -30,13 +30,7 @@ export async function assertUnlocked(db: DB, groupId: string): Promise<void> {
   }
 }
 
-/**
- * Refuse an edit written against a version that has since moved.
- *
- * Only when the caller names a version. Omitting it means "apply mine regardless", which is what the
- * client sends once a person has been shown the conflict and chosen — otherwise the second attempt
- * conflicts with the change the first was told about, forever.
- */
+/** An omitted expected version explicitly permits overwriting after conflict confirmation. */
 export function assertVersion(current: number, expected: number | undefined): void {
   if (expected !== undefined && expected !== current) {
     throw new ExpenseError('CONFLICT', 'Somebody changed this expense while you were away.');

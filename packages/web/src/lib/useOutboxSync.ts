@@ -6,13 +6,7 @@ import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { flush, isAlreadyDone, subscribe, type QueuedEdit, type QueuedWrite } from './outbox';
 
-/*
- * Draining the outbox, wherever you happen to be standing.
- *
- * The group page syncs its own group, because it has the ledger on screen to refresh; the dashboard
- * syncs everything, because it is the screen you land on. Scoped to one group only, a write queued
- * in the Big Sur tab would sit in localStorage for a week while you used the flat tab.
- */
+// Dashboard sync covers all groups; a group screen refreshes only its own ledger.
 
 /** Send one queued write. The four kinds differ in exactly the ways the outbox comments describe. */
 function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
@@ -81,14 +75,7 @@ export function useOutboxSync({
   );
 
   const run = useCallback(async (): Promise<void> => {
-    /*
-     * One flush at a time.
-     *
-     * A flaky connection fires `online` more than once, and mount plus a reconnect can overlap, so
-     * two passes would take the same entry off the queue twice and post it twice. The server's
-     * client ids mean that is not a duplicate expense — which is the whole reason they exist — but a
-     * wasted round trip and two identical toasts are still wrong.
-     */
+    // Serialize flushes so overlapping reconnect events do not replay the same entry concurrently.
     if (flushing.current) return;
     flushing.current = true;
     try {
@@ -104,13 +91,7 @@ export function useOutboxSync({
         toast.error(`"${entry.description}" could not be saved: ${message}`);
       }
 
-      /*
-       * A conflict is a question, not an error.
-       *
-       * The row changed while this edit sat in the queue, so applying it silently would erase
-       * whatever happened in between. Asked one at a time and in order, because answering "keep
-       * mine" on the first can be what makes the second one make sense.
-       */
+      // Resolve queued edit conflicts in order; silently applying one could erase newer work.
       for (const entry of conflicted) {
         const keepMine = await confirm({
           title: `"${entry.description}" changed while you were offline`,

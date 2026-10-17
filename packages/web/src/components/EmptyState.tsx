@@ -2,17 +2,7 @@ import type { ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 import { ReceiptFace } from './ReceiptFace';
 
-/*
- * The two things a page says when it has no list to show, and why they must not look alike.
- *
- *   invite   nothing here yet, which is the normal beginning of things. A solid card in the accent,
- *            because it is part of the app rather than a hole in it.
- *   problem  something did not load, or is gone. Dashed and grey, which reads as "missing".
- *
- * "No groups yet" and "Couldn't load your groups" were the same dashed grey box, so the first screen
- * a new account saw was pixel-for-pixel a failure. One component rather than a convention, because a
- * convention is a thing you remember and this one was forgotten six times.
- */
+// Empty collections and failed reads have distinct presentations.
 
 export function EmptyState({
   tone,

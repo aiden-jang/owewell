@@ -11,7 +11,7 @@ import {
   findByClientId,
   memberPersonIds,
 } from './expenseGuards.js';
-import { ExpenseError, type CreateItemizedExpenseInput, type ExpenseView } from './expenses.js';
+import { ExpenseError, type CreateItemizedExpenseInput, type ExpenseView } from './expenseContracts.js';
 
 /* A receipt rather than a total: many small amounts, each with its own people and sometimes its
    own payer, plus tax and tip spread across them. Separate from the plain writers because the

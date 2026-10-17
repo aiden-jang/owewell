@@ -1,17 +1,6 @@
 @import 'tailwindcss';
 
-/*
- * ── hover, only where hovering is a thing ─────────────────────────────────────
- *
- * Tailwind emits `hover:` as a bare `:hover`, and on a touchscreen `:hover` does not simply fail to
- * fire — it latches. Tap a group row and it keeps the hover background until you tap somewhere
- * else, so the last thing you touched looks selected when nothing is. Across 114 hover utilities
- * that is most of the app quietly lying about its state on the device it was built for.
- *
- * Redefining the variant fixes every one of them at once, and is the supported way to do it in v4.
- * A mouse is unaffected. `.row-interactive:hover` further down carries the same guard by hand,
- * because it is our CSS rather than a generated utility.
- */
+/* Limit hover to fine pointers so taps do not leave a false selected state. */
 @custom-variant hover {
   @media (hover: hover) {
     &:hover {
@@ -20,23 +9,7 @@
   }
 }
 
-/*
- * ── Inter, served from here ───────────────────────────────────────────────────
- *
- * Was two preconnects and a render-blocking stylesheet from fonts.googleapis.com, which put a
- * third-party round trip in front of the first paint of every page and handed a visitor's IP to
- * Google on the way. These are the same files that CSS pointed at, checked in beside the app.
- *
- * One variable file per subset rather than five static weights: the whole 400-800 range comes from
- * a single request, and latin-ext is only fetched when a name actually contains one of its glyphs.
- * Anything outside both ranges falls back down the stack in --font-sans, which is the honest
- * outcome for a 48KB latin subset.
- *
- * The v20 in the filenames is Google's version of the family, and it is there so these can be
- * cached for a year: a new cut of Inter arrives as a new filename rather than as a stale file.
- *
- * SIL Open Font License; the text is in public/fonts/OFL.txt.
- */
+/* Self-hosted variable Inter subsets; versioned names support immutable caching. License: public/fonts/OFL.txt. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -63,34 +36,8 @@
  * Inter Display, the optical-size cut for large figures. Inert until the file exists — see the
  * --font-display note below for the one download that switches it on.
  */
-/*
-@font-face {
-  font-family: 'Inter Display';
-  font-style: normal;
-  font-weight: 400 800;
-  font-display: swap;
-  src: url('/fonts/inter-display-latin-v20.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
-    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-*/
 
-/*
- * ── Themes ────────────────────────────────────────────────────────────────────
- *
- * Every colour token below resolves to a runtime variable, so the whole palette swaps with one
- * attribute on <html>:
- *
- *     <html data-theme="warm">      ← light, warm  (direction B)
- *     <html data-theme="dark">      ← neutral dark (direction A, the default)
- *
- * The token NAMES are unchanged from the original purple build, so every existing `bg-card`,
- * `text-muted`, `border-line` keeps working. Only the values move. That is the whole point: the
- * palette is the cheap decision and it should stay cheap.
- *
- * Contrast is enforced, not eyeballed — see src/lib/contrast.test.ts. Four of the warm colours failed
- * WCAG AA on first pass, and a light theme hides that far better than a dark one does.
- */
+/* Runtime palette tokens follow data-theme on the document element. */
 @theme {
   --color-canvas: var(--p-canvas);
   --color-card: var(--p-card);
@@ -110,68 +57,16 @@
   /* The fill under white text on a destructive button. See the note on Palette.negSolid. */
   --color-neg-solid: var(--p-neg-solid);
 
-  /*
-   * ── Type ──────────────────────────────────────────────────────────────────
-   *
-   * Tailwind's own scale is kept; it is well proportioned and replacing the numbers would be churn.
-   * What was missing is the rung below `xs`, and its absence showed: `text-[10px]` and `text-[11px]`
-   * had been written inline 32 times between them. Two invented sizes a pixel apart is not a
-   * distinction anybody can see, so both become one step.
-   *
-   * The roles, so the next choice is not a coin flip:
-   *   2xs   overlines, chart legends, timestamps — the layer you read only if you look for it
-   *   xs    secondary detail under a primary line
-   *   sm    body and controls, which is nearly everything here
-   *   lg    section leads
-   *   3xl+  figures, and only figures
-   */
+  /* 2xs: metadata; xs: supporting text; sm: body/controls; lg: section leads; 3xl+: figures. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
 
-  /*
-   * ── Radius ────────────────────────────────────────────────────────────────
-   *
-   * Tailwind's steps, used proportionally: the bigger the surface, the softer its corner. Written
-   * down because the rule was real but unstated, and an unstated rule is a coin flip at the next
-   * component.
-   *
-   *   full   pills, avatars, icon buttons
-   *   lg     compact inline inputs — a rename field, a per-person amount
-   *   xl     full-width form fields, and rows inside a container
-   *   2xl    cards that stand on their own, including feed rows
-   *   3xl    page-level surfaces — the balance hero, sheets, dialogs, empty states
-   */
+  /* full: pills; lg: compact inputs; xl: fields/rows; 2xl: cards; 3xl: page surfaces/dialogs. */
 
-  /*
-   * ── The display face ──────────────────────────────────────────────────────
-   *
-   * Used on 29 large figures and headings, all of them already `tracking-tight`, so the intent is
-   * written into the markup — this token is where the face itself goes.
-   *
-   * It resolves to plain Inter until `Inter Display` is on disk, and then to that, everywhere, with
-   * no component change. Inter Display is the optical-size cut of the family already here: drawn for
-   * large sizes with tighter spacing and shorter apertures, so it sharpens a balance figure without
-   * fighting the UI text around it. Same OFL, same family, no clash and no new licence to track.
-   *
-   * To switch it on, download InterDisplay (400-800 variable, latin subset) from rsms.me/inter,
-   * put the .woff2 in public/fonts/, and uncomment the @font-face below. Nothing else.
-   *
-   * Deliberately NOT a Google Fonts link: the two Inter subsets above are self-hosted precisely to
-   * keep a third-party round trip out of first paint and a visitor's IP away from Google. Buying a
-   * display face with that would be a bad trade.
-   */
   --font-display: 'Inter Display', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  /*
-   * Spring easing, sampled from a damped harmonic oscillator rather than approximated as a bezier.
-   * A cubic-bezier is bounded by its endpoints, so it physically cannot overshoot and settle back;
-   * linear() can, because it is a lookup table.
-   *
-   * Only --ease-spring (1.1% overshoot) is used here. --ease-bounce exists for parity with the
-   * other apps but a bill splitter should not boing: the overshoot has to be small enough to read
-   * as "settled" rather than as a toy, because the number underneath it is somebody's money.
-   */
+  /* Sampled spring easing permits a small overshoot before settling. */
   --ease-spring: linear(
     0,
     0.038,
@@ -257,13 +152,7 @@
   }
 }
 
-/*
- * The category hues are declared with the rest of each palette below, and read as `--p-cat-*`
- * directly rather than being aliased into `@theme`. Tailwind v4 only emits a theme variable that
- * some generated utility references, and nothing generates a `bg-cat-food` class — these are read
- * by inline styles on an SVG stroke and a bar. Aliased, they were tree-shaken and every slice fell
- * back to grey.
- */
+/* Read category colors directly: Tailwind removes theme aliases unused by generated utilities. */
 
 /* Deep teal, with flat surfaces and explicit money colors. */
 :root,
@@ -417,13 +306,7 @@ body {
      the layout jumps as the bar hides. Browsers that do not know dvh keep the line above. */
   min-height: 100vh;
   min-height: 100dvh;
-  /* Names, group titles and expense descriptions are user-typed and appear on nearly every screen,
-     and any one of them can be a single unbroken token. One long name was widening the page to
-     659px inside a 375px phone, dragging the header and every row sideways with it. break-word
-     break-word, not `anywhere`. `anywhere` also fixes the overflow, but it lets every box shrink to
-     near-nothing, and a four-letter "paid" label in a tight flex column started breaking into
-     "pai/d". The right split is: break-word globally so no word can overflow its own line, and
-     `min-w-0` on the specific flex items that hold user text, so those are the ones that give. */
+  /* Break long user text within its line. Use min-w-0 on flexible text containers; anywhere also crushes short labels. */
   overflow-wrap: break-word;
   /* Flat. The radial purple aurora that used to live here was the single most dated thing on the
      page after the gradient button, and an ambient glow fights a light theme outright. */
@@ -453,13 +336,6 @@ input[type='checkbox'] {
   letter-spacing: -0.01em;
 }
 
-/*
- * Formerly a violet-to-cyan gradient with a matching glow. Now solid.
- *
- * The class names are kept so no component had to change in this pass, but neither is a gradient any
- * more: a gradient primary button was the clearest date stamp on the whole app, and money should be
- * one confident colour, not a colour ramp.
- */
 .text-gradient {
   color: var(--color-ink);
 }
@@ -475,27 +351,13 @@ input[type='checkbox'] {
   }
 }
 
-/*
- * The elevated surface: one card, one border, one shadow.
- *
- * `.glass` used to sit beside this with byte-identical declarations — a leftover from when it was a
- * frosted translucency, which turns to mud on a light canvas. Two names for one appearance meant the
- * choice between them carried no information.
- */
 .surface {
   background: var(--color-card);
   border: 1px solid var(--color-line);
   box-shadow: var(--elevate);
 }
 
-/*
- * The topmost layer, and the only one that has to stay legible on top of another surface.
- *
- * It gets its own background and shadow instead of reusing `.surface`, which is a resting card: a
- * toast fired from inside a sheet lands ON a card, and card-on-card is #1d2829 on #1d2829 behind a
- * 1px hairline, which is nothing. One step lighter than any surface it can land on, and a shadow
- * that reads as floating rather than as sitting still.
- */
+/* Toasts need contrast against the elevated cards and sheets beneath them. */
 .toast {
   background: var(--color-surface2);
   border: 1px solid var(--color-line-strong);
@@ -525,25 +387,7 @@ input[type='checkbox'] {
   margin-bottom: 0.25rem;
 }
 
-/*
- * A finger-sized hit area, without a finger-sized control.
- *
- * Measured on a group page at 375px: 30 of 35 controls were under 44px and 13 were under 24, which
- * is the floor WCAG 2.2 asks for. The offenders are the small ones by design — footer links at 16px
- * tall, the bars/donut and warm/dark toggles at 20, the pay chips at 30, icon buttons at 36.
- *
- * Growing them to 44px each would add roughly 200px of vertical padding to the group page and turn
- * a dense ledger into a form. So the target grows and the control does not: a centred pseudo-element
- * at least 44x44, absolutely positioned, contributing nothing to layout. The button looks identical
- * and the tap lands from 14px away.
- *
- * Coarse pointers only. A mouse is precise and does not need it, and invisible overlapping boxes
- * around every small control is not a thing to inflict on a cursor.
- *
- * Two things it cannot help, which pay for their targets in real padding instead: a <select>, which
- * is a replaced element and renders no pseudo-element, and anything inside an `overflow-hidden`
- * parent, which clips the box away. Both were found by measuring rather than by reasoning.
- */
+/* Expand coarse-pointer hit areas without changing layout. Replaced elements and clipped parents need real padding. */
 @media (pointer: coarse) {
   .tap {
     position: relative;
@@ -561,16 +405,7 @@ input[type='checkbox'] {
   }
 }
 
-/*
- * Press feedback for the two controls the base layer does not cover.
- *
- * Buttons already press: there is a shared `scale(0.97)` on :active down in @layer base. Links and
- * selects were never in it, so on a phone — where the gate above correctly stops hover from
- * latching — tapping a footer link or the payment-method select now acknowledges nothing at all.
- *
- * Scoped to `hover: none`, because a pointer already has hover for this. Opacity rather than a
- * transform, so it never argues with the scale a nested button might be doing.
- */
+/* Touch-only links and selects use opacity feedback; avoid competing with nested button transforms. */
 @media (hover: none) {
   a:active,
   select:active {
@@ -607,18 +442,7 @@ input[type='checkbox'] {
   animation-fill-mode: backwards;
 }
 
-/*
- * Reduced motion, meaning all of it.
- *
- * This named the five keyframe animations and stopped, which is half the answer: there are 108
- * transition utilities across the app, plus a 500ms width tween on the settle-up progress bar and
- * the spring easing on every sheet. Somebody who has asked their OS for less movement was still
- * getting all of that — the named list only ever covered the parts that were easy to name.
- *
- * Everything is reduced to 1ms rather than 0, and iteration-count to 1, which is the conventional
- * shape: a duration of zero can skip transitionend/animationend, and code that waits on those stops
- * rather than speeding up. `scroll-behavior` is included because a smooth scroll is motion too.
- */
+/* Keep a nonzero duration so animation/transition completion events still fire. Reduce smooth scrolling too. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -650,14 +474,6 @@ input[type='checkbox'] {
   }
 }
 
-/*
- * Where the keyboard is.
- *
- * There was not one focus rule in this app, so keyboard users got the browser's default ring, which
- * is drawn for a white page and has no relationship to anything here. Two rules, and the second is
- * the one that is easy to leave out: :focus-visible only *adds* a ring, it never removes the one the
- * UA draws, so without the companion a mouse click still leaves a rectangle behind.
- */
 :focus-visible {
   outline: 2px solid var(--color-accent, #98cec9);
   outline-offset: 2px;
@@ -668,14 +484,7 @@ input[type='checkbox'] {
   outline: none;
 }
 
-/*
- * The skip target is not a control, and a ring around it is a ring around the whole page.
- *
- * <main> carries tabindex="-1" so following "Skip to content" actually moves focus rather than only
- * scrolling. That makes it match :focus-visible on the way in, and the rule above then drew a 2px
- * accent outline around every pixel of content. The indicator people need here is the next Tab
- * landing inside the content, not an outline the size of the viewport.
- */
+/* The programmatically focused skip target is the page container, not an interactive control. */
 main[tabindex='-1']:focus {
   outline: none;
 }

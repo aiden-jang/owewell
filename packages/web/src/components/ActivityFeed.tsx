@@ -1,23 +1,17 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { CategoryGlyph } from './CategoryMark';
 import { ActivityRows, type Activity } from './ActivityRows';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { categoryMeta, PAYMENT_METHOD_LABELS } from '@owewell/core';
 import { EmptyState } from './EmptyState';
 import { Icon } from './Icon';
-import { useMoney } from '../lib/currency';
 import { lensAmount, matchesPersonLens } from '../lib/activityFilters';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
 import type { Settlement } from '../lib/settlements';
 import type { QueuedCreate, QueuedSettlement } from '../lib/outbox';
 
-/*
- * The ledger, and the controls for narrowing it.
- *
- * Search, the person lens and the show-more cutoff live in here because nothing else on the page
- * asks about them. The category filter is the exception and stays a controlled prop: the spend chart
- * sets it, so the chart and the feed share one category selection.
- */
+// Category selection is controlled because the spend chart also changes it.
 
 /** How much of the feed renders before asking. Deep enough that most groups never see the button. */
 const ACTIVITY_PAGE = 50;
@@ -66,7 +60,6 @@ export function ActivityFeed({
    */
   breakdown?: ReactNode;
 }): ReactNode {
-  const fmt = useMoney();
   const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [relationFilter, setRelationFilter] = useState<Relation>('involved');
   const [activityQuery, setActivityQuery] = useState('');
@@ -120,13 +113,7 @@ export function ActivityFeed({
     });
   }, [activity, activityQuery, categoryFilter, fmt, members, personFilter, relationFilter]);
 
-  /*
-   * The feed renders the most recent slice, not the whole ledger.
-   *
-   * A flatshare in its second year is several hundred rows, and every one of them is a card with an
-   * avatar and its own entrance animation. Filtering and search still run over everything above this
-   * line, so a match from last March is found and shown; only the unfiltered scroll is bounded.
-   */
+  // Filter the complete ledger before bounding rendered rows so older matches remain searchable.
   const [showAll, setShowAll] = useState(false);
   const shownActivity = showAll ? visibleActivity : visibleActivity.slice(0, ACTIVITY_PAGE);
   const hiddenActivityCount = visibleActivity.length - shownActivity.length;

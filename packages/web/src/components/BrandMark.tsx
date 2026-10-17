@@ -1,12 +1,5 @@
 import type { ReactNode } from 'react';
 
-/**
- * The app mark: a rounded square holding a receipt glyph.
- *
- * Every colour comes from the theme, so the logo follows the palette instead of pinning one design
- * language. `currentColor` on the glyph is deliberate — the mark inherits whatever ink surrounds it,
- * so it works on the accent tile, on a surface, and inside a button with no variant for each.
- */
 export function BrandMark({ size = 26 }: { size?: number }): ReactNode {
   const r = size * 0.3;
   return (

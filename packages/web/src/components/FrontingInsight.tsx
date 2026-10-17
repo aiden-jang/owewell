@@ -1,13 +1,12 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import type { Balance } from '@owewell/core';
 import { frontingInsight } from '../lib/frontingInsight';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
-import { useMoney } from '../lib/currency';
 
 const SEGMENT_COLORS = ['#6d5ce7', '#eb7d5b', '#2f9b83', '#d49a36', '#4d82bd', '#bd658f'];
 
 export function FrontingInsight({ balances, expenseCount }: { balances: Balance[]; expenseCount: number }) {
-  const fmt = useMoney();
   const insight = frontingInsight(balances, expenseCount);
   if (!insight) return null;
 

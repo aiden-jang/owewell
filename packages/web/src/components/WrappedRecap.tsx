@@ -1,18 +1,10 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
-import { useMoney } from '../lib/currency';
 import { useShareAction } from '../lib/useShareAction';
 import type { GroupRecap } from '../lib/groupRecap';
 import type { Settlement } from '../lib/settlements';
-
-/*
- * The tab, wrapped: what it came to, once nobody owes anybody.
- *
- * Takes the slot the settle-up panel occupies while there is still money moving — the two are
- * mutually exclusive by definition, since a recap only exists when there are no transfers left. So
- * the same place on the page reads "here is what to pay" and then "here is what it came to".
- */
 
 export function WrappedRecap({
   groupName,
@@ -25,7 +17,6 @@ export function WrappedRecap({
   settlements: Settlement[];
   memberCount: number;
 }): ReactNode {
-  const fmt = useMoney();
   const toast = useToast();
   const { status: recapShareStatus, share } = useShareAction(toast.error);
 

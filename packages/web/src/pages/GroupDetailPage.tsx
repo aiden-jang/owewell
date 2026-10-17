@@ -1,3 +1,4 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { PrintRecap } from '../components/PrintRecap';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { GroupShell, GroupLoadingState } from '../components/GroupShell';
@@ -23,7 +24,6 @@ import { GroupHeader } from '../components/GroupHeader';
 import { activityCsv, csvFileName } from '../lib/activityCsv';
 import { useToast } from '../components/Toast';
 import { groupsApi, type Balance, type GroupSummary } from '../lib/groups';
-import { useMoney } from '../lib/currency';
 import { useGroupLedger } from '../lib/useGroupLedger';
 import { useInviteLink } from '../lib/useInviteLink';
 import { liveReceipt } from '../lib/settlementReceipt';
@@ -86,7 +86,6 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
       .catch(() => undefined);
   }, []);
 
-  const fmt = useMoney();
   const invite = useInviteLink(group);
   const {
     settling,

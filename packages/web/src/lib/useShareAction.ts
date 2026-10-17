@@ -2,14 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CONFIRM_MS } from './timing';
 import { useAsyncScope } from './useAsyncScope';
 
-/*
- * Handing a line of text to whoever is next to you: try the share sheet, treat a dismissal as a
- * decision rather than a failure, fall back to the clipboard, and say where the text went.
- *
- * Don't drop the AbortError check — without it, backing out of the sheet silently writes to the
- * clipboard. The invite link skips this entirely: it passes a url with no text body, so the sheet's
- * own Copy gives the link rather than a sentence wrapped around it.
- */
+// Treat share-sheet cancellation as complete; it must not fall through to a clipboard write.
 
 /** Null between shares. Drives the button label, which is why 'shared' and 'copied' stay distinct. */
 export type ShareStatus = 'sharing' | 'shared' | 'copied' | null;

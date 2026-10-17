@@ -58,13 +58,7 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
       tone === 'error' ? 'text-neg' : 'text-ink'
     }`;
 
-  /*
-   * Non-colour cue so tone reads without relying on colour alone.
-   *
-   * Drawn rather than ⚠️ and ✓: the warning was a full-colour emoji, so the one element in the app
-   * that has to read instantly was also the one drawn differently on every platform — and at 14px
-   * a platform emoji is a smudge. These inherit the toast's own text colour.
-   */
+  // Shape distinguishes feedback tones without relying on color or platform emoji.
   const glyph = (tone: ToastTone): ReactNode =>
     tone === 'error' ? (
       <Icon name="alert" size={14} className="shrink-0" />

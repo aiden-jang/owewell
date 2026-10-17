@@ -1,3 +1,4 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { MemberStrip } from './MemberStrip';
@@ -5,19 +6,10 @@ import { MoneyText } from './MoneyText';
 import { SettledMark } from './SettledMark';
 import { ReceiptFace } from './ReceiptFace';
 import { useToast } from './Toast';
-import { useMoney } from '../lib/currency';
 import { useShareAction } from '../lib/useShareAction';
 import type { Balance, GroupMember } from '../lib/groups';
 import type { Expense } from '../lib/expenses';
 import type { Settlement, SuggestedPayment } from '../lib/settlements';
-
-/*
- * Where you stand, before anything else on the page. Everything here is derived from the four
- * ledger arrays rather than passed in, because none of it is read anywhere else.
- *
- * Left-aligned while there is a number, centred once there isn't: a left edge is a column for
- * figures to line up on, and "You're square" is not a figure.
- */
 
 export function BalanceHero({
   groupName,
@@ -41,7 +33,6 @@ export function BalanceHero({
   onLogPayment: () => void;
   onOpenMembers: () => void;
 }): ReactNode {
-  const fmt = useMoney();
   const toast = useToast();
   const memberCount = members.length;
   const { status: balanceShareStatus, share: shareBalance } = useShareAction(toast.error);

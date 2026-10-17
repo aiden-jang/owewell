@@ -17,15 +17,8 @@ export class SettleError extends Error {
   }
 }
 
-/**
- * Reduce a set of net balances to a short list of "who pays whom" transfers.
- *
- * Uses the standard greedy approach: repeatedly settle the largest debtor against
- * the largest creditor. This always produces at most (n - 1) transfers and is
- * optimal for the common cases (finding the theoretical minimum is NP-hard, and
- * not worth it for a friend group). Every transfer is a positive whole-cent amount,
- * and applying them all zeroes out every balance.
- */
+/** Greedily match the largest debtor and creditor using positive whole cents.
+ * The transfers clear all balances but need not be the theoretical minimum. */
 export function simplifyDebts(balances: readonly NetBalance[]): Transfer[] {
   const total = balances.reduce((sum, b) => sum + b.netCents, 0);
   if (total !== 0) {

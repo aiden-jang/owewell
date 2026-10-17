@@ -1,13 +1,12 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { createPortal } from 'react-dom';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
 import type { GroupLedger } from '../lib/useGroupLedger';
-import { useMoney } from '../lib/currency';
 import { fullDay } from '../lib/relativeTime';
 import './print-recap.css';
 
 export function PrintRecap({ ledger }: { ledger: GroupLedger }) {
   const { group, expenses, settlements, balances, pendingCount } = ledger;
-  const fmt = useMoney();
   if (!group) return null;
   const nameOf = (id: string) =>
     group.members.find((member) => member.userId === id)?.displayName ?? 'Someone';

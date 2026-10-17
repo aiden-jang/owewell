@@ -1,14 +1,6 @@
 import type { SplitMethod } from '@owewell/core';
 
-/*
- * The unsaved split, kept on this device. Quick split has no account behind it, so a closed tab is
- * the only place the work can go.
- *
- * Validation is strict on purpose: the value comes from localStorage, which anything on the origin
- * can write and an older build of this app did. Every field is checked rather than cast, and a
- * failure means no draft at all — a half-restored split that silently drops one person is worse
- * than starting over.
- */
+// Reject malformed storage as a whole; partial recovery could silently drop a participant.
 
 export interface DraftPerson {
   id: string;

@@ -10,13 +10,7 @@ export interface PaymentNudgeDetails {
   payUrl?: string | undefined;
 }
 
-/*
- * Written to sound like the person sending it, not like the app.
- *
- * No product name in the sentence and no instructions about which app to open: a message with the
- * software's name in it reads as automated, which is the worst framing for asking someone for
- * money. The pay link does the explaining. The tones differ in nerve, not in vocabulary.
- */
+// Shared requests speak for the sender; keep app branding and automated instructions out of them.
 export function paymentNudgeText(details: PaymentNudgeDetails, tone: NudgeTone, fmt: MoneyFormatter): string {
   const amount = fmt(details.amountCents);
   const copy =

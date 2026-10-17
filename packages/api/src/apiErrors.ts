@@ -2,7 +2,7 @@ import type { ErrorHandler } from 'hono';
 import type { Env } from './env.js';
 import type { Person } from './people.js';
 import { GroupError } from './groups.js';
-import { ExpenseError } from './expenses.js';
+import { ExpenseError } from './expenseContracts.js';
 import { SettlementError } from './settlements.js';
 import { QuickSplitError } from './quicksplit.js';
 import { SettleError } from '@owewell/shared';

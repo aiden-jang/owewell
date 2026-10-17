@@ -31,16 +31,7 @@ const api = new Hono<{ Bindings: Env; Variables: Vars }>();
 // The GET WebSocket upgrade for realtime is a safe method, so it passes through untouched.
 app.use('*', harden());
 
-/**
- * Nothing this API returns is cacheable.
- *
- * A GET with no directives is heuristically cacheable, so the browser may keep it. In accounts that
- * showed up as: sign out, press back, the session re-check is answered from cache, and you appear
- * signed in. It cuts both ways — a cached `{user: null}` tells a signed-in person they are not.
- *
- * Applied to every API path, not just /me: every response here depends on who is asking, and a
- * response like that must never be stored.
- */
+// API responses depend on the caller and must never be cached, including signed-out responses.
 api.use('*', noStore());
 app.use('/health', noStore());
 
@@ -62,15 +53,7 @@ function noStore() {
   };
 }
 
-/**
- * Static assets, which are the opposite case: a blanket `no-store` here re-downloads the hashed
- * bundles on every navigation, because `run_worker_first` sends the whole origin through us.
- *
- * Two buckets. Content-addressed files (Vite's hashed bundles, versioned font subsets) can never
- * change under a given name, so a year and `immutable`. Everything else — index.html, the service
- * worker, the manifest, icons — keeps its name across deploys and must revalidate, or a released
- * fix sits behind a stale shell.
- */
+// Fingerprinted bundles and versioned fonts are immutable. Stable shell URLs must revalidate.
 const IMMUTABLE = /^\/(assets\/|fonts\/)/;
 
 const isApiPath = (path: string) => path.startsWith('/api') || path.startsWith('/owewell');

@@ -20,16 +20,7 @@ export interface SplitShare {
   owedCents: number;
 }
 
-/**
- * The odd-cent seed for one item of a quick split.
- *
- * Quick split shows exact per-person cents before the expenses exist, so browser and server must
- * reach the same allocation. Every other caller seeds from the generated expense id, which the
- * browser cannot know. The item's position is the only value both sides hold.
- *
- * Lives here so the two callers cannot drift: a seed that agrees only by coincidence is the bug
- * this exists to prevent.
- */
+/** Shared browser/server seed for previewed items whose expense IDs do not exist yet. */
 export function quickSplitSeed(itemIndex: number): string {
   return `qs:${itemIndex}`;
 }
@@ -52,13 +43,7 @@ function attach(participants: readonly SplitParticipantInput[], cents: readonly 
   return participants.map((p, i) => ({ userId: p.userId, owedCents: cents[i] ?? 0 }));
 }
 
-/**
- * Turn a split definition into the exact cents each participant owes.
- *
- * Whatever the method, the returned shares always sum back to `totalCents`
- * (EQUAL/SHARES/PERCENT lean on the largest-remainder allocator; EXACT is
- * validated to sum exactly). Throws SplitError on any invalid input.
- */
+/** Return shares summing to totalCents or throw SplitError for invalid input. */
 export function computeSplit(
   method: SplitMethod,
   totalCents: number,

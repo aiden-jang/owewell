@@ -6,13 +6,7 @@ const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 // lookup, and short enough that the whole link fits on one line in a message.
 const LENGTH = 14;
 
-/**
- * A share token for a new link.
- *
- * 32 divides 256 exactly, so masking a random byte with 31 picks a character with no bias.
- * Taking `byte % alphabet.length` on an alphabet that is not a power of two is the usual way
- * this goes subtly wrong.
- */
+/** A 32-character alphabet divides 256 evenly, so masking random bytes introduces no selection bias. */
 export function mintShareToken(): string {
   const bytes = new Uint8Array(LENGTH);
   crypto.getRandomValues(bytes);

@@ -1,20 +1,10 @@
 import { type ReactNode } from 'react';
-import { correctionLine, type CorrectionField } from '@owewell/shared';
+import { formatMoney as fmt, correctionLine, type CorrectionField } from '@owewell/shared';
 import { categoryMeta, type Expense, type GroupMember } from '@owewell/core';
 import { CategoryGlyph } from './CategoryMark';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
-import { useMoney } from '../lib/currency';
 import { fullDay } from '../lib/relativeTime';
-
-/*
- * What one expense actually says, once you tap it.
- *
- * The row in the feed can only carry a total and a payer, which is the one thing nobody argues about.
- * The arguments are all downstream of it: how much is mine, why is mine more than yours, who was even
- * on this. So this sheet leads with the reader's own share and then shows every share underneath it,
- * in the units the payer typed rather than reverse-engineered dollars.
- */
 
 const SPLIT_METHOD_LABELS: Record<string, string> = {
   EQUAL: 'Split equally',
@@ -70,7 +60,6 @@ export function ExpenseDetail({
   onDuplicate: () => void;
   onDelete: () => void;
 }): ReactNode {
-  const fmt = useMoney();
   const nameOf = (id: string): string => members.find((m) => m.userId === id)?.displayName ?? 'Someone';
   /** Second person for the reader, so a line about them doesn't read as a line about a stranger. */
   const label = (id: string): string => (id === viewerId ? 'you' : nameOf(id));

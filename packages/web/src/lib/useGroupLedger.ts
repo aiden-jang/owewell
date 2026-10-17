@@ -17,13 +17,7 @@ import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { useOutboxSync } from './useOutboxSync';
 import { useToast } from '../components/Toast';
 
-/*
- * One group's ledger: five endpoints that are only ever fetched together.
- *
- * The mutators are narrow on purpose. Each exists so something can show before the refetch lands.
- * Don't widen them: the client must never compute balances, or its rounding will disagree with the
- * server's.
- */
+// Keep optimistic updates narrow: confirmed balances are always computed by the server.
 
 export interface GroupLedger {
   group: GroupDetail | null;

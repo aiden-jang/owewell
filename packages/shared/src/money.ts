@@ -1,11 +1,3 @@
-/**
- * Money handling (integer cents).
- *
- * Everything is integer cents. Floating-point dollars (0.1 + 0.2 !== 0.3) have no
- * place in a money app, so {@link Money} never stores a fractional amount, and the
- * only way to create one from a decimal is through careful string/number parsing.
- */
-
 export class MoneyError extends Error {
   constructor(message: string) {
     super(message);
@@ -19,18 +11,8 @@ function assertSafeInteger(value: number, label: string): void {
   }
 }
 
-/**
- * Parse a dollar amount into integer cents without floating-point drift.
- *
- * Strings are parsed exactly (at most two decimals). Numbers are rounded, which is safe for
- * computed values but not for raw user text.
- *
- * A leading symbol and thousands separators are tolerated because that is what people paste:
- * "$1,200.50" threw, and callers show no total at all when it does. Only the string branch is
- * lenient, and only about punctuation carrying no value — the API receives integer cents and never
- * parses strings, so this cannot weaken server-side validation. More than two decimals still
- * throws: quietly changing somebody's money is worse than refusing it.
- */
+/** Parse strings exactly to cents with at most two decimals; round numeric inputs.
+ * Leading currency symbols and valid thousands grouping are accepted. */
 export function dollarsToCents(value: number | string): number {
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
@@ -62,18 +44,7 @@ function fnv1a(text: string): number {
   return hash >>> 0;
 }
 
-/**
- * Split `total` cents across `weights` using the largest-remainder method. Always whole cents,
- * always summing exactly to `total`, so a split never loses or invents a penny.
- *
- * `seed` decides who wins a tie, and it matters more than it looks: on an equal split every
- * fractional share is identical, so the tie-break is the only thing choosing who absorbs the odd
- * cent. By plain index that is always the first participant, so the group owner quietly owed a cent
- * more per uneven expense — two members on the same five expenses came out 2 cents apart.
- *
- * A stable per-expense seed rotates the starting point and stays deterministic: the same seed gives
- * the same answer, so recomputing an expense never moves the cent.
- */
+/** Largest-remainder allocation conserves total cents. A stable expense seed rotates tied remainders. */
 export function allocateCents(total: number, weights: readonly number[], seed?: string | number): number[] {
   assertSafeInteger(total, 'total');
   if (total < 0) {

@@ -1,14 +1,7 @@
+import { formatMoney as fmt } from '@owewell/shared';
 import { type ReactNode } from 'react';
-import { useMoney } from '../lib/currency';
 
-/**
- * Part-to-whole spend by category: a dependency-free SVG donut plus a legend, both tappable to
- * filter the feed. One fixed hue per category, so it keeps its colour across groups — but never as
- * the only carrier: every legend row pairs the swatch with a label.
- *
- * Hues come from `--color-cat-*`, not literals here, so the bars and the donut cannot colour the
- * same data differently and the contrast test can see them.
- */
+/** Category tokens keep chart colors consistent; labels preserve meaning without color. */
 const hueOf = (key: string): string => `var(--p-cat-${key}, var(--p-faint))`;
 
 interface Slice {
@@ -29,7 +22,6 @@ export function SpendDonut({
   /** Called with null when the active slice is picked again, which is how you clear it from here. */
   onSelect?: (key: string | null) => void;
 }): ReactNode {
-  const fmt = useMoney();
   const interactive = typeof onSelect === 'function';
   const size = 168;
   const stroke = 24;
