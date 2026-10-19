@@ -38,7 +38,7 @@ jobs:
       - run: pnpm run e2e
       - name: Upload E2E failure evidence
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-failures
           path: packages/web/test-results/
