@@ -1,3 +1,4 @@
+import { handleAnalytics } from '../../../analytics/worker.js';
 import { handleApiError } from './apiErrors.js';
 import { registerGroupRoutes } from './groupRoutes.js';
 import { Hono } from 'hono';
@@ -65,6 +66,8 @@ app.use('*', async (c, next) => {
   if (isApiPath(c.req.path) || c.req.path === '/health') return;
   c.header('Cache-Control', IMMUTABLE.test(c.req.path) ? 'public, max-age=31536000, immutable' : 'no-cache');
 });
+
+app.all('/api/analytics', (c) => handleAnalytics(c.req.raw, c.env));
 
 app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
 

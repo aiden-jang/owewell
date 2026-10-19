@@ -1,6 +1,8 @@
+import { usePageAnalytics } from './usePageAnalytics.js';
+import { pageForPath } from '../../../analytics/schema.js';
 import { AppUpdate } from './AppUpdate';
 import type { ReactNode } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { DashboardPage } from './pages/DashboardPage';
@@ -13,6 +15,8 @@ import { SiteFooter } from './components/SiteFooter';
 import { SkipLink } from './components/SkipLink';
 
 export function App(): ReactNode {
+  const { pathname } = useLocation();
+  usePageAnalytics(pageForPath(pathname), pathname);
   const { loading } = useAuth();
 
   if (loading) {

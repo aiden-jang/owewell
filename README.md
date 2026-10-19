@@ -100,3 +100,5 @@ paper or PDF. Group names also identify their browser tabs.
 The app manifest offers **Split a bill** and includes current phone and desktop
 captures in `packages/web/public/screenshots/`. They use the public $48 example,
 not a personal group. Recapture the public splitter when its layout changes.
+
+Aggregate traffic and feature-event coverage, privacy boundaries and queries: [Analytics](docs/ANALYTICS.md).

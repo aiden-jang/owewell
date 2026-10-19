@@ -8,7 +8,7 @@ describe('securityHeaders', () => {
     expect(h['X-Content-Type-Options']).toBe('nosniff');
     expect(h['X-Frame-Options']).toBe('DENY');
     expect(h['Strict-Transport-Security']).toContain('includeSubDomains');
-    expect(h['Referrer-Policy']).toBe('strict-origin-when-cross-origin');
+    expect(h['Referrer-Policy']).toBe('no-referrer');
   });
 
   it('honors CSP and Permissions-Policy overrides', () => {

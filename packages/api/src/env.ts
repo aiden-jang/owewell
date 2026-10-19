@@ -1,5 +1,6 @@
 /** Bindings + vars declared in wrangler.toml / secrets, surfaced to the Worker. */
 export interface Env {
+  EVENT_LIMITER?: { limit(options: { key: string }): Promise<{ success: boolean }> };
   // owewell's own data (people, groups, expenses, settlements).
   DB: D1Database;
   // Base URL of the shared auth service (e.g. https://accounts.aidenjang.com); the API

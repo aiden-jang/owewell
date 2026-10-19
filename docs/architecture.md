@@ -1,5 +1,9 @@
 # Architecture
 
+Current analytics: `analytics/` holds the fixed browser/Worker event contract, bounded
+anonymous ingestion and credential-free transport. See [Analytics](ANALYTICS.md) for
+coverage, privacy and dashboard queries. Private app paths are not traffic dimensions.
+
 ## Runtime and package boundaries
 
 One Cloudflare Worker serves the API and the built SPA. The API lives under
