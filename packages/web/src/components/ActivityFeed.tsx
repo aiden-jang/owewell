@@ -111,7 +111,7 @@ export function ActivityFeed({
             ];
       return haystack.some((value) => value.toLocaleLowerCase().includes(query));
     });
-  }, [activity, activityQuery, categoryFilter, fmt, members, personFilter, relationFilter]);
+  }, [activity, activityQuery, categoryFilter, members, personFilter, relationFilter]);
 
   // Filter the complete ledger before bounding rendered rows so older matches remain searchable.
   const [showAll, setShowAll] = useState(false);

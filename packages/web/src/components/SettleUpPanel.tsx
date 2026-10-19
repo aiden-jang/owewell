@@ -1,6 +1,7 @@
 import { formatMoney as fmt } from '@owewell/shared';
 import { useState, type ReactNode } from 'react';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
+import type { PaymentMethod } from '@owewell/core';
+import { PaymentMethodSelect } from './PaymentMethodSelect';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
@@ -167,18 +168,7 @@ export function SettleUpPanel({
        */}
       <label className="mt-2 flex items-center justify-between gap-1.5 text-xs text-muted">
         Payment method
-        <select
-          value={settleMethod}
-          onChange={(e) => setSettleMethod(e.target.value as PaymentMethod)}
-          aria-label="Payment method"
-          className="rounded-lg border border-line bg-field px-3 py-2 text-base text-ink sm:text-sm outline-none focus:border-accent"
-        >
-          {PAYMENT_METHODS.map((m) => (
-            <option key={m} value={m}>
-              {PAYMENT_METHOD_LABELS[m]}
-            </option>
-          ))}
-        </select>
+        <PaymentMethodSelect value={settleMethod} onChange={setSettleMethod} />
       </label>
       <ul className="mt-3 space-y-2">
         {orderedSuggestions.map((payment) => {

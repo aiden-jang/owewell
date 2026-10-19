@@ -110,7 +110,6 @@ export function DashboardPage(): ReactNode {
     onQueueChanged: () => setWaiting(queued().length),
   });
 
-  // One pair of totals, over the unarchived groups.
   const totals = useMemo(() => {
     let owed = 0;
     let owe = 0;
@@ -241,7 +240,16 @@ export function DashboardPage(): ReactNode {
                 )}
                 <button
                   type="button"
-                  onClick={() => (creatingOpen ? closeCreate() : openCreate())}
+                  onClick={(event) => {
+                    if (creatingOpen) {
+                      closeCreate();
+                      event.currentTarget.focus();
+                    } else openCreate();
+                  }}
+                  onPointerDown={(event) => {
+                    // Keep the name focused until Cancel closes it, rather than validating on pointer-down.
+                    if (creatingOpen) event.preventDefault();
+                  }}
                   aria-expanded={creatingOpen}
                   aria-controls={creatingOpen ? 'create-group-form' : undefined}
                   className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"

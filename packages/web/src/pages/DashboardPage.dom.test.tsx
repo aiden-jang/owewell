@@ -91,6 +91,25 @@ beforeEach(() => {
 });
 
 describe('creating a group', () => {
+  test('pressing Cancel never marks an empty name invalid', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: /new/i }));
+    const input = screen.getByRole('textbox');
+    await user.pointer({ target: screen.getByRole('button', { name: /cancel/i }), keys: '[MouseLeft>]' });
+    expect(input).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText(/give the group a name/i)).not.toBeInTheDocument();
+    await user.pointer({ keys: '[/MouseLeft]' });
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^new$/i })).toHaveFocus();
+    expect(create).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /^new$/i }));
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
+    expect(screen.queryByText(/give the group a name/i)).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
   test('Create is disabled until the name has something in it', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /new/i }));

@@ -1,5 +1,5 @@
 import { mkdir } from 'node:fs/promises';
-import { expectNoHorizontalOverflow, expect, test, type Page } from './fixtures';
+import { expectNoHorizontalOverflow, expect, signIn, test, type Page } from './fixtures';
 
 /*
  * One person's path through owewell, in a real browser against the real Worker and a real D1.
@@ -8,14 +8,6 @@ import { expectNoHorizontalOverflow, expect, test, type Page } from './fixtures'
  * refuses a non-member. None of it knows whether somebody can start with an empty account and end
  * up looking at a correct "owes you" figure, which is the only thing the app is for.
  */
-
-/* The Worker checks the session against the auth service, so being signed in is a cookie it will
-   forward, not anything the browser does. e2e/fake-auth.mjs answers for it. */
-async function signIn(page: Page): Promise<void> {
-  await page
-    .context()
-    .addCookies([{ name: 'platform_session', value: 'e2e', domain: 'localhost', path: '/' }]);
-}
 
 async function newGroup(page: Page, name: string): Promise<void> {
   await page.goto('/');
@@ -29,6 +21,8 @@ async function newGroup(page: Page, name: string): Promise<void> {
 test.describe('from an empty account to a balance', () => {
   test('a group, an expense, and the recorded payment that settles it', async ({ page }) => {
     await signIn(page);
+    await page.goto('/');
+    await expect(page.getByText('No groups yet. The calm before the tab.')).toBeVisible();
     if (process.env.UI_QA_CAPTURE) {
       await page.route('**/api/groups', (route) => route.fulfill({ json: { groups: [] } }));
       await page.goto('/');

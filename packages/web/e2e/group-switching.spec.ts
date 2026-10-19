@@ -1,11 +1,9 @@
-import { expect, test } from './fixtures';
+import { expect, signIn, test } from './fixtures';
 
 test('switching groups clears the previous ledger and invite while the next group loads', async ({
   page,
 }) => {
-  await page
-    .context()
-    .addCookies([{ name: 'platform_session', value: 'e2e-switching', domain: 'localhost', path: '/' }]);
+  await signIn(page);
   const create = async (name: string) => {
     const response = await page.request.post('/api/groups', { data: { name } });
     expect(response.ok()).toBe(true);

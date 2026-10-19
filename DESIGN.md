@@ -91,3 +91,7 @@ Calculator bill rows use soft paper panels, medium-weight amounts and dashed dis
 The running total shares the labeled receipt treatment with entry sheets; your share has the
 strongest result hierarchy, with quieter transfer rows. Results fade in once when they appear,
 only when reduced motion is not requested. The existing layout and calculation flow remain.
+
+Payment-method selects keep native menus with an inset chevron and the shared field spacing.
+Pointer use keeps a quiet border; keyboard navigation retains a visible focus outline.
+Cancelling group creation closes the draft without validating its empty name and returns focus to New.

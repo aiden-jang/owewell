@@ -1,7 +1,8 @@
 import { PaymentParties } from './PaymentParties';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { formatMoney as fmt, currencySymbol, dollarsToCents, type MoneyFormatter } from '@owewell/shared';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
+import { PaymentMethodSelect } from './PaymentMethodSelect';
 import { settlementsApi, type Settlement, type SuggestedPayment } from '../lib/settlements';
 import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
@@ -9,7 +10,7 @@ import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
 import { normalizeAmountInput } from '../lib/format';
 import { enqueue, isOffline } from '../lib/outbox';
-import { FormError, inputClass } from './FormFields';
+import { FormError } from './FormFields';
 
 interface Props {
   groupId: string;
@@ -244,21 +245,14 @@ export function RecordPaymentForm({
       </div>
       <label className="block text-xs text-muted">
         Payment method
-        <select
+        <PaymentMethodSelect
           value={method}
-          onChange={(e) => {
-            setMethod(e.target.value as PaymentMethod);
+          onChange={(value) => {
+            setMethod(value);
             setMethodTouched(true);
           }}
-          className={inputClass}
-          aria-label="Payment method"
-        >
-          {PAYMENT_METHODS.map((m) => (
-            <option key={m} value={m}>
-              {PAYMENT_METHOD_LABELS[m]}
-            </option>
-          ))}
-        </select>
+          className="mt-1 w-full"
+        />
       </label>
       {usefulLimit > 0 && (
         <fieldset>

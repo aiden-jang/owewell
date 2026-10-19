@@ -1,6 +1,8 @@
 # Owewell UI verification
 
-The [design](../../DESIGN.md) gives Owewell a violet identity, a decorative receipt illustration,
+The [October 19 control review](controls-oct19/README.md) covers group cancellation and payment-select spacing and focus.
+
+The [design](../../DESIGN.md) gives Owewell a deep teal identity, a decorative receipt illustration,
 a responsive group directory and quieter balance surfaces. Warm and dark themes remain available.
 
 `packages/web/scripts/capture-ui.cjs` captures the signed-out split tool and calculated result, empty overview,

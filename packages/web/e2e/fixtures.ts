@@ -1,6 +1,15 @@
 import { expect, test as base, type Page } from '@playwright/test';
 export { expect, type Locator, type Page } from '@playwright/test';
 
+// A fresh account keeps earlier runs from filling the scenario's group directory.
+export async function signIn(page: Page): Promise<void> {
+  await page
+    .context()
+    .addCookies([
+      { name: 'platform_session', value: `e2e-${crypto.randomUUID()}`, domain: 'localhost', path: '/' },
+    ]);
+}
+
 // Local Wrangler supplies real rate limiters. Keep each scenario's request budget independent.
 export const test = base.extend({
   context: async ({ context }, use, info) => {

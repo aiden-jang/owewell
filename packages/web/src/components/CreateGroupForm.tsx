@@ -28,7 +28,14 @@ export function CreateGroupForm({
           required
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
-          onBlur={() => onTouch()}
+          onBlur={(event) => {
+            if (
+              event.relatedTarget instanceof Element &&
+              event.relatedTarget.getAttribute('aria-controls') === 'create-group-form'
+            )
+              return;
+            onTouch();
+          }}
           onKeyDown={(e) => e.key === 'Escape' && onClose()}
           aria-invalid={nameTouched && !name.trim()}
           aria-describedby="group-name-hint"

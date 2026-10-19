@@ -1,4 +1,4 @@
-import { expectNoHorizontalOverflow, expect, test, type Locator, type Page } from './fixtures';
+import { expectNoHorizontalOverflow, expect, signIn, test, type Locator, type Page } from './fixtures';
 
 async function tabTo(page: Page, target: Locator): Promise<void> {
   await expect(target).toBeVisible();
@@ -19,9 +19,7 @@ async function activate(page: Page, target: Locator): Promise<void> {
 }
 
 test('a complete group task works with keyboard controls and enlarged text', async ({ page }) => {
-  await page
-    .context()
-    .addCookies([{ name: 'platform_session', value: 'e2e-a11y', domain: 'localhost', path: '/' }]);
+  await signIn(page);
   // Keep the switcher in this layout even when the scenario runs on a fresh database.
   const earlierGroup = await page.request.post('/api/groups', {
     data: { name: `Earlier keyboard group ${Date.now()}` },
