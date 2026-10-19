@@ -51,6 +51,13 @@ test('a complete group task works with keyboard controls and enlarged text', asy
   await page.keyboard.press('Enter');
   await expect(page.getByLabel('What the expense was for')).toBeFocused();
   await page.keyboard.type('Keyboard dinner');
+  // Choose the payer explicitly; roster order can vary when join timestamps match.
+  const payer = page.getByRole('combobox', { name: 'Paid by', exact: true });
+  await tabTo(page, payer);
+  await page.keyboard.press('r');
+  await expect(payer).toHaveValue(
+    (await payer.getByRole('option', { name: 'Robin paid', exact: true }).getAttribute('value')) ?? '',
+  );
   await activate(page, page.getByRole('dialog').getByRole('button', { name: 'Add expense', exact: true }));
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(add).toBeFocused();
