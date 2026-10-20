@@ -22,9 +22,7 @@ const roomFor = (groupId: string) => {
 };
 
 /*
- * Every socket opened by a test is closed after it. A room holding a live socket cannot be evicted,
- * and vitest-pool-workers' isolated storage then fails to snapshot the object between tests with
- * "Isolated storage failed" rather than anything that names the cause.
+ * Close both ends of every test socket so another test cannot inherit its broadcasts or presence.
  */
 const opened: WebSocket[] = [];
 const rooms = new Set<DurableObjectStub>();

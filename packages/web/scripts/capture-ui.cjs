@@ -205,7 +205,7 @@ const assert = require('node:assert/strict');
           await (
             name === 'session-error'
               ? page.getByRole('heading', { name: 'Couldn’t check your sign-in.' })
-              : page.locator('h1')
+              : page.getByRole('heading', { level: 1 })
           ).waitFor();
           if (name === 'group' || name === 'expense-sheet' || name === 'saved' || name === 'settled')
             await page.getByRole('heading', { name: groups[0].name, exact: true }).waitFor();

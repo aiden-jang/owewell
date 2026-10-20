@@ -14,6 +14,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     setupFiles: ['./test/setup.ts'],
+    // DOM workers are memory-heavy; bound concurrency without changing test deadlines.
+    maxWorkers: 2,
     /*
      * Two projects rather than one environment per glob: environmentMatchGlobs went away in
      * vitest 4. Same split as before — .ts as well as .tsx, because not every test that needs a

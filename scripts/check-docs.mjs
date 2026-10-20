@@ -127,7 +127,7 @@ for (const doc of DOCS) {
 
       // Bare, not just `name()`: the rename that prompted this gate sat in a diagram with no
       // parentheses and no backticks. camelCase in English prose is almost always a symbol.
-      for (const m of line.matchAll(/(?<!\\)\b([a-z][a-z0-9]*(?:[A-Z][A-Za-z0-9]*)+)\b/g)) {
+      for (const m of line.matchAll(/(?<!\\)\b([a-z][a-z0-9]*[A-Z][A-Za-z0-9]*)\b/g)) {
         const name = m[1];
         if (!NOT_OURS.has(name) && !known(name)) {
           problems.push(`${at}: nothing named \`${name}\` in the code`);

@@ -59,7 +59,7 @@ corepack pnpm --filter @owewell/web exec playwright install chromium webkit
 corepack pnpm run verify
 ```
 
-Verification runs the repository guards, unused-code analysis, types, lint,
+Verification runs the dependency audit, repository guards, unused-code analysis, types, lint,
 formatting, production build, generated-CSS checks, unit/DOM tests and browser
 journeys. CI runs the same gates in the same order. Browser tests use a separate
 local D1 directory and fake auth; they do not use production data.

@@ -1,0 +1,24 @@
+name: Bug report
+description: Report a broken interaction, incorrect balance or layout problem.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the expected result. Use made-up names and amounts; never include private group links or financial details.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Describe a minimal example with sample data.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      placeholder: Safari on iPhone, Chrome on Windows, etc.
+    validations:
+      required: true

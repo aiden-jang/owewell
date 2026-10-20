@@ -70,3 +70,8 @@ a separate capture directory and `OWEWELL_UI_URL` selects a running preview.
 A viewport resize cannot establish native phone-keyboard behavior, installed-app
 recovery, device performance or spoken screen-reader output. Those remain manual
 checks on physical devices. Explicitly report unavailable checks.
+
+Dependency auditing is part of the local and CI gates. Worker tests use the maintained
+Cloudflare Vitest plugin and explicitly clear ledger rows between tests; files run serially
+so their resets cannot erase another test’s fixtures. DOM tests bound worker concurrency
+without changing test deadlines.

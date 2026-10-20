@@ -24,18 +24,24 @@
     "comments": "node scripts/check-comments.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "knip": "knip",
-    "verify": "pnpm run gates && pnpm run size && pnpm run css-vars && pnpm run comments && pnpm run check:docs && pnpm run knip && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
+    "verify": "pnpm run security:check && pnpm run gates && pnpm run size && pnpm run css-vars && pnpm run comments && pnpm run check:docs && pnpm run knip && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
     "deploy": "pnpm run verify && pnpm run deploy:only",
     "deploy:only": "pnpm --filter @owewell/api run deploy",
-    "css-vars": "node scripts/check-css-vars.mjs"
+    "css-vars": "node scripts/check-css-vars.mjs",
+    "security:check": "pnpm audit --audit-level=low"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.18.0",
-    "@typescript-eslint/parser": "^8.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "knip": "^6.34.0",
-    "prettier": "^3.4.2",
-    "typescript": "^5.7.2"
+    "knip": "^6.42.1",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@esbuild-kit/core-utils>esbuild": "^0.28.1"
+    }
   }
 }
