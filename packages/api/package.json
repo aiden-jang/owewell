@@ -6,10 +6,11 @@
   "description": "owewell API on Cloudflare Workers (Hono + D1 + Durable Object realtime).",
   "scripts": {
     "dev": "wrangler dev --var AUTH_URL:http://localhost:34100",
-    "deploy": "pnpm --filter @owewell/web build && wrangler d1 migrations apply owewell --remote && wrangler deploy",
+    "deploy": "pnpm --filter @owewell/web build && pnpm run deploy:assets",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:migrate:local": "wrangler d1 migrations apply owewell --local"
+    "db:migrate:local": "wrangler d1 migrations apply owewell --local",
+    "deploy:assets": "wrangler d1 migrations apply owewell --remote && wrangler deploy"
   },
   "dependencies": {
     "@aidenjang/auth-client": "^0.2.0",

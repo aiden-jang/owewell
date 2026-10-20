@@ -80,7 +80,7 @@ function check(where, command, knownScripts) {
 }
 
 const rootScripts = new Set(Object.keys(scripts));
-for (const chain of ['verify', 'deploy'].filter((c) => scripts[c])) {
+for (const chain of ['verify', 'verify:core', 'deploy'].filter((c) => scripts[c])) {
   check(`package.json ${chain}`, scripts[chain], rootScripts);
 }
 for (const m of ci.matchAll(/run:\s*(pnpm[^\n]*)/g)) {
@@ -95,9 +95,7 @@ for (const m of ci.matchAll(/run:\s*(pnpm[^\n]*)/g)) {
 }
 
 /*
- * And that the two lists are the same list. CI names its steps one per line so a failure says
- * which gate broke; `verify` is the same run locally. Nothing else notices when one grows a step
- * the other never gets, which is how a check ends up only ever running on somebody's laptop.
+ * CI and local verification invoke the same core and browser commands in the same order.
  */
 const checkJob = ci.split(/^  deploy:/m)[0] ?? '';
 const inCi = new Set([...checkJob.matchAll(/run:\s*pnpm run ([\w:-]+)/g)].map((m) => m[1]));

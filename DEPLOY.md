@@ -37,7 +37,8 @@ pnpm run deploy            # redeploy to attach owewell.aidenjang.com
 
 ## Routine redeploy (the usual case)
 
-CI does this on merge to `main` and is the normal path. By hand, from the repo root:
+A push to `main` runs verification, then deploys the resulting client artifact after applying
+migrations. CI does not rebuild that client. By hand, from the repo root:
 
 ```bash
 pnpm run deploy       # the full CI gate, then ship

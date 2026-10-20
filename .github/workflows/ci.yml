@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -21,21 +25,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Use `pnpm run` so built-in pnpm commands cannot shadow repository scripts.
-      - run: pnpm run security:check
-      - run: pnpm run gates
-      - run: pnpm run size
-      - run: pnpm run css-vars
-      - run: pnpm run comments
-      - run: pnpm run check:docs
-      - run: pnpm run knip
-      - run: pnpm run typecheck
-      - run: pnpm run lint
-      - run: pnpm run format:check
-      - run: pnpm run build
-      # Check emitted CSS after building; valid source classes can still produce no styles.
-      - run: pnpm run dead-classes
-      - run: pnpm run test
+      - run: pnpm run verify:core
       # Exercise the browser against the real Worker and migrated D1.
       - name: Install Playwright browser
         run: pnpm --filter @owewell/web exec playwright install --with-deps chromium webkit
@@ -47,6 +37,14 @@ jobs:
           name: playwright-failures
           path: packages/web/test-results/
           if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: production-assets
+          path: packages/web/dist/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 7
 
   # Deploy after checks pass. The token needs Workers Scripts:Edit and D1:Edit for migrations.
@@ -67,9 +65,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: production-assets
+          path: packages/web/dist/
       # Apply migrations before deploying code that depends on their schema.
       - name: Deploy to Cloudflare
-        run: pnpm run deploy
         working-directory: packages/api
+        run: pnpm run deploy:assets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

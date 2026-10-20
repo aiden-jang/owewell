@@ -24,11 +24,12 @@
     "comments": "node scripts/check-comments.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "knip": "knip",
-    "verify": "pnpm run security:check && pnpm run gates && pnpm run size && pnpm run css-vars && pnpm run comments && pnpm run check:docs && pnpm run knip && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test && pnpm run e2e",
+    "verify": "pnpm run verify:core && pnpm run e2e",
     "deploy": "pnpm run verify && pnpm run deploy:only",
     "deploy:only": "pnpm --filter @owewell/api run deploy",
     "css-vars": "node scripts/check-css-vars.mjs",
-    "security:check": "pnpm audit --audit-level=low"
+    "security:check": "pnpm audit --audit-level=low",
+    "verify:core": "pnpm run security:check && pnpm run gates && pnpm run size && pnpm run css-vars && pnpm run comments && pnpm run check:docs && pnpm run knip && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run build && pnpm run dead-classes && pnpm run test"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.72.0",

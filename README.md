@@ -102,3 +102,6 @@ captures in `packages/web/public/screenshots/`. They use the public $48 example,
 not a personal group. Recapture the public splitter when its layout changes.
 
 Aggregate traffic and feature-event coverage, privacy boundaries and queries: [Analytics](docs/ANALYTICS.md).
+
+CI uploads the verified client build for deployment. The release job downloads that same
+workflow artifact and publishes it without rebuilding the client; local deployment still builds first.
