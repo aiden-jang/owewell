@@ -4,7 +4,8 @@
 version use the **Routine redeploy** section below; the first-deploy steps are kept for reference.
 One Cloudflare Worker (`owewell`) serves both the API (`/api/*`, `/health`) and the web SPA
 (static assets) on one origin, `owewell.aidenjang.com`. Its own D1 (`owewell`) holds
-groups/expenses/settlements and the local `people` registry. Free tier; you pay only for DNS.
+groups/expenses/settlements and the local `people` registry. Cloudflare usage is subject to the
+account's plan and limits.
 
 owewell depends on the shared **auth service** (`accounts.aidenjang.com`) already being live:
 it validates sessions by forwarding the `platform_session` cookie to `/auth/me` server-side,
@@ -37,7 +38,7 @@ pnpm run deploy            # redeploy to attach owewell.aidenjang.com
 
 ## Routine redeploy (the usual case)
 
-A push to `main` runs verification, then deploys the resulting client artifact after applying
+A direct, verified commit to `main` runs verification, then deploys the resulting client artifact after applying
 migrations. CI does not rebuild that client. By hand, from the repo root:
 
 ```bash
@@ -80,7 +81,7 @@ curl https://owewell.aidenjang.com/health          # {"status":"ok","service":"o
 curl https://owewell.aidenjang.com/api/me           # {"user":null} when signed out
 ```
 
-Then open `https://owewell.aidenjang.com`, use the signed-out quick split, click "Log in"
+Then open `https://owewell.aidenjang.com`, use the signed-out quick split, click "Sign in"
 (redirects to `accounts.aidenjang.com`, then back), create a group, add an expense, and confirm
 balances + the live activity feed.
 

@@ -43,12 +43,28 @@ describe('the guard on /owewell', () => {
     expect(res.status).toBe(503);
     expect((await res.json<{ error: string }>()).error).toBe('AUTH_UNAVAILABLE');
   });
+});
 
-  // /me makes the opposite call on purpose: owewell works signed-out, so the anonymous app is
-  // the honest degraded state rather than an error.
-  it('still reports a null user from /me during an outage', async () => {
-    authReplies(500, 'down');
-    const res = await signedIn('/api/me');
+describe.each(['/api/me', '/owewell/me'])('session check at %s', (path) => {
+  it.each([500, 503])('reports a retryable failure when Accounts returns %i', async (status) => {
+    authReplies(status, 'down');
+    const res = await signedIn(path);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'AUTH_UNAVAILABLE' });
+    expect(res.headers.get('retry-after')).toBe('30');
+    expect(res.headers.get('cache-control')).toContain('no-store');
+  });
+
+  it('reports a retryable failure when Accounts cannot be reached', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Network unavailable')));
+    const res = await signedIn(path);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'AUTH_UNAVAILABLE' });
+  });
+
+  it('still recognizes a rejected session as signed out', async () => {
+    authReplies(401, {});
+    const res = await signedIn(path);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ user: null });
   });

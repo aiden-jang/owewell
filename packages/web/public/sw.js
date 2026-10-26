@@ -3,7 +3,7 @@ const CACHE = 'owewell-v4';
 const SHELL = '/';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.add(SHELL)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll([SHELL, '/theme-init.js'])));
   self.skipWaiting();
 });
 

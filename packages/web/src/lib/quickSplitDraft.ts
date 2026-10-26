@@ -36,18 +36,23 @@ const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const METHODS = new Set<SplitMethod>(['EQUAL', 'SHARES', 'PERCENT', 'EXACT']);
 
 const isPerson = (p: unknown): p is DraftPerson =>
-  !!p && typeof (p as DraftPerson).id === 'string' && typeof (p as DraftPerson).name === 'string';
+  !!p &&
+  typeof (p as DraftPerson).id === 'string' &&
+  (p as DraftPerson).id.length > 0 &&
+  typeof (p as DraftPerson).name === 'string';
 
 const isItem = (i: unknown): i is DraftItem => {
   const item = i as DraftItem;
   return (
     !!item &&
     typeof item.id === 'string' &&
+    item.id.length > 0 &&
     typeof item.description === 'string' &&
     typeof item.amount === 'string' &&
     METHODS.has(item.method) &&
     typeof item.values === 'object' &&
     item.values !== null &&
+    !Array.isArray(item.values) &&
     Object.values(item.values).every((value) => typeof value === 'string') &&
     typeof item.payerId === 'string' &&
     (item.generatedTip === undefined || typeof item.generatedTip === 'number')
@@ -69,10 +74,13 @@ export function readQuickSplitDraft(now = Date.now()): QuickSplitDraft | null {
     )
       return null;
 
-    const people = parsed.people.filter(isPerson);
-    const items = parsed.items.filter(isItem);
-    // Fewer than two people or no items is not a split anybody was in the middle of.
-    if (people.length < 2 || items.length < 1) return null;
+    const { people, items } = parsed;
+    if (people.length < 2 || items.length < 1 || !people.every(isPerson) || !items.every(isItem)) return null;
+    if (
+      new Set(people.map((p) => p.id)).size !== people.length ||
+      new Set(items.map((i) => i.id)).size !== items.length
+    )
+      return null;
 
     return {
       version: 1,

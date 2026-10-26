@@ -46,7 +46,14 @@ Failed tests retain traces; generated reports, screenshots and local Worker stat
 are excluded from repository scans and Git.
 
 Journeys cover group creation, membership, expenses, payment recording, offline
-replay, recovery and signed-out calculation. Keyboard checks include sheets,
+replay, recovery and signed-out calculation. Delayed session checks must not block
+public calculation or shared summaries, enable premature account actions, or
+redirect a private address. Session retries retain the current bill. Shared-tab
+DOM regressions cover delayed summaries and seat claims after a link changes.
+Production-shell checks load the built Worker responses over an HTTPS fixture with
+their security policy intact, holding the app bundle to verify the early palette.
+Draft tests reject partial recovery and duplicate row IDs.
+Keyboard checks include sheets,
 focus return and enlarged text. Browser tests run in Chromium and WebKit. WebKit is an engine check, not a
 physical iPhone Safari check. On macOS, the keyboard journey uses
 [Apple’s Option-Tab navigation](https://support.apple.com/en-gb/guide/safari/cpsh003/mac)
@@ -75,3 +82,7 @@ Dependency auditing is part of the local and CI gates. Worker tests use the main
 Cloudflare Vitest plugin and explicitly clear ledger rows between tests; files run serially
 so their resets cannot erase another test’s fixtures. DOM tests bound worker concurrency
 without changing test deadlines.
+
+CI keeps verification in one job and deploys the resulting client artifact.
+Dependabot groups routine package updates and GitHub Actions updates separately,
+reducing duplicate full runs for related maintenance changes.

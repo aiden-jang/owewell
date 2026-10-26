@@ -403,7 +403,10 @@ test('an uneven equal split explains the preview and names its saved rounding sh
   await page.getByLabel('What the expense was for').fill('One dollar, three people');
   await expect(page.getByText(/The total needs a rounding cent/)).toBeVisible();
   await page.locator('form').getByRole('button', { name: 'Add expense', exact: true }).click();
-  await page.getByText('One dollar, three people', { exact: true }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Add to the tab' })).toBeHidden();
+  await page
+    .getByRole('button', { name: 'One dollar, three people, $1.00. See details.', exact: true })
+    .click();
   const rounding = page.getByText(/The total doesn’t divide evenly/);
   await expect(rounding).toBeVisible();
   await expect(rounding).toContainText('one extra cent');

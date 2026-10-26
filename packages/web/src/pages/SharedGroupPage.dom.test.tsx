@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { SharedGroupSummary } from '@owewell/core';
 import { ApiError } from '../lib/api';
 
@@ -81,6 +81,58 @@ beforeEach(() => {
 });
 
 describe('loading the tab', () => {
+  it('ignores a late summary from the previous shared link', async () => {
+    let finish!: (value: SharedGroupSummary) => void;
+    sharedSummary.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    sharedSummary.mockResolvedValue(summary({ groupName: 'Second tab' }));
+    const { SharedGroupPage } = await import('./SharedGroupPage');
+    render(
+      <MemoryRouter initialEntries={['/s/first']}>
+        <Link to="/s/second">Second link</Link>
+        <Routes>
+          <Route path="/s/:token" element={<SharedGroupPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(sharedSummary).toHaveBeenCalledOnce());
+    await userEvent.click(screen.getByRole('link', { name: 'Second link' }));
+    await screen.findByRole('heading', { name: 'Second tab' });
+    await act(async () => finish(summary({ groupName: 'Stale first tab' })));
+    expect(screen.getByRole('heading', { name: 'Second tab' })).toBeVisible();
+    expect(screen.queryByText('Stale first tab')).not.toBeInTheDocument();
+  });
+
+  it('does not open a previous group when its seat claim completes after navigation', async () => {
+    currentUser = { id: 'u9', email: 'a@x.com', displayName: 'Aiden' };
+    let finish!: (value: { groupId: string }) => void;
+    claimSeat.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { SharedGroupPage } = await import('./SharedGroupPage');
+    render(
+      <MemoryRouter initialEntries={['/s/first']}>
+        <Link to="/s/second">Second link</Link>
+        <Routes>
+          <Route path="/s/:token" element={<SharedGroupPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByText('Tahoe cabin');
+    await userEvent.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    sharedSummary.mockResolvedValue(summary({ groupName: 'Second tab' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Second link' }));
+    await screen.findByRole('heading', { name: 'Second tab' });
+    await act(async () => finish({ groupId: 'previous-group' }));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Second tab' })).toBeVisible();
+  });
+
   it('shows a shape while it waits, then the group', async () => {
     await open();
     expect(screen.getByLabelText('Loading the tab')).toBeInTheDocument();

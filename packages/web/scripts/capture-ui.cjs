@@ -79,7 +79,8 @@ const assert = require('node:assert/strict');
       await context.route('**/api/**', (route) => {
         const p = new URL(route.request().url()).pathname;
         if (!p.startsWith('/api/')) return route.continue();
-        if (p === '/api/me' && mode === 'session-error')
+        if (p === '/api/me' && mode.includes('session-pending')) return;
+        if (p === '/api/me' && mode.includes('session-error'))
           return route.fulfill({ status: 429, json: { error: 'TOO_MANY_REQUESTS' } });
         const empty = mode === 'empty';
         let json = {};
@@ -178,6 +179,8 @@ const assert = require('node:assert/strict');
       });
       for (const [name, url] of [
         ['split', '/split'],
+        ['split-session-pending', '/split'],
+        ['split-session-error', '/split'],
         ['split-result', '/split'],
         ['empty', '/'],
         ['session-error', '/'],
@@ -185,6 +188,8 @@ const assert = require('node:assert/strict');
         ['archived', '/'],
         ['directory-select', '/'],
         ['shared', '/s/preview'],
+        ['shared-session-pending', '/s/preview'],
+        ['shared-session-error', '/s/preview'],
         ['group', '/groups/g0'],
         ['expense-sheet', '/groups/g0'],
         ['payment-sheet', '/groups/g0'],
@@ -221,6 +226,23 @@ const assert = require('node:assert/strict');
           }
           if (name === 'empty') await page.getByText('No groups yet. The calm before the tab.').waitFor();
           if (name === 'session-error') await page.getByText('Couldn’t check your sign-in.').waitFor();
+          if (
+            name.includes('session-pending') ||
+            (name !== 'session-error' && name.includes('session-error'))
+          ) {
+            const action = page
+              .getByRole('button', {
+                name: name.startsWith('shared')
+                  ? 'This is me'
+                  : name.includes('pending')
+                    ? 'Checking sign-in…'
+                    : 'Sign in to save split',
+              })
+              .first();
+            assert.equal(await action.isDisabled(), true);
+            if (name.includes('session-error'))
+              await page.getByRole('button', { name: 'Try again', exact: true }).waitFor();
+          }
           if (name === 'split-result') {
             await page.getByPlaceholder('Person 2').fill('Sam');
             await page.getByText('Details & split options', { exact: true }).click();

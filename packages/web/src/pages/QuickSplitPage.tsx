@@ -22,10 +22,11 @@ import {
 import QuickSplitItemRow from '../components/QuickSplitItemRow';
 import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
+import { SessionNotice } from '../components/SessionNotice';
 
 export function QuickSplitPage(): ReactNode {
   usePageTitle('Split a bill');
-  const { user, login } = useAuth();
+  const { user, login, loading, sessionError } = useAuth();
   const navigate = useNavigate();
   const {
     people,
@@ -59,12 +60,10 @@ export function QuickSplitPage(): ReactNode {
   const [saving, setSaving] = useState(false);
   const { status: shareStatus, share } = useShareAction(setError);
 
-  // All of it in one place, and tested: see lib/quickSplitResult.ts.
   const { named, effectivePayerId, effectiveYouId, transfers, grandTotal, yourShareCents, sharesByPerson } =
     computeQuickSplit({ people, items, payerId, youId, splitPayers });
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
-  // Shared summaries contain the amounts and names, without decorative copy.
   function summaryText(): string {
     const title = items.find((i) => i.description.trim())?.description.trim() ?? 'Split';
     const lines = [`${title} · ${Money.fromCents(grandTotal).format()}`, ''];
@@ -188,7 +187,6 @@ export function QuickSplitPage(): ReactNode {
             <SplitIntro onExample={canTryExample ? tryExample : undefined} />
           )}
 
-          {/* The form, at form width, whatever the page around it is doing. */}
           <div id="split-bill" className={`mx-auto w-full max-w-2xl ${user ? '' : 'split-receipt'}`}>
             {draftRestored && (
               <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
@@ -206,7 +204,6 @@ export function QuickSplitPage(): ReactNode {
               </div>
             )}
 
-            {/* People — shared across every item */}
             <div className="surface mt-6 space-y-2 rounded-3xl p-5">
               <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
               {people.map((person, index) => (
@@ -270,9 +267,7 @@ export function QuickSplitPage(): ReactNode {
               </label>
             </div>
 
-            {/* Items — one expense per row, each split its own way among everyone above */}
             <div className="mt-6 space-y-3">
-              {/* The total stays hidden until the bill has an amount. */}
               <div className={`split-total entry-amount ${grandTotal > 0 ? '' : 'hidden'}`}>
                 <span className="entry-amount-label">Bill total</span>
                 <p
@@ -332,7 +327,6 @@ export function QuickSplitPage(): ReactNode {
             {!transfers && !error && (
               <p className="split-empty">Add another person and a valid amount to see the split.</p>
             )}
-            {/* Only once there is an answer: the form is blank for most of the time spent here. */}
             {transfers && (
               <QuickSplitResult
                 named={named}
@@ -350,8 +344,7 @@ export function QuickSplitPage(): ReactNode {
                 {error}
               </p>
             )}
-            {/* Above the save button on purpose. Saving needs an account; sending the answer to the
-            people it concerns is what you actually want to do next, and it needs nothing. */}
+            {/* Sharing the answer needs no account. */}
             {transfers && (
               <button
                 type="button"
@@ -369,17 +362,22 @@ export function QuickSplitPage(): ReactNode {
                       : 'Copy summary'}
               </button>
             )}
-            {/* Disabled until there is a split to save. Full-width accent over an empty form is the
-                loudest control on the page inviting you to save nothing. */}
+            <SessionNotice />
             <button
               type="button"
               onClick={() => void onSave()}
-              disabled={saving || grandTotal <= 0}
+              disabled={saving || grandTotal <= 0 || loading || sessionError}
               className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
             >
-              {saving ? 'Saving…' : user ? 'Save to my account' : 'Sign in to save split'}
+              {loading
+                ? 'Checking sign-in…'
+                : saving
+                  ? 'Saving…'
+                  : user
+                    ? 'Save to my account'
+                    : 'Sign in to save split'}
             </button>
-            {!user && grandTotal > 0 && (
+            {!user && !loading && !sessionError && grandTotal > 0 && (
               <p className="mt-2 text-center text-xs text-muted">
                 Sign in or create an account to keep this split. Copying stays free of paperwork.
               </p>

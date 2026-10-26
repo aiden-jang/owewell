@@ -14,6 +14,8 @@ import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
 import { SpendDonut } from '../components/SpendDonut';
 import { useToast } from '../components/Toast';
+import { useAsyncScope } from '../lib/useAsyncScope';
+import { SessionNotice } from '../components/SessionNotice';
 
 function balanceLabel(
   netCents: number,
@@ -36,7 +38,12 @@ function balanceLabel(
  */
 export function SharedGroupPage(): ReactNode {
   const { token } = useParams<{ token: string }>();
-  const { user, login } = useAuth();
+  return <SharedGroupView key={token} token={token} />;
+}
+
+function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
+  const { user, login, loading, sessionError } = useAuth();
+  const { begin, captureScope } = useAsyncScope();
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -52,16 +59,18 @@ export function SharedGroupPage(): ReactNode {
   // automatically. Signed in → merge the seat and drop into the now-editable group.
   const claimSeat = useCallback(
     async (seatId: string): Promise<void> => {
-      if (!token) return;
+      if (!token || loading || sessionError) return;
       if (!user) {
         login(`${window.location.origin}/s/${token}?claim=${seatId}`);
         return;
       }
       setClaiming(seatId);
+      const current = captureScope();
       try {
         const { groupId } = await groupsApi.claimSeat(token, seatId);
-        navigate(`/groups/${groupId}`);
+        if (current()) navigate(`/groups/${groupId}`);
       } catch (err) {
+        if (!current()) return;
         // Surfaces the server's reason, e.g. "You're already in this group." for a member, or a
         // taken/invalid seat.
         toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
@@ -73,13 +82,14 @@ export function SharedGroupPage(): ReactNode {
         setClaiming(null);
       }
     },
-    [login, navigate, toast, token, user],
+    [captureScope, loading, login, navigate, sessionError, toast, token, user],
   );
 
   const viewerIsMember = !!user && !!summary && summary.members.some((m) => m.userId === user.id);
   const hasOpenSeats = !!summary && summary.members.some((m) => m.isPlaceholder);
 
   const loadSummary = useCallback((): void => {
+    const current = begin();
     if (!token) {
       setStatus('notfound');
       return;
@@ -88,16 +98,18 @@ export function SharedGroupPage(): ReactNode {
     groupsApi
       .sharedSummary(token)
       .then((s) => {
+        if (!current()) return;
         setSummary(s);
         setStatus('ready');
       })
       .catch((err) => {
+        if (!current()) return;
         // A real dead/disabled link is a 404/403; anything else (offline, 5xx) is transient and
         // shouldn't tell an invited person their invite is gone. Offer a retry instead.
         if (err instanceof ApiError && (err.status === 404 || err.status === 403)) setStatus('notfound');
         else setStatus('failed');
       });
-  }, [token]);
+  }, [begin, token]);
 
   loadSummaryAfterClaim.current = loadSummary;
   useEffect(() => {
@@ -108,14 +120,24 @@ export function SharedGroupPage(): ReactNode {
   // Already-members just go straight in. Runs once; the param is cleared so a refresh won't retry.
   useEffect(() => {
     const seatId = searchParams.get('claim');
-    if (status !== 'ready' || !summary || !user || !seatId || autoClaimed.current) return;
+    if (loading || sessionError || status !== 'ready' || !summary || !user || !seatId || autoClaimed.current)
+      return;
     autoClaimed.current = true;
     setSearchParams({}, { replace: true });
     if (viewerIsMember) navigate(`/groups/${summary.groupId}`);
     else void claimSeat(seatId);
-    // `claimSeat`, `navigate` and `setSearchParams` are listed for honesty rather than because they
-    // gate anything: the ref above makes this a once-per-mount effect whatever their identities do.
-  }, [claimSeat, navigate, searchParams, setSearchParams, status, summary, user, viewerIsMember]);
+  }, [
+    claimSeat,
+    loading,
+    navigate,
+    searchParams,
+    sessionError,
+    setSearchParams,
+    status,
+    summary,
+    user,
+    viewerIsMember,
+  ]);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -237,6 +259,7 @@ export function SharedGroupPage(): ReactNode {
 
             <section className="mt-8">
               <h2 className="text-sm font-medium text-muted">Members</h2>
+              {hasOpenSeats && !viewerIsMember && <SessionNotice />}
               {!viewerIsMember && (
                 <p className="mt-2 text-xs text-muted">
                   Viewing doesn’t join the group. If your name is listed, choose “This is me” to connect that
@@ -276,7 +299,7 @@ export function SharedGroupPage(): ReactNode {
                         <button
                           type="button"
                           onClick={() => void claimSeat(m.userId)}
-                          disabled={claiming !== null}
+                          disabled={claiming !== null || loading || sessionError}
                           className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
                         >
                           {claiming === m.userId ? 'Claiming…' : 'This is me'}

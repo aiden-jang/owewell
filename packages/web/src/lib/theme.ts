@@ -68,7 +68,7 @@ export function setTheme(name: ThemeName): void {
   for (const fn of listeners) fn(name);
 }
 
-/** Initialize before paint. The console reset helper clears the explicit choice and follows the OS. */
+/** Initialize theme controls; the reset helper clears the explicit choice and follows the OS. */
 export function initTheme(): void {
   applyTheme(storedTheme());
   (window as unknown as { owewell: { theme: (n: ThemeName) => void; reset: () => void } }).owewell = {

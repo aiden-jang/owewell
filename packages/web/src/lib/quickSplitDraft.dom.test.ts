@@ -95,9 +95,20 @@ describe('drafts it refuses', () => {
     expect(readQuickSplitDraft()).toBeNull();
   });
 
-  it('drops an item with an unknown split method rather than restoring it', () => {
+  it('refuses the whole bill if an item has an unknown split method', () => {
     store({ ...valid, items: [item(), item({ id: 'i2', method: 'VIBES' as never })] });
-    expect(readQuickSplitDraft()?.items.map((i) => i.id)).toEqual(['i1']);
+    expect(readQuickSplitDraft()).toBeNull();
+  });
+
+  it.each([
+    ['one invalid person among three', { people: [...valid.people, { id: 'p3' }] }],
+    ['duplicate people', { people: [...valid.people, person('p2', 'Another Mara')] }],
+    ['duplicate items', { items: [item(), item()] }],
+    ['an empty person ID', { people: [person('', 'You'), person('p2', 'Mara')] }],
+    ['array values', { items: [item({ values: ['50', '50'] as never })] }],
+  ])('refuses %s without silently changing the bill', (_label, fields) => {
+    store({ ...valid, ...fields });
+    expect(readQuickSplitDraft()).toBeNull();
   });
 
   it('refuses when nothing usable is left', () => {

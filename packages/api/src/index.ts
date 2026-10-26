@@ -75,10 +75,11 @@ app.get('/health', (c) => c.json({ status: 'ok', service: 'owewell' }));
 // talk to the auth service cross-origin. Returns { user: null } when signed out (not 401),
 // since owewell is usable signed-out (quick split). Registered before the auth guard below.
 api.get('/me', async (c) => {
-  // An unreachable auth service reads as signed out here on purpose: owewell works signed-out,
-  // so the anonymous app is the honest degraded state. The guard below makes the other call.
   const session = await resolveSession(c.req.raw, c.env.AUTH_URL);
-  if (session.state !== 'signed-in') return c.json({ user: null });
+  if (session.state === 'unavailable') {
+    return c.json({ error: 'AUTH_UNAVAILABLE' }, 503, { 'Retry-After': '30' });
+  }
+  if (session.state === 'signed-out') return c.json({ user: null });
   const user = session.user;
   const person = await getOrCreatePerson(createDb(c.env), user);
   return c.json({

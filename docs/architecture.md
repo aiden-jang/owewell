@@ -22,8 +22,7 @@ for group balances; only the anonymous calculator computes a preview in the brow
 `packages/api/src/index.ts` orders security headers, cache policy, rate limiting,
 public endpoints, authentication, route registration and SPA fallback.
 `groupRoutes.ts` registers group and invite management on the authenticated router.
-`apiErrors.ts` maps service errors into the existing response contracts. The
-extraction preserves middleware ordering and both API aliases.
+`apiErrors.ts` maps service errors into the wire response contracts.
 
 Ledger services validate membership, compute shares and use Drizzle over D1.
 ID collection filters use a bound JSON rowset through `db/ids.ts`, keeping large
@@ -59,6 +58,9 @@ use independent caller IPs.
 Pages compose focused features. Dashboard cards, group creation and pending split
 saving have their own components. Group detail uses a keyed content instance so
 switching groups discards the old group's sheets, filters and payment receipt.
+Shared tabs also key their content by share token. Reads use request-order guards;
+seat claims keep their original surface lifetime so a late result cannot open a
+previous group after navigation.
 `useGroupActions` owns confirmations and writes; `ExpenseEditorSheets` owns the
 details-to-edit/duplicate handoff. Activity filters stay in the feed while
 `ActivityRows` renders confirmed expenses and payments.
@@ -77,6 +79,11 @@ screen. Saved group changes invalidate older reads; an initial refresh failure
 offers recovery rather than leaving a loading screen. Invite links, sharing and
 session checks use the same lifecycle rule. Failed
 session checks expose a retry state rather than claiming the visitor is signed out.
+The `/api/me` endpoint and its alias return a retryable 503 when Accounts is
+unavailable; only an absent or rejected session returns a null user.
+`ProtectedRoute` waits for identity before rendering or redirecting private routes.
+Public routes load independently; `SessionNotice` explains pending or failed checks
+while save and claim controls wait. Calculation and copying remain available.
 
 `useDialogFocus` owns custom-dialog keyboard behavior, focus restoration and
 background scroll locking. `Sheet` owns change protection and page-navigation
@@ -89,10 +96,15 @@ Working calculator drafts and queued writes live on the current device. Outbox
 replay uses idempotency keys for creates and payments, versions for edits and
 idempotent deletes. Pending rows and notices explain why confirmed balances have
 not yet incorporated the local change. Realtime and reconnect events refetch data.
+Draft recovery rejects malformed participants, items and duplicate IDs as a whole
+instead of silently restoring a smaller bill.
 
 The service worker handles the app shell and fingerprinted static assets, excluding
 API and cross-origin requests. Unversioned resources revalidate online; update
 checks avoid replacing entered work with an automatic reload.
+`public/theme-init.js` applies the saved palette synchronously before the bundle
+loads, under the same-origin script policy. The service worker precaches it with
+the shell. Its storage rules match `src/lib/theme.ts`.
 
 ## Verification and delivery
 
@@ -101,6 +113,6 @@ local browser journey and visual fixtures. CI and `pnpm run verify` share gate
 order. Repository checks cover module size, comments, documented paths and names,
 unused code, CSS variables and emitted utility classes.
 
-The existing deployment job runs after CI succeeds on `main`. This cleanup does
-not perform deployment or change that workflow. [Deployment](../DEPLOY.md) covers
+The deployment job runs after CI succeeds on `main`, including direct owner commits.
+It reuses the verified client artifact. [Deployment](../DEPLOY.md) covers
 operational commands and the migration-before-code ordering.

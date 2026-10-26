@@ -1,5 +1,8 @@
 # Owewell UI verification
 
+The [October 26 review](october-26/README.md) covers public loading, session recovery,
+shared-tab navigation and the production theme shell.
+
 The [October 19 control review](controls-oct19/README.md) covers group cancellation and payment-select spacing and focus.
 
 The [design](../../DESIGN.md) gives Owewell a deep teal identity, a decorative receipt illustration,
@@ -11,7 +14,8 @@ browser contexts, blocks service workers and does not write account or ledger da
 1440/390/320/430/768px widths; desktop evidence uses 1440 × 900 and phone evidence uses
 390 × 780 with natural scrolling. Reduced motion makes inspection repeatable.
 
-Start a local web preview on port 34212 and run `node packages/web/scripts/capture-ui.cjs`.
+Start the web app with `pnpm run dev:web` and run `node packages/web/scripts/capture-ui.cjs`.
+Set `OWEWELL_UI_URL` when using a different preview port.
 `OWEWELL_PLAYWRIGHT_MODULE` and `OWEWELL_BROWSER_PATH` select an installed browser if needed.
 The real browser journey in `pnpm run verify` uses its own local Worker, database and auth stub.
 

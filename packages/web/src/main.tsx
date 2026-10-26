@@ -9,7 +9,7 @@ import { ConfirmProvider } from './components/Confirm';
 import './index.css';
 import { initTheme } from './lib/theme';
 
-// Before the first paint, or the wrong palette flashes.
+// Initialize the app's theme controls after the shell has applied the early palette.
 initTheme();
 
 const rootEl = document.getElementById('root');

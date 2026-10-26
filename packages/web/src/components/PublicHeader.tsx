@@ -5,7 +5,7 @@ import { BrandMark } from './BrandMark';
 
 /** The header a signed-out visitor gets: the mark, and the two ways in. */
 export function PublicHeader(): ReactNode {
-  const { login, signup } = useAuth();
+  const { login, signup, loading, sessionError } = useAuth();
   return (
     <header className="public-header sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
@@ -18,15 +18,17 @@ export function PublicHeader(): ReactNode {
         <div className="flex items-center gap-2 text-sm font-medium">
           <button
             type="button"
+            disabled={loading || sessionError}
             onClick={() => login(window.location.origin)}
-            className="tap rounded-full px-3 py-1.5 text-muted transition hover:text-ink"
+            className="tap rounded-full px-3 py-1.5 text-muted transition hover:text-ink disabled:opacity-60"
           >
             Sign in
           </button>
           <button
             type="button"
+            disabled={loading || sessionError}
             onClick={() => signup(window.location.origin)}
-            className="btn-gradient rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98]"
+            className="btn-gradient rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
           >
             Get started
           </button>

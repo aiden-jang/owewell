@@ -4,9 +4,29 @@ import { useAuth } from '../auth/AuthContext';
 import { EmptyState } from '../components/EmptyState';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
+import { BrandMark } from '../components/BrandMark';
 
 export function ProtectedRoute(): ReactNode {
-  const { user, sessionError, retrySession } = useAuth();
+  const { user, loading, sessionError, retrySession } = useAuth();
+  if (loading) {
+    return (
+      <main
+        id="main"
+        tabIndex={-1}
+        className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-muted"
+      >
+        <span className="motion-safe:animate-pulse">
+          <BrandMark size={40} />
+        </span>
+        <p role="status" aria-label="Checking sign-in" className="text-sm">
+          Checking your sign-in…
+        </p>
+        <Link to="/split" className="text-sm font-medium text-accent hover:underline">
+          Use quick split without an account
+        </Link>
+      </main>
+    );
+  }
   if (sessionError && !user) {
     return (
       <div className="flex-1">

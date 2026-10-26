@@ -3,35 +3,18 @@ import { pageForPath } from '../../../analytics/schema.js';
 import { AppUpdate } from './AppUpdate';
 import type { ReactNode } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { useAuth } from './auth/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { DashboardPage } from './pages/DashboardPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
 import { QuickSplitPage } from './pages/QuickSplitPage';
 import { SharedGroupPage } from './pages/SharedGroupPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { BrandMark } from './components/BrandMark';
 import { SiteFooter } from './components/SiteFooter';
 import { SkipLink } from './components/SkipLink';
 
 export function App(): ReactNode {
   const { pathname } = useLocation();
   usePageAnalytics(pageForPath(pathname), pathname);
-  const { loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-muted">
-        <span className="animate-pulse">
-          <BrandMark size={40} />
-        </span>
-        <span className="text-sm">Counting the receipts...</span>
-      </div>
-    );
-  }
-
-  // Login, signup, and password flows all live on the shared auth service now; owewell
-  // only redirects out to them (see AuthContext).
   return (
     <div className="flex min-h-screen flex-col">
       {/* Before the routes, so it is before every page's sticky header in the tab order. */}

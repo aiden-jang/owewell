@@ -14,6 +14,8 @@ D1, Drizzle and Durable Objects. Part of the [shared Accounts platform](https://
 ## What it does
 
 - Split a bill without an account, including unequal shares and different payers.
+  The calculator and shared tabs load while sign-in is checked; only saving and
+  joining wait for a confirmed session.
 - Keep groups with account holders and name-only placeholders. Share a read-only
   view and let someone connect an existing seat to their account.
 - Add simple or itemized expenses, dates, categories and notes. Edits retain
@@ -80,7 +82,8 @@ fixtures and checks that require a physical device.
 - [Contributing](CONTRIBUTING.md): development, review and commit conventions.
 - [Repository conventions](CONVENTIONS.md): engineering rules and ledger invariants.
 - [Design](DESIGN.md): interface and accessibility decisions.
-- [Deployment runbook](DEPLOY.md): the existing merge-to-main workflow and database operations.
+- [Deployment runbook](DEPLOY.md): automatic delivery from main and database operations.
+- [Visitor walkthrough](docs/visitor-review.md): practical checks with someone new to Owewell.
 - [Visual review evidence](docs/ui-qa/README.md): historical captures and their verification limits.
 
 The committed [schema](packages/api/src/db/schema.ts) and
