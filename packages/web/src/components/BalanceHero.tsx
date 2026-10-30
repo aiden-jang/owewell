@@ -93,7 +93,7 @@ export function BalanceHero({
       <p
         className={`mt-1 font-display font-extrabold tracking-tight ${
           settled ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-6xl'
-        } ${settled ? (hasActivity && groupSettled ? 'text-pos' : 'text-ink') : owed ? 'text-gradient' : 'text-neg'}`}
+        } ${!settled && fmt(Math.abs(myNet)).length > 9 ? 'balance-amount-long' : ''} ${settled ? (hasActivity && groupSettled ? 'text-pos' : 'text-ink') : owed ? 'text-gradient' : 'text-neg'}`}
       >
         {!hasActivity ? (
           memberCount < 2 ? (

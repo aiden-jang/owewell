@@ -21,7 +21,7 @@ export function DashboardBalance({
         {settled ? 'Across your active groups' : owed ? "You're owed, overall" : 'You owe, overall'}
       </p>
       <p
-        className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${
+        className={`mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl ${fmt(Math.abs(totals.net)).length > 9 ? 'balance-amount-long' : ''} ${
           settled ? 'text-ink' : owed ? 'text-gradient' : 'text-neg'
         }`}
       >

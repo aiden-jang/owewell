@@ -667,6 +667,10 @@ textarea:focus {
   font-weight: 500;
   letter-spacing: -0.055em;
 }
+.overview-balance > p.balance-amount-long,
+.balance-hero > p.balance-amount-long {
+  font-size: clamp(30px, 9vw, 48px);
+}
 .balance-receipt {
   position: absolute;
   right: 24px;

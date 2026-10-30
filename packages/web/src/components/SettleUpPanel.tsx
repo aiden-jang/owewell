@@ -184,11 +184,7 @@ export function SettleUpPanel({
                     : 'border border-transparent'
               }`}
             >
-              {/*
-               * Amount on its own line above the names, with Mark paid level with it. Two real
-               * names run the sentence to five lines on a 375px phone, stranding the figure at the
-               * bottom, furthest from the button that records it.
-               */}
+              {/* Wrap the action before it squeezes the amount and names into a narrow column. */}
               {/* Above the row, not inside the name column: it labels the whole transfer, and from
                   in there it pushed the avatar out of line with the amount. */}
               {key === recommendedPaymentKey && suggested.length > 1 && (
@@ -196,11 +192,11 @@ export function SettleUpPanel({
                   Start here
                 </span>
               )}
-              <span className="flex items-start justify-between gap-3 text-sm">
-                <span className="flex min-w-0 items-start gap-2.5">
+              <span className="flex flex-wrap items-start justify-between gap-3 text-sm">
+                <span className="flex min-w-0 flex-1 basis-40 items-start gap-2.5">
                   <Avatar name={payment.fromName} size="sm" />
                   <span className="flex min-w-0 flex-col">
-                    <span className="tnum font-semibold">{fmt(payment.amountCents)}</span>
+                    <span className="tnum whitespace-nowrap font-semibold">{fmt(payment.amountCents)}</span>
                     <span className="text-xs text-muted [overflow-wrap:anywhere]">
                       <span className="font-medium text-ink">{payment.fromName}</span> pays{' '}
                       <span className="font-medium text-ink">{payment.toName}</span>
@@ -214,7 +210,7 @@ export function SettleUpPanel({
                   title={`Record ${payment.fromName}'s payment to ${payment.toName}`}
                   /* Filled on the recommended row only. Four identical accent buttons and the
                      accent stops meaning "do this one"; START HERE marks the one that earns it. */
-                  className={`tap max-w-[48%] shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
+                  className={`tap ml-auto max-w-full shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
                     key === recommendedPaymentKey
                       ? 'bg-accent text-accent-ink shadow-sm shadow-accent/20 hover:brightness-110'
                       : 'border border-line-strong text-ink hover:border-accent hover:text-accent'

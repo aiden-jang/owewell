@@ -40,14 +40,14 @@ export function CreateGroupForm({
           aria-invalid={nameTouched && !name.trim()}
           aria-describedby="group-name-hint"
           placeholder="Tahoe trip, apartment 4B, book club..."
-          className={`flex-1 rounded-xl border bg-field px-3.5 py-2.5 outline-none transition focus:ring-2 focus:ring-accent/20 ${
+          className={`min-w-0 flex-1 rounded-xl border bg-field px-3.5 py-2.5 outline-none transition focus:ring-2 focus:ring-accent/20 ${
             nameTouched && !name.trim() ? 'border-neg' : 'border-line focus:border-accent'
           }`}
         />
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="btn-gradient rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+          className="btn-gradient shrink-0 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
         >
           {busy ? 'Adding…' : 'Create'}
         </button>
