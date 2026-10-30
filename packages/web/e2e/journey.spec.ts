@@ -30,7 +30,7 @@ test.describe('from an empty account to a balance', () => {
       for (const width of [1280, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await page.screenshot({
-          path: `../../docs/ui-qa/dashboard-empty-${width}.png`,
+          path: `../../test-results/visual-review/dashboard-empty-${width}.png`,
           fullPage: true,
           animations: 'disabled',
         });
@@ -102,12 +102,12 @@ test.describe('from an empty account to a balance', () => {
     await expect(print.getByText('No payments recorded.')).toBeVisible();
     if (process.env.UI_QA_CAPTURE) {
       await page.screenshot({
-        path: '../../docs/ui-qa/print-recap.png',
+        path: '../../test-results/visual-review/print-recap.png',
         fullPage: true,
         animations: 'disabled',
       });
       if (test.info().project.name === 'chromium')
-        await page.pdf({ path: '../../docs/ui-qa/print-recap.pdf', format: 'A4' });
+        await page.pdf({ path: '../../test-results/visual-review/print-recap.pdf', format: 'A4' });
     }
     await page.emulateMedia({ media: 'screen' });
     const owed = page.getByText(/You're owed/).locator('..');
@@ -119,7 +119,7 @@ test.describe('from an empty account to a balance', () => {
       for (const width of [1280, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await page.screenshot({
-          path: `../../docs/ui-qa/dashboard-balance-${width}.png`,
+          path: `../../test-results/visual-review/dashboard-balance-${width}.png`,
           fullPage: true,
           animations: 'disabled',
         });
@@ -139,7 +139,8 @@ test.describe('from an empty account to a balance', () => {
     await expect(receipt).toContainText('Everyone is settled');
     await expect(page.getByText('All settled', { exact: true })).toBeVisible();
     if (process.env.CAPTURE_DETAILS) {
-      const folder = new URL('../../../docs/ui-qa/refinements-oct15/', import.meta.url).pathname;
+      const folder = new URL('../../../test-results/visual-review/refinements-oct15/', import.meta.url)
+        .pathname;
       await mkdir(folder, { recursive: true });
       for (const [name, width, height] of [
         ['desktop', 1440, 900],
@@ -175,7 +176,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.screenshot({
-        path: `../../docs/ui-qa/group-title-light-${width}.png`,
+        path: `../../test-results/visual-review/group-title-light-${width}.png`,
         fullPage: false,
         animations: 'disabled',
       });
@@ -190,7 +191,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
     await expect(page.getByRole('menuitem', { name: 'Export activity' })).toBeFocused();
     if (process.env.UI_CONSISTENCY_CAPTURE) {
       await page.screenshot({
-        path: `../../docs/ui-qa/group-options-dark-${width}.png`,
+        path: `../../test-results/visual-review/group-options-dark-${width}.png`,
         fullPage: false,
         animations: 'disabled',
       });
@@ -202,7 +203,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
     await expect(page.getByRole('textbox', { name: 'Group name', exact: true })).toHaveValue(name);
     if (process.env.UI_CONSISTENCY_CAPTURE) {
       await page.screenshot({
-        path: `../../docs/ui-qa/group-rename-dark-${width}.png`,
+        path: `../../test-results/visual-review/group-rename-dark-${width}.png`,
         fullPage: false,
         animations: 'disabled',
       });
@@ -223,7 +224,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
       await expect(page.getByRole('textbox', { name: 'Member name to add' })).toHaveValue('');
       await expect(page.locator('.toast')).toHaveCount(0);
       await page.screenshot({
-        path: `../../docs/ui-qa/group-members-dark-${width}.png`,
+        path: `../../test-results/visual-review/group-members-dark-${width}.png`,
         fullPage: false,
         animations: 'disabled',
       });
@@ -248,7 +249,7 @@ test('group settings remain usable with long names and dark mode', async ({ page
     await expectNoHorizontalOverflow(page);
     if (process.env.UI_CONSISTENCY_CAPTURE) {
       await page.screenshot({
-        path: `../../docs/ui-qa/expense-long-dark-${width}.png`,
+        path: `../../test-results/visual-review/expense-long-dark-${width}.png`,
         fullPage: false,
         animations: 'disabled',
       });
@@ -267,7 +268,7 @@ test('the signed-out calculator keeps both palettes usable', async ({ page }) =>
       await expectNoHorizontalOverflow(page);
       if (process.env.UI_PALETTE_CAPTURE) {
         await page.screenshot({
-          path: `../../docs/ui-qa/landing-teal-${theme.toLowerCase()}-${width}.png`,
+          path: `../../test-results/visual-review/landing-teal-${theme.toLowerCase()}-${width}.png`,
           fullPage: true,
           animations: 'disabled',
         });
@@ -282,7 +283,7 @@ test('the signed-out calculator keeps both palettes usable', async ({ page }) =>
       await page.setViewportSize({ width, height: 900 });
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({
-        path: `../../docs/ui-qa/guest-save-dark-${width}.png`,
+        path: `../../test-results/visual-review/guest-save-dark-${width}.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -321,7 +322,10 @@ test('unfinished work survives sign-in failures and offline payments', async ({ 
       expect((await choice.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     }
     if (process.env.UI_MOBILE_CAPTURE)
-      await page.screenshot({ path: `../../docs/ui-qa/mobile-input-${width}.png`, animations: 'disabled' });
+      await page.screenshot({
+        path: `../../test-results/visual-review/mobile-input-${width}.png`,
+        animations: 'disabled',
+      });
   }
   await page.getByLabel('Amount', { exact: true }).fill('40');
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -347,7 +351,7 @@ test('unfinished work survives sign-in failures and offline payments', async ({ 
     ).toBe(true);
     if (process.env.UI_RECOVERY_CAPTURE)
       await page.screenshot({
-        path: `../../docs/ui-qa/session-recovery-${width}.png`,
+        path: `../../test-results/visual-review/session-recovery-${width}.png`,
         animations: 'disabled',
       });
   }
@@ -357,7 +361,7 @@ test('unfinished work survives sign-in failures and offline payments', async ({ 
     await page.setViewportSize({ width, height: 900 });
     if (process.env.UI_RECOVERY_CAPTURE)
       await page.screenshot({
-        path: `../../docs/ui-qa/discard-recovery-${width}.png`,
+        path: `../../test-results/visual-review/discard-recovery-${width}.png`,
         animations: 'disabled',
       });
   }

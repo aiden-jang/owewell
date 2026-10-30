@@ -70,8 +70,8 @@ pnpm --filter @owewell/web run capture:ui
 The capture script intercepts API responses inside its own browser. Fixtures never
 enter D1 or ship with the app. It reviews warm/dark layouts, forms, recovery and
 narrow viewports; `OWEWELL_UI_STRESS=1` enables long names, large totals and crowded
-rosters. Review pixels as well as overflow assertions. Preserve useful evidence
-in `docs/ui-qa/` and identify the reviewed revision. `OWEWELL_UI_OUTPUT` chooses
+rosters. Review pixels as well as overflow assertions. Keep generated capture sets
+local and summarize relevant findings in the change description. `OWEWELL_UI_OUTPUT` chooses
 a separate capture directory and `OWEWELL_UI_URL` selects a running preview.
 
 A viewport resize cannot establish native phone-keyboard behavior, installed-app
@@ -86,3 +86,11 @@ without changing test deadlines.
 CI keeps verification in one job and deploys the resulting client artifact.
 Dependabot groups routine package updates and GitHub Actions updates separately,
 reducing duplicate full runs for related maintenance changes.
+
+## Review artifacts
+
+Keep generated screenshot sets, videos, traces and run reports in ignored
+`test-results/` output or a temporary local directory. CI artifacts should expire.
+Commit authored design references and a small curated set of README images only;
+keep runtime and installation assets separate. Earlier audit records remain in Git
+history. Use synthetic data and remove private information from shared evidence.

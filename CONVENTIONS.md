@@ -75,5 +75,7 @@ Remove descriptions of old implementations, successive revisions and obsolete
 responsibilities. Re-read comments near the seams after moving code.
 
 Do not put live test totals, file lengths or gate totals in documentation. Let the
-checks print current measurements. Describe current behavior and preserve historical
-review evidence as evidence of its own revision.
+checks print current measurements. Describe current behavior; Git history retains
+earlier review evidence.
+
+Keep generated review output out of Git; follow the [artifact policy](docs/quality.md#review-artifacts).

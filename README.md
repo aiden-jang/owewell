@@ -4,7 +4,7 @@ Split bills, see who owes whom and record payments with friends.
 
 **[Use owewell](https://owewell.aidenjang.com)**
 
-![Owewell dashboard with example groups](docs/ui-qa/october-14/dashboard-warm-1440.png)
+![Owewell dashboard with example groups](docs/screenshots/dashboard-desktop.png)
 
 _Dashboard preview using browser-only review fixtures._
 
@@ -84,7 +84,7 @@ fixtures and checks that require a physical device.
 - [Design](DESIGN.md): interface and accessibility decisions.
 - [Deployment runbook](DEPLOY.md): automatic delivery from main and database operations.
 - [Visitor walkthrough](docs/visitor-review.md): practical checks with someone new to Owewell.
-- [Visual review evidence](docs/ui-qa/README.md): historical captures and their verification limits.
+- [Visual review](docs/quality.md): capture workflow and verification limits.
 
 The committed [schema](packages/api/src/db/schema.ts) and
 [migrations](packages/api/migrations/README.md) define the database. Apply local

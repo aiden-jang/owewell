@@ -13,7 +13,7 @@ The split math, rounding, saved drafts, offline queue, group membership and shar
 redirects retain their existing behavior. Movement respects the existing reduced-motion setting.
 Icons, installed-app metadata and sharing graphics use the shipped warm palette.
 
-Visual evidence and verification notes live in `docs/ui-qa/README.md`.
+The capture workflow and verification limits are in [quality checks](docs/quality.md).
 
 Balance figures take priority over metadata; the overview separates owed-to-you and you-owe
 into labeled tiles when both are present. Ledger amounts align on the right, with quieter

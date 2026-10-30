@@ -98,7 +98,7 @@ test('a complete group task works with keyboard controls and enlarged text', asy
     await page.evaluate(() => window.scrollTo(0, 0));
     if (process.env.UI_A11Y_CAPTURE)
       await page.screenshot({
-        path: `../../docs/ui-qa/accessibility-text-200-${width}.png`,
+        path: `../../test-results/visual-review/accessibility-text-200-${width}.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -110,7 +110,7 @@ test('a complete group task works with keyboard controls and enlarged text', asy
     ).toBe(true);
     if (process.env.UI_A11Y_CAPTURE)
       await page.screenshot({
-        path: `../../docs/ui-qa/accessibility-entry-200-${width}.png`,
+        path: `../../test-results/visual-review/accessibility-entry-200-${width}.png`,
         animations: 'disabled',
       });
     await page.keyboard.press('Escape');
