@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { API_ORIGIN, API_PORT, AUTH_PORT, WEB_PORT } from './e2e/servers';
 
 /**
  * Browser end-to-end tests, in a real browser against the real Worker and a real local D1.
@@ -15,9 +16,6 @@ import { defineConfig, devices } from '@playwright/test';
  * Migrations run against the local D1 before the Worker starts, in the same order production does
  * it, so a schema change that nobody applied fails here rather than after a deploy.
  */
-const AUTH_PORT = 34499;
-const API_PORT = 34200;
-const WEB_PORT = 30001;
 const STATE = '.wrangler/e2e-state';
 
 export default defineConfig({
@@ -57,15 +55,17 @@ export default defineConfig({
       command:
         `pnpm exec wrangler d1 migrations apply owewell --local --persist-to ${STATE} && ` +
         `pnpm exec wrangler dev --persist-to ${STATE} ` +
-        `--var AUTH_URL:http://localhost:${AUTH_PORT} --port ${API_PORT}`,
+        `--ip 127.0.0.1 --var AUTH_URL:http://127.0.0.1:${AUTH_PORT} --port ${API_PORT}`,
       cwd: '../api',
-      port: API_PORT,
+      // Only the app's health endpoint establishes readiness, not an open socket.
+      url: `${API_ORIGIN}/health`,
       reuseExistingServer: false,
       timeout: 120_000,
       stdout: 'ignore',
     },
     {
       command: `pnpm run dev`,
+      env: { OWEWELL_E2E_API_PORT: String(API_PORT) },
       port: WEB_PORT,
       reuseExistingServer: false,
       timeout: 120_000,

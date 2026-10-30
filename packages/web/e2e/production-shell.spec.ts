@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures';
+import { API_ORIGIN } from './servers';
 
 test.use({ serviceWorkers: 'block' });
 
@@ -24,7 +25,7 @@ for (const storage of ['saved', 'unavailable'] as const) {
     const origin = 'https://owewell-preview.test';
     await page.route(`${origin}/**`, async (route) => {
       const url = new URL(route.request().url());
-      const response = await route.fetch({ url: `http://localhost:34200${url.pathname}${url.search}` });
+      const response = await route.fetch({ url: `${API_ORIGIN}${url.pathname}${url.search}` });
       await route.fulfill({ response });
     });
     await page.route('**/assets/*.js', async (route) => {

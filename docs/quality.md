@@ -33,9 +33,12 @@ pnpm run e2e
 pnpm --filter @owewell/web run e2e --grep keyboard
 ```
 
-The suite starts fake auth, the real API Worker and the web server on its dedicated
-ports (auth on 34499, API on 34200 and web on 30001), with migrations applied to `.wrangler/e2e-state`. That directory is separate
-from development state. A signed-in identity belongs to each browser scenario.
+The suite starts fake auth, the real API Worker and the web server on the dedicated
+loopback ports in `packages/web/e2e/servers.ts`,
+with migrations applied to `.wrangler/e2e-state`. The API uses a different port from
+manual development, and browser tasks wait for its HTTP health endpoint. The web
+proxy receives the test API port explicitly. Test state stays separate from development
+state. A signed-in identity belongs to each browser scenario.
 Each sign-in uses a fresh test account so groups left by earlier runs cannot change a scenario.
 Each scenario also uses an independent local IP budget while native rate limiting
 remains active. Auth is the stand-in; the group data, API and balances are real local results.

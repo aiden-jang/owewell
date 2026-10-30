@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+const apiTarget = `http://127.0.0.1:${Number(process.env.OWEWELL_E2E_API_PORT ?? 34200)}`;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
@@ -11,9 +13,9 @@ export default defineConfig({
     // per-group realtime WebSocket at /api/groups/:id/ws) lives under the API prefix.
     // Sign-in/out are full-page redirects to the shared auth service, so no /auth proxy.
     proxy: {
-      '/api': { target: 'http://localhost:34200', changeOrigin: true, ws: true },
+      '/api': { target: apiTarget, changeOrigin: true, ws: true },
       // The old prefix, still served, so a stale cached bundle works in dev too.
-      '/owewell': { target: 'http://localhost:34200', changeOrigin: true, ws: true },
+      '/owewell': { target: apiTarget, changeOrigin: true, ws: true },
     },
   },
 });
