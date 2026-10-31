@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
 import type { GroupSummary } from '../lib/groups';
 import { timeAgoShort as timeAgo } from '../lib/relativeTime';
-import { Avatar } from './Avatar';
+import { GroupArtwork } from './GroupArtwork';
 import { Icon } from './Icon';
 
 function perGroupLabel(
@@ -41,7 +41,7 @@ export function DashboardGroupCard({ group, selectMode, selected, onToggle }: Pr
   const inner = (
     <>
       <span className="relative shrink-0">
-        <Avatar name={group.name} />
+        <GroupArtwork name={group.name} />
         {selecting && isSel && (
           <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-accent text-accent-ink ring-2 ring-canvas">
             <Icon name="check" size={12} />

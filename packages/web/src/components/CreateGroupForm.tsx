@@ -1,4 +1,5 @@
-import type { FormEvent } from 'react';
+import { useRef, type FormEvent } from 'react';
+import { GroupArtwork } from './GroupArtwork';
 
 type Props = {
   name: string;
@@ -19,10 +20,13 @@ export function CreateGroupForm({
   onClose,
   onSubmit,
 }: Props) {
+  const input = useRef<HTMLInputElement>(null);
+  const ideas = useRef<HTMLDetailsElement>(null);
   return (
     <form id="create-group-form" onSubmit={onSubmit} className="mt-3">
       <div className="flex gap-2">
         <input
+          ref={input}
           autoFocus
           aria-label="Group name"
           required
@@ -31,7 +35,8 @@ export function CreateGroupForm({
           onBlur={(event) => {
             if (
               event.relatedTarget instanceof Element &&
-              event.relatedTarget.getAttribute('aria-controls') === 'create-group-form'
+              (event.relatedTarget.getAttribute('aria-controls') === 'create-group-form' ||
+                event.relatedTarget.closest('.group-ideas'))
             )
               return;
             onTouch();
@@ -60,6 +65,28 @@ export function CreateGroupForm({
           ? 'Give the group a name to create it.'
           : 'Name it after the trip, the flat, or the people.'}
       </p>
+      <details ref={ideas} className="group-ideas">
+        <summary>
+          Group ideas <span className="text-faint">optional</span>
+        </summary>
+        <div className="group-ideas-grid" role="group" aria-label="Group name ideas">
+          {['Dinner', 'Trip', 'Home'].map((idea) => (
+            <button
+              type="button"
+              key={idea}
+              disabled={busy}
+              onClick={() => {
+                onNameChange(idea);
+                if (ideas.current) ideas.current.open = false;
+                input.current?.focus();
+              }}
+            >
+              <GroupArtwork name={idea} />
+              <span>{idea}</span>
+            </button>
+          ))}
+        </div>
+      </details>
     </form>
   );
 }

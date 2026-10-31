@@ -95,3 +95,5 @@ only when reduced motion is not requested. The existing layout and calculation f
 Payment-method selects keep native menus with an inset chevron and the shared field spacing.
 Pointer use keeps a quiet border; keyboard navigation retains a visible focus outline.
 Cancelling group creation closes the draft without validating its empty name and returns focus to New.
+
+Group creation keeps Dinner, Trip and Home as optional illustrated name ideas in a closed disclosure. Selection fills only the name, closes the ideas and returns focus to the field. These exact names use matching decorative art in the group directory; custom names retain their existing initials. No category, balance or ledger value is inferred from an illustration.

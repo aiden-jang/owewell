@@ -130,7 +130,10 @@ describe('creating a group', () => {
     expect(input).not.toHaveAttribute('aria-invalid', 'true');
 
     await user.click(input);
-    await user.tab(); // leave it empty
+    await user.tab();
+    expect(screen.queryByText(/give the group a name/i)).not.toBeInTheDocument();
+    await user.click(input);
+    await user.click(screen.getByRole('heading', { level: 1 }));
 
     expect(await screen.findByText(/give the group a name/i)).toBeInTheDocument();
     expect(input).toHaveAttribute('aria-invalid', 'true');
