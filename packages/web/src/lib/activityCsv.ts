@@ -12,8 +12,8 @@ export function csvCell(value: string | number): string {
   // Spreadsheet apps execute leading formula characters even inside imported CSV files. User
   // controlled descriptions and names must stay text when the export is opened in Excel/Sheets.
   const raw = String(value);
-  const text = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  const text = /^[\t\r\n]|^\s*[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 export function activityCsv({

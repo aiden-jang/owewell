@@ -31,6 +31,7 @@ describe('escaping a cell', () => {
     expect(csvCell('Beer, wine')).toBe('"Beer, wine"');
     expect(csvCell('The "good" place')).toBe('"The ""good"" place"');
     expect(csvCell('two\nlines')).toBe('"two\nlines"');
+    expect(csvCell('two\rlines')).toBe('"two\rlines"');
   });
 
   /*
@@ -45,6 +46,13 @@ describe('escaping a cell', () => {
     expect(csvCell('+44 dinner')).toBe("'+44 dinner");
     expect(csvCell('-5 refund')).toBe("'-5 refund");
     expect(csvCell('@lunch')).toBe("'@lunch");
+  });
+
+  it('keeps control characters and whitespace-prefixed formulas as text', () => {
+    expect(csvCell('\t=1+1')).toBe("'\t=1+1");
+    expect(csvCell('  =1+1')).toBe("'  =1+1");
+    expect(csvCell('\r=1+1')).toBe('"\'\r=1+1"');
+    expect(csvCell('\n=1+1')).toBe('"\'\n=1+1"');
   });
 
   it('defuses and escapes together', () => {
