@@ -43,6 +43,8 @@ for (const storage of ['saved', 'unavailable'] as const) {
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'warm');
     } finally {
       release();
+      // Finish proxy responses before the fixture closes their request context.
+      await page.unrouteAll({ behavior: 'wait' });
     }
   });
 }

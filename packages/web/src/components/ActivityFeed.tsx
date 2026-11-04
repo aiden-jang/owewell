@@ -1,7 +1,7 @@
 import { formatMoney as fmt } from '@owewell/shared';
 import { CategoryGlyph } from './CategoryMark';
 import { ActivityRows, type Activity } from './ActivityRows';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { categoryMeta, PAYMENT_METHOD_LABELS } from '@owewell/core';
 import { EmptyState } from './EmptyState';
 import { Icon } from './Icon';
@@ -114,15 +114,23 @@ export function ActivityFeed({
   }, [activity, activityQuery, categoryFilter, members, personFilter, relationFilter]);
 
   // Filter the complete ledger before bounding rendered rows so older matches remain searchable.
-  const [showAll, setShowAll] = useState(false);
-  const shownActivity = showAll ? visibleActivity : visibleActivity.slice(0, ACTIVITY_PAGE);
+  const scope = JSON.stringify([activityQuery, categoryFilter, personFilter, relationFilter]);
+  const [pageWindow, setPageWindow] = useState({ scope, count: ACTIVITY_PAGE });
+  const count = pageWindow.scope === scope ? pageWindow.count : ACTIVITY_PAGE;
+  const shownActivity = visibleActivity.slice(0, count);
   const hiddenActivityCount = visibleActivity.length - shownActivity.length;
-
-  // A new set of results is a new question, so it starts from the top again rather than dumping
-  // every match of a two-letter search at once.
-  useEffect(() => {
-    setShowAll(false);
-  }, [activityQuery, categoryFilter, personFilter, relationFilter]);
+  const rowsRef = useRef<HTMLUListElement>(null);
+  const nextFocus = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (pageWindow.scope !== scope) {
+      nextFocus.current = null;
+      setPageWindow({ scope, count: ACTIVITY_PAGE });
+      return;
+    }
+    if (nextFocus.current === null) return;
+    rowsRef.current?.children[nextFocus.current]?.querySelector('button')?.focus();
+    nextFocus.current = null;
+  }, [count, scope, pageWindow.scope]);
 
   function clearFilters(): void {
     setActivityQuery('');
@@ -288,7 +296,7 @@ export function ActivityFeed({
         ) : (
           /* One panel with hairline rows, not a stack of cards: a ledger is a list of the same
              kind of thing, and per-row borders made it read as a pile of objects. */
-          <ul className="activity-ledger panel mt-3">
+          <ul className="activity-ledger panel mt-3" ref={rowsRef}>
             {/*
              * Queued writes sit above the ledger, dimmed and inert.
              *
@@ -325,10 +333,14 @@ export function ActivityFeed({
         {hiddenActivityCount > 0 && (
           <button
             type="button"
-            onClick={() => setShowAll(true)}
+            onClick={() => {
+              nextFocus.current = pendingRows.length + count;
+              setPageWindow({ scope, count: count + ACTIVITY_PAGE });
+            }}
             className="mt-3 w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
           >
-            Show {hiddenActivityCount} older {hiddenActivityCount === 1 ? 'entry' : 'entries'}
+            Show {Math.min(ACTIVITY_PAGE, hiddenActivityCount)} older{' '}
+            {hiddenActivityCount === 1 ? 'entry' : 'entries'}
           </button>
         )}
       </section>

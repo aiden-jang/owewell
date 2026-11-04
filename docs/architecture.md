@@ -64,6 +64,9 @@ previous group after navigation.
 `useGroupActions` owns confirmations and writes; `ExpenseEditorSheets` owns the
 details-to-edit/duplicate handoff. Activity filters stay in the feed while
 `ActivityRows` renders confirmed expenses and payments.
+The feed renders 50 entries at a time after filtering the complete ledger. Loading more adds
+another 50 rather than mounting the entire history. `PrintRecap` mounts all saved records only
+for native printing or print preview and removes that separate table afterward.
 
 `useQuickSplitDraft` owns editable bill state, draft recovery, participant changes
 and generated tips. `computeQuickSplit` uses the shared arithmetic for preview;

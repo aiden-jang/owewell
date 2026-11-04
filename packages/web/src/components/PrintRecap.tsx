@@ -1,15 +1,33 @@
 import { formatMoney as fmt } from '@owewell/shared';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
 import type { GroupLedger } from '../lib/useGroupLedger';
 import { fullDay } from '../lib/relativeTime';
 import './print-recap.css';
 
 export function PrintRecap({ ledger }: { ledger: GroupLedger }) {
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('print');
+    // Native print snapshots synchronously, so the complete recap must exist before it returns.
+    const start = () => flushSync(() => setPrinting(true));
+    const stop = () => setPrinting(false);
+    const change = () => (media.matches ? start() : stop());
+    if (media.matches) setPrinting(true);
+    media.addEventListener('change', change);
+    window.addEventListener('beforeprint', start);
+    window.addEventListener('afterprint', stop);
+    return () => {
+      media.removeEventListener('change', change);
+      window.removeEventListener('beforeprint', start);
+      window.removeEventListener('afterprint', stop);
+    };
+  }, []);
   const { group, expenses, settlements, balances, pendingCount } = ledger;
-  if (!group) return null;
-  const nameOf = (id: string) =>
-    group.members.find((member) => member.userId === id)?.displayName ?? 'Someone';
+  if (!printing || !group) return null;
+  const names = new Map(group.members.map((member) => [member.userId, member.displayName]));
+  const nameOf = (id: string) => names.get(id) ?? 'Someone';
   return createPortal(
     <article className="print-recap" aria-label="Printable group recap">
       <header>

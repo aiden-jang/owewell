@@ -330,6 +330,22 @@ describe('how much renders', () => {
     expect(screen.getByRole('button', { name: 'Show 10 older entries' })).toBeInTheDocument();
   });
 
+  it('loads a long ledger in bounded steps and still searches older expenses', async () => {
+    const expenses = Array.from({ length: 600 }, (_, i) =>
+      expense({ id: `large-${i}`, description: `History ${i}`, amountCents: 100 }),
+    );
+    const user = await open({ expenses, settlements: [] });
+    expect(rowTexts()).toHaveLength(50);
+    await user.click(screen.getByRole('button', { name: 'Show 50 older entries' }));
+    expect(rowTexts()).toHaveLength(100);
+    expect(screen.getByRole('button', { name: 'Show 50 older entries' })).toBeInTheDocument();
+    await user.type(search(), 'History 599');
+    expect(rowTexts()).toHaveLength(1);
+    expect(rowTexts()[0]).toContain('History 599');
+    await user.clear(search());
+    expect(rowTexts()).toHaveLength(50);
+  });
+
   it('shows them all on request', async () => {
     const user = await open({ expenses: many, settlements: [] });
     await user.click(screen.getByRole('button', { name: 'Show 10 older entries' }));
