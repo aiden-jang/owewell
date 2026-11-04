@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useConfirm } from './Confirm';
 import { Sheet } from './Sheet';
 import { AddExpenseForm } from './AddExpenseForm';
 import { AddItemizedExpenseForm } from './AddItemizedExpenseForm';
@@ -36,6 +37,27 @@ export function AddExpenseSheet({
   onQueued: (description: string) => void;
 }): ReactNode {
   const [mode, setMode] = useState<ExpenseMode>('simple');
+  const [saving, setSaving] = useState(false);
+  const dirty = useRef(false);
+  const confirm = useConfirm();
+  useEffect(() => {
+    if (!open) dirty.current = false;
+  }, [open]);
+  async function switchMode(option: ExpenseMode): Promise<void> {
+    if (option === mode || saving) return;
+    if (
+      dirty.current &&
+      !(await confirm({
+        title: 'Switch expense format?',
+        body: 'This discards the unfinished entry. Nothing has been added to the group.',
+        confirmLabel: 'Discard and switch',
+        cancelLabel: 'Keep editing',
+      }))
+    )
+      return;
+    dirty.current = false;
+    setMode(option);
+  }
 
   // Remounted when the roster changes: both forms seed their participant rows from the members they
   // were opened with, and a half-filled split that predates a new member is worse than a fresh one.
@@ -45,17 +67,19 @@ export function AddExpenseSheet({
     members,
     onCreated: (saved: Expense) => onCreated(saved, mode),
     onQueued,
+    onPendingChange: setSaving,
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Add to the tab" autoFocusField protectChanges>
+    <Sheet key={mode} open={open} onClose={onClose} title="Add to the tab" autoFocusField protectChanges>
       <div className="expense-mode mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
         {(['simple', 'itemized'] as const).map((option) => (
           <button
             key={option}
             type="button"
             aria-pressed={mode === option}
-            onClick={() => setMode(option)}
+            onClick={() => void switchMode(option)}
+            disabled={saving}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
               mode === option ? 'bg-surface2 shadow-sm text-ink' : 'text-muted hover:text-ink'
             }`}
@@ -65,7 +89,16 @@ export function AddExpenseSheet({
         ))}
       </div>
       <p className="mb-4 text-xs text-muted">{BLURB[mode]}</p>
-      {mode === 'simple' ? <AddExpenseForm {...formProps} /> : <AddItemizedExpenseForm {...formProps} />}
+      <div
+        onChangeCapture={() => {
+          dirty.current = true;
+        }}
+        onClickCapture={(event) => {
+          if ((event.target as HTMLElement).closest('button[aria-pressed]')) dirty.current = true;
+        }}
+      >
+        {mode === 'simple' ? <AddExpenseForm {...formProps} /> : <AddItemizedExpenseForm {...formProps} />}
+      </div>
     </Sheet>
   );
 }

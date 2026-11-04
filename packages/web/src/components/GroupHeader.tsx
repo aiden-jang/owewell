@@ -40,6 +40,22 @@ export function GroupHeader({
   const [saving, setSaving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasRenaming = useRef(false);
+  useEffect(() => {
+    const closed = wasRenaming.current && !renaming;
+    wasRenaming.current = renaming;
+    if (!closed) return;
+    const frame = requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (
+        document.querySelector('[role="dialog"]') ||
+        (active?.isConnected && active.matches('input, textarea, select'))
+      )
+        return;
+      triggerRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [renaming]);
 
   useEffect(() => {
     if (menuOpen) menuRef.current?.querySelector<HTMLButtonElement>('[role=menuitem]')?.focus();

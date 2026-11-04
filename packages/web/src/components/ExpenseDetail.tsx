@@ -161,7 +161,7 @@ export function ExpenseDetail({
               <Row
                 key={`${item.name}-${i}`}
                 left={
-                  <span className="block truncate">
+                  <span className="block break-words [overflow-wrap:anywhere]">
                     {item.name}
                     <span className="text-faint">
                       {' · '}

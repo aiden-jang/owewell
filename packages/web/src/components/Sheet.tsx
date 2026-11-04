@@ -91,7 +91,7 @@ export function Sheet({
         onKeyDownCapture={advanceFormField}
         onChangeCapture={markChanged}
         onClickCapture={(event) => {
-          if ((event.target as HTMLElement).closest('button[aria-pressed]')) markChanged();
+          if ((event.target as HTMLElement).closest('form button[aria-pressed]')) markChanged();
         }}
         role="dialog"
         aria-modal="true"

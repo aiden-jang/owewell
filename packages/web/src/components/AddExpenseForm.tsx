@@ -1,5 +1,5 @@
 import { expenseSplitHint } from '../lib/expenseSplitHint';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ExpenseExtras } from './ExpenseExtras';
 import { readSplitPreference, writeSplitPreference } from '../lib/splitPreference';
 import { DescriptionField, FormError, PayerSelect, SubmitButton, inputClass } from './FormFields';
@@ -33,6 +33,7 @@ interface Props {
    * ("waiting for signal", not "added"), and nothing exists on the server yet to hand back.
    */
   onQueued?: (description: string) => void;
+  onPendingChange?: (pending: boolean) => void;
 }
 
 /** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
@@ -54,6 +55,7 @@ export function AddExpenseForm({
   members,
   onCreated,
   onQueued,
+  onPendingChange,
   editing,
   template,
 }: Props): ReactNode {
@@ -75,6 +77,10 @@ export function AddExpenseForm({
     submitting,
     setSubmitting,
   } = useExpenseDraft(members, editing, template);
+  useEffect(() => {
+    onPendingChange?.(submitting);
+    return () => onPendingChange?.(false);
+  }, [submitting, onPendingChange]);
   const [preference] = useState(() => readSplitPreference(groupId));
   const remembered =
     preference?.participants.filter((id) => members.some((member) => member.userId === id)) ?? [];

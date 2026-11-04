@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GroupMember } from '../lib/groups';
+import { ConfirmProvider } from './Confirm';
 
 /**
  * The two ways onto the tab, behind one sheet.
@@ -64,16 +65,18 @@ const onClose = vi.fn();
 async function open(over: Record<string, unknown> = {}) {
   const { AddExpenseSheet } = await import('./AddExpenseSheet');
   const sheet = (props: Record<string, unknown> = {}) => (
-    <AddExpenseSheet
-      open
-      onClose={onClose}
-      groupId="g1"
-      members={[member('a'), member('b')]}
-      onCreated={onCreated}
-      onQueued={onQueued}
-      {...over}
-      {...props}
-    />
+    <ConfirmProvider>
+      <AddExpenseSheet
+        open
+        onClose={onClose}
+        groupId="g1"
+        members={[member('a'), member('b')]}
+        onCreated={onCreated}
+        onQueued={onQueued}
+        {...over}
+        {...props}
+      />
+    </ConfirmProvider>
   );
   const view = render(sheet());
   return { user: userEvent.setup(), setOpen: (open: boolean) => view.rerender(sheet({ open })) };

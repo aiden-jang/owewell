@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { formatMoney as fmt, dollarsToCents } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
@@ -39,6 +39,7 @@ interface Props {
   template?: Expense;
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
+  onPendingChange?: (pending: boolean) => void;
 }
 
 export function AddItemizedExpenseForm({
@@ -46,6 +47,7 @@ export function AddItemizedExpenseForm({
   members,
   onCreated,
   onQueued,
+  onPendingChange,
   editing,
   template,
 }: Props): ReactNode {
@@ -67,6 +69,10 @@ export function AddItemizedExpenseForm({
     submitting,
     setSubmitting,
   } = useExpenseDraft(members, editing, template);
+  useEffect(() => {
+    onPendingChange?.(submitting);
+    return () => onPendingChange?.(false);
+  }, [submitting, onPendingChange]);
   const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
   const initialItems = (): ItemDraft[] =>
     source?.items && source.items.length > 0
