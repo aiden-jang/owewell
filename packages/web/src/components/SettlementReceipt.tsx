@@ -23,21 +23,17 @@ export function SettlementReceipt({
   return (
     <section
       aria-labelledby="payment-receipt-title"
-      className="mt-6 overflow-hidden rounded-2xl border border-pos/30 bg-pos/5 shadow-sm shadow-pos/5 animate-rise"
+      className="surface animate-rise overflow-hidden rounded-2xl"
     >
-      <div className="flex items-start gap-3 border-b border-pos/15 px-4 py-4">
+      <div className="flex items-start gap-3 border-b border-dashed border-line-strong px-4 py-4">
         <span
           aria-hidden
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pos text-[#07120a]"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-pos"
         >
           <Icon name="check" size={19} />
         </span>
         <div className="min-w-0 flex-1">
-          <p
-            role="status"
-            id="payment-receipt-title"
-            className="text-xs font-semibold uppercase tracking-wide text-pos"
-          >
+          <p role="status" id="payment-receipt-title" className="text-sm font-semibold text-pos">
             Payment recorded
           </p>
           <p className="mt-0.5 break-words font-display text-3xl font-semibold tracking-tight text-ink">
@@ -59,7 +55,7 @@ export function SettlementReceipt({
           type="button"
           onClick={onClose}
           aria-label="Dismiss payment receipt"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
         >
           <Icon name="x" size={16} />
         </button>

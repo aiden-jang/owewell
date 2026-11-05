@@ -4,9 +4,14 @@ Owewell has its own deep teal, warm ivory and receipt-paper identity. Warm and d
 available, including the saved choice and automatic device preference. Inter remains locally
 served. Teal identifies actions; green and red retain their money meanings and explicit labels.
 
-The signed-out calculator opens with a spacious teal headline and a small smiling receipt illustration. The working calculator sits directly below in one centered, softly framed panel; visitors can jump to it or explicitly load a labeled example. There is no sidebar or numbered tutorial. Phones prioritize the headline and tool without the illustration. The signed-in overview has a page title, a quieter balance card
-and a two-column group directory on wide screens; phones retain a single column. Group detail
-keeps its focused column, with a paper balance card and consistent form boundaries.
+Open tab puts balances beside the task they explain. At widths of 900px and above, the overview
+pairs a balance receipt with a ruled group directory. Group detail puts the activity ledger beside
+its balance and settlement plan. Shared tabs use the same layout for the roster and read-only
+summary. At narrower widths the balance comes first, with a jump to activity on populated groups.
+
+The public calculator keeps its headline, receipt illustration and labeled example. Both public
+and signed-in calculators put the editable bill beside its result on wide screens. Phones show
+the form first, followed by the result and its copy and save actions.
 
 Humor belongs in the introduction, not amounts, validation, payments or destructive decisions.
 The split math, rounding, saved drafts, offline queue, group membership and shared Accounts
@@ -15,8 +20,8 @@ Icons, installed-app metadata and sharing graphics use the shipped warm palette.
 
 The capture workflow and verification limits are in [quality checks](docs/quality.md).
 
-Balance figures take priority over metadata; the overview separates owed-to-you and you-owe
-into labeled tiles when both are present. Ledger amounts align on the right, with quieter
+Balance figures take priority over metadata. When both directions are present, the overview
+shows owed-to-you and you-owe on separate receipt lines. Ledger amounts align on the right, with quieter
 payer/date text and consistently sized category glyphs. Sheets use a grip on phones, distinct
 selected modes, and a sticky action bar. Existing keyboard focus and scroll locking remain.
 
@@ -34,8 +39,8 @@ Payer selection is one labeled Who paid? control. Tips are an optional disclosur
 errors explain valid positive amounts before saving. Copy summary is the primary result action;
 saving stays secondary. Blank calculators explain what is needed to produce an answer.
 
-Signed-in groups pair the latest real expense with Add expense directly below the balance,
-before settlement detail. Expense entry keeps amount, description, payer and split visible;
+Signed-in groups put the latest real expense and Add expense above the ledger and balance,
+within reach on phones. Expense entry keeps amount, description, payer and split visible;
 optional date, category and note live in a disclosure, expanded when editing or copying.
 Successful new expenses remember only the group’s split method and participants on this device.
 Amounts and exact/percentage allocations always start fresh; shares restart at one each.
@@ -72,11 +77,10 @@ recording expose polite status announcements and busy button states.
 
 Payment receipts explicitly distinguish a saved ledger record from a money transfer. Shared invites explain that viewing is read-only and choosing an existing name connects that spot and its balances to an account. Long unbroken names wrap in payment and shared-member rows; large shared totals scale to fit without shortening the amount.
 
-The visual directory uses distinct title, balance and activity rows inside each group card.
-Balances have calmer medium-weight numerals; a larger receipt face and fine accent rule tie
-overview and group heroes together. The latest-expense action uses a dashed paper boundary
-instead of competing with the balance card. Activity has a visible heading and tighter spacing.
-Hover-capable devices get a small card lift and chevron movement unless reduced motion is set.
+Group rows keep names and activity together, with right-aligned amounts and explicit balance
+labels. Receipt faces connect the overview and group balances. The latest-expense action uses a
+dashed paper boundary. Selection and hover use the same soft teal surface as other controls,
+with a separate visible keyboard focus outline.
 
 Expense, itemized receipt and payment sheets share a dashed total panel with an explicit label
 and medium-weight numerals. Participant rows sit inside a quiet ruled boundary; sender and
@@ -93,9 +97,8 @@ participant tags and a dashed payer divider. Category choices use compact rounde
 and reserve teal for the selection. Form order, native controls and calculation behavior remain.
 
 Calculator bill rows use soft paper panels, medium-weight amounts and dashed disclosure rules.
-The running total shares the labeled receipt treatment with entry sheets; your share has the
-strongest result hierarchy, with quieter transfer rows. Results fade in once when they appear,
-only when reduced motion is not requested. The existing layout and calculation flow remain.
+The result receipt labels the bill total separately from your share and the proposed transfers.
+Results fade in once when they appear, only when reduced motion is not requested.
 
 Payment-method selects keep native menus with an inset chevron and the shared field spacing.
 Pointer use keeps a quiet border; keyboard navigation retains a visible focus outline.

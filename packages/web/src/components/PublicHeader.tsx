@@ -7,8 +7,8 @@ import { BrandMark } from './BrandMark';
 export function PublicHeader(): ReactNode {
   const { login, signup, loading, sessionError } = useAuth();
   return (
-    <header className="public-header sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
+    <header className="sticky top-0 z-20 border-b border-line bg-canvas">
+      <div className="workspace-width mx-auto flex items-center justify-between px-4 py-2">
         <Link
           to="/split"
           className="tap flex items-center gap-2 font-display text-xl font-semibold tracking-tight"
@@ -20,7 +20,7 @@ export function PublicHeader(): ReactNode {
             type="button"
             disabled={loading || sessionError}
             onClick={() => login(window.location.origin)}
-            className="tap rounded-full px-3 py-1.5 text-muted transition hover:text-ink disabled:opacity-60"
+            className="tap min-h-11 rounded-full px-3 py-1.5 text-muted transition hover:text-ink disabled:opacity-60"
           >
             Sign in
           </button>
@@ -28,7 +28,7 @@ export function PublicHeader(): ReactNode {
             type="button"
             disabled={loading || sessionError}
             onClick={() => signup(window.location.origin)}
-            className="btn-gradient rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
+            className="btn-gradient min-h-11 rounded-full px-4 py-1.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
           >
             Get started
           </button>

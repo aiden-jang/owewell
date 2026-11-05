@@ -52,57 +52,24 @@ export function AppUpdate({ safe = true }: { safe?: boolean }) {
     <aside
       aria-label="App update"
       role="status"
-      style={{
-        position: 'fixed',
-        bottom: 'max(16px, env(safe-area-inset-bottom))',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1000,
-        boxSizing: 'border-box',
-        width: 'min(440px, calc(100% - 24px))',
-        padding: 16,
-        borderRadius: 16,
-        background: '#fffaf1',
-        color: '#183b38',
-        boxShadow: '0 6px 32px #0004',
-        fontFamily: 'inherit',
-        fontSize: 14,
-        overflowWrap: 'anywhere',
-      }}
+      className="app-update surface fixed z-30 rounded-2xl p-4 text-sm [overflow-wrap:anywhere]"
     >
-      <p style={{ margin: 0, fontWeight: 600 }}>An update is ready.</p>
-      <p style={{ margin: '6px 0 10px' }}>
+      <p className="font-semibold">An update is ready.</p>
+      <p className="mt-1 text-muted">
         Save your changes before reloading. This page stays open until you choose.
       </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => window.location.reload()}
-          style={{
-            minHeight: 44,
-            padding: '8px 16px',
-            borderRadius: 10,
-            border: '1px solid currentColor',
-            color: 'inherit',
-            background: 'transparent',
-            font: 'inherit',
-            cursor: 'pointer',
-          }}
+          className="btn-gradient min-h-11 px-4 py-2 font-semibold"
         >
           Reload app
         </button>
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          style={{
-            minHeight: 44,
-            padding: '8px 16px',
-            border: 0,
-            color: 'inherit',
-            background: 'transparent',
-            font: 'inherit',
-            cursor: 'pointer',
-          }}
+          className="min-h-11 rounded-xl px-4 py-2 font-medium text-accent hover:bg-accent-soft"
         >
           Later
         </button>

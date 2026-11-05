@@ -38,25 +38,16 @@ export function DashboardBalance({
       {/* Only when the two sides differ from the headline. Owed everywhere and owing nowhere
                 prints the same figure twice, once as a headline and once as a chip beneath it. */}
       {totals.owed > 0 && totals.owe > 0 && (
-        <div
-          className="overview-sides mt-4 flex flex-wrap gap-2 text-sm"
-          style={
-            Math.max(fmt(totals.owed).length, fmt(totals.owe).length) > 9
-              ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 11rem), 1fr))' }
-              : undefined
-          }
-        >
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-pos" />
-            <span className="text-muted">owed to you</span>
-            <span className="tnum font-medium text-pos">{fmt(totals.owed)}</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas/40 px-3 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-neg" />
-            <span className="text-muted">you owe</span>
-            <span className="tnum font-medium text-neg">{fmt(totals.owe)}</span>
-          </span>
-        </div>
+        <dl className="overview-sides mt-4">
+          <div>
+            <dt className="text-muted">owed to you</dt>
+            <dd className="tnum font-semibold text-pos">{fmt(totals.owed)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">you owe</dt>
+            <dd className="tnum font-semibold text-neg">{fmt(totals.owe)}</dd>
+          </div>
+        </dl>
       )}
       <p className="mt-4 text-sm text-muted">
         {totals.owed > 0 && totals.owe > 0

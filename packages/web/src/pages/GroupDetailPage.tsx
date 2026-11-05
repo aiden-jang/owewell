@@ -173,21 +173,6 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         </p>
       )}
 
-      <BalanceHero
-        groupName={group.name}
-        balances={balances}
-        expenses={expenses}
-        settlements={settlements}
-        suggested={suggested}
-        currentUserId={user?.id}
-        members={group.members}
-        onOpenMembers={() => setMembersOpen(true)}
-        onLogPayment={() => {
-          paymentBeforeRef.current = balances;
-          setPaymentOpen(true);
-        }}
-      />
-
       {ledgerHasRows && (
         <GroupActivityShortcut
           expenses={expenses}
@@ -232,57 +217,78 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         />
       )}
 
-      {/*
-       * The same slot, before and after.
-       *
-       * A recap only exists once there is nothing left to transfer, so these two can never both
-       * apply. That makes one place on the page read "here is what to pay" and then "here is what
-       * it came to", instead of two places you have to know about.
-       */}
-      {suggested.length > 0 ? (
-        <SettleUpPanel
-          group={group}
-          suggested={suggested}
-          balances={balances}
-          settling={settling}
-          onMarkPaid={markPaid}
-        />
-      ) : (
-        groupRecap && (
-          <WrappedRecap
+      <div className="ledger-grid">
+        <div className="ledger-summary">
+          <BalanceHero
             groupName={group.name}
-            recap={groupRecap}
-            settlements={settlements}
-            memberCount={group.members.length}
-          />
-        )
-      )}
-
-      {expenses.length > 0 && group.members.length > 1 && (
-        <FrontingInsight balances={balances} expenseCount={expenses.length} />
-      )}
-
-      <ActivityFeed
-        expenses={expenses}
-        settlements={settlements}
-        members={group.members}
-        currentUserId={user?.id}
-        pendingRows={pendingRows}
-        pendingDeletes={pendingDeletes}
-        pendingEdits={pendingEdits}
-        categoryFilter={categoryFilter}
-        onCategoryFilter={setCategoryFilter}
-        onOpenExpense={setDetailExpenseId}
-        onUndoSettlement={undoSettlement}
-        onAddExpense={() => setSheetOpen(true)}
-        breakdown={
-          <SpendBreakdown
+            balances={balances}
             expenses={expenses}
-            categoryFilter={categoryFilter}
-            onSelectCategory={setCategoryFilter}
+            settlements={settlements}
+            suggested={suggested}
+            currentUserId={user?.id}
+            members={group.members}
+            onOpenMembers={() => setMembersOpen(true)}
+            onLogPayment={() => {
+              paymentBeforeRef.current = balances;
+              setPaymentOpen(true);
+            }}
           />
-        }
-      />
+          {ledgerHasRows && (
+            <a
+              href="#group-activity"
+              className="ledger-jump tap w-fit text-sm font-medium text-accent underline"
+            >
+              Jump to activity
+            </a>
+          )}
+          {suggested.length > 0 ? (
+            <SettleUpPanel
+              group={group}
+              suggested={suggested}
+              balances={balances}
+              settling={settling}
+              onMarkPaid={markPaid}
+            />
+          ) : (
+            groupRecap && (
+              <WrappedRecap
+                groupName={group.name}
+                recap={groupRecap}
+                settlements={settlements}
+                memberCount={group.members.length}
+              />
+            )
+          )}
+        </div>
+        <div id="group-activity" className="ledger-activity min-w-0" tabIndex={-1}>
+          <ActivityFeed
+            expenses={expenses}
+            settlements={settlements}
+            members={group.members}
+            currentUserId={user?.id}
+            pendingRows={pendingRows}
+            pendingDeletes={pendingDeletes}
+            pendingEdits={pendingEdits}
+            categoryFilter={categoryFilter}
+            onCategoryFilter={setCategoryFilter}
+            onOpenExpense={setDetailExpenseId}
+            onUndoSettlement={undoSettlement}
+            onAddExpense={() => setSheetOpen(true)}
+            breakdown={
+              <SpendBreakdown
+                expenses={expenses}
+                categoryFilter={categoryFilter}
+                onSelectCategory={setCategoryFilter}
+              />
+            }
+          />
+          {expenses.length > 0 && group.members.length > 1 && (
+            <div className="mt-5">
+              <FrontingInsight balances={balances} expenseCount={expenses.length} />
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Roster management, out of the spending column and behind the group menu where it belongs. */}
       <Sheet open={membersOpen} onClose={() => setMembersOpen(false)} title="Members">

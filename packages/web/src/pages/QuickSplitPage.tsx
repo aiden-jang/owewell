@@ -170,26 +170,21 @@ export function QuickSplitPage(): ReactNode {
       <main
         id="main"
         tabIndex={-1}
-        className={`quicksplit-page mx-auto w-full animate-rise px-4 py-10 ${user ? 'max-w-2xl' : 'max-w-2xl lg:max-w-5xl'}`}
+        className="workspace-width quicksplit-page mx-auto w-full animate-rise px-4 py-10"
       >
-        {/* The public welcome leads straight into the working calculator. Signed-in visitors
-            keep the compact tool heading. */}
-        <div className={user ? '' : 'split-counter'}>
+        <div className="split-counter">
           {user ? (
             <>
               <h1 className="font-display text-4xl font-semibold tracking-tight">Split a bill</h1>
-              <p className="mt-2 text-base text-muted">
-                Somebody paid, everybody forgot. Add the group, drop in the damage, and find out who owes who.
-                No account unless you get attached.
-              </p>
+              <p className="mt-2 text-muted">Work out each person’s share.</p>
             </>
           ) : (
             <SplitIntro onExample={canTryExample ? tryExample : undefined} />
           )}
 
-          <div id="split-bill" className={`mx-auto w-full max-w-2xl ${user ? '' : 'split-receipt'}`}>
+          <div id="split-bill" className="split-layout">
             {draftRestored && (
-              <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
+              <div className="split-draft flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
                 <span>
                   <span className="font-semibold text-ink">Your split is back.</span>{' '}
                   <span className="text-muted">We kept this draft on this device.</span>
@@ -204,70 +199,114 @@ export function QuickSplitPage(): ReactNode {
               </div>
             )}
 
-            <div className="surface mt-6 space-y-2 rounded-3xl p-5">
-              <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
-              {people.map((person, index) => (
-                <div key={person.id} className="flex items-center gap-2">
-                  <input
-                    value={person.name}
-                    onChange={(e) => updatePerson(person.id, { name: e.target.value })}
-                    placeholder={`Person ${index + 1}`}
+            <div className="split-receipt">
+              <div className="surface space-y-2">
+                <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
+                {people.map((person, index) => (
+                  <div key={person.id} className="flex items-center gap-2">
+                    <input
+                      value={person.name}
+                      onChange={(e) => updatePerson(person.id, { name: e.target.value })}
+                      placeholder={`Person ${index + 1}`}
+                      className={inputClass}
+                      aria-label={`Person ${index + 1} name`}
+                    />
+                    {people.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => removePerson(person.id)}
+                        className="rounded-lg border border-line px-2 text-muted transition hover:bg-canvas"
+                        aria-label={`Remove person ${index + 1}`}
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addPerson}
+                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
+                >
+                  + Add person
+                </button>
+
+                <label className="block pt-2 text-sm">
+                  <span className="mb-1 block text-xs font-medium text-muted">Who paid?</span>
+                  <select
+                    value={effectivePayerId}
+                    onChange={(event) => setPayerId(event.target.value)}
                     className={inputClass}
-                    aria-label={`Person ${index + 1} name`}
-                  />
-                  {people.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removePerson(person.id)}
-                      className="rounded-lg border border-line px-2 text-muted transition hover:bg-canvas"
-                      aria-label={`Remove person ${index + 1}`}
-                    >
-                      &times;
-                    </button>
-                  )}
+                    aria-label="Who paid?"
+                  >
+                    {people.map((person, index) => (
+                      <option key={person.id} value={person.id}>
+                        {person.name.trim() || `Person ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block pt-2 text-sm">
+                  <span className="mb-1 block text-xs font-medium text-muted">Which one are you?</span>
+                  <select
+                    value={effectiveYouId}
+                    onChange={(e) => setYouId(e.target.value)}
+                    className={inputClass}
+                    aria-label="Which one are you"
+                  >
+                    {named.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name.trim()}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-medium text-muted">What you spent</h2>
+                  <label className="flex items-center gap-1.5 text-xs text-muted">
+                    <input
+                      type="checkbox"
+                      checked={splitPayers}
+                      onChange={(e) => setSplitPayers(e.target.checked)}
+                    />
+                    different people paid
+                  </label>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={addPerson}
-                className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
-              >
-                + Add person
-              </button>
-
-              <label className="block pt-2 text-sm">
-                <span className="mb-1 block text-xs font-medium text-muted">Who paid?</span>
-                <select
-                  value={effectivePayerId}
-                  onChange={(event) => setPayerId(event.target.value)}
-                  className={inputClass}
-                  aria-label="Who paid?"
+                {items.map((item, index) => (
+                  <QuickSplitItemRow
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    itemCount={items.length}
+                    named={named}
+                    splitPayers={splitPayers}
+                    effectivePayerId={effectivePayerId}
+                    onUpdate={updateItem}
+                    onUpdateValue={updateItemValue}
+                    onRemove={removeItem}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
                 >
-                  {people.map((person, index) => (
-                    <option key={person.id} value={person.id}>
-                      {person.name.trim() || `Person ${index + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block pt-2 text-sm">
-                <span className="mb-1 block text-xs font-medium text-muted">Which one are you?</span>
-                <select
-                  value={effectiveYouId}
-                  onChange={(e) => setYouId(e.target.value)}
-                  className={inputClass}
-                  aria-label="Which one are you"
-                >
-                  {named.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name.trim()}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  + Add item
+                </button>
+                <QuickSplitTip
+                  generatedTipTotal={generatedTipTotal}
+                  activeTip={activeTip}
+                  customTip={customTip}
+                  setCustomTip={setCustomTip}
+                  addTip={addTip}
+                  clearGeneratedTip={clearGeneratedTip}
+                />
+              </div>
             </div>
-
-            <div className="mt-6 space-y-3">
+            <div className="split-summary surface">
               <div className={`split-total entry-amount ${grandTotal > 0 ? '' : 'hidden'}`}>
                 <span className="entry-amount-label">Bill total</span>
                 <p
@@ -283,113 +322,75 @@ export function QuickSplitPage(): ReactNode {
                   </p>
                 )}
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-medium text-muted">What you spent</h2>
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  <input
-                    type="checkbox"
-                    checked={splitPayers}
-                    onChange={(e) => setSplitPayers(e.target.checked)}
-                  />
-                  different people paid
-                </label>
-              </div>
-              {items.map((item, index) => (
-                <QuickSplitItemRow
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  itemCount={items.length}
+              {!transfers && !error && (
+                <div className="mt-3">
+                  <h2 className="font-semibold">Split summary</h2>
+                  <p className="split-empty">Add another person and a valid amount to see the split.</p>
+                </div>
+              )}
+              {transfers && (
+                <QuickSplitResult
                   named={named}
-                  splitPayers={splitPayers}
-                  effectivePayerId={effectivePayerId}
-                  onUpdate={updateItem}
-                  onUpdateValue={updateItemValue}
-                  onRemove={removeItem}
+                  shares={sharesByPerson}
+                  transfers={transfers}
+                  payerId={effectivePayerId}
+                  yourId={effectiveYouId}
+                  yourShareCents={yourShareCents}
+                  nameById={nameById}
                 />
-              ))}
-              <button
-                type="button"
-                onClick={addItem}
-                className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
-              >
-                + Add item
-              </button>
-              <QuickSplitTip
-                generatedTipTotal={generatedTipTotal}
-                activeTip={activeTip}
-                customTip={customTip}
-                setCustomTip={setCustomTip}
-                addTip={addTip}
-                clearGeneratedTip={clearGeneratedTip}
-              />
-            </div>
-            {!transfers && !error && (
-              <p className="split-empty">Add another person and a valid amount to see the split.</p>
-            )}
-            {transfers && (
-              <QuickSplitResult
-                named={named}
-                shares={sharesByPerson}
-                transfers={transfers}
-                payerId={effectivePayerId}
-                yourId={effectiveYouId}
-                yourShareCents={yourShareCents}
-                nameById={nameById}
-              />
-            )}
+              )}
 
-            {error && (
-              <p className="mt-4 text-sm font-medium text-neg" role="alert">
-                {error}
-              </p>
-            )}
-            {/* Sharing the answer needs no account. */}
-            {transfers && (
+              {error && (
+                <p className="mt-4 text-sm font-medium text-neg" role="alert">
+                  {error}
+                </p>
+              )}
+              {transfers && (
+                <button
+                  type="button"
+                  onClick={shareSummary}
+                  disabled={shareStatus !== null}
+                  aria-live="polite"
+                  className="btn-gradient mt-5 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+                >
+                  {shareStatus === 'sharing'
+                    ? 'Copying…'
+                    : shareStatus === 'shared'
+                      ? 'Split shared'
+                      : shareStatus === 'copied'
+                        ? 'Split copied'
+                        : 'Copy summary'}
+                </button>
+              )}
+              <SessionNotice />
               <button
                 type="button"
-                onClick={shareSummary}
-                disabled={shareStatus !== null}
-                aria-live="polite"
-                className="btn-gradient mt-5 w-full rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+                onClick={() => void onSave()}
+                disabled={saving || grandTotal <= 0 || loading || sessionError}
+                className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
               >
-                {shareStatus === 'sharing'
-                  ? 'Copying…'
-                  : shareStatus === 'shared'
-                    ? 'Split shared'
-                    : shareStatus === 'copied'
-                      ? 'Split copied'
-                      : 'Copy summary'}
+                {loading
+                  ? 'Checking sign-in…'
+                  : saving
+                    ? 'Saving…'
+                    : user
+                      ? 'Save to my account'
+                      : 'Sign in to save split'}
               </button>
-            )}
-            <SessionNotice />
-            <button
-              type="button"
-              onClick={() => void onSave()}
-              disabled={saving || grandTotal <= 0 || loading || sessionError}
-              className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
-            >
-              {loading
-                ? 'Checking sign-in…'
-                : saving
-                  ? 'Saving…'
-                  : user
-                    ? 'Save to my account'
-                    : 'Sign in to save split'}
-            </button>
-            {!user && !loading && !sessionError && grandTotal > 0 && (
-              <p className="mt-2 text-center text-xs text-muted">
-                Sign in or create an account to keep this split. Copying stays free of paperwork.
-              </p>
-            )}
-            {user && (
-              <Link
-                to="/"
-                className="mt-3 block text-center text-sm font-medium text-muted transition hover:text-ink hover:underline"
-              >
-                Back to your groups
-              </Link>
-            )}
+              {!user && !loading && !sessionError && grandTotal > 0 && (
+                <p className="mt-2 text-center text-xs text-muted">
+                  Sign in or create an account to keep this split. Copying stays free of paperwork.
+                </p>
+              )}
+              {user && (
+                <Link
+                  to="/"
+                  className="mt-3 block text-center text-sm font-medium text-muted transition hover:text-ink hover:underline"
+                >
+                  Back to your groups
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </main>

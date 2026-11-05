@@ -9,7 +9,7 @@ const links = siteFooterLinks(AUTH_ORIGIN);
 
 export function SiteFooter(): ReactNode {
   return (
-    <footer className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 px-5 py-8 text-center text-xs text-muted">
+    <footer className="workspace-width mx-auto flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-line px-5 py-6 text-center text-xs text-muted">
       {links.map((link, i) => (
         <Fragment key={link.href}>
           {i > 0 && <span aria-hidden>·</span>}

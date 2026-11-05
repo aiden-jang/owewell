@@ -5,7 +5,6 @@ export function SplitIntro({ onExample }: { onExample?: (() => void) | undefined
   return (
     <section className="split-intro">
       <div className="split-intro-copy">
-        <p className="owewell-eyebrow">LESS MATH. SAME FRIENDS.</p>
         <h1 className="font-display font-semibold tracking-tight">
           Split the bill.
           <br />
@@ -36,8 +35,7 @@ export function DashboardIntro(): ReactNode {
   return (
     <div className="dashboard-intro">
       <div>
-        <p className="owewell-eyebrow">YOUR SHARED SPENDING</p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">The tabs, kept.</h1>
+        <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">Your tabs</h1>
         <p className="mt-2 text-sm text-muted">Good friends. Occasionally complicated arithmetic.</p>
       </div>
       <ReceiptArt />

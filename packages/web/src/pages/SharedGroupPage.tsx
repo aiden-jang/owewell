@@ -141,29 +141,30 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-20 border-b border-line bg-card/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5">
-          <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+      <header className="sticky top-0 z-20 border-b border-line bg-canvas">
+        <div className="workspace-width mx-auto flex items-center justify-between px-4 py-2">
+          <Link
+            to="/"
+            className="flex min-h-11 items-center gap-2 font-display text-lg font-semibold tracking-tight"
+          >
             <BrandMark /> owewell
           </Link>
           <span className="text-xs text-muted">shared with you</span>
         </div>
       </header>
 
-      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 animate-rise px-4 py-8">
-        {/* A shape, not a sentence. This is the first thing a non-user ever sees, on whatever
-            connection they have; grey text reads as a page that failed rather than one arriving.
-            The blocks match the ready state below. */}
+      <main id="main" tabIndex={-1} className="workspace-width mx-auto w-full flex-1 animate-rise px-4 py-8">
         {status === 'loading' && (
           <div aria-busy="true" aria-label="Loading the tab">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="mt-1 h-9 w-44" />
-            <Skeleton className="mt-1 h-5 w-20" />
-            <Skeleton className="mt-5 h-[146px] w-full rounded-3xl" />
-            <Skeleton className="mt-6 h-[94px] w-full rounded-2xl" />
-            {/* Members. The breakdown below it is conditional on more than one category, so the
-                skeleton stops here rather than guessing at a section that often is not there. */}
-            <Skeleton className="mt-6 h-[234px] w-full rounded-2xl" />
+            <Skeleton className="h-10 w-44" />
+            <Skeleton className="mt-2 h-5 w-32" />
+            <div className="ledger-grid mt-6">
+              <div className="ledger-summary">
+                <Skeleton className="h-32 rounded-2xl" />
+                <Skeleton className="h-28 rounded-2xl" />
+              </div>
+              <Skeleton className="h-56 rounded-2xl" />
+            </div>
           </div>
         )}
 
@@ -171,6 +172,7 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
           <EmptyState
             tone="problem"
             icon="link"
+            titleAs="h1"
             title="This link isn't valid."
             body="This link was turned off or the group was removed. Ask the person who shared it for a new link."
           />
@@ -180,8 +182,9 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
           <EmptyState
             tone="problem"
             icon="link"
+            titleAs="h1"
             title="Couldn't load this tab."
-            body="Might be your signal. Might be us."
+            body="Check your connection and try opening the same tab again."
             action={
               <button
                 type="button"
@@ -196,197 +199,196 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
 
         {status === 'ready' && summary && (
           <>
-            {!viewerIsMember && (
-              <p className="text-sm font-medium text-accent">
-                {hasOpenSeats ? "You've been invited" : 'Shared with you'}
-              </p>
-            )}
-            <h1 className="mt-1 break-words font-display text-3xl font-semibold tracking-tight">
+            <h1 className="break-words font-display text-4xl font-semibold tracking-tight">
               {summary.groupName}
             </h1>
             <p className="mt-1 text-sm text-muted">
-              {summary.memberCount} {summary.memberCount === 1 ? 'person' : 'people'}
+              {summary.memberCount} {summary.memberCount === 1 ? 'person' : 'people'} · Read-only tab
             </p>
 
-            <div className="surface mt-5 rounded-3xl p-6 sm:p-7">
-              <p className="text-sm font-medium text-muted">Spent together</p>
-              <p
-                className="mt-1 font-display text-5xl font-extrabold tracking-tight sm:text-6xl"
-                style={
-                  fmt(summary.totalSpentCents).length > 9
-                    ? { fontSize: `clamp(1.5rem, ${90 / fmt(summary.totalSpentCents).length}vw, 3.75rem)` }
-                    : undefined
-                }
-              >
-                {fmt(summary.totalSpentCents)}
-              </p>
-              <p className="mt-2 text-xs text-faint">
-                {fmt(summary.perPersonCents)} avg/person
-                {summary.totalSettledCents > 0 && ` · ${fmt(summary.totalSettledCents)} settled so far`}
-              </p>
-            </div>
-
-            <section className="mt-6 rounded-2xl border border-line bg-card p-4">
-              <h2 className="text-sm font-semibold text-ink">Who owes who</h2>
-              {summary.suggested.length === 0 ? (
-                <p className="mt-2 text-sm text-muted">
-                  {summary.totalSpentCents > 0 || summary.totalSettledCents > 0
-                    ? 'All settled up. Nobody owes anybody.'
-                    : 'No expenses yet.'}
-                </p>
-              ) : (
-                <ul className="mt-3 space-y-2 text-sm">
-                  {summary.suggested.map((p, i) => (
-                    /*
-                     * The amount on its own line above the names, the same shape the group page's
-                     * settle-up rows use. Two real names run "X pays Y" to three lines, and with the
-                     * figure off to the right it ends up floating against the middle of them.
-                     */
-                    <li key={i} className="flex items-start gap-2.5">
-                      <Avatar name={p.fromName} size="sm" />
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="tnum font-semibold">{fmt(p.amountCents)}</span>
-                        <span className="text-xs text-muted">
-                          <span className="font-medium text-ink">{p.fromName}</span> pays{' '}
-                          <span className="font-medium text-ink">{p.toName}</span>
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="mt-8">
-              <h2 className="text-sm font-medium text-muted">Members</h2>
-              {hasOpenSeats && !viewerIsMember && <SessionNotice />}
-              {!viewerIsMember && (
-                <p className="mt-2 text-xs text-muted">
-                  Viewing doesn’t join the group. If your name is listed, choose “This is me” to connect that
-                  spot and its balances to your account. Sign-in is required.
-                </p>
-              )}
-              <ul className="mt-3 space-y-2">
-                {summary.members.map((m, i) => {
-                  const label = balanceLabel(
-                    m.netCents,
-                    summary.totalSpentCents > 0 || summary.totalSettledCents > 0,
-                    fmt,
-                  );
-                  const claimable = m.isPlaceholder && !viewerIsMember;
-                  return (
-                    <li
-                      key={i}
-                      className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-                    >
-                      {/*
-                       * Name on the first line, money on the second, as on the group page's roster.
-                       * The balance and the claim button are both shrink-0, so on a phone the name
-                       * was the only thing that could give and a four-person list rendered "Mari…".
-                       */}
-                      <span className="flex min-w-0 flex-1 items-center gap-3">
-                        <Avatar name={m.displayName} />
-                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="font-medium [overflow-wrap:anywhere]">{m.displayName}</span>
-                          {label.text && (
-                            <span className={`tnum truncate text-xs font-medium ${label.tone}`}>
-                              {label.text}
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                      {claimable && (
-                        <button
-                          type="button"
-                          onClick={() => void claimSeat(m.userId)}
-                          disabled={claiming !== null || loading || sessionError}
-                          className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
-                        >
-                          {claiming === m.userId ? 'Claiming…' : 'This is me'}
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-
-            {summary.breakdown.length > 1 && (
-              <section className="mt-8">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-medium text-muted">Where it went</h2>
-                  <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
-                    {(['bars', 'donut'] as const).map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setBreakdownView(v)}
-                        aria-pressed={breakdownView === v}
-                        className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
-                          breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
+            <div className="ledger-grid mt-6">
+              <div className="ledger-summary">
+                <div className="surface rounded-2xl p-5">
+                  <p className="text-sm font-medium text-muted">Spent together</p>
+                  <p
+                    className="mt-1 font-display text-4xl font-semibold tracking-tight"
+                    style={
+                      fmt(summary.totalSpentCents).length > 9
+                        ? {
+                            fontSize: `clamp(1.5rem, ${90 / fmt(summary.totalSpentCents).length}vw, 3.75rem)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    {fmt(summary.totalSpentCents)}
+                  </p>
+                  <p className="mt-2 text-xs text-faint">
+                    {fmt(summary.perPersonCents)} avg/person
+                    {summary.totalSettledCents > 0 && ` · ${fmt(summary.totalSettledCents)} settled so far`}
+                  </p>
                 </div>
-                {breakdownView === 'donut' ? (
-                  <SpendDonut
-                    data={[...summary.breakdown]
-                      .sort((a, b) => b.cents - a.cents)
-                      .map(({ category, cents }) => ({ meta: categoryMeta(category), cents }))}
-                    total={summary.totalSpentCents}
-                  />
-                ) : (
-                  <ul className="mt-3 space-y-2.5">
-                    {summary.breakdown.map(({ category, cents }) => {
-                      const meta = categoryMeta(category);
-                      return (
-                        // Same shape as the signed-in breakdown: figure above, bar across the row.
-                        <li key={category}>
-                          <span className="flex items-baseline justify-between gap-3 text-sm">
-                            <span className="min-w-0 truncate">
-                              <CategoryDot categoryKey={meta.key} /> {meta.label}
+
+                <section className="surface rounded-2xl p-4">
+                  <h2 className="text-sm font-semibold text-ink">Who owes who</h2>
+                  {summary.suggested.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted">
+                      {summary.totalSpentCents > 0 || summary.totalSettledCents > 0
+                        ? 'All settled up. Nobody owes anybody.'
+                        : 'No expenses yet.'}
+                    </p>
+                  ) : (
+                    <ul className="mt-3 space-y-2 text-sm">
+                      {summary.suggested.map((p, i) => (
+                        <li key={i} className="flex items-start gap-2.5">
+                          <Avatar name={p.fromName} size="sm" />
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="tnum font-semibold">{fmt(p.amountCents)}</span>
+                            <span className="text-xs text-muted [overflow-wrap:anywhere]">
+                              <span className="font-medium text-ink">{p.fromName}</span> pays{' '}
+                              <span className="font-medium text-ink">{p.toName}</span>
                             </span>
-                            <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
                           </span>
-                          {/* The category's own hue, not the accent. This bar was the one place in
-                            the app where a category changed colour depending on who was looking. */}
-                          <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
-                            <span
-                              className="block h-full rounded-full"
-                              style={{
-                                width: `${Math.max(3, Math.round((cents / summary.totalSpentCents) * 100))}%`,
-                                background: `var(--p-cat-${meta.key}, var(--p-accent))`,
-                              }}
-                            />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
+              <div className="min-w-0">
+                <section>
+                  <h2 className="font-display text-lg font-semibold">Members</h2>
+                  {hasOpenSeats && !viewerIsMember && <SessionNotice />}
+                  {!viewerIsMember && (
+                    <p className="mt-2 text-xs text-muted">
+                      Viewing doesn’t join the group. If your name is listed, choose “This is me” to connect
+                      that spot and its balances to your account. Sign-in is required.
+                    </p>
+                  )}
+                  <ul className="mt-3 space-y-2">
+                    {summary.members.map((m, i) => {
+                      const label = balanceLabel(
+                        m.netCents,
+                        summary.totalSpentCents > 0 || summary.totalSettledCents > 0,
+                        fmt,
+                      );
+                      const claimable = m.isPlaceholder && !viewerIsMember;
+                      return (
+                        <li
+                          key={i}
+                          className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                        >
+                          {/*
+                           * Name on the first line, money on the second, as on the group page's roster.
+                           * The balance and the claim button are both shrink-0, so on a phone the name
+                           * was the only thing that could give and a four-person list rendered "Mari…".
+                           */}
+                          <span className="flex min-w-0 flex-1 items-center gap-3">
+                            <Avatar name={m.displayName} />
+                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="font-medium [overflow-wrap:anywhere]">{m.displayName}</span>
+                              {label.text && (
+                                <span
+                                  className={`tnum text-xs font-medium [overflow-wrap:anywhere] ${label.tone}`}
+                                >
+                                  {label.text}
+                                </span>
+                              )}
+                            </span>
                           </span>
+                          {claimable && (
+                            <button
+                              type="button"
+                              onClick={() => void claimSeat(m.userId)}
+                              disabled={claiming !== null || loading || sessionError}
+                              className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
+                            >
+                              {claiming === m.userId ? 'Claiming…' : 'This is me'}
+                            </button>
+                          )}
                         </li>
                       );
                     })}
                   </ul>
-                )}
-              </section>
-            )}
+                </section>
 
-            {viewerIsMember ? (
-              <button
-                type="button"
-                onClick={() => navigate(`/groups/${summary.groupId}`)}
-                className="btn-gradient mt-8 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98]"
-              >
-                <Icon name="arrow-up-right" size={16} /> Open in owewell
-              </button>
-            ) : hasOpenSeats ? (
-              <p className="mt-8 text-sm text-muted">
-                Choose only your own name. If it’s missing, ask a member to add you.
-              </p>
-            ) : (
-              <p className="mt-8 text-sm text-muted">
-                Viewing only. Ask a member to add you to edit this group.
-              </p>
-            )}
+                {summary.breakdown.length > 1 && (
+                  <section className="mt-8">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-sm font-medium text-muted">Where it went</h2>
+                      <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
+                        {(['bars', 'donut'] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setBreakdownView(v)}
+                            aria-pressed={breakdownView === v}
+                            className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
+                              breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {breakdownView === 'donut' ? (
+                      <SpendDonut
+                        data={[...summary.breakdown]
+                          .sort((a, b) => b.cents - a.cents)
+                          .map(({ category, cents }) => ({ meta: categoryMeta(category), cents }))}
+                        total={summary.totalSpentCents}
+                      />
+                    ) : (
+                      <ul className="mt-3 space-y-2.5">
+                        {summary.breakdown.map(({ category, cents }) => {
+                          const meta = categoryMeta(category);
+                          return (
+                            // Same shape as the signed-in breakdown: figure above, bar across the row.
+                            <li key={category}>
+                              <span className="flex items-baseline justify-between gap-3 text-sm">
+                                <span className="min-w-0 truncate">
+                                  <CategoryDot categoryKey={meta.key} /> {meta.label}
+                                </span>
+                                <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
+                              </span>
+                              {/* The category's own hue, not the accent. This bar was the one place in
+                            the app where a category changed colour depending on who was looking. */}
+                              <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
+                                <span
+                                  className="block h-full rounded-full"
+                                  style={{
+                                    width: `${Math.max(3, Math.round((cents / summary.totalSpentCents) * 100))}%`,
+                                    background: `var(--p-cat-${meta.key}, var(--p-accent))`,
+                                  }}
+                                />
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </section>
+                )}
+
+                {viewerIsMember ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/groups/${summary.groupId}`)}
+                    className="btn-gradient mt-8 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98]"
+                  >
+                    <Icon name="arrow-up-right" size={16} /> Open in owewell
+                  </button>
+                ) : hasOpenSeats ? (
+                  <p className="mt-8 text-sm text-muted">
+                    Choose only your own name. If it’s missing, ask a member to add you.
+                  </p>
+                ) : (
+                  <p className="mt-8 text-sm text-muted">
+                    Viewing only. Ask a member to add you to edit this group.
+                  </p>
+                )}
+              </div>
+            </div>
           </>
         )}
       </main>
