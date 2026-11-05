@@ -20,6 +20,15 @@ async function activate(page: Page, target: Locator): Promise<void> {
 
 test('a complete group task works with keyboard controls and enlarged text', async ({ page }) => {
   await signIn(page);
+  // Stress the header without changing the payer names supplied by the Worker.
+  await page.route('**/api/me', async (route) => {
+    const response = await route.fetch();
+    const session = await response.json();
+    await route.fulfill({
+      response,
+      json: { ...session, user: { ...session.user, displayName: 'Robin Alexanderson-Montgomery' } },
+    });
+  });
   // Keep the switcher in this layout even when the scenario runs on a fresh database.
   const earlierGroup = await page.request.post('/api/groups', {
     data: { name: `Earlier keyboard group ${Date.now()}` },
@@ -96,6 +105,10 @@ test('a complete group task works with keyboard controls and enlarged text', asy
     await page.setViewportSize({ width, height: 900 });
     await expectNoHorizontalOverflow(page);
     await page.evaluate(() => window.scrollTo(0, 0));
+    const header = page.getByRole('banner');
+    await expect(header.getByRole('link', { name: 'Split a bill', exact: true })).toBeInViewport();
+    await expect(header.getByRole('link', { name: 'Account', exact: true })).toBeInViewport();
+    await expect(header.getByRole('button', { name: 'Log out', exact: true })).toBeInViewport();
     if (process.env.UI_A11Y_CAPTURE)
       await page.screenshot({
         path: `../../test-results/visual-review/accessibility-text-200-${width}.png`,
