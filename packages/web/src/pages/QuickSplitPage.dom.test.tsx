@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { QuickSplitPage } from './QuickSplitPage';
 import { ConfirmProvider } from '../components/Confirm';
+import { listQuickSplitDrafts } from '../lib/quickSplitDraft';
 
 /**
  * Splitting a bill without an account, which is the page that does arithmetic in public.
@@ -70,6 +71,7 @@ const owedLines = () =>
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   authStub.signup.mockReset();
   authStub.login.mockReset();
 });
@@ -121,9 +123,9 @@ describe('the split itself', () => {
     await fillItem(user, 1, 'Dinner', '40');
     await user.click(screen.getByRole('button', { name: 'Sign in to save split' }));
     expect(authStub.login).toHaveBeenCalledWith(window.location.origin);
-    const draft = JSON.parse(localStorage.getItem('owewell:quick-split-draft')!);
-    expect(draft.people.map((person: { name: string }) => person.name)).toEqual(['Alice', 'Bob']);
-    expect(draft.items[0]).toMatchObject({ description: 'Dinner', amount: '40.00' });
+    const [draft] = listQuickSplitDrafts();
+    expect(draft?.people.map((person) => person.name)).toEqual(['Alice', 'Bob']);
+    expect(draft?.items[0]).toMatchObject({ description: 'Dinner', amount: '40.00' });
   });
 
   it('starts with a bill amount and keeps optional controls behind a disclosure', async () => {
@@ -319,7 +321,7 @@ describe('adding a tip', () => {
     await fillItem(user, 1, 'Dinner', '100.00');
     if (!screen.queryByRole('button', { name: '20%' })) await user.click(screen.getByText(/^Add a tip/));
     await user.click(screen.getByRole('button', { name: '20%' }));
-    await user.click(screen.getByRole('button', { name: 'remove' }));
+    await user.click(screen.getByRole('button', { name: 'Remove automatic tips' }));
 
     expect(screen.queryByLabelText('Item 2 description')).not.toBeInTheDocument();
   });

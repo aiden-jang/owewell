@@ -2,6 +2,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { useQuickSplitDraft } from '../lib/useQuickSplitDraft';
 import { QuickSplitResult } from '../components/QuickSplitResult';
 import { QuickSplitTip } from '../components/QuickSplitTip';
+import { QuickSplitDraftNotice } from '../components/QuickSplitDraftNotice';
 import { SplitIntro } from '../components/SplitIntro';
 import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -25,6 +26,7 @@ export function QuickSplitPage(): ReactNode {
   const confirm = useConfirm();
   const billDetails = useRef<HTMLFieldSetElement>(null);
   const {
+    draft,
     people,
     items,
     payerId,
@@ -38,6 +40,9 @@ export function QuickSplitPage(): ReactNode {
     customTip,
     setCustomTip,
     draftRestored,
+    otherDrafts,
+    restoreDraft,
+    persistDraft,
     startFresh,
     finishDraft,
     updatePerson,
@@ -54,11 +59,13 @@ export function QuickSplitPage(): ReactNode {
     canTryExample,
     tryExample,
   } = useQuickSplitDraft();
-  const { saving, save } = useSaveQuickSplit(setError, finishDraft);
+  const { saving, save } = useSaveQuickSplit(setError, persistDraft, finishDraft);
   const { status: shareStatus, share } = useShareAction(setError);
 
   const { named, effectivePayerId, effectiveYouId, transfers, grandTotal, yourShareCents, sharesByPerson } =
     computeQuickSplit({ people, items, payerId, youId, splitPayers });
+  const itemCount = items.filter((item) => item.amount.trim()).length;
+  const overItemLimit = itemCount > QUICK_SPLIT_LIMITS.items;
 
   const nameById = (id: string): string => people.find((p) => p.id === id)?.name.trim() || 'Someone';
   function summaryText(): string {
@@ -85,7 +92,7 @@ export function QuickSplitPage(): ReactNode {
   async function confirmStartFresh(): Promise<void> {
     const discard = await confirm({
       title: 'Discard this bill and start fresh?',
-      body: 'The editable draft on this device will be cleared.',
+      body: 'This draft will be cleared from this device.',
       confirmLabel: 'Discard and start fresh',
       cancelLabel: 'Keep draft',
       tone: 'danger',
@@ -114,25 +121,13 @@ export function QuickSplitPage(): ReactNode {
           )}
 
           <div id="split-bill" className="split-layout">
-            {draftRestored && (
-              <div className="split-draft flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface2/60 px-4 py-3 text-sm">
-                <span>
-                  <span className="font-semibold text-ink">Your split is back.</span>{' '}
-                  <span className="text-muted">We kept this draft on this device.</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.currentTarget.focus({ preventScroll: true });
-                    void confirmStartFresh();
-                  }}
-                  disabled={saving}
-                  className="shrink-0 font-medium text-muted transition hover:text-ink hover:underline"
-                >
-                  Start fresh
-                </button>
-              </div>
-            )}
+            <QuickSplitDraftNotice
+              restored={draftRestored}
+              otherDrafts={otherDrafts}
+              saving={saving}
+              onStartFresh={confirmStartFresh}
+              onRestore={restoreDraft}
+            />
 
             <fieldset
               ref={billDetails}
@@ -262,7 +257,7 @@ export function QuickSplitPage(): ReactNode {
                 </p>
                 {grandTotal > 0 && (
                   <p className="mt-1 text-sm text-muted">
-                    {`${items.length} ${items.length === 1 ? 'item' : 'items'} · ${named.length} ${named.length === 1 ? 'person' : 'people'}`}
+                    {`${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${named.length} ${named.length === 1 ? 'person' : 'people'}`}
                   </p>
                 )}
               </div>
@@ -307,23 +302,22 @@ export function QuickSplitPage(): ReactNode {
                 </button>
               )}
               <SessionNotice />
+              <div role="status">
+                {overItemLimit && (
+                  <p id="split-item-limit" className="mt-3 text-sm font-medium text-neg">
+                    This bill has {itemCount} items. You can save up to {QUICK_SPLIT_LIMITS.items} including
+                    tips.
+                    {activeTip
+                      ? ' Remove items or turn off automatic tips to save.'
+                      : ' Remove items to save.'}
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() =>
-                  void save(
-                    {
-                      people,
-                      items,
-                      payerId,
-                      splitPayers,
-                      youId,
-                      ...(activeTip ? { tipPercent: activeTip } : {}),
-                    },
-                    effectivePayerId,
-                    effectiveYouId,
-                  )
-                }
-                disabled={saving || transfers === null || loading || sessionError}
+                onClick={() => void save(draft, effectivePayerId, effectiveYouId)}
+                aria-describedby={overItemLimit ? 'split-item-limit' : undefined}
+                disabled={saving || transfers === null || loading || sessionError || overItemLimit}
                 className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
               >
                 {loading

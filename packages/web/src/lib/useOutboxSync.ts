@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
+import { Money } from '@owewell/shared';
 import { expensesApi } from './expenses';
 import { settlementsApi } from './settlements';
 import { useConfirm } from '../components/Confirm';
@@ -9,6 +10,7 @@ import {
   adoptWrites,
   drop,
   flush,
+  isConflict,
   isOffline,
   OUTBOX_STORAGE_ERROR,
   pauseFor,
@@ -18,7 +20,6 @@ import {
   isAlreadyDone,
   subscribe,
   type FlushResult,
-  type QueuedEdit,
   type QueuedWrite,
 } from './outbox';
 
@@ -103,6 +104,7 @@ export function useOutboxSync({
     const send = (entry: QueuedWrite) => sendQueuedWrite(entry, ownerId);
     const underLock = async <T>(action: () => Promise<T>): Promise<T> =>
       navigator.locks ? await navigator.locks.request(`owewell:sync:${ownerId}`, action) : action();
+    let changedAgain: string | undefined;
     try {
       while (current()) {
         const result = await underLock(async () => {
@@ -121,10 +123,37 @@ export function useOutboxSync({
         const entry = result.conflicted[0];
         if (!entry || result.paused) return;
 
+        let expense;
+        try {
+          expense = (await expensesApi.list(entry.groupId)).find((row) => row.id === entry.expenseId);
+        } catch (error) {
+          if (current()) {
+            setPaused(pauseFor(error) ?? 'temporary');
+            toast.error('Couldn’t load the ledger version. Your edit is still waiting on this device.');
+          }
+          return;
+        }
+        if (!current()) return;
+        if (!expense || !Number.isSafeInteger(expense.version)) {
+          const kept = await underLock(
+            async () =>
+              current() &&
+              setFailure(entry.clientId, ownerId, 'This expense is no longer available to edit.'),
+          );
+          if (!kept) {
+            if (current()) setPaused('storage');
+            return;
+          }
+          continue;
+        }
+        const { version, description, amountCents } = expense;
         let dismissed = false;
         const keepMine = await confirm({
-          title: `“${entry.description}” changed while you were offline`,
-          body: 'Apply your version, keep the version in the ledger, or decide later. Your edit stays on this device until you choose.',
+          title:
+            changedAgain === entry.clientId
+              ? `“${entry.description}” changed again`
+              : `“${entry.description}” changed while you were offline`,
+          body: `The ledger shows “${description}” for ${Money.fromCents(amountCents).format()}. Your edit is “${entry.description}” for ${Money.fromCents(entry.amountCents).format()}. Applying yours replaces the ledger entry, including its split details.`,
           confirmLabel: 'Apply mine',
           cancelLabel: 'Keep theirs',
           onDismiss: () => {
@@ -144,10 +173,13 @@ export function useOutboxSync({
           if (!latest || JSON.stringify(latest) !== JSON.stringify(entry)) return true;
           if (keepMine) {
             try {
-              const { expectedVersion: _version, ...payload } = entry.payload;
-              await send({ ...entry, payload } as QueuedEdit);
+              await send({ ...entry, payload: { ...entry.payload, expectedVersion: version } });
               if (current()) changed.current();
             } catch (error) {
+              if (isConflict(error)) {
+                changedAgain = entry.clientId;
+                return true;
+              }
               if (current()) {
                 const paused = pauseFor(error);
                 if (!isOffline(error) && !paused) {
@@ -165,6 +197,7 @@ export function useOutboxSync({
               return false;
             }
           }
+          changedAgain = undefined;
           if (drop(entry.clientId)) return true;
           if (current()) setPaused('storage');
           return false;

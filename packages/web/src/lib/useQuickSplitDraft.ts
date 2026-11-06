@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { QUICK_SPLIT_LIMITS } from '@owewell/core';
-import {
-  clearQuickSplitDraft,
-  readQuickSplitDraft,
-  writeQuickSplitDraft,
-  type DraftItem,
-  type DraftPerson,
-  type QuickSplitInput,
-} from './quickSplitDraft';
+import type { DraftItem, DraftPerson, QuickSplitDraft, QuickSplitInput } from './quickSplitDraft';
+import { useQuickSplitRecovery } from './useQuickSplitRecovery';
 
 type Person = DraftPerson;
 type Item = DraftItem;
@@ -58,8 +52,8 @@ function updateTips(items: Item[], percent?: number | null): Item[] {
 
 /** Editable bill state, on-device recovery, participant changes and generated tips. */
 export function useQuickSplitDraft() {
-  const [initialDraft] = useState(readQuickSplitDraft);
-  const clearOnExit = useRef(false);
+  const { initialDraft, observedDraft, otherDrafts, persistDraft, loadDraft, discardDraft, finishDraft } =
+    useQuickSplitRecovery();
   const [people, setPeople] = useState<Person[]>(initialDraft?.people ?? [newPerson('You'), newPerson('')]);
   const initialTip =
     initialDraft?.tipPercent ?? initialDraft?.items.find((item) => item.generatedTip)?.generatedTip ?? null;
@@ -72,18 +66,19 @@ export function useQuickSplitDraft() {
   const [error, setError] = useState<string | null>(null);
   const [customTip, setCustomTip] = useState('');
   const [draftRestored, setDraftRestored] = useState(initialDraft !== null);
+  const flushDraft = useRef<(() => boolean) | null>(null);
   const draft = useMemo<QuickSplitInput>(
     () => ({ people, items, payerId, splitPayers, youId, ...(activeTip ? { tipPercent: activeTip } : {}) }),
     [people, items, payerId, splitPayers, youId, activeTip],
   );
-  const observedDraft = useRef(draft);
-  const lastSavedDraft = useRef<QuickSplitInput | null>(initialDraft ? draft : null);
 
   // A bill can take a while to enter on a phone. Keep a short-lived, on-device working copy so a
   // refresh, browser eviction, or accidental back gesture does not erase the table's progress.
   useEffect(() => {
-    if (observedDraft.current === draft) return;
+    const previous = observedDraft.current;
     observedDraft.current = draft;
+    flushDraft.current = null;
+    if (!previous || previous === draft) return;
     const meaningful =
       draft.people.length > 2 ||
       draft.people.some(
@@ -91,36 +86,48 @@ export function useQuickSplitDraft() {
       ) ||
       draft.items.some((item) => item.description.trim() || item.amount.trim());
     if (!meaningful) {
-      clearOnExit.current = false;
-      if (lastSavedDraft.current) clearQuickSplitDraft(lastSavedDraft.current);
-      lastSavedDraft.current = null;
+      discardDraft();
+      observedDraft.current = draft;
       return;
     }
     let pending = true;
     const persist = () => {
-      if (!pending || clearOnExit.current) return;
-      if (writeQuickSplitDraft(draft)) {
-        pending = false;
-        lastSavedDraft.current = draft;
-      }
+      if (pending && observedDraft.current === draft && persistDraft(draft)) pending = false;
+      return !pending;
     };
+    flushDraft.current = persist;
     const timer = window.setTimeout(persist, 350);
+    return () => window.clearTimeout(timer);
+  }, [draft, discardDraft, observedDraft, persistDraft]);
+
+  useEffect(() => {
+    const persist = () => flushDraft.current?.();
     window.addEventListener('pagehide', persist);
     return () => {
-      window.clearTimeout(timer);
       window.removeEventListener('pagehide', persist);
       persist();
     };
-  }, [draft]);
+  }, []);
 
-  function finishDraft(saved: QuickSplitInput): void {
-    clearOnExit.current = true;
-    clearQuickSplitDraft(saved);
+  function restoreDraft(next: QuickSplitDraft): void {
+    if (flushDraft.current?.() === false) {
+      setError('This browser couldn’t keep your current bill. Copy the summary before switching drafts.');
+      return;
+    }
+    loadDraft(next);
+    setPeople(next.people);
+    setItems(next.items);
+    setPayerId(next.payerId);
+    setSplitPayers(next.splitPayers);
+    setYouId(next.youId);
+    setCustomTip('');
+    setActiveTip(next.tipPercent ?? next.items.find((item) => item.generatedTip)?.generatedTip ?? null);
+    setError(null);
+    setDraftRestored(true);
   }
 
   function startFresh(): void {
-    clearOnExit.current = true;
-    if (lastSavedDraft.current) clearQuickSplitDraft(lastSavedDraft.current);
+    discardDraft();
     setPeople([newPerson('You'), newPerson('')]);
     setItems([newItem()]);
     setPayerId('');
@@ -197,10 +204,6 @@ export function useQuickSplitDraft() {
       return;
     }
     const tipItems = buildTips(items, percent);
-    if (items.filter((item) => !item.generatedTip).length + tipItems.length > QUICK_SPLIT_LIMITS.items) {
-      setError(`A split can have up to ${QUICK_SPLIT_LIMITS.items} items, including tips.`);
-      return;
-    }
     if (tipItems.length === 0) {
       setError('Add an item amount before calculating a tip.');
       return;
@@ -252,6 +255,7 @@ export function useQuickSplitDraft() {
   }
 
   return {
+    draft,
     people,
     items,
     payerId,
@@ -265,6 +269,9 @@ export function useQuickSplitDraft() {
     customTip,
     setCustomTip,
     draftRestored,
+    otherDrafts,
+    restoreDraft,
+    persistDraft,
     startFresh,
     finishDraft,
     updatePerson,

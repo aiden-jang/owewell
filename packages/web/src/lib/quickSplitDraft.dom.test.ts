@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   clearQuickSplitDraft,
-  readQuickSplitDraft,
+  draftId,
+  listQuickSplitDrafts,
   writeQuickSplitDraft,
   type DraftItem,
   type DraftPerson,
@@ -30,6 +31,7 @@ const item = (over: Partial<DraftItem> = {}): DraftItem => ({
 });
 
 const store = (draft: unknown): void => localStorage.setItem(KEY, JSON.stringify(draft));
+const readQuickSplitDraft = (now?: number) => listQuickSplitDrafts(now)[0] ?? null;
 const valid = {
   version: 1,
   savedAt: Date.now(),
@@ -49,19 +51,16 @@ describe('restoring a draft', () => {
   });
 
   it('round-trips what it wrote', () => {
-    writeQuickSplitDraft({
-      people: valid.people,
-      items: valid.items,
-      payerId: 'p1',
-      splitPayers: true,
-      youId: 'p2',
-    });
+    writeQuickSplitDraft(
+      { people: valid.people, items: valid.items, payerId: 'p1', splitPayers: true, youId: 'p2' },
+      null,
+    );
     expect(readQuickSplitDraft()).toMatchObject({ splitPayers: true, youId: 'p2' });
   });
 
   it('forgets one on clear', () => {
     store(valid);
-    clearQuickSplitDraft();
+    clearQuickSplitDraft(draftId(readQuickSplitDraft()!));
     expect(readQuickSplitDraft()).toBeNull();
   });
 
@@ -69,15 +68,26 @@ describe('restoring a draft', () => {
     store(valid);
     expect(readQuickSplitDraft()?.revision).toBeUndefined();
     const { version: _version, savedAt: _time, ...input } = valid;
-    const original = writeQuickSplitDraft(input)!;
-    expect(writeQuickSplitDraft(input)).toBe(original);
+    const original = writeQuickSplitDraft(input, draftId(readQuickSplitDraft()!))!;
+    expect(writeQuickSplitDraft(input, original)).toBe(original);
 
-    const newer = writeQuickSplitDraft({ ...input, items: [item({ amount: '87.50' })] })!;
+    const newer = writeQuickSplitDraft({ ...input, items: [item({ amount: '87.50' })] }, original)!;
     expect(newer).not.toBe(original);
     clearQuickSplitDraft(original);
     expect(readQuickSplitDraft()?.items[0]?.amount).toBe('87.50');
     clearQuickSplitDraft(newer);
     expect(readQuickSplitDraft()).toBeNull();
+  });
+
+  it('keeps competing edits to the same draft separately', () => {
+    const { version: _version, savedAt: _time, ...input } = valid;
+    const original = writeQuickSplitDraft(input, null)!;
+    const first = writeQuickSplitDraft({ ...input, items: [item({ amount: '87.50' })] }, original)!;
+    const second = writeQuickSplitDraft({ ...input, items: [item({ description: 'Friends' })] }, original)!;
+    expect(listQuickSplitDrafts().map(draftId)).toEqual(expect.arrayContaining([first, second]));
+    expect(listQuickSplitDrafts()).toHaveLength(2);
+    clearQuickSplitDraft(first);
+    expect(readQuickSplitDraft()?.items[0]).toMatchObject({ description: 'Friends', amount: '80' });
   });
 });
 

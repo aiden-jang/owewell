@@ -35,6 +35,8 @@ export interface QuickSplitDraft {
 export type QuickSplitInput = Omit<QuickSplitDraft, 'version' | 'savedAt' | 'revision'>;
 
 const KEY = 'owewell:quick-split-draft';
+const PREFIX = `${KEY}:`;
+const LEGACY = 'legacy';
 /** A week. Long enough to cover a trip, short enough that a stale bill does not reappear. */
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const METHODS = new Set<SplitMethod>(['EQUAL', 'SHARES', 'PERCENT', 'EXACT']);
@@ -63,16 +65,14 @@ const isItem = (i: unknown): i is DraftItem => {
   );
 };
 
-/** The stored draft, or null if there isn't one worth restoring. */
-export function readQuickSplitDraft(now = Date.now()): QuickSplitDraft | null {
-  if (typeof window === 'undefined') return null;
+function readDraft(key: string, now: number): QuickSplitDraft | null {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(KEY) ?? 'null') as Partial<QuickSplitDraft> | null;
+    const parsed = JSON.parse(localStorage.getItem(key) ?? 'null') as Partial<QuickSplitDraft> | null;
     if (
       !parsed ||
       parsed.version !== 1 ||
       typeof parsed.savedAt !== 'number' ||
-      now - parsed.savedAt > MAX_AGE ||
+      Math.abs(now - parsed.savedAt) > MAX_AGE ||
       !Array.isArray(parsed.people) ||
       !Array.isArray(parsed.items)
     )
@@ -109,26 +109,70 @@ function matchesDraft(latest: QuickSplitDraft, draft: QuickSplitInput): boolean 
   return JSON.stringify(input) === JSON.stringify(draft);
 }
 
-export function writeQuickSplitDraft(draft: QuickSplitInput): string | null {
-  const latest = readQuickSplitDraft();
-  if (latest?.revision && matchesDraft(latest, draft)) return latest.revision;
+export function draftId(draft: QuickSplitDraft): string {
+  return draft.revision ?? LEGACY;
+}
+
+export function listQuickSplitDrafts(now = Date.now()): QuickSplitDraft[] {
+  try {
+    return [KEY, ...Object.keys(localStorage).filter((key) => key.startsWith(PREFIX))]
+      .map((key) => readDraft(key, now))
+      .filter((draft): draft is QuickSplitDraft => draft !== null)
+      .sort((a, b) => b.savedAt - a.savedAt);
+  } catch {
+    return [];
+  }
+}
+
+export function preferredQuickSplitDraft(drafts: QuickSplitDraft[]): QuickSplitDraft | null {
+  try {
+    const preferred = sessionStorage.getItem(KEY);
+    if (preferred === '') return null;
+    return drafts.find((draft) => draftId(draft) === preferred) ?? drafts[0] ?? null;
+  } catch {
+    return drafts[0] ?? null;
+  }
+}
+
+export function selectQuickSplitDraft(revision: string | null): void {
+  try {
+    sessionStorage.setItem(KEY, revision ?? '');
+  } catch {
+    // The on-device drafts are still available to select manually.
+  }
+}
+
+export function subscribeToQuickSplitDrafts(refresh: () => void): () => void {
+  const onStorage = ({ key }: StorageEvent) => {
+    if (key === null || key === KEY || key.startsWith(PREFIX)) refresh();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
+}
+
+export function writeQuickSplitDraft(draft: QuickSplitInput, parent: string | null): string | null {
+  const now = Date.now();
+  const previous = parent && (readDraft(`${PREFIX}${parent}`, now) ?? readDraft(KEY, now));
+  if (previous && previous.revision === parent && matchesDraft(previous, draft)) return parent;
   try {
     const revision = crypto.randomUUID();
-    window.localStorage.setItem(KEY, JSON.stringify({ version: 1, savedAt: Date.now(), revision, ...draft }));
+    // Separate keys let simultaneous edits survive even when both tabs started from the same revision.
+    localStorage.setItem(
+      `${PREFIX}${revision}`,
+      JSON.stringify({ version: 1, savedAt: now, revision, ...draft }),
+    );
+    if (parent) clearQuickSplitDraft(parent);
     return revision;
   } catch {
     return null;
   }
 }
 
-export function clearQuickSplitDraft(saved?: QuickSplitInput | string): void {
-  if (saved !== undefined) {
-    const latest = readQuickSplitDraft();
-    if (!latest || !(typeof saved === 'string' ? latest.revision === saved : matchesDraft(latest, saved)))
-      return;
-  }
+export function clearQuickSplitDraft(revision: string): void {
   try {
-    window.localStorage.removeItem(KEY);
+    localStorage.removeItem(`${PREFIX}${revision}`);
+    const legacy = readDraft(KEY, Date.now());
+    if (legacy && draftId(legacy) === revision) localStorage.removeItem(KEY);
   } catch {
     // Storage may be blocked.
   }

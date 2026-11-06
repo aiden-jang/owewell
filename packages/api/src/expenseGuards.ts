@@ -23,7 +23,7 @@ export async function assertUnlocked(db: DB, groupId: string): Promise<void> {
   }
 }
 
-/** An omitted expected version explicitly permits overwriting after conflict confirmation. */
+/** Older clients may omit the expected version. */
 export function assertVersion(current: number, expected: number | undefined): void {
   if (expected !== undefined && expected !== current) {
     throw new ExpenseError('CONFLICT', 'Somebody changed this expense while you were away.');

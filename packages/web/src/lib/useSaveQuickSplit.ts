@@ -5,7 +5,7 @@ import { dollarsToCents } from '@owewell/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useAsyncScope } from './useAsyncScope';
 import { serverValue } from './splitValues';
-import { writeQuickSplitDraft, type QuickSplitInput } from './quickSplitDraft';
+import type { QuickSplitInput } from './quickSplitDraft';
 import {
   clearPendingSplit,
   loadPendingSplit,
@@ -60,7 +60,8 @@ function splitPayload(draft: QuickSplitInput, payerId: string, youId: string): P
 
 export function useSaveQuickSplit(
   setError: (message: string | null) => void,
-  finishDraft: (saved: QuickSplitInput) => void,
+  persistDraft: (draft: QuickSplitInput) => string | null,
+  finishDraft: (saved: string | null) => void,
 ) {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -76,7 +77,7 @@ export function useSaveQuickSplit(
     try {
       const payload = splitPayload(draft, payerId, youId);
       if (user) payload.ownerId = user.id;
-      const draftRevision = writeQuickSplitDraft(draft);
+      const draftRevision = persistDraft(draft);
       if (draftRevision) payload.draftRevision = draftRevision;
       const pending = preparePendingSplit(payload, attempt.current ?? loadPendingSplit());
       attempt.current = pending;
@@ -96,7 +97,7 @@ export function useSaveQuickSplit(
       const { groupId } = await quickSplitApi.save(pending);
       if (loadPendingSplit()?.clientId === pending.clientId) clearPendingSplit();
       if (!current()) return;
-      finishDraft(draft);
+      finishDraft(draftRevision);
       navigate(`/groups/${groupId}`);
     } catch (error) {
       if (current()) setError(error instanceof Error ? error.message : 'Could not save the split.');

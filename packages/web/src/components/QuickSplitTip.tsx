@@ -70,9 +70,9 @@ export function QuickSplitTip({
           <button
             type="button"
             onClick={clearGeneratedTip}
-            className="tap min-h-11 text-xs text-muted transition hover:text-ink hover:underline"
+            className="tap min-h-11 scroll-mt-24 text-xs text-muted transition hover:text-ink hover:underline"
           >
-            remove
+            Remove automatic tips
           </button>
         )}
       </div>

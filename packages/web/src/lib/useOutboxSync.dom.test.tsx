@@ -22,6 +22,7 @@ vi.mock('./outbox', async () => {
 });
 
 const api = {
+  list: vi.fn(),
   create: vi.fn(),
   createItemized: vi.fn(),
   update: vi.fn(),
@@ -54,6 +55,7 @@ const edit = (over: Partial<QueuedEdit> = {}): QueuedEdit =>
 
 /** Nothing queued, unless a test says otherwise. */
 const nothing = { sent: 0, conflicted: [] };
+const ledger = { id: 'e1', description: 'Dinner on the ledger', amountCents: 250, version: 4 };
 
 async function mount(props: Record<string, unknown> = {}) {
   const { useOutboxSync } = await import('./useOutboxSync');
@@ -68,6 +70,7 @@ beforeEach(() => {
   localStorage.clear();
   flush.mockResolvedValue(nothing);
   confirmStub.mockResolvedValue(false);
+  api.list.mockResolvedValue([ledger]);
 });
 
 describe('which call each queued kind turns into', () => {
@@ -183,19 +186,15 @@ describe('an edit that conflicted while it waited', () => {
     expect(api.update).not.toHaveBeenCalled();
   });
 
-  /*
-   * The subtle one. Re-sending with the version it was based on would conflict against the change
-   * it was just told about, so "Apply mine" would never be able to land.
-   */
-  it('re-sends without the version when you apply yours', async () => {
+  it('sends against the ledger version shown in the prompt', async () => {
     enqueue(edit());
     flush.mockResolvedValueOnce({ ...nothing, conflicted: [edit()] });
     confirmStub.mockResolvedValue(true);
     const { onChanged } = await mount();
     await waitFor(() => expect(api.update).toHaveBeenCalled());
     const payload = api.update.mock.calls[0]![2] as Record<string, unknown>;
-    expect(payload).not.toHaveProperty('expectedVersion');
-    expect(payload).toMatchObject({ description: 'Dinner' });
+    expect(payload).toMatchObject({ description: 'Dinner', expectedVersion: 4 });
+    expect(confirmStub.mock.calls[0]![0].body).toContain('“Dinner on the ledger” for $2.50');
     expect(onChanged).toHaveBeenCalled();
   });
 
@@ -206,7 +205,19 @@ describe('an edit that conflicted while it waited', () => {
     confirmStub.mockResolvedValue(true);
     await mount();
     await waitFor(() => expect(api.updateItemized).toHaveBeenCalled());
-    expect(api.updateItemized.mock.calls[0]![2]).not.toHaveProperty('expectedVersion');
+    expect(api.updateItemized.mock.calls[0]![2]).toMatchObject({ expectedVersion: 4 });
+  });
+
+  it('keeps the queued edit when it cannot load a version to review', async () => {
+    const saved = edit();
+    enqueue(saved);
+    flush.mockResolvedValueOnce({ ...nothing, conflicted: [saved] });
+    api.list.mockRejectedValue(new ApiError(401, 'Sign in again.'));
+    const { result } = await mount();
+    await waitFor(() => expect(result.current.paused).toBe('sign-in'));
+    expect(confirmStub).not.toHaveBeenCalled();
+    expect(api.update).not.toHaveBeenCalled();
+    expect(queued()).toEqual([saved]);
   });
 
   // Asked in order and one at a time: answering the first can be what makes the second make sense.

@@ -263,6 +263,14 @@ describe('a queued edit', () => {
     expect(queued()).toEqual([expect.objectContaining({ expenseId: 'x1' })]);
   });
 
+  it('requires review before replaying an older edit that has no version', async () => {
+    const saved = { ...edit('e1', 'x1'), payload: payload('Dinner') };
+    enqueue(saved);
+    const send = vi.fn();
+    expect((await flush(send)).conflicted).toEqual([saved]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it('is a plain rejection when the server refused it for any other reason', async () => {
     enqueue(edit('e1', 'x1'));
     const send = vi.fn().mockRejectedValue(new ApiError(422, 'Amount must be more than zero.'));

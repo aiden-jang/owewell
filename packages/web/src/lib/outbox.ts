@@ -192,6 +192,11 @@ export async function flush(
   const conflictedGroups = new Set<string>();
   for (const entry of queued(groupId, ownerId)) {
     if (entry.failure || conflictedGroups.has(entry.groupId)) continue;
+    if (isEdit(entry) && !Number.isSafeInteger(entry.payload.expectedVersion)) {
+      conflictedGroups.add(entry.groupId);
+      result.conflicted.push(entry);
+      continue;
+    }
     try {
       await send(entry);
     } catch (err) {
