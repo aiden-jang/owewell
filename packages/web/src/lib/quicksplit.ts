@@ -19,17 +19,30 @@ export interface PendingItem {
 
 /** A quick split is now a set of shared people plus one or more expenses (items). */
 export interface PendingSplit {
+  clientId?: string;
+  ownerId?: string;
   people: PendingPerson[];
   items: PendingItem[];
 }
 
 const KEY = 'owewell:pending-split';
 
-export function stashPendingSplit(split: PendingSplit): void {
+export function preparePendingSplit(split: PendingSplit, previous: PendingSplit | null): PendingSplit {
+  const same =
+    previous?.ownerId === split.ownerId &&
+    JSON.stringify([previous?.people, previous?.items]) === JSON.stringify([split.people, split.items]);
+  return {
+    ...split,
+    clientId: split.clientId ?? (same ? previous?.clientId : undefined) ?? crypto.randomUUID(),
+  };
+}
+
+export function stashPendingSplit(split: PendingSplit): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(split));
+    return true;
   } catch {
-    // storage unavailable; saving-after-signup just won't be offered
+    return false;
   }
 }
 
@@ -56,5 +69,5 @@ export function clearPendingSplit(): void {
 
 export const quickSplitApi = {
   save: (split: PendingSplit): Promise<{ groupId: string }> =>
-    api.post<{ groupId: string }>('/quick-splits', split),
+    api.post<{ groupId: string }>('/quick-splits', split, split.ownerId),
 };

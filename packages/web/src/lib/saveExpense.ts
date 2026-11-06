@@ -9,14 +9,16 @@ export type SaveOutcome =
 
 interface Args<P extends ExpensePayload> {
   groupId: string;
+  ownerId?: string | undefined;
+  attempt: { current: { key: string; id: string } | null };
   editing: Expense | undefined;
   /** Everything the server needs except the two fields this function owns. */
   base: Omit<P, 'clientId' | 'expectedVersion'>;
   /** For the outbox row's summary line, so a queued write reads sensibly in the pending list. */
   amountCents: number;
   kinds: { create: QueuedCreate['kind']; edit: QueuedEdit['kind'] };
-  create: (groupId: string, payload: P) => Promise<Expense>;
-  update: (groupId: string, expenseId: string, payload: P) => Promise<Expense>;
+  create: (groupId: string, payload: P, ownerId?: string) => Promise<Expense>;
+  update: (groupId: string, expenseId: string, payload: P, ownerId?: string) => Promise<Expense>;
   /** False when the caller has nothing to tell the user about a queued write, so offline is an error. */
   canQueue: boolean;
   failureMessage: string;
@@ -26,6 +28,8 @@ interface Args<P extends ExpensePayload> {
  * Queue creates only; edits require conflict handling against the current row. */
 export async function saveExpense<P extends ExpensePayload>({
   groupId,
+  ownerId,
+  attempt,
   editing,
   base,
   amountCents,
@@ -35,13 +39,18 @@ export async function saveExpense<P extends ExpensePayload>({
   canQueue,
   failureMessage,
 }: Args<P>): Promise<SaveOutcome> {
-  const clientId = crypto.randomUUID();
+  const key = JSON.stringify([groupId, ownerId, editing?.id, editing?.version, base]);
+  const clientId = attempt.current?.key === key ? attempt.current.id : crypto.randomUUID();
+  attempt.current = { key, id: clientId };
   // An edit says which version it was based on; a create has none to be based on.
   const versioned = editing ? { expectedVersion: editing.version } : {};
   const payload = { ...base, clientId, ...versioned } as P;
 
   try {
-    const expense = editing ? await update(groupId, editing.id, payload) : await create(groupId, payload);
+    const expense = editing
+      ? await update(groupId, editing.id, payload, ownerId)
+      : await create(groupId, payload, ownerId);
+    attempt.current = null;
     return { status: 'saved', expense };
   } catch (err) {
     if (!canQueue || !isOffline(err)) {
@@ -50,6 +59,7 @@ export async function saveExpense<P extends ExpensePayload>({
     const row = {
       clientId,
       groupId,
+      ownerId,
       description: payload.description,
       amountCents,
       queuedAt: Date.now(),
@@ -58,6 +68,7 @@ export async function saveExpense<P extends ExpensePayload>({
     const saved = enqueue(
       editing ? { ...row, kind: kinds.edit, expenseId: editing.id } : { ...row, kind: kinds.create },
     );
+    if (saved) attempt.current = null;
     return saved ? { status: 'queued' } : { status: 'failed', message: OUTBOX_STORAGE_ERROR };
   }
 }

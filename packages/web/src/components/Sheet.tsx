@@ -15,6 +15,7 @@ export function Sheet({
   children,
   autoFocusField = false,
   protectChanges = false,
+  unsavedChanges,
   closeDisabled = false,
 }: {
   open: boolean;
@@ -25,6 +26,7 @@ export function Sheet({
   autoFocusField?: boolean;
   /** Ask before dismissing an unfinished expense or payment. */
   protectChanges?: boolean;
+  unsavedChanges?: boolean;
   closeDisabled?: boolean;
 }): ReactNode {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -34,7 +36,10 @@ export function Sheet({
   const closeDisabledRef = useRef(closeDisabled);
   closeDisabledRef.current = closeDisabled;
   const dirtyRef = useRef(false);
-  const [dirty, setDirty] = useState(false);
+  const [changed, setDirty] = useState(false);
+  const controlled = unsavedChanges !== undefined;
+  const dirty = open && (unsavedChanges ?? changed);
+  dirtyRef.current = dirty;
   const [asking, setAsking] = useState(false);
   const keepRef = useRef<HTMLButtonElement>(null);
   const navigationRef = useRef<BlockedNavigation | null>(null);
@@ -64,12 +69,13 @@ export function Sheet({
   }, [asking]);
   const requestClose = useCallback((): void => {
     if (closeDisabledRef.current) return;
-    if (dirtyRef.current && dialogRef.current?.querySelector('button[type="submit"]:disabled')) return;
+    if (!controlled && dirtyRef.current && dialogRef.current?.querySelector('button[type="submit"]:disabled'))
+      return;
     if (dirtyRef.current) setAsking(true);
     else closeRef.current();
-  }, []);
+  }, [controlled]);
   function markChanged(): void {
-    if (!protectChanges) return;
+    if (!protectChanges || unsavedChanges !== undefined) return;
     dirtyRef.current = true;
     setDirty(true);
   }

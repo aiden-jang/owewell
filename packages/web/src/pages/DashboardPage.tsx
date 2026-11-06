@@ -1,6 +1,7 @@
 import { DashboardIntro } from '../components/SplitIntro';
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useDashboardMode } from './useDashboardMode.js';
+import { useDashboardGroups } from './useDashboardGroups';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
@@ -9,29 +10,41 @@ import { Icon } from '../components/Icon';
 import { CreateGroupForm } from '../components/CreateGroupForm';
 import { Sheet } from '../components/Sheet';
 import { PendingSplitCard } from '../components/PendingSplitCard';
+import { BulkGroupBar } from '../components/BulkGroupBar';
 import { OutboxNotice } from '../components/OutboxNotice';
 import { DashboardGroupCard } from '../components/DashboardGroupCard';
 import { DashboardBalance } from '../components/DashboardBalance';
 import { SkeletonList } from '../components/Skeleton';
 import { useBulkGroupActions } from './useBulkGroupActions';
+import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/Toast';
-import { groupsApi, type GroupSummary } from '../lib/groups';
+import { groupsApi } from '../lib/groups';
 import { clearQuickSplitDraft, readQuickSplitDraft } from '../lib/quickSplitDraft';
-import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
+import {
+  clearPendingSplit,
+  loadPendingSplit,
+  preparePendingSplit,
+  quickSplitApi,
+  stashPendingSplit,
+} from '../lib/quicksplit';
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
 import { useAsyncScope } from '../lib/useAsyncScope';
 
 export function DashboardPage(): ReactNode {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const ownerId = user?.id;
   const toast = useToast();
-  const { captureScope } = useAsyncScope();
-  const [groups, setGroups] = useState<GroupSummary[] | null>(null);
-  const [waiting, setWaiting] = useState(() => queued().length);
-  const [loadError, setLoadError] = useState(false);
+  const { captureScope } = useAsyncScope(ownerId);
+  const { groups, loadError, loadGroups, applyGroupChange } = useDashboardGroups(ownerId);
+  const [waiting, setWaiting] = useState(() => (ownerId ? queued(undefined, ownerId).length : 0));
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(() => loadPendingSplit());
+  const [pending, setPending] = useState(() => {
+    const saved = loadPendingSplit();
+    return saved && (!saved.ownerId || saved.ownerId === ownerId) ? saved : null;
+  });
   const [savingPending, setSavingPending] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const mode = useDashboardMode(() => setError(null));
@@ -50,27 +63,16 @@ export function DashboardPage(): ReactNode {
     exitSelect,
   } = mode;
 
-  const { bulkBusy, onBulkArchive, onBulkDelete } = useBulkGroupActions(selected, setGroups, exitSelect);
-
-  const loadGroups = useCallback(() => {
-    setLoadError(false);
-    setGroups(null);
-    groupsApi
-      .list()
-      .then(setGroups)
-      .catch(() => {
-        setLoadError(true);
-        toast.error('Could not load your groups.');
-      });
-  }, [toast]);
-
-  useEffect(() => {
-    loadGroups();
-  }, [loadGroups]);
+  const { bulkBusy, onBulkArchive, onBulkDelete } = useBulkGroupActions(
+    selected,
+    applyGroupChange,
+    exitSelect,
+  );
 
   const outboxSync = useOutboxSync({
+    ownerId,
     onChanged: () => loadGroups(),
-    onQueueChanged: () => setWaiting(queued().length),
+    onQueueChanged: () => setWaiting(ownerId ? queued(undefined, ownerId).length : 0),
   });
 
   const totals = useMemo(() => {
@@ -89,10 +91,13 @@ export function DashboardPage(): ReactNode {
     const startUrl = window.location.href;
     const current = () => samePage() && window.location.href === startUrl;
     const savedAt = readQuickSplitDraft()?.savedAt;
+    const attempt = preparePendingSplit({ ...pending, ...(ownerId ? { ownerId } : {}) }, pending);
+    const stored = stashPendingSplit(attempt);
+    setPending(attempt);
     setSavingPending(true);
     try {
-      const { groupId } = await quickSplitApi.save(pending);
-      if (JSON.stringify(loadPendingSplit()) === JSON.stringify(pending)) {
+      const { groupId } = await quickSplitApi.save(attempt);
+      if (JSON.stringify(loadPendingSplit()) === JSON.stringify(stored ? attempt : pending)) {
         clearPendingSplit();
         if (readQuickSplitDraft()?.savedAt === savedAt) clearQuickSplitDraft();
       }
@@ -124,7 +129,7 @@ export function DashboardPage(): ReactNode {
     setError(null);
     try {
       const group = await groupsApi.create(name.trim());
-      setGroups((prev) => [
+      applyGroupChange((prev) => [
         {
           id: group.id,
           name: group.name,
@@ -137,7 +142,7 @@ export function DashboardPage(): ReactNode {
           lastActivityAt: group.createdAt,
           isOwner: true,
         },
-        ...(prev ?? []),
+        ...(prev ?? []).filter(({ id }) => id !== group.id),
       ]);
       closeCreate();
     } catch (err) {
@@ -172,7 +177,7 @@ export function DashboardPage(): ReactNode {
           />
         )}
 
-        {waiting > 0 && (
+        {(waiting > 0 || outboxSync.unassigned > 0) && (
           <div className="mb-4">
             <OutboxNotice
               count={waiting}
@@ -237,7 +242,7 @@ export function DashboardPage(): ReactNode {
             </div>
 
             <div className="mt-4">
-              {loadError ? (
+              {loadError && groups === null ? (
                 <EmptyState
                   tone="problem"
                   icon="users"
@@ -365,32 +370,13 @@ export function DashboardPage(): ReactNode {
       </Sheet>
 
       {selectMode && selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card/90 backdrop-blur-md">
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <span role="status" className="text-sm font-medium">
-              {bulkBusy ? 'Updating groups…' : `${selected.size} selected`}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void onBulkArchive()}
-                disabled={bulkBusy}
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-4 py-2 text-sm font-medium transition hover:border-accent active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Icon name="archive" size={15} /> Archive
-              </button>
-              <button
-                type="button"
-                onClick={() => void onBulkDelete()}
-                disabled={!allOwned || bulkBusy}
-                title={allOwned ? undefined : 'You can only delete groups you own'}
-                className="inline-flex items-center gap-1.5 rounded-full bg-neg-solid px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Icon name="trash" size={15} /> Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <BulkGroupBar
+          count={selected.size}
+          busy={bulkBusy}
+          canDelete={allOwned}
+          onArchive={onBulkArchive}
+          onDelete={onBulkDelete}
+        />
       )}
     </div>
   );

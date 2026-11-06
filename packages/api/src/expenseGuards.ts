@@ -1,14 +1,7 @@
-import { inIds } from './db/ids.js';
-import { and, count, eq } from 'drizzle-orm';
+import type { BatchItem } from 'drizzle-orm/batch';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import type { DB } from './db/client.js';
-import {
-  expenseItemShares,
-  expenseItems,
-  expenseSplits,
-  expenses,
-  groupMembers,
-  settlements,
-} from './db/schema.js';
+import { expenseSplits, expenses, groupMembers, settlements } from './db/schema.js';
 import { ExpenseError, type ExpenseView } from './expenseContracts.js';
 
 /* The checks every expense write makes before it touches a row, and the teardown one of them
@@ -74,6 +67,24 @@ export async function findByClientId(db: DB, groupId: string, clientId: string):
   };
 }
 
+/** A racing retry hits the unique key, rolls back the whole batch and reads the winner. */
+export async function commitExpenseCreate(
+  db: DB,
+  groupId: string,
+  clientId: string | undefined,
+  view: ExpenseView,
+  writes: [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]],
+): Promise<ExpenseView> {
+  try {
+    await db.batch(writes);
+    return view;
+  } catch (error) {
+    const saved = clientId && (await findByClientId(db, groupId, clientId));
+    if (saved) return saved;
+    throw error;
+  }
+}
+
 export async function memberPersonIds(db: DB, groupId: string): Promise<Set<string>> {
   const rows = await db
     .select({ personId: groupMembers.personId })
@@ -83,19 +94,33 @@ export async function memberPersonIds(db: DB, groupId: string): Promise<Set<stri
   return new Set(rows.map((r) => r.personId));
 }
 
-/** Drop an expense's line items + their per-item shares (used when replacing on edit). */
-export async function clearItemizedRows(db: DB, expenseId: string): Promise<void> {
-  const itemRows = await db
-    .select({ id: expenseItems.id })
-    .from(expenseItems)
-    .where(eq(expenseItems.expenseId, expenseId))
-    .all();
-  if (itemRows.length === 0) return;
-  await db.delete(expenseItemShares).where(
-    inIds(
-      expenseItemShares.itemId,
-      itemRows.map((r) => r.id),
-    ),
-  );
-  await db.delete(expenseItems).where(eq(expenseItems.expenseId, expenseId));
+/** Fail the transaction if a competing edit, deletion, or payment won after the read. */
+export function nextExpenseVersion(groupId: string, version: number) {
+  return sql<number>`case
+    when ${expenses.deletedAt} is null and ${expenses.version} = ${version}
+      and not exists (select 1 from ${settlements} where ${settlements.groupId} = ${groupId})
+    then ${expenses.version} + 1
+    else null end`;
+}
+
+export async function commitExpenseUpdate(
+  db: DB,
+  groupId: string,
+  expenseId: string,
+  version: number,
+  writes: [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]],
+): Promise<void> {
+  try {
+    await db.batch(writes);
+  } catch (error) {
+    const current = await db
+      .select({ version: expenses.version })
+      .from(expenses)
+      .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
+      .get();
+    if (!current) throw new ExpenseError('NOT_FOUND', 'That expense no longer exists.');
+    await assertUnlocked(db, groupId);
+    assertVersion(current.version, version);
+    throw error;
+  }
 }

@@ -28,6 +28,7 @@ export interface QuickSplitDraft {
   payerId: string;
   splitPayers: boolean;
   youId: string;
+  tipPercent?: number;
 }
 
 const KEY = 'owewell:quick-split-draft';
@@ -90,25 +91,34 @@ export function readQuickSplitDraft(now = Date.now()): QuickSplitDraft | null {
       payerId: typeof parsed.payerId === 'string' ? parsed.payerId : '',
       splitPayers: parsed.splitPayers === true,
       youId: typeof parsed.youId === 'string' ? parsed.youId : '',
+      ...(typeof parsed.tipPercent === 'number' && parsed.tipPercent > 0 && parsed.tipPercent <= 100
+        ? { tipPercent: parsed.tipPercent }
+        : {}),
     };
   } catch {
     return null;
   }
 }
 
-/** Storage failures are swallowed everywhere here: a draft is a convenience, never a blocker. */
-export function writeQuickSplitDraft(draft: Omit<QuickSplitDraft, 'version' | 'savedAt'>): void {
+export function writeQuickSplitDraft(draft: Omit<QuickSplitDraft, 'version' | 'savedAt'>): boolean {
   try {
     window.localStorage.setItem(KEY, JSON.stringify({ version: 1, savedAt: Date.now(), ...draft }));
+    return true;
   } catch {
-    // Private browsing, or a storage policy. The form carries on.
+    return false;
   }
 }
 
-export function clearQuickSplitDraft(): void {
+export function clearQuickSplitDraft(saved?: Omit<QuickSplitDraft, 'version' | 'savedAt'>): void {
+  if (saved) {
+    const latest = readQuickSplitDraft();
+    if (!latest) return;
+    const { version: _version, savedAt: _time, ...draft } = latest;
+    if (JSON.stringify(draft) !== JSON.stringify(saved)) return;
+  }
   try {
     window.localStorage.removeItem(KEY);
   } catch {
-    // As above.
+    // Storage may be blocked.
   }
 }

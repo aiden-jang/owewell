@@ -7,18 +7,32 @@ export type { CreateExpensePayload, CreateItemizedPayload, Expense, SplitMethod 
 export const expensesApi = {
   list: (groupId: string): Promise<Expense[]> =>
     api.get<{ expenses: Expense[] }>(`/groups/${groupId}/expenses`).then((r) => r.expenses),
-  create: (groupId: string, payload: CreateExpensePayload): Promise<Expense> =>
-    api.post<{ expense: Expense }>(`/groups/${groupId}/expenses`, payload).then((r) => r.expense),
-  update: (groupId: string, expenseId: string, payload: CreateExpensePayload): Promise<Expense> =>
-    api.put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((r) => r.expense),
-  createItemized: (groupId: string, payload: CreateItemizedPayload): Promise<Expense> =>
-    api.post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload).then((r) => r.expense),
-  updateItemized: (groupId: string, expenseId: string, payload: CreateItemizedPayload): Promise<Expense> =>
+  create: (groupId: string, payload: CreateExpensePayload, actorId?: string): Promise<Expense> =>
+    api.post<{ expense: Expense }>(`/groups/${groupId}/expenses`, payload, actorId).then((r) => r.expense),
+  update: (
+    groupId: string,
+    expenseId: string,
+    payload: CreateExpensePayload,
+    actorId?: string,
+  ): Promise<Expense> =>
     api
-      .put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/itemized`, payload)
+      .put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}`, payload, actorId)
       .then((r) => r.expense),
-  remove: (groupId: string, expenseId: string): Promise<{ ok: boolean }> =>
-    api.del<{ ok: boolean }>(`/groups/${groupId}/expenses/${expenseId}`),
+  createItemized: (groupId: string, payload: CreateItemizedPayload, actorId?: string): Promise<Expense> =>
+    api
+      .post<{ expense: Expense }>(`/groups/${groupId}/expenses/itemized`, payload, actorId)
+      .then((r) => r.expense),
+  updateItemized: (
+    groupId: string,
+    expenseId: string,
+    payload: CreateItemizedPayload,
+    actorId?: string,
+  ): Promise<Expense> =>
+    api
+      .put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/itemized`, payload, actorId)
+      .then((r) => r.expense),
+  remove: (groupId: string, expenseId: string, actorId?: string): Promise<{ ok: boolean }> =>
+    api.del<{ ok: boolean }>(`/groups/${groupId}/expenses/${expenseId}`, actorId),
   /** Undo a delete. Returns the restored expense so the feed can put the row back immediately. */
   restore: (groupId: string, expenseId: string): Promise<Expense> =>
     api

@@ -24,7 +24,7 @@ export function SpendBreakdown({
   if (total <= 0 || byCategory.length < 2) return null;
 
   return (
-    <section>
+    <section className="mb-4 sm:mb-5">
       {/* Heading and view switch on one line, the same arrangement the share page uses. */}
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-muted">Where it went</h2>
@@ -47,7 +47,7 @@ export function SpendBreakdown({
       {view === 'donut' ? (
         <SpendDonut data={byCategory} total={total} activeKey={categoryFilter} onSelect={onSelectCategory} />
       ) : (
-        <ul className="mt-3 space-y-1">
+        <ul className="-mx-2 mt-3 space-y-1">
           {byCategory.map(({ meta, cents }) => {
             const on = categoryFilter === meta.key;
             return (
@@ -57,7 +57,7 @@ export function SpendBreakdown({
                   onClick={() => onSelectCategory(on ? null : meta.key)}
                   aria-pressed={on}
                   aria-label={`${on ? 'Clear filter' : 'Filter activity by'} ${meta.label}`}
-                  className={`-mx-2 block w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${on ? 'bg-accent-soft' : ''}`}
+                  className={`block w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-surface2 ${on ? 'bg-accent-soft' : ''}`}
                 >
                   {/*
                    * Label and figure above, bar across the full width below.

@@ -1,7 +1,7 @@
 import { SelectField } from './SelectField';
 import { useState } from 'react';
 import { Money, dollarsToCents } from '@owewell/shared';
-import type { SplitMethod } from '@owewell/core';
+import { QUICK_SPLIT_LIMITS, type SplitMethod } from '@owewell/core';
 import type { DraftItem as Item, DraftPerson as Person } from '../lib/quickSplitDraft';
 import { normalizeAmountInput } from '../lib/format';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
@@ -94,7 +94,10 @@ export default function QuickSplitItemRow({
     }
   }
   return (
-    <div className="split-bill-row surface space-y-3 rounded-2xl p-4">
+    <fieldset
+      disabled={!!item.generatedTip}
+      className="split-bill-row surface min-w-0 space-y-3 rounded-2xl p-4"
+    >
       <label className="split-amount-label">
         <span>{itemCount === 1 ? 'Bill amount' : `Item ${index + 1} amount`}</span>
         <input
@@ -122,17 +125,18 @@ export default function QuickSplitItemRow({
         <summary>Details & split options</summary>
         <div className="flex items-center gap-2">
           <input
+            maxLength={QUICK_SPLIT_LIMITS.description}
             value={item.description}
             onChange={(e) => onUpdate(item.id, { description: e.target.value })}
             placeholder={`Item ${index + 1} (e.g. Dinner)`}
             className={inputClass}
             aria-label={`Item ${index + 1} description`}
           />
-          {itemCount > 1 && (
+          {itemCount > 1 && !item.generatedTip && (
             <button
               type="button"
               onClick={() => onRemove(item.id)}
-              className="rounded-lg border border-line px-2 text-muted transition hover:bg-canvas"
+              className="tap grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg border border-line text-muted transition hover:bg-canvas"
               aria-label={`Remove item ${index + 1}`}
             >
               &times;
@@ -200,6 +204,6 @@ export default function QuickSplitItemRow({
           </div>
         )}
       </details>
-    </div>
+    </fieldset>
   );
 }

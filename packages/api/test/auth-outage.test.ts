@@ -37,6 +37,24 @@ describe('the guard on /owewell', () => {
     expect(res.status).toBe(401);
   });
 
+  it('rejects a queued write from a different account before creating a group', async () => {
+    authReplies(200, { user: { id: 'other-account', email: 'other@example.test', displayName: 'Other' } });
+    const res = await SELF.fetch('https://x/api/groups', {
+      method: 'POST',
+      headers: {
+        cookie: 'platform_session=abc',
+        'content-type': 'application/json',
+        'X-Owewell-Actor': 'previous-account',
+      },
+      body: JSON.stringify({ name: 'Wrong account' }),
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: 'ACCOUNT_CHANGED' });
+    expect(
+      await env.DB.prepare("SELECT count(*) AS n FROM groups WHERE name = 'Wrong account'").first('n'),
+    ).toBe(0);
+  });
+
   it('answers 503, not 401, when auth cannot be reached', async () => {
     authReplies(500, 'down');
     const res = await signedIn('/owewell/groups');

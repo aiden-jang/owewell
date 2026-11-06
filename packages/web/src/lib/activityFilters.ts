@@ -1,3 +1,4 @@
+import { computeItemizedPayers } from '@owewell/shared';
 import { categoryMeta, type Expense } from '@owewell/core';
 
 /** Involved: paid or owes a share. Owes: has an unpaid share. Paid: credited as a payer. */
@@ -8,18 +9,36 @@ export function shareOf(expense: Expense, personId: string): number {
   return expense.splits.find((s) => s.userId === personId)?.owedCents ?? 0;
 }
 
-/** Whether an expense matches the lens. A null person means "no lens" and matches everything. */
-export function matchesPersonLens(expense: Expense, personId: string | null, relation: Relation): boolean {
-  if (!personId) return true;
-  const hasShare = shareOf(expense, personId) > 0;
-  if (relation === 'paid') return expense.payerId === personId;
-  if (relation === 'owes') return hasShare && expense.payerId !== personId;
-  return expense.payerId === personId || hasShare; // involved
+function paidBy(expense: Expense, personId: string): number {
+  if (expense.splitMethod !== 'ITEMIZED' || !expense.items?.length) {
+    return expense.payerId === personId ? expense.amountCents : 0;
+  }
+  return (
+    computeItemizedPayers({
+      items: expense.items.map((item) => ({
+        amountCents: item.amountCents,
+        payerId: item.payerId ?? expense.payerId,
+      })),
+      taxCents: expense.taxCents ?? 0,
+      tipCents: expense.tipCents ?? 0,
+      seed: expense.id,
+    }).find((payer) => payer.userId === personId)?.paidCents ?? 0
+  );
 }
 
-/** What an expense contributes under the lens: the person's share for "owes", else the full bill. */
+export function matchesPersonLens(expense: Expense, personId: string | null, relation: Relation): boolean {
+  if (!personId) return true;
+  const share = shareOf(expense, personId);
+  const paid = paidBy(expense, personId);
+  if (relation === 'paid') return paid > 0;
+  if (relation === 'owes') return share > paid;
+  return paid > 0 || share > 0;
+}
+
 export function lensAmount(expense: Expense, personId: string | null, relation: Relation): number {
-  return personId && relation === 'owes' ? shareOf(expense, personId) : expense.amountCents;
+  if (!personId || relation === 'involved') return expense.amountCents;
+  const paid = paidBy(expense, personId);
+  return relation === 'paid' ? paid : Math.max(0, shareOf(expense, personId) - paid);
 }
 
 /** Sum of the lens amount across the matching expenses. */

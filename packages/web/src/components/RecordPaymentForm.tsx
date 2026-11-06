@@ -4,7 +4,7 @@ import { formatMoney as fmt, currencySymbol, dollarsToCents, type MoneyFormatter
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { PaymentMethodSelect } from './PaymentMethodSelect';
 import {
-  completePaymentAttempt,
+  hasQueuedPayment,
   preparePayment,
   settlementsApi,
   type Settlement,
@@ -20,6 +20,7 @@ import { FormError } from './FormFields';
 
 interface Props {
   groupId: string;
+  ownerId?: string | undefined;
   members: GroupMember[];
   /** Who to default as the payer (usually the signed-in viewer). */
   defaultFromId?: string | undefined;
@@ -41,6 +42,7 @@ function balanceCopy(cents: number, fmt: MoneyFormatter): string {
  *  Complements the one-tap "Settle" buttons, which only clear the full suggested amount. */
 export function RecordPaymentForm({
   groupId,
+  ownerId,
   members,
   defaultFromId,
   suggestions = [],
@@ -143,10 +145,15 @@ export function RecordPaymentForm({
       setError('Amount must be more than zero.');
       return;
     }
+    const payment = { fromUserId, toUserId, amountCents, method };
+    if (hasQueuedPayment(groupId, payment, ownerId)) {
+      setError('This payment is already waiting to sync.');
+      return;
+    }
     setSubmitting(true);
-    const payload = preparePayment(groupId, { fromUserId, toUserId, amountCents, method });
+    const payload = preparePayment(groupId, payment, ownerId);
     try {
-      onRecorded(await settlementsApi.record(groupId, payload));
+      onRecorded(await settlementsApi.record(groupId, payload, ownerId));
     } catch (err) {
       if (onQueued && isOffline(err)) {
         // Reuse the client ID when queuing a payment so later replay cannot duplicate it.
@@ -154,16 +161,15 @@ export function RecordPaymentForm({
         const saved = enqueue({
           clientId: payload.clientId,
           groupId,
+          ownerId,
           kind: 'settlement',
           description: summary,
           amountCents,
           queuedAt: Date.now(),
           payload,
         });
-        if (saved) {
-          completePaymentAttempt(groupId, payload);
-          onQueued(summary);
-        } else setError(OUTBOX_STORAGE_ERROR);
+        if (saved) onQueued(summary);
+        else setError(OUTBOX_STORAGE_ERROR);
         return;
       }
       setError(err instanceof Error ? err.message : 'Could not record that payment.');

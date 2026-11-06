@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS } from '@owewell/core';
+import { EXPENSE_CATEGORY_KEYS, PAYMENT_METHODS, QUICK_SPLIT_LIMITS } from '@owewell/core';
 
 export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const category = z.enum(EXPENSE_CATEGORY_KEYS as [string, ...string[]]).optional();
@@ -52,20 +52,21 @@ export const recordSettlementBody = z.object({
 });
 
 export const quickSplitBody = z.object({
+  clientId: z.string().min(8).max(64).optional(),
   people: z
     .array(
       z.object({
-        name: z.string().trim().min(1).max(80),
+        name: z.string().trim().min(1).max(QUICK_SPLIT_LIMITS.name),
         isPayer: z.boolean().optional(),
         isYou: z.boolean().optional(),
       }),
     )
     .min(2)
-    .max(50),
+    .max(QUICK_SPLIT_LIMITS.people),
   items: z
     .array(
       z.object({
-        description: z.string().trim().max(140).default(''),
+        description: z.string().trim().max(QUICK_SPLIT_LIMITS.description).default(''),
         amountCents: z.number().int().positive(),
         splitMethod: z.enum(['EQUAL', 'EXACT', 'PERCENT', 'SHARES']),
         // Per-person values aligned to `people`; null for EQUAL / no value.
@@ -75,5 +76,5 @@ export const quickSplitBody = z.object({
       }),
     )
     .min(1)
-    .max(50),
+    .max(QUICK_SPLIT_LIMITS.items),
 });

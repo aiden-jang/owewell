@@ -19,18 +19,25 @@ export const people = sqliteTable('people', {
     .default(sql`(unixepoch())`),
 });
 
-export const groups = sqliteTable('groups', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  createdById: text('created_by_id')
-    .notNull()
-    .references(() => people.id),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  // Unguessable token for the public, read-only share page. Null until a member creates a link.
-  shareToken: text('share_token').unique(),
-});
+export const groups = sqliteTable(
+  'groups',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    createdById: text('created_by_id')
+      .notNull()
+      .references(() => people.id),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    // Unguessable token for the public, read-only share page. Null until a member creates a link.
+    shareToken: text('share_token').unique(),
+    quickSplitClientId: text('quick_split_client_id'),
+  },
+  (t) => ({
+    quickSplitAttempt: uniqueIndex('groups_quick_split_attempt').on(t.createdById, t.quickSplitClientId),
+  }),
+);
 
 export const groupMembers = sqliteTable(
   'group_members',

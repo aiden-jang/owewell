@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  adoptWrites,
   drop,
   enqueue,
   flush,
@@ -12,6 +13,7 @@ import {
   isPendingRow,
   isSettlement,
   queued,
+  unassignedWrites,
 } from './outbox';
 import { ApiError } from './api';
 import type { CreateExpensePayload } from '@owewell/core';
@@ -94,6 +96,20 @@ describe('which failures are worth keeping', () => {
 });
 
 describe('flushing', () => {
+  it('leaves other accounts and old unassigned writes on the device', async () => {
+    enqueue({ ...entry('mine', 100), ownerId: 'alex' });
+    enqueue({ ...entry('theirs', 200), ownerId: 'sam' });
+    enqueue(entry('old', 300));
+    const send = vi.fn().mockResolvedValue(undefined);
+    expect((await flush(send, undefined, 'alex')).sent).toBe(1);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ clientId: 'mine', ownerId: 'alex' }));
+    expect(queued().map(({ clientId }) => clientId)).toEqual(['theirs', 'old']);
+    expect(unassignedWrites().map(({ clientId }) => clientId)).toEqual(['old']);
+    expect(adoptWrites('alex', new Set(['old', 'theirs']))).toBe(true);
+    expect(queued(undefined, 'alex').map(({ clientId }) => clientId)).toEqual(['old']);
+    expect(queued(undefined, 'sam').map(({ clientId }) => clientId)).toEqual(['theirs']);
+  });
+
   it('sends everything and empties the queue', async () => {
     enqueue(entry('a', 100));
     enqueue(entry('b', 200));
@@ -245,7 +261,7 @@ describe('a queued edit', () => {
     expect(result.conflicted.map((e) => e.expenseId)).toEqual(['x1']);
     expect(result.rejected).toEqual([]);
     // Off the queue either way: it cannot be retried as-is, and the caller now owns the question.
-    expect(queued()).toEqual([]);
+    expect(queued()).toEqual([expect.objectContaining({ expenseId: 'x1' })]);
   });
 
   it('is a plain rejection when the server refused it for any other reason', async () => {

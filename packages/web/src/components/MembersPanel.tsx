@@ -1,6 +1,7 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { Balance, GroupMember } from '../lib/groups';
-import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
+import { formatMoney as fmt } from '@owewell/shared';
+import { balanceLabel, RowAction } from './MemberRowParts';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
@@ -13,47 +14,6 @@ export interface PaymentHandles {
   paypalHandle: string;
 }
 
-/** What a member's net position reads as on their row. Empty before the group has any activity. */
-function balanceLabel(
-  netCents: number,
-  hasActivity: boolean,
-  fmt: MoneyFormatter,
-): { text: string; tone: string } {
-  // No expenses yet means nobody is settled OR unsettled — there's just nothing owed. Don't label
-  // a brand-new member "settled up"; that only makes sense once there's been something to settle.
-  if (!hasActivity) return { text: '', tone: 'text-muted' };
-  if (netCents === 0) return { text: 'settled up', tone: 'text-muted' };
-  const amount = fmt(Math.abs(netCents));
-  return netCents > 0
-    ? { text: `is owed ${amount}`, tone: 'text-pos' }
-    : { text: `owes ${amount}`, tone: 'text-neg' };
-}
-
-/** One of the small pill buttons under a row, once its actions are open. */
-function RowAction({
-  onClick,
-  label,
-  icon,
-  danger = false,
-}: {
-  onClick: () => void;
-  label: string;
-  icon: 'pencil' | 'wallet' | 'x';
-  danger?: boolean;
-}): ReactNode {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`tap inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-medium transition hover:border-line-strong hover:bg-surface2 ${
-        danger ? 'text-neg' : 'text-muted hover:text-ink'
-      }`}
-    >
-      <Icon name={icon} size={13} /> {label}
-    </button>
-  );
-}
-
 export function MembersPanel({
   members,
   balances,
@@ -63,6 +23,7 @@ export function MembersPanel({
   paymentsRecorded,
   onRename,
   onSaveHandles,
+  onDirtyChange,
   onAdd,
   onRemove,
 }: {
@@ -76,6 +37,7 @@ export function MembersPanel({
   paymentsRecorded: boolean;
   onRename: (memberId: string, name: string) => Promise<void>;
   onSaveHandles: (memberId: string, handles: PaymentHandles) => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
   onAdd: (name: string) => Promise<void>;
   /** Owns the confirmation, because the re-split it warns about is the page's business. */
   onRemove: (memberId: string, netCents: number) => Promise<void>;
@@ -91,6 +53,24 @@ export function MembersPanel({
   const [cashapp, setCashapp] = useState('');
   const [paypal, setPaypal] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const renaming = members.find((member) => member.userId === renamingId);
+  const handles = members.find((member) => member.userId === handlesId);
+  const dirty =
+    !!newName.trim() ||
+    (!!renaming && renameDraft !== renaming.displayName) ||
+    (!!handles &&
+      [venmo, cashapp, paypal].some(
+        (value, index) =>
+          value !== ([handles.venmoHandle, handles.cashappCashtag, handles.paypalHandle][index] ?? ''),
+      ));
+  useLayoutEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+
+  function cancelEditor(memberId: string): void {
+    setRenamingId(null);
+    setHandlesId(null);
+    requestAnimationFrame(() => document.getElementById(`member-options-${memberId}`)?.focus());
+  }
 
   const netOf = Object.fromEntries(balances.map((b) => [b.userId, b.netCents]));
   const balanceOf = Object.fromEntries(balances.map((b) => [b.userId, b]));
@@ -190,7 +170,10 @@ export function MembersPanel({
                           event.preventDefault();
                           void saveName(member.userId);
                         }
-                        if (event.key === 'Escape' && !busy) setRenamingId(null);
+                        if (event.key === 'Escape') {
+                          event.stopPropagation();
+                          if (!busy) cancelEditor(member.userId);
+                        }
                       }}
                       maxLength={80}
                       value={renameDraft}
@@ -210,7 +193,7 @@ export function MembersPanel({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => setRenamingId(null)}
+                      onClick={() => cancelEditor(member.userId)}
                       className="text-sm text-muted"
                     >
                       Cancel
@@ -258,7 +241,7 @@ export function MembersPanel({
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => setHandlesId(null)}
+                        onClick={() => cancelEditor(member.userId)}
                         className="text-sm text-muted"
                       >
                         Cancel
@@ -335,6 +318,7 @@ export function MembersPanel({
                       <button
                         type="button"
                         onClick={() => setActionsId(open ? null : member.userId)}
+                        id={`member-options-${member.userId}`}
                         aria-label={`Options for ${member.displayName}`}
                         aria-expanded={open}
                         className={`tap grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:bg-surface2 hover:text-ink ${

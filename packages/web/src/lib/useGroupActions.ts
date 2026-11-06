@@ -6,7 +6,13 @@ import { useConfirm } from '../components/Confirm';
 import type { PaymentHandles } from '../components/MembersPanel';
 import { groupsApi, type Balance } from './groups';
 import { expensesApi } from './expenses';
-import { preparePayment, settlementsApi, type Settlement, type SuggestedPayment } from './settlements';
+import {
+  hasQueuedPayment,
+  preparePayment,
+  settlementsApi,
+  type Settlement,
+  type SuggestedPayment,
+} from './settlements';
 import { drop as dropWrite, enqueue as enqueueWrite, isOffline, OUTBOX_STORAGE_ERROR } from './outbox';
 import { formatMoney as fmt } from '@owewell/shared';
 import type { GroupLedger } from './useGroupLedger';
@@ -14,7 +20,7 @@ import type { InviteLink } from './useInviteLink';
 import { buildSettlementReceipt, type SettlementReceiptData } from './settlementReceipt';
 
 /** Confirmations, ledger writes and their receipts for the current group. */
-export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteLink) {
+export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteLink, ownerId?: string) {
   const {
     group,
     balances,
@@ -65,13 +71,18 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       if (!ok) return false;
       setSettling(true);
       const beforeBalances = balances;
-      const payload = preparePayment(id, {
+      const paymentDraft = {
         fromUserId: payment.fromUserId,
         toUserId: payment.toUserId,
         amountCents: payment.amountCents,
         method,
-      });
-      const settlement = await settlementsApi.record(id, payload);
+      };
+      if (hasQueuedPayment(id, paymentDraft, ownerId)) {
+        toast.error('This payment is already waiting to sync.');
+        return false;
+      }
+      const payload = preparePayment(id, paymentDraft, ownerId);
+      const settlement = await settlementsApi.record(id, payload, ownerId);
       const latest = await refreshLedger();
       if (latest) {
         setPaymentReceipt(
@@ -113,7 +124,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     const removed = expenses.find((e) => e.id === expenseId);
     const name = removed ? `Deleted ${removed.description}.` : 'Expense deleted.';
     try {
-      await expensesApi.remove(id, expenseId);
+      await expensesApi.remove(id, expenseId, ownerId);
       // Off the list on the same tick as the toast, rather than one refetch later.
       dropExpense(expenseId);
       void refreshLedger();
@@ -133,6 +144,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       const queued = enqueueWrite({
         clientId,
         groupId: id,
+        ownerId,
         kind: 'delete',
         expenseId,
         description: removed?.description ?? 'that expense',

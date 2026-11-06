@@ -3,22 +3,15 @@ import { useQuickSplitDraft } from '../lib/useQuickSplitDraft';
 import { QuickSplitResult } from '../components/QuickSplitResult';
 import { QuickSplitTip } from '../components/QuickSplitTip';
 import { SplitIntro } from '../components/SplitIntro';
-import { useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Money, dollarsToCents } from '@owewell/shared';
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { Money } from '@owewell/shared';
 import { useAuth } from '../auth/AuthContext';
 import { PublicHeader } from '../components/PublicHeader';
-import { serverValue } from '../lib/splitValues';
+import { QUICK_SPLIT_LIMITS } from '@owewell/core';
+import { useSaveQuickSplit } from '../lib/useSaveQuickSplit';
 import { computeQuickSplit } from '../lib/quickSplitResult';
-import { clearQuickSplitDraft, writeQuickSplitDraft } from '../lib/quickSplitDraft';
 import { AppHeader } from '../components/AppHeader';
-import {
-  clearPendingSplit,
-  quickSplitApi,
-  stashPendingSplit,
-  type PendingItem,
-  type PendingSplit,
-} from '../lib/quicksplit';
 import QuickSplitItemRow from '../components/QuickSplitItemRow';
 import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
@@ -27,8 +20,7 @@ import { SessionNotice } from '../components/SessionNotice';
 
 export function QuickSplitPage(): ReactNode {
   usePageTitle('Split a bill');
-  const { user, login, loading, sessionError } = useAuth();
-  const navigate = useNavigate();
+  const { user, loading, sessionError } = useAuth();
   const {
     people,
     items,
@@ -44,6 +36,7 @@ export function QuickSplitPage(): ReactNode {
     setCustomTip,
     draftRestored,
     startFresh,
+    finishDraft,
     updatePerson,
     addPerson,
     removePerson,
@@ -58,7 +51,7 @@ export function QuickSplitPage(): ReactNode {
     canTryExample,
     tryExample,
   } = useQuickSplitDraft();
-  const [saving, setSaving] = useState(false);
+  const { saving, save } = useSaveQuickSplit(setError, finishDraft);
   const { status: shareStatus, share } = useShareAction(setError);
 
   const { named, effectivePayerId, effectiveYouId, transfers, grandTotal, yourShareCents, sharesByPerson } =
@@ -84,85 +77,6 @@ export function QuickSplitPage(): ReactNode {
       failureMessage: 'Couldn’t copy the split. Try again in a moment.',
       copyOnly: true,
     });
-  }
-
-  async function onSave(): Promise<void> {
-    setError(null);
-    if (named.length < 2) {
-      setError('Add at least two people.');
-      return;
-    }
-    if (!named.some((p) => p.id === effectivePayerId)) {
-      setError('Pick who paid.');
-      return;
-    }
-
-    const builtItems: PendingItem[] = [];
-    for (const item of items) {
-      if (!item.amount.trim()) continue;
-      let amountCents: number;
-      try {
-        amountCents = dollarsToCents(item.amount);
-      } catch {
-        setError('Enter a valid amount for each item.');
-        return;
-      }
-      if (amountCents <= 0) {
-        setError('Each item amount must be more than zero.');
-        return;
-      }
-      let values: (number | null)[];
-      try {
-        values = named.map((p) => serverValue(item.method, item.values[p.id] ?? '') ?? null);
-      } catch {
-        setError('Check the per-person values on each item.');
-        return;
-      }
-      // Only send per-item payers when the split-tabs toggle is on; otherwise the backend
-      // falls back to the single default payer.
-      const payerIndex = splitPayers
-        ? named.findIndex((p) => p.id === (item.payerId || effectivePayerId))
-        : -1;
-      builtItems.push({
-        description: item.description.trim() || 'Quick split',
-        amountCents,
-        splitMethod: item.method,
-        values,
-        ...(payerIndex >= 0 ? { payerIndex } : {}),
-      });
-    }
-    if (builtItems.length === 0) {
-      setError('Add at least one item with an amount.');
-      return;
-    }
-
-    const pending: PendingSplit = {
-      people: named.map((p) => ({
-        name: p.name.trim(),
-        isPayer: p.id === effectivePayerId,
-        isYou: p.id === effectiveYouId,
-      })),
-      items: builtItems,
-    };
-    stashPendingSplit(pending);
-
-    if (!user) {
-      // Keep the editable bill if authentication is cancelled or the visitor returns here.
-      writeQuickSplitDraft({ people, items, payerId, splitPayers, youId });
-      login(window.location.origin);
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { groupId } = await quickSplitApi.save(pending);
-      clearPendingSplit();
-      clearQuickSplitDraft();
-      navigate(`/groups/${groupId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the split.');
-      setSaving(false);
-    }
   }
 
   return (
@@ -193,6 +107,7 @@ export function QuickSplitPage(): ReactNode {
                 <button
                   type="button"
                   onClick={startFresh}
+                  disabled={saving}
                   className="shrink-0 font-medium text-muted transition hover:text-ink hover:underline"
                 >
                   Start fresh
@@ -200,12 +115,13 @@ export function QuickSplitPage(): ReactNode {
               </div>
             )}
 
-            <div className="split-receipt">
+            <fieldset className="split-receipt" disabled={saving} aria-label="Bill details">
               <div className="surface space-y-2">
                 <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
                 {people.map((person, index) => (
                   <div key={person.id} className="flex items-center gap-2">
                     <input
+                      maxLength={QUICK_SPLIT_LIMITS.name}
                       value={person.name}
                       onChange={(e) => updatePerson(person.id, { name: e.target.value })}
                       placeholder={`Person ${index + 1}`}
@@ -216,7 +132,7 @@ export function QuickSplitPage(): ReactNode {
                       <button
                         type="button"
                         onClick={() => removePerson(person.id)}
-                        className="rounded-lg border border-line px-2 text-muted transition hover:bg-canvas"
+                        className="tap grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg border border-line text-muted transition hover:bg-canvas"
                         aria-label={`Remove person ${index + 1}`}
                       >
                         &times;
@@ -227,7 +143,8 @@ export function QuickSplitPage(): ReactNode {
                 <button
                   type="button"
                   onClick={addPerson}
-                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
+                  disabled={people.length >= QUICK_SPLIT_LIMITS.people}
+                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline disabled:opacity-50"
                 >
                   + Add person
                 </button>
@@ -240,9 +157,9 @@ export function QuickSplitPage(): ReactNode {
                     className={inputClass}
                     aria-label="Who paid?"
                   >
-                    {people.map((person, index) => (
+                    {named.map((person) => (
                       <option key={person.id} value={person.id}>
-                        {person.name.trim() || `Person ${index + 1}`}
+                        {person.name.trim()}
                       </option>
                     ))}
                   </SelectField>
@@ -293,7 +210,8 @@ export function QuickSplitPage(): ReactNode {
                 <button
                   type="button"
                   onClick={addItem}
-                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline"
+                  disabled={items.length >= QUICK_SPLIT_LIMITS.items}
+                  className="text-sm font-medium text-muted transition hover:text-ink hover:underline disabled:opacity-50"
                 >
                   + Add item
                 </button>
@@ -306,7 +224,7 @@ export function QuickSplitPage(): ReactNode {
                   clearGeneratedTip={clearGeneratedTip}
                 />
               </div>
-            </div>
+            </fieldset>
             <div className="split-summary surface">
               <div className={`split-total entry-amount ${grandTotal > 0 ? '' : 'hidden'}`}>
                 <span className="entry-amount-label">Bill total</span>
@@ -366,8 +284,21 @@ export function QuickSplitPage(): ReactNode {
               <SessionNotice />
               <button
                 type="button"
-                onClick={() => void onSave()}
-                disabled={saving || grandTotal <= 0 || loading || sessionError}
+                onClick={() =>
+                  void save(
+                    {
+                      people,
+                      items,
+                      payerId,
+                      splitPayers,
+                      youId,
+                      ...(activeTip ? { tipPercent: activeTip } : {}),
+                    },
+                    effectivePayerId,
+                    effectiveYouId,
+                  )
+                }
+                disabled={saving || transfers === null || loading || sessionError}
                 className="mt-3 w-full rounded-full border border-line-strong px-5 py-3 font-semibold transition hover:bg-surface2 active:scale-[0.98] disabled:opacity-60"
               >
                 {loading

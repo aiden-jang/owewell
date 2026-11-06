@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -24,9 +24,8 @@ const authStub = {
   accountUrl: 'https://accounts.example/account',
 };
 vi.mock('../auth/AuthContext', () => ({ useAuth: () => authStub }));
-vi.mock('../lib/quicksplit', () => ({
-  clearPendingSplit: vi.fn(),
-  stashPendingSplit: vi.fn(),
+vi.mock('../lib/quicksplit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/quicksplit')>()),
   quickSplitApi: { save: vi.fn() },
 }));
 
@@ -70,6 +69,46 @@ beforeEach(() => {
   window.localStorage.clear();
   authStub.signup.mockReset();
   authStub.login.mockReset();
+});
+
+it('waits for a second named person before presenting or copying a split', async () => {
+  const user = await open();
+  await user.type(screen.getByLabelText('Item 1 amount'), '40');
+  expect(screen.queryByText(/All settled up/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Copy summary' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Sign in to save split' })).toBeDisabled();
+  expect(within(screen.getByRole('combobox', { name: 'Who paid?' })).getAllByRole('option')).toHaveLength(1);
+});
+
+it('recalculates an active tip when the original amount is cleared and replaced', async () => {
+  const user = await open();
+  await namePeople(user, 'Alex', 'Sam');
+  const bill = screen.getByLabelText('Item 1 amount');
+  await user.type(bill, '40');
+  await user.click(screen.getByText('Add a tip', { exact: true }));
+  await user.click(screen.getByRole('button', { name: /^20%$/ }));
+  expect(screen.getByLabelText('Item 2 amount')).toHaveValue('8.00');
+  await user.clear(bill);
+  await user.type(bill, '80');
+  expect(screen.getByLabelText('Item 2 amount')).toHaveValue('16.00');
+  expect(owedLines()).toEqual(['Sam owes Alex$48.00']);
+});
+
+it('keeps the bill open if storage cannot preserve it through sign-in', async () => {
+  const user = await open();
+  await namePeople(user, 'Alex', 'Sam');
+  await user.type(screen.getByLabelText('Item 1 amount'), '40');
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new Error('Full');
+  });
+  try {
+    await user.click(screen.getByRole('button', { name: 'Sign in to save split' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('couldn’t keep your bill');
+    expect(screen.getByLabelText('Item 1 amount')).toHaveValue('40.00');
+    expect(authStub.login).not.toHaveBeenCalled();
+  } finally {
+    write.mockRestore();
+  }
 });
 
 describe('the split itself', () => {

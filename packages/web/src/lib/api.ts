@@ -21,8 +21,9 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, actorId?: string): Promise<T> {
   const headers = new Headers(options.headers);
+  if (actorId) headers.set('X-Owewell-Actor', actorId);
   // Only declare a JSON body when there actually is one; an empty body with this
   // content-type makes the server's JSON parser reject the request.
   if (options.body !== undefined && !headers.has('Content-Type')) {
@@ -55,12 +56,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   get: <T>(path: string): Promise<T> => request<T>(path),
-  post: <T>(path: string, body?: unknown): Promise<T> => {
+  post: <T>(path: string, body?: unknown, actorId?: string): Promise<T> => {
     const init: RequestInit = { method: 'POST' };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
     }
-    return request<T>(path, init);
+    return request<T>(path, init, actorId);
   },
   patch: <T>(path: string, body?: unknown): Promise<T> => {
     const init: RequestInit = { method: 'PATCH' };
@@ -69,12 +70,12 @@ export const api = {
     }
     return request<T>(path, init);
   },
-  put: <T>(path: string, body?: unknown): Promise<T> => {
+  put: <T>(path: string, body?: unknown, actorId?: string): Promise<T> => {
     const init: RequestInit = { method: 'PUT' };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
     }
-    return request<T>(path, init);
+    return request<T>(path, init, actorId);
   },
-  del: <T>(path: string): Promise<T> => request<T>(path, { method: 'DELETE' }),
+  del: <T>(path: string, actorId?: string): Promise<T> => request<T>(path, { method: 'DELETE' }, actorId),
 };

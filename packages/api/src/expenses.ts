@@ -1,4 +1,4 @@
-import { insertRows } from './db/rows.js';
+import { insertStatements } from './db/rows.js';
 import { changedFields, computeSplit } from '@owewell/shared';
 import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
@@ -6,14 +6,17 @@ import { requireMembership } from './groups.js';
 import {
   assertUnlocked,
   assertVersion,
-  clearItemizedRows,
+  commitExpenseUpdate,
+  nextExpenseVersion,
   findByClientId,
+  commitExpenseCreate,
   memberPersonIds,
 } from './expenseGuards.js';
 import { listExpenses } from './expenseList.js';
 export { getBalances } from './balances.js';
-import { expenseRevisions, expenseSplits, expenses } from './db/schema.js';
+import { expenseItems, expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 
+import { planExpenseCreate } from './expenseCreate.js';
 import { ExpenseError, type CreateExpenseInput, type ExpenseView } from './expenseContracts.js';
 export { ExpenseError } from './expenseContracts.js';
 export type { CreateExpenseInput, ExpenseView } from './expenseContracts.js';
@@ -37,55 +40,11 @@ export async function createExpense(
     throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
   }
 
-  // Generated before the split, not after: the id seeds which participant absorbs the odd cent on an
-  // uneven bill. Seeded per expense, the leftover moves around instead of always landing on whoever is
-  // listed first (in practice the owner).
-  const id = crypto.randomUUID();
-
-  let shares;
-  try {
-    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, input.splitSeed ?? id);
-  } catch (err) {
-    throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
-  }
-  const valueByPerson = new Map(input.participants.map((p) => [p.userId, p.value]));
-  await db.insert(expenses).values({
-    id,
-    groupId,
-    payerId: input.payerId,
-    createdById: personId,
-    description: input.description,
-    amountCents: input.amountCents,
-    splitMethod: input.splitMethod,
-    category: input.category ?? null,
-    date: input.date ?? null,
-    note: input.note ?? null,
-    clientId: input.clientId ?? null,
-  });
-  await insertRows(
-    db,
-    expenseSplits,
-    shares.map((s) => ({
-      id: crypto.randomUUID(),
-      expenseId: id,
-      personId: s.userId,
-      owedCents: s.owedCents,
-      inputValue: valueByPerson.get(s.userId) ?? null,
-    })),
-  );
-  return {
-    id,
-    description: input.description,
-    amountCents: input.amountCents,
-    payerId: input.payerId,
-    splitMethod: input.splitMethod,
-    category: input.category ?? null,
-    createdAt: new Date(),
-    date: input.date ?? new Date(),
-    note: input.note ?? null,
-    version: 1,
-    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
-  };
+  const { row, splitRows, view } = planExpenseCreate(personId, groupId, input);
+  return commitExpenseCreate(db, groupId, input.clientId, view, [
+    db.insert(expenses).values(row),
+    ...insertStatements(db, expenseSplits, splitRows),
+  ]);
 }
 
 /** Replace a simple (non-itemized) expense in place, recomputing its splits. Preserves createdAt. */
@@ -128,59 +87,54 @@ export async function updateExpense(
   }
   const valueByPerson = new Map(input.participants.map((p) => [p.userId, p.value]));
 
-  await db
-    .update(expenses)
-    .set({
-      payerId: input.payerId,
-      description: input.description,
-      amountCents: input.amountCents,
-      splitMethod: input.splitMethod,
-      category: input.category ?? null,
-      taxCents: 0,
-      tipCents: 0,
-      date: input.date ?? null,
-      note: input.note ?? null,
-      version: existing.version + 1,
-    })
-    .where(eq(expenses.id, expenseId));
-  /*
-   * Record what it said before, written after the update so a failed edit leaves no revision for a
-   * change that never happened. Only when something moved: re-saving an untouched form is not a
-   * correction, and a row for it would bury the ones that matter.
-   */
-  const changed = changedFields(existing, {
-    description: input.description,
-    amountCents: input.amountCents,
-    payerId: input.payerId,
-    splitMethod: input.splitMethod,
-  });
-  if (changed.length > 0) {
-    await db.insert(expenseRevisions).values({
-      id: crypto.randomUUID(),
-      expenseId,
-      editedById: personId,
-      editedAt: new Date(),
-      description: existing.description,
-      amountCents: existing.amountCents,
-      payerId: existing.payerId,
-      splitMethod: existing.splitMethod,
-      fields: changed.join(','),
-    });
-  }
-
-  await clearItemizedRows(db, expenseId); // in case it used to be itemized
-  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await insertRows(
-    db,
-    expenseSplits,
-    shares.map((s) => ({
-      id: crypto.randomUUID(),
-      expenseId,
-      personId: s.userId,
-      owedCents: s.owedCents,
-      inputValue: valueByPerson.get(s.userId) ?? null,
-    })),
-  );
+  const changed = changedFields(existing, input);
+  const revision =
+    changed.length > 0
+      ? [
+          db.insert(expenseRevisions).values({
+            id: crypto.randomUUID(),
+            expenseId,
+            editedById: personId,
+            editedAt: new Date(),
+            description: existing.description,
+            amountCents: existing.amountCents,
+            payerId: existing.payerId,
+            splitMethod: existing.splitMethod,
+            fields: changed.join(','),
+          }),
+        ]
+      : [];
+  await commitExpenseUpdate(db, groupId, expenseId, existing.version, [
+    db
+      .update(expenses)
+      .set({
+        payerId: input.payerId,
+        description: input.description,
+        amountCents: input.amountCents,
+        splitMethod: input.splitMethod,
+        category: input.category ?? null,
+        taxCents: 0,
+        tipCents: 0,
+        date: input.date ?? null,
+        note: input.note ?? null,
+        version: nextExpenseVersion(groupId, existing.version),
+      })
+      .where(eq(expenses.id, expenseId)),
+    ...revision,
+    db.delete(expenseItems).where(eq(expenseItems.expenseId, expenseId)),
+    db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId)),
+    ...insertStatements(
+      db,
+      expenseSplits,
+      shares.map((s) => ({
+        id: crypto.randomUUID(),
+        expenseId,
+        personId: s.userId,
+        owedCents: s.owedCents,
+        inputValue: valueByPerson.get(s.userId) ?? null,
+      })),
+    ),
+  ]);
   return {
     id: expenseId,
     description: input.description,

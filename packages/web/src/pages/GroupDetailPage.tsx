@@ -39,7 +39,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const ledger = useGroupLedger(id);
+  const ledger = useGroupLedger(id, user?.id);
   const {
     group,
     balances,
@@ -61,6 +61,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
   usePageTitle(group?.name ?? 'Opening group');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [membersDirty, setMembersDirty] = useState(false);
   // All the viewer's groups, for the header switcher. Fetched once; the list rarely changes.
   const [allGroups, setAllGroups] = useState<GroupSummary[]>([]);
   // A "person lens" over both the breakdown and the feed: pick a person, then how they relate to
@@ -70,13 +71,8 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
   // Held by id, not by value: an edit or a realtime refetch replaces the object in `expenses`, and the
   // open sheet has to follow it. A deleted expense drops out of the list, which closes the sheet.
   const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
-  /*
-   * Whether the feed has any rows to show, which is not the same as whether the group has history:
-   * an expense with a delete waiting to be sent is already gone from the list. Deleting your last
-   * one offline has to hide the floating button too, or it sits on top of the empty state's own
-   * "add expense" and the screen offers the same action twice.
-   */
-  const ledgerHasRows = settlements.length > 0 || expenses.some((e) => !pendingDeletes.has(e.id));
+  const visibleExpenses = expenses.filter((expense) => !pendingDeletes.has(expense.id));
+  const ledgerHasRows = settlements.length > 0 || visibleExpenses.length > 0 || pendingRows.length > 0;
   const [paymentOpen, setPaymentOpen] = useState(false);
   const paymentBeforeRef = useRef<Balance[] | null>(null);
 
@@ -105,7 +101,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
     renameMember,
     saveMemberHandles,
     addMember,
-  } = useGroupActions(id, ledger, invite);
+  } = useGroupActions(id, ledger, invite, user?.id);
 
   if (loadFailed || notFound || !group) {
     return <GroupLoadingState loadFailed={loadFailed} notFound={notFound} onRetry={() => void load()} />;
@@ -113,7 +109,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
 
   const nameOf = (userId: string): string =>
     group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
-  const detailExpense = expenses.find((e) => e.id === detailExpenseId) ?? null;
+  const detailExpense = visibleExpenses.find((e) => e.id === detailExpenseId) ?? null;
   const isOwner = group.members.find((m) => m.userId === user?.id)?.role === 'OWNER';
   // You can be square while the group still has debts between others, so "all settled" is about the
   // outstanding transfers rather than about any one person. The hero derives its own copy of this
@@ -175,7 +171,8 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
 
       {ledgerHasRows && (
         <GroupActivityShortcut
-          expenses={expenses}
+          expenses={visibleExpenses}
+          hasPending={pendingRows.length > 0}
           onAdd={() => setSheetOpen(true)}
           onOpen={setDetailExpenseId}
         />
@@ -277,7 +274,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
             onAddExpense={() => setSheetOpen(true)}
             breakdown={
               <SpendBreakdown
-                expenses={expenses}
+                expenses={visibleExpenses}
                 categoryFilter={categoryFilter}
                 onSelectCategory={setCategoryFilter}
               />
@@ -292,7 +289,15 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
       </div>
 
       {/* Roster management, out of the spending column and behind the group menu where it belongs. */}
-      <Sheet open={membersOpen} onClose={() => setMembersOpen(false)} title="Members">
+      <Sheet
+        open={membersOpen}
+        onClose={() => {
+          setMembersOpen(false);
+          setMembersDirty(false);
+        }}
+        title="Members"
+        unsavedChanges={membersDirty}
+      >
         <MembersPanel
           key={group.id}
           members={group.members}
@@ -303,6 +308,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
           paymentsRecorded={settlements.length > 0}
           onRename={renameMember}
           onSaveHandles={saveMemberHandles}
+          onDirtyChange={setMembersDirty}
           onAdd={addMember}
           onRemove={removeFromGroup}
         />
@@ -312,6 +318,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         groupId={group.id}
+        ownerId={user?.id}
         members={group.members}
         onCreated={(saved, mode) => {
           setSheetOpen(false);
@@ -329,6 +336,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
       <Sheet open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Log a payment" protectChanges>
         <RecordPaymentForm
           groupId={group.id}
+          ownerId={user?.id}
           members={group.members}
           balances={balances}
           defaultFromId={user?.id}

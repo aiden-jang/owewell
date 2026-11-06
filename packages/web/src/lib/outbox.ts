@@ -12,6 +12,7 @@ const KEY = 'owewell:outbox';
 interface QueuedBase {
   /** Identifies this write across retries. For creates it is also the server's idempotency key. */
   clientId: string;
+  ownerId?: string | undefined;
   groupId: string;
   /** Enough to name it in a message without unpacking the payload. */
   description: string;
@@ -97,13 +98,37 @@ function write(entries: QueuedWrite[]): boolean {
 
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);
-  return () => listeners.delete(fn);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === KEY || event.key === null) fn();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    listeners.delete(fn);
+    window.removeEventListener('storage', onStorage);
+  };
 }
 
 /** Everything still waiting, oldest first, so replay preserves the order they were typed in. */
-export function queued(groupId?: string): QueuedWrite[] {
-  const all = (read() ?? []).sort((a, b) => a.queuedAt - b.queuedAt);
-  return groupId ? all.filter((e) => e.groupId === groupId) : all;
+export function queued(groupId?: string, ownerId?: string): QueuedWrite[] {
+  return (read() ?? [])
+    .filter((entry) => (!groupId || entry.groupId === groupId) && (!ownerId || entry.ownerId === ownerId))
+    .sort((a, b) => a.queuedAt - b.queuedAt);
+}
+
+export function unassignedWrites(groupId?: string): QueuedWrite[] {
+  return queued(groupId).filter((entry) => !entry.ownerId);
+}
+
+export function adoptWrites(ownerId: string, clientIds: Set<string>): boolean {
+  const entries = read();
+  return (
+    entries !== null &&
+    write(
+      entries.map((entry) =>
+        !entry.ownerId && clientIds.has(entry.clientId) ? { ...entry, ownerId } : entry,
+      ),
+    )
+  );
 }
 
 export const OUTBOX_STORAGE_ERROR =
@@ -132,8 +157,15 @@ export interface FlushResult {
   paused?: 'sign-in' | 'temporary' | 'storage';
   /** Writes the server refused outright. Dropped from the queue; the caller has to say so. */
   rejected: { entry: QueuedWrite; message: string }[];
-  /** Edits the row moved out from under. Dropped too, but they need a question, not a message. */
+  /** Edits that still need a decision before they can leave the queue. */
   conflicted: QueuedEdit[];
+}
+
+export function pauseFor(error: unknown): FlushResult['paused'] {
+  if (!(error instanceof ApiError)) return undefined;
+  if (error.status === 401) return 'sign-in';
+  if (error.status === 408 || error.status === 429 || error.status >= 500) return 'temporary';
+  return undefined;
 }
 
 /**
@@ -143,24 +175,20 @@ export interface FlushResult {
 export async function flush(
   send: (entry: QueuedWrite) => Promise<unknown>,
   groupId?: string,
+  ownerId?: string,
 ): Promise<FlushResult> {
   const result: FlushResult = { sent: 0, rejected: [], conflicted: [] };
-  for (const entry of queued(groupId)) {
+  for (const entry of queued(groupId, ownerId)) {
     try {
       await send(entry);
     } catch (err) {
       if (isOffline(err)) return result;
-      if (err instanceof ApiError) {
-        if (err.status === 401) return { ...result, paused: 'sign-in' };
-        if (err.status === 408 || err.status === 429 || err.status >= 500) {
-          return { ...result, paused: 'temporary' };
-        }
+      const paused = pauseFor(err);
+      if (paused) return { ...result, paused };
+      if (isConflict(err) && isEdit(entry)) {
+        return { ...result, conflicted: [entry] };
       }
       if (!drop(entry.clientId)) return { ...result, paused: 'storage' };
-      if (isConflict(err) && isEdit(entry)) {
-        result.conflicted.push(entry);
-        continue;
-      }
       result.rejected.push({
         entry,
         message: err instanceof Error ? err.message : 'The server would not take it.',

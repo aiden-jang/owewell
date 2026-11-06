@@ -4,8 +4,16 @@ import { expensesApi } from './expenses';
 import { settlementsApi } from './settlements';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
+import { useAsyncScope } from './useAsyncScope';
 import {
+  adoptWrites,
+  drop,
   flush,
+  isOffline,
+  OUTBOX_STORAGE_ERROR,
+  pauseFor,
+  queued,
+  unassignedWrites,
   isAlreadyDone,
   subscribe,
   type FlushResult,
@@ -16,44 +24,54 @@ import {
 // Dashboard sync covers all groups; a group screen refreshes only its own ledger.
 
 /** Send one queued write. The four kinds differ in exactly the ways the outbox comments describe. */
-function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
+function sendQueuedWrite(entry: QueuedWrite, ownerId: string): Promise<unknown> {
   switch (entry.kind) {
     case 'settlement':
-      return settlementsApi.record(entry.groupId, entry.payload);
+      return settlementsApi.record(entry.groupId, entry.payload, ownerId);
     case 'edit':
-      return expensesApi.update(entry.groupId, entry.expenseId, entry.payload as CreateExpensePayload);
+      return expensesApi.update(
+        entry.groupId,
+        entry.expenseId,
+        entry.payload as CreateExpensePayload,
+        ownerId,
+      );
     case 'edit-itemized':
       return expensesApi.updateItemized(
         entry.groupId,
         entry.expenseId,
         entry.payload as CreateItemizedPayload,
+        ownerId,
       );
     case 'delete':
       // A queued delete finding nothing to delete got what it wanted, so it leaves the queue rather
       // than being reported as a failure the person has to do something about.
-      return expensesApi.remove(entry.groupId, entry.expenseId).catch((err: unknown) => {
+      return expensesApi.remove(entry.groupId, entry.expenseId, ownerId).catch((err: unknown) => {
         if (!isAlreadyDone(err)) throw err;
       });
     case 'itemized':
-      return expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload);
+      return expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload, ownerId);
     default:
-      return expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload);
+      return expensesApi.create(entry.groupId, entry.payload as CreateExpensePayload, ownerId);
   }
 }
 
 export interface OutboxSync {
   paused: FlushResult['paused'];
   syncing: boolean;
+  unassigned: number;
+  recover: () => Promise<void>;
   retry: () => Promise<void>;
 }
 
 export function useOutboxSync({
   groupId,
+  ownerId,
   onChanged,
   onQueueChanged,
 }: {
   /** Limits the sync to one group. Omit to drain everything, which is what the dashboard does. */
   groupId?: string;
+  ownerId?: string | undefined;
   /** Something reached the server, so whatever this screen shows is now stale. */
   onChanged: () => void;
   /** The queue itself moved, for screens that render what is still waiting. */
@@ -61,7 +79,9 @@ export function useOutboxSync({
 }): OutboxSync {
   const toast = useToast();
   const confirm = useConfirm();
-  const flushing = useRef(false);
+  const flushing = useRef<(() => boolean) | null>(null);
+  const { captureScope } = useAsyncScope(JSON.stringify([groupId, ownerId]));
+  const [unassigned, setUnassigned] = useState(() => unassignedWrites(groupId).length);
   const [syncing, setSyncing] = useState(false);
   const [paused, setPaused] = useState<FlushResult['paused']>();
   // Held in refs so the callbacks can change every render without restarting the effect below.
@@ -70,70 +90,112 @@ export function useOutboxSync({
   const queueChanged = useRef(onQueueChanged);
   queueChanged.current = onQueueChanged;
 
-  const applyMine = useCallback(
-    async (entry: QueuedEdit): Promise<void> => {
-      try {
-        // Without expectedVersion, so it overwrites rather than conflicting with the very change it
-        // was just told about.
-        const { expectedVersion: _dropped, ...forced } = entry.payload as { expectedVersion?: number };
-        if (entry.kind === 'edit-itemized') {
-          await expensesApi.updateItemized(entry.groupId, entry.expenseId, forced as CreateItemizedPayload);
-        } else {
-          await expensesApi.update(entry.groupId, entry.expenseId, forced as CreateExpensePayload);
-        }
-        changed.current();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Could not apply your version.');
-      }
-    },
-    [toast],
-  );
-
   const run = useCallback(async (): Promise<void> => {
-    // Serialize flushes so overlapping reconnect events do not replay the same entry concurrently.
-    if (flushing.current) return;
-    flushing.current = true;
+    if (!ownerId || flushing.current?.()) return;
+    const current = captureScope();
+    flushing.current = current;
     setSyncing(true);
-    try {
-      const { sent, rejected, conflicted, paused: reason } = await flush(sendQueuedWrite, groupId);
-      setPaused(reason);
-      queueChanged.current?.();
+    const send = (entry: QueuedWrite) => sendQueuedWrite(entry, ownerId);
+    const drain = async () => {
+      let result: FlushResult;
+      do {
+        result = await flush(send, groupId, ownerId);
+        if (!current()) return;
+        setPaused(result.paused);
+        queueChanged.current?.();
 
-      if (sent > 0) {
-        toast.success(sent === 1 ? 'Sent the change that was waiting.' : `Sent ${sent} waiting changes.`);
-        changed.current();
-      }
-      for (const { entry, message } of rejected) {
-        // Named, because it is gone from the queue and the person has to know which one to retype.
-        toast.error(`"${entry.description}" could not be saved: ${message}`);
-      }
-
-      // Resolve queued edit conflicts in order; silently applying one could erase newer work.
-      for (const entry of conflicted) {
+        if (result.sent > 0) {
+          toast.success(
+            result.sent === 1 ? 'Sent the change that was waiting.' : `Sent ${result.sent} waiting changes.`,
+          );
+          changed.current();
+        }
+        for (const { entry, message } of result.rejected) {
+          toast.error(`“${entry.description}” could not be saved: ${message}`);
+        }
+        const entry = result.conflicted[0];
+        if (!entry) break;
         const keepMine = await confirm({
-          title: `"${entry.description}" changed while you were offline`,
-          body: 'Somebody else edited it after you did. Apply your version anyway, or drop yours and keep theirs?',
+          title: `“${entry.description}” changed while you were offline`,
+          body: 'Apply your version, or keep the version currently in the ledger?',
           confirmLabel: 'Apply mine',
           cancelLabel: 'Keep theirs',
         });
-        if (keepMine) await applyMine(entry);
+        if (!current()) return;
+        if (!queued(groupId, ownerId).some((row) => row.clientId === entry.clientId)) continue;
+        if (keepMine) {
+          try {
+            const { expectedVersion: _version, ...payload } = entry.payload;
+            await send({ ...entry, payload } as QueuedEdit);
+            if (current()) changed.current();
+          } catch (error) {
+            if (current()) {
+              setPaused(pauseFor(error));
+              toast.error(
+                isOffline(error)
+                  ? 'Still offline. Your edit is waiting on this device.'
+                  : 'Could not apply your version. Your edit is still waiting.',
+              );
+            }
+            return;
+          }
+        }
+        if (!drop(entry.clientId)) {
+          if (current()) setPaused('storage');
+          return;
+        }
+      } while (current() && result.conflicted.length > 0);
+    };
+    try {
+      if (navigator.locks) {
+        await navigator.locks.request(`owewell:sync:${ownerId}`, async () => {
+          if (current()) await drain();
+        });
+      } else {
+        await drain();
       }
     } finally {
-      flushing.current = false;
-      setSyncing(false);
+      if (flushing.current === current) flushing.current = null;
+      if (current()) setSyncing(false);
     }
-  }, [applyMine, confirm, groupId, toast]);
+  }, [captureScope, confirm, groupId, ownerId, toast]);
+
+  const recover = useCallback(async () => {
+    if (!ownerId) return;
+    const current = captureScope();
+    const entry = unassignedWrites(groupId)[0];
+    if (!entry) return;
+    const approved = await confirm({
+      title: 'Is this your saved change?',
+      body: `“${entry.description}” was saved by an older version of Owewell. Only continue if you entered it under this account.`,
+      confirmLabel: 'Sync this change',
+      cancelLabel: 'Leave on device',
+    });
+    if (!approved || !current()) return;
+    if (!adoptWrites(ownerId, new Set([entry.clientId]))) {
+      toast.error(OUTBOX_STORAGE_ERROR);
+      return;
+    }
+    await run();
+  }, [captureScope, confirm, groupId, ownerId, run, toast]);
 
   useEffect(() => {
+    const refresh = () => {
+      setUnassigned(unassignedWrites(groupId).length);
+      queueChanged.current?.();
+    };
+    setSyncing(false);
+    setPaused(undefined);
+    refresh();
     void run();
     const onOnline = (): void => void run();
     window.addEventListener('online', onOnline);
-    const unsubscribe = subscribe(() => queueChanged.current?.());
+    const unsubscribe = subscribe(refresh);
     return () => {
       window.removeEventListener('online', onOnline);
       unsubscribe();
     };
-  }, [run]);
+  }, [groupId, run]);
 
-  return { paused, syncing, retry: run };
+  return { paused, syncing, retry: run, unassigned, recover };
 }

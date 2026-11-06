@@ -1,3 +1,4 @@
+import type { Expense } from './expenses';
 import { dollarsToCents, type SplitMethod } from '@owewell/shared';
 import type { GroupMember } from './groups';
 
@@ -64,4 +65,18 @@ export function expenseSplitHint(
   }
 
   return splitHint;
+}
+
+/** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
+export function initialValues(editing: Expense | undefined): Record<string, string> {
+  if (!editing || editing.splitMethod === 'ITEMIZED' || editing.splitMethod === 'EQUAL') return {};
+  const method = editing.splitMethod;
+  const out: Record<string, string> = {};
+  for (const s of editing.splits) {
+    if (s.inputValue == null) continue;
+    if (method === 'EXACT') out[s.userId] = (s.inputValue / 100).toFixed(2);
+    else if (method === 'PERCENT') out[s.userId] = String(s.inputValue / 100);
+    else out[s.userId] = String(s.inputValue); // SHARES
+  }
+  return out;
 }

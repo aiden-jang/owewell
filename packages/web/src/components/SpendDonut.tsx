@@ -107,7 +107,7 @@ export function SpendDonut({
                   onClick={() => onSelect(active ? null : a.meta.key)}
                   aria-pressed={active}
                   aria-label={`${active ? 'Clear filter' : 'Filter activity by'} ${a.meta.label}`}
-                  className={`-mx-2 flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-sm transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
+                  className={`-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1 text-left text-sm transition hover:bg-surface2 ${active ? 'bg-accent-soft' : ''}`}
                 >
                   {inner}
                 </button>

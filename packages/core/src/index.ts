@@ -94,6 +94,8 @@ export interface Balance {
 // --- Expenses ---------------------------------------------------------------
 
 /** Persisted expenses also carry the itemized method, which isn't a user-chosen split rule. */
+export const QUICK_SPLIT_LIMITS = { people: 50, items: 50, name: 80, description: 140 } as const;
+
 export type ExpenseSplitMethod = SplitMethod | 'ITEMIZED';
 
 export interface ExpenseSplit {

@@ -24,6 +24,7 @@ export function AddExpenseSheet({
   open,
   onClose,
   groupId,
+  ownerId,
   members,
   onCreated,
   onQueued,
@@ -31,6 +32,7 @@ export function AddExpenseSheet({
   open: boolean;
   onClose: () => void;
   groupId: string;
+  ownerId?: string | undefined;
   members: GroupMember[];
   onCreated: (saved: Expense, mode: ExpenseMode) => void;
   /** It could not be sent, so it is in the outbox under this description. */
@@ -63,6 +65,7 @@ export function AddExpenseSheet({
   const formProps = {
     key: `${groupId}-${mode}`,
     groupId,
+    ownerId,
     members,
     onCreated: (saved: Expense) => onCreated(saved, mode),
     onQueued,

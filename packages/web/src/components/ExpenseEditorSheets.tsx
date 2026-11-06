@@ -72,6 +72,7 @@ export function ExpenseEditorSheets({
             <Form
               key={`${editor.mode}-${editor.expense.id}`}
               groupId={group.id}
+              ownerId={viewerId}
               members={group.members}
               {...(editor.mode === 'edit' ? { editing: editor.expense } : { template: editor.expense })}
               onCreated={(saved) => {

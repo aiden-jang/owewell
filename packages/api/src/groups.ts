@@ -166,8 +166,10 @@ export async function setGroupArchived(
 
 export async function createGroup(db: DB, personId: string, name: string): Promise<GroupDetail> {
   const id = crypto.randomUUID();
-  await db.insert(groups).values({ id, name, createdById: personId });
-  await db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: id, personId, role: 'OWNER' });
+  await db.batch([
+    db.insert(groups).values({ id, name, createdById: personId }),
+    db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: id, personId, role: 'OWNER' }),
+  ]);
   return getGroup(db, personId, id);
 }
 

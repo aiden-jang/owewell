@@ -65,10 +65,27 @@ describe('matchesPersonLens', () => {
 describe('lensAmount', () => {
   it('uses the full bill for involved/paid and the person share for owes', () => {
     expect(lensAmount(e1, 'B', 'involved')).toBe(6000);
-    expect(lensAmount(e1, 'B', 'paid')).toBe(6000);
+    expect(lensAmount(e1, 'A', 'paid')).toBe(6000);
+    expect(lensAmount(e1, 'B', 'paid')).toBe(0);
     expect(lensAmount(e1, 'B', 'owes')).toBe(2000);
     expect(lensAmount(e1, null, 'owes')).toBe(6000); // no person → full
   });
+});
+
+it('credits item payers and their share of tax and tip', () => {
+  const receipt: Expense = {
+    ...e1,
+    splitMethod: 'ITEMIZED',
+    amountCents: 6600,
+    taxCents: 600,
+    items: [
+      { name: 'Dinner', amountCents: 4000, participantIds: ['A', 'B'] },
+      { name: 'Dessert', amountCents: 2000, participantIds: ['A'], payerId: 'B' },
+    ],
+  };
+  expect(matchesPersonLens(receipt, 'B', 'paid')).toBe(true);
+  expect(lensAmount(receipt, 'A', 'paid')).toBe(4400);
+  expect(lensAmount(receipt, 'B', 'paid')).toBe(2200);
 });
 
 describe('lensTotal', () => {

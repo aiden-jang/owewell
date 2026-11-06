@@ -92,7 +92,7 @@ export function computeQuickSplit(input: {
       any = true;
     }
 
-    if (!any) return { ...empty, grandTotal };
+    if (!any || named.length < 2) return { ...empty, grandTotal };
 
     // Net each person, then derive the settlement transfers — the same math the saved group shows.
     const transfers = simplifyDebts(

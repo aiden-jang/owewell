@@ -121,7 +121,10 @@ api.use('*', async (c, next) => {
     return c.json({ error: 'AUTH_UNAVAILABLE' }, 503, { 'Retry-After': '30' });
   }
   if (session.state === 'signed-out') return c.json({ error: 'UNAUTHENTICATED' }, 401);
-  c.set('person', await getOrCreatePerson(createDb(c.env), session.user));
+  const person = await getOrCreatePerson(createDb(c.env), session.user);
+  const expectedActor = c.req.header('X-Owewell-Actor');
+  if (expectedActor && expectedActor !== person.id) return c.json({ error: 'ACCOUNT_CHANGED' }, 401);
+  c.set('person', person);
   await next();
 });
 
@@ -326,6 +329,7 @@ api.post('/quick-splits', async (c) => {
   const parsed = quickSplitBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const result = await createQuickSplit(createDb(c.env), c.get('person').id, {
+    clientId: parsed.data.clientId,
     people: parsed.data.people.map((p) => ({
       name: p.name,
       isPayer: Boolean(p.isPayer),

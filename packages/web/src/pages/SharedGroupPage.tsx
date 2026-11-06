@@ -2,17 +2,16 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
-import { categoryMeta, type SharedGroupSummary } from '@owewell/core';
+import type { SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
 import { groupsApi } from '../lib/groups';
-import { CategoryDot } from '../components/CategoryMark';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { Avatar } from '../components/Avatar';
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
-import { SpendDonut } from '../components/SpendDonut';
+import { SharedSpendBreakdown } from '../components/SharedSpendBreakdown';
 import { useToast } from '../components/Toast';
 import { useAsyncScope } from '../lib/useAsyncScope';
 import { SessionNotice } from '../components/SessionNotice';
@@ -31,11 +30,6 @@ function balanceLabel(
     : { text: `owes ${amount}`, tone: 'text-neg' };
 }
 
-/**
- * Public, read-only view of a group behind a share token. Anyone with the link sees the
- * summary. A signed-in visitor can claim an unclaimed seat (placeholder) that's theirs, which
- * makes them a real member and opens the editable group. Members just open it directly.
- */
 export function SharedGroupPage(): ReactNode {
   const { token } = useParams<{ token: string }>();
   return <SharedGroupView key={token} token={token} />;
@@ -51,17 +45,25 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
   const [summary, setSummary] = useState<SharedGroupSummary | null>(null);
   usePageTitle(status === 'ready' && summary ? summary.groupName : 'Shared group');
   const [claiming, setClaiming] = useState<string | null>(null);
-  const [breakdownView, setBreakdownView] = useState<'bars' | 'donut'>('bars');
+  const [expiredSeat, setExpiredSeat] = useState<string | null>(null);
   const autoClaimed = useRef(false);
   const loadSummaryAfterClaim = useRef<(() => void) | null>(null);
 
-  // Claim a seat. Signed out → sign in and come back with ?claim=<seat> so we finish
-  // automatically. Signed in → merge the seat and drop into the now-editable group.
+  const signInForSeat = useCallback(
+    (seatId: string) => {
+      const returnTo = new URL(`/s/${encodeURIComponent(token ?? '')}`, window.location.origin);
+      returnTo.searchParams.set('claim', seatId);
+      login(returnTo.href);
+    },
+    [login, token],
+  );
+
+  // Keep the requested seat until the claim completes or the server rules it out.
   const claimSeat = useCallback(
     async (seatId: string): Promise<void> => {
       if (!token || loading || sessionError) return;
-      if (!user) {
-        login(`${window.location.origin}/s/${token}?claim=${seatId}`);
+      if (!user || expiredSeat) {
+        signInForSeat(seatId);
         return;
       }
       setClaiming(seatId);
@@ -71,18 +73,37 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
         if (current()) navigate(`/groups/${groupId}`);
       } catch (err) {
         if (!current()) return;
-        // Surfaces the server's reason, e.g. "You're already in this group." for a member, or a
-        // taken/invalid seat.
-        toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
-        if (
-          err instanceof ApiError &&
-          (err.status === 400 || err.status === 403 || err.status === 404 || err.status === 409)
-        )
-          loadSummaryAfterClaim.current?.();
+        if (err instanceof ApiError && err.status === 401) {
+          setExpiredSeat(seatId);
+        } else {
+          toast.error(err instanceof Error ? err.message : 'Could not claim that spot.');
+          if (err instanceof ApiError && [400, 403, 404, 409].includes(err.status)) {
+            setSearchParams(
+              (params) => {
+                const next = new URLSearchParams(params);
+                next.delete('claim');
+                return next;
+              },
+              { replace: true },
+            );
+            loadSummaryAfterClaim.current?.();
+          }
+        }
         setClaiming(null);
       }
     },
-    [captureScope, loading, login, navigate, sessionError, toast, token, user],
+    [
+      captureScope,
+      expiredSeat,
+      loading,
+      navigate,
+      sessionError,
+      setSearchParams,
+      signInForSeat,
+      toast,
+      token,
+      user,
+    ],
   );
 
   const viewerIsMember = !!user && !!summary && summary.members.some((m) => m.userId === user.id);
@@ -104,8 +125,6 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
       })
       .catch((err) => {
         if (!current()) return;
-        // A real dead/disabled link is a 404/403; anything else (offline, 5xx) is transient and
-        // shouldn't tell an invited person their invite is gone. Offer a retry instead.
         if (err instanceof ApiError && (err.status === 404 || err.status === 403)) setStatus('notfound');
         else setStatus('failed');
       });
@@ -117,27 +136,15 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
   }, [loadSummary]);
 
   // Returning from sign-in with ?claim=<seat>: finish the claim now and head to the group.
-  // Already-members just go straight in. Runs once; the param is cleared so a refresh won't retry.
+  // Already-members go straight in. Within this page, a failed automatic claim can be retried by hand.
   useEffect(() => {
     const seatId = searchParams.get('claim');
     if (loading || sessionError || status !== 'ready' || !summary || !user || !seatId || autoClaimed.current)
       return;
     autoClaimed.current = true;
-    setSearchParams({}, { replace: true });
     if (viewerIsMember) navigate(`/groups/${summary.groupId}`);
     else void claimSeat(seatId);
-  }, [
-    claimSeat,
-    loading,
-    navigate,
-    searchParams,
-    sessionError,
-    setSearchParams,
-    status,
-    summary,
-    user,
-    viewerIsMember,
-  ]);
+  }, [claimSeat, loading, navigate, searchParams, sessionError, status, summary, user, viewerIsMember]);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -260,8 +267,20 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                   {hasOpenSeats && !viewerIsMember && <SessionNotice />}
                   {!viewerIsMember && (
                     <p className="mt-2 text-xs text-muted">
-                      Viewing doesn’t join the group. If your name is listed, choose “This is me” to connect
-                      that spot and its balances to your account. Sign-in is required.
+                      Choose “This is me” beside your name to connect that spot and its balances to your
+                      account.
+                    </p>
+                  )}
+                  {expiredSeat && (
+                    <p role="status" className="mt-3 text-sm text-muted">
+                      Your sign-in expired.{' '}
+                      <button
+                        type="button"
+                        onClick={() => signInForSeat(expiredSeat)}
+                        className="tap font-medium text-accent underline underline-offset-4"
+                      >
+                        Sign in again to claim your spot
+                      </button>
                     </p>
                   )}
                   <ul className="mt-3 space-y-2">
@@ -277,11 +296,6 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                           key={i}
                           className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
                         >
-                          {/*
-                           * Name on the first line, money on the second, as on the group page's roster.
-                           * The balance and the claim button are both shrink-0, so on a phone the name
-                           * was the only thing that could give and a four-person list rendered "Mari…".
-                           */}
                           <span className="flex min-w-0 flex-1 items-center gap-3">
                             <Avatar name={m.displayName} />
                             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -311,64 +325,7 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                   </ul>
                 </section>
 
-                {summary.breakdown.length > 1 && (
-                  <section className="mt-8">
-                    <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-sm font-medium text-muted">Where it went</h2>
-                      <div className="inline-flex rounded-full border border-line p-0.5 text-xs">
-                        {(['bars', 'donut'] as const).map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => setBreakdownView(v)}
-                            aria-pressed={breakdownView === v}
-                            className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
-                              breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
-                            }`}
-                          >
-                            {v}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {breakdownView === 'donut' ? (
-                      <SpendDonut
-                        data={[...summary.breakdown]
-                          .sort((a, b) => b.cents - a.cents)
-                          .map(({ category, cents }) => ({ meta: categoryMeta(category), cents }))}
-                        total={summary.totalSpentCents}
-                      />
-                    ) : (
-                      <ul className="mt-3 space-y-2.5">
-                        {summary.breakdown.map(({ category, cents }) => {
-                          const meta = categoryMeta(category);
-                          return (
-                            // Same shape as the signed-in breakdown: figure above, bar across the row.
-                            <li key={category}>
-                              <span className="flex items-baseline justify-between gap-3 text-sm">
-                                <span className="min-w-0 truncate">
-                                  <CategoryDot categoryKey={meta.key} /> {meta.label}
-                                </span>
-                                <span className="tnum shrink-0 text-muted">{fmt(cents)}</span>
-                              </span>
-                              {/* The category's own hue, not the accent. This bar was the one place in
-                            the app where a category changed colour depending on who was looking. */}
-                              <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface2">
-                                <span
-                                  className="block h-full rounded-full"
-                                  style={{
-                                    width: `${Math.max(3, Math.round((cents / summary.totalSpentCents) * 100))}%`,
-                                    background: `var(--p-cat-${meta.key}, var(--p-accent))`,
-                                  }}
-                                />
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </section>
-                )}
+                <SharedSpendBreakdown breakdown={summary.breakdown} total={summary.totalSpentCents} />
 
                 {viewerIsMember ? (
                   <button

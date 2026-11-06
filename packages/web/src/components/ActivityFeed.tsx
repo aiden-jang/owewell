@@ -100,6 +100,7 @@ export function ActivityFeed({
               item.expense.description,
               categoryMeta(item.expense.category).label,
               memberName(item.expense.payerId),
+              ...(item.expense.items?.map((line) => memberName(line.payerId ?? item.expense.payerId)) ?? []),
               ...item.expense.splits.map((split) => memberName(split.userId)),
               fmt(item.expense.amountCents),
             ]
@@ -154,7 +155,7 @@ export function ActivityFeed({
     0,
   );
   const filtering = Boolean(activityQuery || categoryFilter || personFilter);
-  const totalSpent = expenses.reduce((sum, e) => sum + e.amountCents, 0);
+  const totalSpent = expenses.reduce((sum, e) => sum + (pendingDeletes.has(e.id) ? 0 : e.amountCents), 0);
   const perPersonCents = members.length ? Math.round(totalSpent / members.length) : 0;
 
   return (
@@ -189,7 +190,7 @@ export function ActivityFeed({
             value={personFilter ?? ''}
             onChange={(e) => setPersonFilter(e.target.value || null)}
             aria-label="Filter by person"
-            wrapperClassName="max-w-[8.5rem]"
+            wrapperClassName="max-w-[8.5rem]!"
             className={`truncate rounded-full border px-3 py-2 font-medium transition focus:border-accent ${
               personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
             }`}
@@ -265,11 +266,32 @@ export function ActivityFeed({
         {/* Align the icon with the first line when the lock note wraps. */}
         {settlements.length > 0 && (
           <p className="mt-2 flex items-start gap-1.5 text-xs text-faint">
-            <Icon name="undo" size={13} className="mt-0.5 shrink-0" />A payment&rsquo;s been recorded, so this
-            is locked. Undo it below to edit or remove expenses.
+            <Icon name="undo" size={13} className="mt-0.5 shrink-0" />
+            Undo recorded payments to edit or remove expenses.
           </p>
         )}
-        {activity.length === 0 ? (
+        {pendingRows.length > 0 && (
+          <ul className="activity-ledger panel mt-3" aria-label="Waiting to sync">
+            {pendingRows.map((entry) => (
+              <li
+                key={entry.clientId}
+                className="animate-rise flex items-center justify-between gap-3 border-b last:border-b-0 border-dashed border-line-strong px-4 py-3 opacity-70"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
+                    <Icon name="share" size={13} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-muted">{entry.description}</p>
+                    <p className="truncate text-sm text-faint">Waiting for signal · not counted yet</p>
+                  </div>
+                </div>
+                <span className="tnum shrink-0 font-semibold text-muted">{fmt(entry.amountCents)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {activity.length === 0 && pendingRows.length === 0 ? (
           <div className="mt-3">
             <EmptyState
               tone="invite"
@@ -288,41 +310,17 @@ export function ActivityFeed({
               }
             />
           </div>
-        ) : visibleActivity.length === 0 ? (
+        ) : filtering && visibleActivity.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
             Nothing in this ledger matches{activityQuery ? ` “${activityQuery.trim()}”` : ' these filters'}.{' '}
             <button type="button" onClick={clearFilters} className="font-medium text-accent hover:underline">
               Clear search and filters
             </button>
           </div>
-        ) : (
+        ) : visibleActivity.length > 0 ? (
           /* One panel with hairline rows, not a stack of cards: a ledger is a list of the same
              kind of thing, and per-row borders made it read as a pile of objects. */
           <ul className="activity-ledger panel mt-3" ref={rowsRef}>
-            {/*
-             * Queued writes sit above the ledger, dimmed and inert.
-             *
-             * They are not expenses yet, so they are deliberately not in the balances above and
-             * say so: showing them as normal rows would mean the feed and the number at the top
-             * of the page disagreed, with nothing on screen to explain why.
-             */}
-            {pendingRows.map((entry) => (
-              <li
-                key={entry.clientId}
-                className="animate-rise flex items-center justify-between gap-3 border-b border-dashed border-line-strong px-4 py-3 opacity-70"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-7 w-7 shrink-0 animate-pulse place-items-center rounded-full bg-surface2 text-faint">
-                    <Icon name="share" size={13} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-muted">{entry.description}</p>
-                    <p className="truncate text-sm text-faint">Waiting for signal · not counted yet</p>
-                  </div>
-                </div>
-                <span className="tnum shrink-0 font-semibold text-muted">{fmt(entry.amountCents)}</span>
-              </li>
-            ))}
             <ActivityRows
               items={shownActivity}
               members={members}
@@ -331,12 +329,12 @@ export function ActivityFeed({
               onUndoSettlement={onUndoSettlement}
             />
           </ul>
-        )}
+        ) : null}
         {hiddenActivityCount > 0 && (
           <button
             type="button"
             onClick={() => {
-              nextFocus.current = pendingRows.length + count;
+              nextFocus.current = count;
               setPageWindow({ scope, count: count + ACTIVITY_PAGE });
             }}
             className="mt-3 w-full rounded-2xl border border-line py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"

@@ -116,6 +116,28 @@ beforeEach(() => {
 const rowFor = (text: RegExp) => screen.getByText(text).closest('li')!;
 
 describe('what the feed shows', () => {
+  it('shows a first expense while it is still waiting to sync', async () => {
+    await open({
+      expenses: [],
+      settlements: [],
+      pendingRows: [
+        {
+          clientId: 'first',
+          groupId: 'g1',
+          kind: 'expense',
+          description: 'Offline dinner',
+          amountCents: 2500,
+          queuedAt: 0,
+          payload: {},
+        },
+      ],
+    });
+    expect(
+      within(screen.getByRole('list', { name: 'Waiting to sync' })).getByText('Offline dinner'),
+    ).toBeVisible();
+    expect(screen.queryByText('Nothing yet.')).not.toBeInTheDocument();
+  });
+
   it('interleaves expenses and payments, newest first', async () => {
     await open();
     expect(rowTexts().map((t) => t.slice(0, 20))).toEqual([

@@ -5,10 +5,12 @@ import { Icon } from './Icon';
 /** The latest real entry and the everyday action sit together before settlement detail. */
 export function GroupActivityShortcut({
   expenses,
+  hasPending,
   onAdd,
   onOpen,
 }: {
   expenses: Expense[];
+  hasPending: boolean;
   onAdd: () => void;
   onOpen: (id: string) => void;
 }) {
@@ -26,7 +28,7 @@ export function GroupActivityShortcut({
             <span className="shrink-0 tabular-nums">{fmt(latest.amountCents)}</span>
           </button>
         ) : (
-          <p className="text-sm text-muted">No expenses yet</p>
+          <p className="text-sm text-muted">{hasPending ? 'No synced expenses yet' : 'No expenses yet'}</p>
         )}
       </div>
       <button

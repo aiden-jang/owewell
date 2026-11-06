@@ -1,6 +1,7 @@
 import { SelectField } from './SelectField';
+import { initialValues } from '../lib/expenseSplitHint';
 import { expenseSplitHint } from '../lib/expenseSplitHint';
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ExpenseExtras } from './ExpenseExtras';
 import { readSplitPreference, writeSplitPreference } from '../lib/splitPreference';
 import { DescriptionField, FormError, PayerSelect, SubmitButton, inputClass } from './FormFields';
@@ -20,6 +21,7 @@ import { saveExpense } from '../lib/saveExpense';
 
 interface Props {
   groupId: string;
+  ownerId?: string | undefined;
   members: GroupMember[];
   /** Handed the saved expense so the caller can show it without waiting on a refetch. */
   onCreated: (expense: Expense) => void;
@@ -37,22 +39,9 @@ interface Props {
   onPendingChange?: (pending: boolean) => void;
 }
 
-/** Reverse the form's value encoding so an edited expense prefills what the payer entered. */
-function initialValues(editing: Expense | undefined): Record<string, string> {
-  if (!editing || editing.splitMethod === 'ITEMIZED' || editing.splitMethod === 'EQUAL') return {};
-  const method = editing.splitMethod;
-  const out: Record<string, string> = {};
-  for (const s of editing.splits) {
-    if (s.inputValue == null) continue;
-    if (method === 'EXACT') out[s.userId] = (s.inputValue / 100).toFixed(2);
-    else if (method === 'PERCENT') out[s.userId] = String(s.inputValue / 100);
-    else out[s.userId] = String(s.inputValue); // SHARES
-  }
-  return out;
-}
-
 export function AddExpenseForm({
   groupId,
+  ownerId,
   members,
   onCreated,
   onQueued,
@@ -60,6 +49,7 @@ export function AddExpenseForm({
   editing,
   template,
 }: Props): ReactNode {
+  const attempt = useRef<{ key: string; id: string } | null>(null);
   const symbol = currencySymbol();
   const {
     source,
@@ -203,6 +193,8 @@ export function AddExpenseForm({
     try {
       const outcome = await saveExpense({
         groupId,
+        ownerId,
+        attempt,
         editing,
         base: {
           description: trimmedDescription,

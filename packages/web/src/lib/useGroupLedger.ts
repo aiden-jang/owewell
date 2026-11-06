@@ -54,7 +54,7 @@ export interface GroupLedger {
   outboxSync: OutboxSync;
 }
 
-export function useGroupLedger(groupId: string): GroupLedger {
+export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
   const toast = useToast();
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [balances, setBalances] = useState<Balance[]>([]);
@@ -65,7 +65,7 @@ export function useGroupLedger(groupId: string): GroupLedger {
   // A transient load failure (network / 5xx) is distinct from a real 404/403: the former gets a
   // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
   const [loadFailed, setLoadFailed] = useState(false);
-  const [pending, setPending] = useState<QueuedWrite[]>(() => queued(groupId));
+  const [pending, setPending] = useState<QueuedWrite[]>(() => queued(groupId, ownerId));
   const { begin, invalidate, captureScope } = useAsyncScope(groupId);
   const hasLoaded = useRef(false);
   useLayoutEffect(() => {
@@ -77,8 +77,8 @@ export function useGroupLedger(groupId: string): GroupLedger {
     setSuggested([]);
     setNotFound(false);
     setLoadFailed(false);
-    setPending(queued(groupId));
-  }, [groupId]);
+    setPending(queued(groupId, ownerId));
+  }, [groupId, ownerId]);
 
   const fetchAll = useCallback(async (): Promise<{
     balances: Balance[];
@@ -152,7 +152,7 @@ export function useGroupLedger(groupId: string): GroupLedger {
     [captureScope, groupId, invalidate],
   );
 
-  const refreshPending = useCallback(() => setPending(queued(groupId)), [groupId]);
+  const refreshPending = useCallback(() => setPending(queued(groupId, ownerId)), [groupId, ownerId]);
 
   /*
    * Show a saved expense now; let the refetch catch up. Don't recompute balances here — netting
@@ -184,6 +184,7 @@ export function useGroupLedger(groupId: string): GroupLedger {
   // Scoped to this group; the dashboard runs the same hook unscoped so nothing gets stranded.
   const outboxSync = useOutboxSync({
     groupId,
+    ownerId,
     onChanged: () => {
       void refreshLedger();
     },

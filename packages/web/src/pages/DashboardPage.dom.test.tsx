@@ -49,6 +49,8 @@ vi.mock('../lib/quicksplit', () => ({
   quickSplitApi: { save: vi.fn() },
 }));
 
+vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
+
 vi.mock('../components/AppHeader', () => ({ AppHeader: () => null }));
 
 // Context providers the page consumes but this file is not testing. Mocked rather than wired up: the

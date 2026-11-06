@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { ApiError } from './api';
-import type { QueuedEdit, QueuedWrite } from './outbox';
+import { enqueue, queued, type QueuedEdit, type QueuedWrite } from './outbox';
 
 /**
  * Draining the outbox, driven. The forms cover the enqueue side; this is the half that re-sends,
@@ -15,7 +15,8 @@ vi.mock('./outbox', async () => {
   const actual = await vi.importActual<typeof import('./outbox')>('./outbox');
   return {
     ...actual,
-    flush: (send: (e: QueuedWrite) => Promise<unknown>, groupId?: string) => flush(send, groupId),
+    flush: (send: (e: QueuedWrite) => Promise<unknown>, groupId?: string, ownerId?: string) =>
+      flush(send, groupId, ownerId),
     subscribe: (fn: () => void) => subscribe(fn),
   };
 });
@@ -30,7 +31,9 @@ const api = {
 vi.mock('./expenses', () => ({ expensesApi: api }));
 
 const record = vi.fn();
-vi.mock('./settlements', () => ({ settlementsApi: { record: (g: string, p: unknown) => record(g, p) } }));
+vi.mock('./settlements', () => ({
+  settlementsApi: { record: (g: string, p: unknown, ownerId: string) => record(g, p, ownerId) },
+}));
 
 const toastStub = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../components/Toast', () => ({ useToast: () => toastStub }));
@@ -38,7 +41,7 @@ vi.mock('../components/Toast', () => ({ useToast: () => toastStub }));
 const confirmStub = vi.fn();
 vi.mock('../components/Confirm', () => ({ useConfirm: () => confirmStub }));
 
-const base = { clientId: 'c1', groupId: 'g1', description: 'Dinner', queuedAt: 0 };
+const base = { ownerId: 'u1', clientId: 'c1', groupId: 'g1', description: 'Dinner', queuedAt: 0 };
 const edit = (over: Partial<QueuedEdit> = {}): QueuedEdit =>
   ({
     ...base,
@@ -56,12 +59,13 @@ async function mount(props: Record<string, unknown> = {}) {
   const { useOutboxSync } = await import('./useOutboxSync');
   const onChanged = vi.fn();
   const onQueueChanged = vi.fn();
-  const view = renderHook(() => useOutboxSync({ onChanged, onQueueChanged, ...props }));
+  const view = renderHook(() => useOutboxSync({ ownerId: 'u1', onChanged, onQueueChanged, ...props }));
   return { ...view, onChanged, onQueueChanged };
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  localStorage.clear();
   flush.mockResolvedValue(nothing);
   confirmStub.mockResolvedValue(false);
 });
@@ -89,21 +93,26 @@ describe('which call each queued kind turns into', () => {
       amountCents: 500,
       payload: { x: 1 },
     } as unknown as QueuedWrite);
-    expect(record).toHaveBeenCalledWith('g1', { x: 1 });
+    expect(record).toHaveBeenCalledWith('g1', { x: 1 }, 'u1');
   });
 
   it('sends a plain create to create, and an itemized one to createItemized', async () => {
     await send({ ...base, kind: 'expense', amountCents: 1, payload: { a: 1 } } as unknown as QueuedWrite);
-    expect(api.create).toHaveBeenCalledWith('g1', { a: 1 });
+    expect(api.create).toHaveBeenCalledWith('g1', { a: 1 }, 'u1');
     await send({ ...base, kind: 'itemized', amountCents: 1, payload: { b: 2 } } as unknown as QueuedWrite);
-    expect(api.createItemized).toHaveBeenCalledWith('g1', { b: 2 });
+    expect(api.createItemized).toHaveBeenCalledWith('g1', { b: 2 }, 'u1');
   });
 
   it('sends each kind of edit to its own update', async () => {
     await send(edit());
-    expect(api.update).toHaveBeenCalledWith('g1', 'e1', expect.objectContaining({ expectedVersion: 3 }));
+    expect(api.update).toHaveBeenCalledWith(
+      'g1',
+      'e1',
+      expect.objectContaining({ expectedVersion: 3 }),
+      'u1',
+    );
     await send(edit({ kind: 'edit-itemized' }));
-    expect(api.updateItemized).toHaveBeenCalledWith('g1', 'e1', expect.anything());
+    expect(api.updateItemized).toHaveBeenCalledWith('g1', 'e1', expect.anything(), 'u1');
   });
 
   // Already gone is the outcome the delete wanted, so it leaves the queue quietly.
@@ -145,14 +154,15 @@ describe('what it says when things land', () => {
     flush.mockResolvedValue({ ...nothing, rejected: [{ entry: edit(), message: 'Too long.' }] });
     await mount();
     await waitFor(() =>
-      expect(toastStub.error).toHaveBeenCalledWith('"Dinner" could not be saved: Too long.'),
+      expect(toastStub.error).toHaveBeenCalledWith('“Dinner” could not be saved: Too long.'),
     );
   });
 });
 
 describe('an edit that conflicted while it waited', () => {
   it('asks, and does nothing if you keep theirs', async () => {
-    flush.mockResolvedValue({ ...nothing, conflicted: [edit()] });
+    enqueue(edit());
+    flush.mockResolvedValueOnce({ ...nothing, conflicted: [edit()] });
     confirmStub.mockResolvedValue(false);
     await mount();
     await waitFor(() => expect(confirmStub).toHaveBeenCalled());
@@ -164,7 +174,8 @@ describe('an edit that conflicted while it waited', () => {
    * it was just told about, so "Apply mine" would never be able to land.
    */
   it('re-sends without the version when you apply yours', async () => {
-    flush.mockResolvedValue({ ...nothing, conflicted: [edit()] });
+    enqueue(edit());
+    flush.mockResolvedValueOnce({ ...nothing, conflicted: [edit()] });
     confirmStub.mockResolvedValue(true);
     const { onChanged } = await mount();
     await waitFor(() => expect(api.update).toHaveBeenCalled());
@@ -175,7 +186,9 @@ describe('an edit that conflicted while it waited', () => {
   });
 
   it('sends an itemized conflict to the itemized update', async () => {
-    flush.mockResolvedValue({ ...nothing, conflicted: [edit({ kind: 'edit-itemized' })] });
+    const receiptEdit = edit({ kind: 'edit-itemized' });
+    enqueue(receiptEdit);
+    flush.mockResolvedValueOnce({ ...nothing, conflicted: [receiptEdit] });
     confirmStub.mockResolvedValue(true);
     await mount();
     await waitFor(() => expect(api.updateItemized).toHaveBeenCalled());
@@ -184,10 +197,13 @@ describe('an edit that conflicted while it waited', () => {
 
   // Asked in order and one at a time: answering the first can be what makes the second make sense.
   it('asks about each one, in order', async () => {
-    flush.mockResolvedValue({
-      ...nothing,
-      conflicted: [edit({ description: 'First' }), edit({ description: 'Second' })],
-    });
+    const first = edit({ description: 'First' });
+    const second = edit({ clientId: 'c2', description: 'Second' });
+    enqueue(first);
+    enqueue(second);
+    flush
+      .mockResolvedValueOnce({ ...nothing, conflicted: [first] })
+      .mockResolvedValueOnce({ ...nothing, conflicted: [second] });
     await mount();
     await waitFor(() => expect(confirmStub).toHaveBeenCalledTimes(2));
     expect(confirmStub.mock.calls[0]![0].title).toContain('First');
@@ -195,22 +211,25 @@ describe('an edit that conflicted while it waited', () => {
   });
 
   it('says so when applying yours also fails', async () => {
-    flush.mockResolvedValue({ ...nothing, conflicted: [edit()] });
+    enqueue(edit());
+    flush.mockResolvedValueOnce({ ...nothing, conflicted: [edit()] });
     confirmStub.mockResolvedValue(true);
-    api.update.mockRejectedValue(new Error('Still no.'));
-    await mount();
-    await waitFor(() => expect(toastStub.error).toHaveBeenCalledWith('Still no.'));
+    api.update.mockRejectedValue(new ApiError(503, 'Still no.'));
+    const view = await mount();
+    await waitFor(() => expect(view.result.current.paused).toBe('temporary'));
+    expect(toastStub.error).toHaveBeenCalledWith('Could not apply your version. Your edit is still waiting.');
+    expect(queued(undefined, 'u1')).toEqual([edit()]);
   });
 });
 
 describe('how often it runs', () => {
   it('scopes to one group when given one, and drains everything otherwise', async () => {
     await mount({ groupId: 'g7' });
-    await waitFor(() => expect(flush).toHaveBeenCalledWith(expect.any(Function), 'g7'));
+    await waitFor(() => expect(flush).toHaveBeenCalledWith(expect.any(Function), 'g7', 'u1'));
     vi.clearAllMocks();
     flush.mockResolvedValue(nothing);
     await mount();
-    await waitFor(() => expect(flush).toHaveBeenCalledWith(expect.any(Function), undefined));
+    await waitFor(() => expect(flush).toHaveBeenCalledWith(expect.any(Function), undefined, 'u1'));
   });
 
   it('flushes again when the connection comes back', async () => {

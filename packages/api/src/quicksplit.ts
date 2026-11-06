@@ -1,8 +1,9 @@
-import { computeSplit, quickSplitSeed, type SplitMethod } from '@owewell/shared';
+import { quickSplitSeed, type SplitMethod } from '@owewell/shared';
 import type { DB } from './db/client.js';
-import { createGroup } from './groups.js';
-import { addPlaceholderMember } from './members.js';
-import { createExpense } from './expenses.js';
+import { and, eq } from 'drizzle-orm';
+import { insertStatements } from './db/rows.js';
+import { groups, groupMembers, people, expenses, expenseSplits } from './db/schema.js';
+import { planExpenseCreate } from './expenseCreate.js';
 
 export type QuickSplitErrorCode =
   'NO_PAYER' | 'TOO_MANY_YOU' | 'NO_ITEMS' | 'INVALID_SPLIT' | 'INVALID_PAYER';
@@ -36,6 +37,7 @@ export interface QuickSplitItem {
 export interface QuickSplitInput {
   people: QuickSplitPerson[];
   items: QuickSplitItem[];
+  clientId?: string | undefined;
 }
 
 /** Build the computeSplit participants for one item, aligning values to the shared people order. */
@@ -70,47 +72,80 @@ export async function createQuickSplit(
     throw new QuickSplitError('NO_ITEMS', 'Add at least one item.');
   }
 
-  // Validate every item against placeholder ids before touching the database.
-  for (const item of input.items) {
-    if (item.payerIndex !== undefined && (item.payerIndex < 0 || item.payerIndex >= input.people.length)) {
+  const clientId = input.clientId;
+  const findSaved = () =>
+    clientId
+      ? db
+          .select({ groupId: groups.id })
+          .from(groups)
+          .where(and(eq(groups.createdById, personId), eq(groups.quickSplitClientId, clientId)))
+          .get()
+      : undefined;
+  const saved = await findSaved();
+  if (saved) return saved;
+
+  const groupId = crypto.randomUUID();
+  const placeholders = input.people.map((person) =>
+    person.isYou ? null : { id: crypto.randomUUID(), displayName: person.name, isPlaceholder: true },
+  );
+  const userIds = placeholders.map((person) => person?.id ?? personId);
+  const defaultPayerId = userIds[input.people.findIndex((person) => person.isPayer)]!;
+  const writes = input.items.map((item, index) => {
+    if (item.payerIndex !== undefined && (item.payerIndex < 0 || item.payerIndex >= userIds.length)) {
       throw new QuickSplitError('INVALID_PAYER', 'An item payer is not one of the people on the split.');
     }
     try {
-      computeSplit(
-        item.splitMethod,
-        item.amountCents,
-        itemParticipants(input.people, item, (i) => `p${i}`),
-      );
-    } catch (err) {
-      throw new QuickSplitError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
+      return planExpenseCreate(personId, groupId, {
+        description: item.description.trim() || 'Quick split',
+        amountCents: item.amountCents,
+        payerId: item.payerIndex === undefined ? defaultPayerId : userIds[item.payerIndex]!,
+        splitMethod: item.splitMethod,
+        participants: itemParticipants(input.people, item, (i) => userIds[i]!),
+        splitSeed: quickSplitSeed(index),
+      });
+    } catch (error) {
+      throw new QuickSplitError('INVALID_SPLIT', error instanceof Error ? error.message : 'Invalid split.');
     }
+  });
+
+  try {
+    await db.batch([
+      db.insert(groups).values({
+        id: groupId,
+        name: input.items[0]!.description.trim() || 'Quick split',
+        createdById: personId,
+        quickSplitClientId: clientId ?? null,
+      }),
+      ...insertStatements(
+        db,
+        people,
+        placeholders.filter((person) => person !== null),
+      ),
+      ...insertStatements(
+        db,
+        groupMembers,
+        [personId, ...userIds.filter((id) => id !== personId)].map((id) => ({
+          id: crypto.randomUUID(),
+          groupId,
+          personId: id,
+          role: id === personId ? 'OWNER' : 'MEMBER',
+        })),
+      ),
+      ...insertStatements(
+        db,
+        expenses,
+        writes.map(({ row }) => row),
+      ),
+      ...insertStatements(
+        db,
+        expenseSplits,
+        writes.flatMap(({ splitRows }) => splitRows),
+      ),
+    ]);
+  } catch (error) {
+    const winner = await findSaved();
+    if (winner) return winner;
+    throw error;
   }
-
-  const groupName = input.items[0]!.description.trim() || 'Quick split';
-  const group = await createGroup(db, personId, groupName);
-
-  // Resolve each person to a member id once, preserving order so item value arrays line up.
-  const userIds: string[] = [];
-  for (const p of input.people) {
-    const uid = p.isYou ? personId : (await addPlaceholderMember(db, personId, group.id, p.name)).userId;
-    userIds.push(uid);
-  }
-  const defaultPayerId = userIds[input.people.findIndex((p) => p.isPayer)]!;
-
-  // The item's position is the seed, because it is the one value the browser can derive too. The
-  // preview showed exact per-person cents before any of these rows existed; seeding from the
-  // generated expense id would silently move a cent off whoever the user was just shown. Position
-  // still rotates the odd cent across the items in a split, which is the point of seeding at all.
-  for (const [index, item] of input.items.entries()) {
-    await createExpense(db, personId, group.id, {
-      description: item.description.trim() || 'Quick split',
-      amountCents: item.amountCents,
-      payerId: item.payerIndex !== undefined ? userIds[item.payerIndex]! : defaultPayerId,
-      splitMethod: item.splitMethod,
-      participants: itemParticipants(input.people, item, (i) => userIds[i]!),
-      splitSeed: quickSplitSeed(index),
-    });
-  }
-
-  return { groupId: group.id };
+  return { groupId };
 }

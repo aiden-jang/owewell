@@ -1,4 +1,4 @@
-import { insertRows } from './db/rows.js';
+import { insertStatements } from './db/rows.js';
 import { computeItemizedSplit } from '@owewell/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { DB } from './db/client.js';
@@ -7,8 +7,10 @@ import { requireMembership } from './groups.js';
 import {
   assertUnlocked,
   assertVersion,
-  clearItemizedRows,
+  commitExpenseUpdate,
+  nextExpenseVersion,
   findByClientId,
+  commitExpenseCreate,
   memberPersonIds,
 } from './expenseGuards.js';
 import { ExpenseError, type CreateItemizedExpenseInput, type ExpenseView } from './expenseContracts.js';
@@ -59,11 +61,12 @@ export async function createItemizedExpense(
 
   const amountCents =
     input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
-  await db.insert(expenses).values({
+  const createdAt = new Date(Math.floor(Date.now() / 1000) * 1000);
+  const row = {
     id,
     groupId,
-    payerId: input.payerId,
     createdById: personId,
+    payerId: input.payerId,
     description: input.description,
     amountCents,
     splitMethod: 'ITEMIZED',
@@ -73,45 +76,65 @@ export async function createItemizedExpense(
     date: input.date ?? null,
     note: input.note ?? null,
     clientId: input.clientId ?? null,
-  });
-  await insertRows(
-    db,
-    expenseSplits,
-    shares.map((s) => ({
-      id: crypto.randomUUID(),
-      expenseId: id,
-      personId: s.userId,
-      owedCents: s.owedCents,
-    })),
-  );
-  for (const item of input.items) {
-    const itemId = crypto.randomUUID();
-    await db.insert(expenseItems).values({
-      id: itemId,
-      expenseId: id,
-      name: item.name,
-      amountCents: item.amountCents,
-      payerId: item.payerId ?? null,
-    });
-    await insertRows(
+    createdAt,
+  };
+  const splits = shares.map(({ userId, owedCents }) => ({ userId, owedCents, inputValue: null }));
+  const view: ExpenseView = {
+    id,
+    description: row.description,
+    amountCents,
+    payerId: row.payerId,
+    splitMethod: row.splitMethod,
+    category: row.category,
+    createdAt,
+    date: row.date ?? createdAt,
+    note: row.note,
+    version: 1,
+    splits,
+  };
+  return commitExpenseCreate(db, groupId, input.clientId, view, [
+    db.insert(expenses).values(row),
+    ...itemizedRows(db, id, shares, input.items),
+  ]);
+}
+
+function itemizedRows(
+  db: DB,
+  expenseId: string,
+  shares: { userId: string; owedCents: number }[],
+  input: CreateItemizedExpenseInput['items'],
+) {
+  const items = input.map((item) => ({ ...item, id: crypto.randomUUID() }));
+  return [
+    ...insertStatements(
+      db,
+      expenseSplits,
+      shares.map(({ userId, owedCents }) => ({
+        owedCents,
+        id: crypto.randomUUID(),
+        expenseId,
+        personId: userId,
+      })),
+    ),
+    ...insertStatements(
+      db,
+      expenseItems,
+      items.map((item) => ({
+        id: item.id,
+        expenseId,
+        name: item.name,
+        amountCents: item.amountCents,
+        payerId: item.payerId ?? null,
+      })),
+    ),
+    ...insertStatements(
       db,
       expenseItemShares,
-      item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
-    );
-  }
-  return {
-    id,
-    description: input.description,
-    amountCents,
-    payerId: input.payerId,
-    splitMethod: 'ITEMIZED',
-    category: input.category ?? null,
-    createdAt: new Date(),
-    date: input.date ?? new Date(),
-    note: input.note ?? null,
-    version: 1,
-    splits: shares.map((s) => ({ userId: s.userId, owedCents: s.owedCents })),
-  };
+      items.flatMap((item) =>
+        item.participantIds.map((personId) => ({ id: crypto.randomUUID(), itemId: item.id, personId })),
+      ),
+    ),
+  ];
 }
 
 /** Replace an itemized expense in place: recompute item splits, swap items + shares. Preserves createdAt. */
@@ -156,43 +179,26 @@ export async function updateItemizedExpense(
   const amountCents =
     input.items.reduce((sum, i) => sum + i.amountCents, 0) + input.taxCents + input.tipCents;
 
-  await db
-    .update(expenses)
-    .set({
-      payerId: input.payerId,
-      description: input.description,
-      amountCents,
-      splitMethod: 'ITEMIZED',
-      category: input.category ?? null,
-      taxCents: input.taxCents,
-      tipCents: input.tipCents,
-      date: input.date ?? null,
-      note: input.note ?? null,
-      version: existing.version + 1,
-    })
-    .where(eq(expenses.id, expenseId));
-  await clearItemizedRows(db, expenseId);
-  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await insertRows(
-    db,
-    expenseSplits,
-    shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-  );
-  for (const item of input.items) {
-    const itemId = crypto.randomUUID();
-    await db.insert(expenseItems).values({
-      id: itemId,
-      expenseId,
-      name: item.name,
-      amountCents: item.amountCents,
-      payerId: item.payerId ?? null,
-    });
-    await insertRows(
-      db,
-      expenseItemShares,
-      item.participantIds.map((pid) => ({ id: crypto.randomUUID(), itemId, personId: pid })),
-    );
-  }
+  await commitExpenseUpdate(db, groupId, expenseId, existing.version, [
+    db
+      .update(expenses)
+      .set({
+        payerId: input.payerId,
+        description: input.description,
+        amountCents,
+        splitMethod: 'ITEMIZED',
+        category: input.category ?? null,
+        taxCents: input.taxCents,
+        tipCents: input.tipCents,
+        date: input.date ?? null,
+        note: input.note ?? null,
+        version: nextExpenseVersion(groupId, existing.version),
+      })
+      .where(eq(expenses.id, expenseId)),
+    db.delete(expenseItems).where(eq(expenseItems.expenseId, expenseId)),
+    db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId)),
+    ...itemizedRows(db, expenseId, shares, input.items),
+  ]);
   return {
     id: expenseId,
     description: input.description,

@@ -1,5 +1,5 @@
 import { SelectField } from './SelectField';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { formatMoney as fmt, dollarsToCents } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
@@ -31,6 +31,7 @@ interface ItemDraft {
 
 interface Props {
   groupId: string;
+  ownerId?: string | undefined;
   members: GroupMember[];
   /** Handed the saved expense so the caller can show it without waiting on a refetch. */
   onCreated: (expense: Expense) => void;
@@ -45,6 +46,7 @@ interface Props {
 
 export function AddItemizedExpenseForm({
   groupId,
+  ownerId,
   members,
   onCreated,
   onQueued,
@@ -52,6 +54,7 @@ export function AddItemizedExpenseForm({
   editing,
   template,
 }: Props): ReactNode {
+  const attempt = useRef<{ key: string; id: string } | null>(null);
   const {
     source,
     defaultPayer,
@@ -183,6 +186,8 @@ export function AddItemizedExpenseForm({
     try {
       const outcome = await saveExpense({
         groupId,
+        ownerId,
+        attempt,
         editing,
         base: {
           description: trimmedDescription,

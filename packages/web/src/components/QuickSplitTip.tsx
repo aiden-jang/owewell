@@ -33,7 +33,7 @@ export function QuickSplitTip({
             type="button"
             onClick={() => addTip(percent)}
             aria-pressed={activeTip === percent}
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition active:scale-[0.96] ${
+            className={`tap min-h-11 rounded-full border px-2.5 py-1 text-xs font-medium transition active:scale-[0.96] ${
               activeTip === percent
                 ? 'border-accent bg-accent-soft text-accent'
                 : 'border-line bg-field text-muted hover:border-accent hover:text-accent'
@@ -60,7 +60,7 @@ export function QuickSplitTip({
           <button
             type="button"
             onClick={() => addTip(Number(customTip))}
-            className="px-2 py-1 font-semibold text-muted transition hover:text-ink"
+            className="tap min-h-11 min-w-11 px-2 py-1 font-semibold text-muted transition hover:text-ink"
             aria-label="Apply custom tip"
           >
             %
@@ -70,7 +70,7 @@ export function QuickSplitTip({
           <button
             type="button"
             onClick={clearGeneratedTip}
-            className="text-xs text-muted transition hover:text-ink hover:underline"
+            className="tap min-h-11 text-xs text-muted transition hover:text-ink hover:underline"
           >
             remove
           </button>
