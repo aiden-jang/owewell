@@ -19,7 +19,7 @@ import { useBulkGroupActions } from './useBulkGroupActions';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/Toast';
 import { groupsApi } from '../lib/groups';
-import { clearQuickSplitDraft, readQuickSplitDraft } from '../lib/quickSplitDraft';
+import { clearQuickSplitDraft } from '../lib/quickSplitDraft';
 import {
   clearPendingSplit,
   loadPendingSplit,
@@ -95,7 +95,11 @@ export function DashboardPage(): ReactNode {
     const samePage = captureScope();
     const startUrl = window.location.href;
     const current = () => samePage() && window.location.href === startUrl;
-    const savedAt = readQuickSplitDraft()?.savedAt;
+    const latest = loadPendingSplit();
+    if (JSON.stringify(latest) !== JSON.stringify(pending)) {
+      setPending(latest && (!latest.ownerId || latest.ownerId === ownerId) ? latest : null);
+      return;
+    }
     const attempt = preparePendingSplit({ ...pending, ...(ownerId ? { ownerId } : {}) }, pending);
     const stored = stashPendingSplit(attempt);
     setPending(attempt);
@@ -104,7 +108,7 @@ export function DashboardPage(): ReactNode {
       const { groupId } = await quickSplitApi.save(attempt);
       if (JSON.stringify(loadPendingSplit()) === JSON.stringify(stored ? attempt : pending)) {
         clearPendingSplit();
-        if (readQuickSplitDraft()?.savedAt === savedAt) clearQuickSplitDraft();
+        if (typeof attempt.draftRevision === 'string') clearQuickSplitDraft(attempt.draftRevision);
       }
       if (current()) {
         setPending(null);
@@ -119,7 +123,7 @@ export function DashboardPage(): ReactNode {
 
   function dismissPending(): void {
     if (savingPending) return;
-    clearPendingSplit();
+    if (JSON.stringify(loadPendingSplit()) === JSON.stringify(pending)) clearPendingSplit();
     setPending(null);
   }
 

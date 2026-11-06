@@ -17,6 +17,7 @@ import { useGroupRealtime } from './useGroupRealtime';
 class FakeSocket {
   static instances: FakeSocket[] = [];
   onmessage: ((e: { data: string }) => void) | null = null;
+  onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   readonly close = vi.fn();
   constructor(readonly url: string) {
@@ -131,6 +132,17 @@ describe('when the connection drops', () => {
     latest().drop();
     vi.advanceTimersByTime(2000);
     latest().deliver({ type: 'group:changed', groupId: 'g1' });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes changes missed while disconnected without refetching on the first open', () => {
+    const onChange = vi.fn();
+    renderHook(() => useGroupRealtime('g1', onChange));
+    latest().onopen?.();
+    expect(onChange).not.toHaveBeenCalled();
+    latest().drop();
+    vi.advanceTimersByTime(2000);
+    latest().onopen?.();
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 

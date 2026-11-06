@@ -79,6 +79,7 @@ export interface GroupDetail {
   createdAt: string;
   archived: boolean;
   shareDisabled?: boolean;
+  shareToken?: string | null;
   members: GroupMember[];
 }
 

@@ -89,9 +89,9 @@ test('a shared tab loads before sign-in and waits to enable seat claims', async 
   try {
     await page.goto(`/s/${token}`);
     await expect(page.getByRole('heading', { name: 'Shared before sign-in' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'This is me' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'This is me (Sam)' })).toBeDisabled();
     release();
-    await expect(page.getByRole('button', { name: 'This is me' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'This is me (Sam)' })).toBeEnabled();
   } finally {
     release();
   }

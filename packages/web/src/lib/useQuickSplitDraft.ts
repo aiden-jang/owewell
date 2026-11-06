@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { dollarsToCents } from '@owewell/shared';
 import { QUICK_SPLIT_LIMITS } from '@owewell/core';
 import {
@@ -7,7 +7,7 @@ import {
   writeQuickSplitDraft,
   type DraftItem,
   type DraftPerson,
-  type QuickSplitDraft,
+  type QuickSplitInput,
 } from './quickSplitDraft';
 
 type Person = DraftPerson;
@@ -72,29 +72,37 @@ export function useQuickSplitDraft() {
   const [error, setError] = useState<string | null>(null);
   const [customTip, setCustomTip] = useState('');
   const [draftRestored, setDraftRestored] = useState(initialDraft !== null);
+  const draft = useMemo<QuickSplitInput>(
+    () => ({ people, items, payerId, splitPayers, youId, ...(activeTip ? { tipPercent: activeTip } : {}) }),
+    [people, items, payerId, splitPayers, youId, activeTip],
+  );
+  const observedDraft = useRef(draft);
+  const lastSavedDraft = useRef<QuickSplitInput | null>(initialDraft ? draft : null);
 
   // A bill can take a while to enter on a phone. Keep a short-lived, on-device working copy so a
   // refresh, browser eviction, or accidental back gesture does not erase the table's progress.
   useEffect(() => {
+    if (observedDraft.current === draft) return;
+    observedDraft.current = draft;
     const meaningful =
-      people.length > 2 ||
-      people.some((person, index) => person.name.trim() && !(index === 0 && person.name.trim() === 'You')) ||
-      items.some((item) => item.description.trim() || item.amount.trim());
+      draft.people.length > 2 ||
+      draft.people.some(
+        (person, index) => person.name.trim() && !(index === 0 && person.name.trim() === 'You'),
+      ) ||
+      draft.items.some((item) => item.description.trim() || item.amount.trim());
     if (!meaningful) {
       clearOnExit.current = false;
-      clearQuickSplitDraft();
+      if (lastSavedDraft.current) clearQuickSplitDraft(lastSavedDraft.current);
+      lastSavedDraft.current = null;
       return;
     }
+    let pending = true;
     const persist = () => {
-      if (!clearOnExit.current)
-        writeQuickSplitDraft({
-          people,
-          items,
-          payerId,
-          splitPayers,
-          youId,
-          ...(activeTip ? { tipPercent: activeTip } : {}),
-        });
+      if (!pending || clearOnExit.current) return;
+      if (writeQuickSplitDraft(draft)) {
+        pending = false;
+        lastSavedDraft.current = draft;
+      }
     };
     const timer = window.setTimeout(persist, 350);
     window.addEventListener('pagehide', persist);
@@ -103,15 +111,16 @@ export function useQuickSplitDraft() {
       window.removeEventListener('pagehide', persist);
       persist();
     };
-  }, [people, items, payerId, splitPayers, youId, activeTip]);
+  }, [draft]);
 
-  function finishDraft(saved?: Omit<QuickSplitDraft, 'version' | 'savedAt'>): void {
+  function finishDraft(saved: QuickSplitInput): void {
     clearOnExit.current = true;
     clearQuickSplitDraft(saved);
   }
 
   function startFresh(): void {
-    finishDraft();
+    clearOnExit.current = true;
+    if (lastSavedDraft.current) clearQuickSplitDraft(lastSavedDraft.current);
     setPeople([newPerson('You'), newPerson('')]);
     setItems([newItem()]);
     setPayerId('');

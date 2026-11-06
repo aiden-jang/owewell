@@ -3,7 +3,7 @@ import { useQuickSplitDraft } from '../lib/useQuickSplitDraft';
 import { QuickSplitResult } from '../components/QuickSplitResult';
 import { QuickSplitTip } from '../components/QuickSplitTip';
 import { SplitIntro } from '../components/SplitIntro';
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Money } from '@owewell/shared';
 import { useAuth } from '../auth/AuthContext';
@@ -17,10 +17,13 @@ import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
 import { SelectField } from '../components/SelectField';
 import { SessionNotice } from '../components/SessionNotice';
+import { useConfirm } from '../components/Confirm';
 
 export function QuickSplitPage(): ReactNode {
   usePageTitle('Split a bill');
   const { user, loading, sessionError } = useAuth();
+  const confirm = useConfirm();
+  const billDetails = useRef<HTMLFieldSetElement>(null);
   const {
     people,
     items,
@@ -79,6 +82,19 @@ export function QuickSplitPage(): ReactNode {
     });
   }
 
+  async function confirmStartFresh(): Promise<void> {
+    const discard = await confirm({
+      title: 'Discard this bill and start fresh?',
+      body: 'The editable draft on this device will be cleared.',
+      confirmLabel: 'Discard and start fresh',
+      cancelLabel: 'Keep draft',
+      tone: 'danger',
+    });
+    if (!discard) return;
+    startFresh();
+    requestAnimationFrame(() => billDetails.current?.focus({ preventScroll: true }));
+  }
+
   return (
     <div className="flex-1">
       {user ? <AppHeader /> : <PublicHeader />}
@@ -106,7 +122,10 @@ export function QuickSplitPage(): ReactNode {
                 </span>
                 <button
                   type="button"
-                  onClick={startFresh}
+                  onClick={(event) => {
+                    event.currentTarget.focus({ preventScroll: true });
+                    void confirmStartFresh();
+                  }}
                   disabled={saving}
                   className="shrink-0 font-medium text-muted transition hover:text-ink hover:underline"
                 >
@@ -115,7 +134,13 @@ export function QuickSplitPage(): ReactNode {
               </div>
             )}
 
-            <fieldset className="split-receipt" disabled={saving} aria-label="Bill details">
+            <fieldset
+              ref={billDetails}
+              tabIndex={-1}
+              className="split-receipt"
+              disabled={saving}
+              aria-label="Bill details"
+            >
               <div className="surface space-y-2">
                 <h2 className="text-sm font-medium text-muted">Who's splitting</h2>
                 {people.map((person, index) => (

@@ -54,6 +54,7 @@ export interface GroupDetail {
   createdAt: Date;
   archived: boolean;
   shareDisabled: boolean;
+  shareToken: string | null;
   viewerId: string; // the caller's person id, so the UI knows which member is "me"
   members: GroupMemberView[];
 }
@@ -146,6 +147,7 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
     createdAt: g.createdAt,
     archived: mine?.archivedAt != null,
     shareDisabled: g.shareDisabled,
+    shareToken: g.shareToken,
     viewerId: personId,
     members: await membersOf(db, groupId),
   };

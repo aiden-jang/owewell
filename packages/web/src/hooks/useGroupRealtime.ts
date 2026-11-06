@@ -25,10 +25,14 @@ export function useGroupRealtime(groupId: string, onChange: () => void): void {
 
     let socket: WebSocket | null = null;
     let stopped = false;
+    let reconnecting = false;
     let retry: ReturnType<typeof setTimeout> | undefined;
 
     function connect(): void {
       socket = new WebSocket(realtimeUrl(groupId));
+      socket.onopen = () => {
+        if (reconnecting && !stopped) onChangeRef.current();
+      };
 
       socket.onmessage = (event) => {
         try {
@@ -43,6 +47,7 @@ export function useGroupRealtime(groupId: string, onChange: () => void): void {
 
       socket.onclose = () => {
         if (stopped) return;
+        reconnecting = true;
         retry = setTimeout(connect, 2000);
       };
     }

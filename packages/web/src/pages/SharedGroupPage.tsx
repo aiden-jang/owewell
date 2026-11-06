@@ -314,6 +314,11 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                               type="button"
                               onClick={() => void claimSeat(m.userId)}
                               disabled={claiming !== null || loading || sessionError}
+                              aria-label={
+                                claiming === m.userId
+                                  ? `Claiming ${m.displayName}’s spot`
+                                  : `This is me (${m.displayName})`
+                              }
                               className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
                             >
                               {claiming === m.userId ? 'Claiming…' : 'This is me'}

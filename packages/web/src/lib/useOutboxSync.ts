@@ -101,11 +101,14 @@ export function useOutboxSync({
     flushing.current = current;
     setSyncing(true);
     const send = (entry: QueuedWrite) => sendQueuedWrite(entry, ownerId);
-    const drain = async () => {
-      let result: FlushResult;
-      do {
-        result = await flush(send, groupId, ownerId);
-        if (!current()) return;
+    const underLock = async <T>(action: () => Promise<T>): Promise<T> =>
+      navigator.locks ? await navigator.locks.request(`owewell:sync:${ownerId}`, action) : action();
+    try {
+      while (current()) {
+        const result = await underLock(async () => {
+          if (current()) return flush(send, groupId, ownerId);
+        });
+        if (!result || !current()) return;
         setPaused(result.paused);
         queueChanged.current?.();
 
@@ -116,7 +119,8 @@ export function useOutboxSync({
           changed.current();
         }
         const entry = result.conflicted[0];
-        if (!entry) break;
+        if (!entry || result.paused) return;
+
         let dismissed = false;
         const keepMine = await confirm({
           title: `“${entry.description}” changed while you were offline`,
@@ -132,43 +136,40 @@ export function useOutboxSync({
           setPaused('conflict');
           return;
         }
-        if (!queued(groupId, ownerId).some((row) => row.clientId === entry.clientId)) continue;
-        if (keepMine) {
-          try {
-            const { expectedVersion: _version, ...payload } = entry.payload;
-            await send({ ...entry, payload } as QueuedEdit);
-            if (current()) changed.current();
-          } catch (error) {
-            if (current()) {
-              const paused = pauseFor(error);
-              if (!isOffline(error) && !paused) {
-                const message = error instanceof Error ? error.message : 'Could not apply your version.';
-                if (!setFailure(entry.clientId, ownerId, message)) setPaused('storage');
-              } else {
-                setPaused(paused);
-                toast.error(
-                  isOffline(error)
-                    ? 'Still offline. Your edit is waiting on this device.'
-                    : 'Could not apply your version. Your edit is still waiting.',
-                );
+
+        // Another tab can sync while the prompt is open. Recheck before acting on the decision.
+        const proceed = await underLock(async () => {
+          if (!current()) return false;
+          const latest = queued(groupId, ownerId).find((row) => row.clientId === entry.clientId);
+          if (!latest || JSON.stringify(latest) !== JSON.stringify(entry)) return true;
+          if (keepMine) {
+            try {
+              const { expectedVersion: _version, ...payload } = entry.payload;
+              await send({ ...entry, payload } as QueuedEdit);
+              if (current()) changed.current();
+            } catch (error) {
+              if (current()) {
+                const paused = pauseFor(error);
+                if (!isOffline(error) && !paused) {
+                  const message = error instanceof Error ? error.message : 'Could not apply your version.';
+                  if (!setFailure(entry.clientId, ownerId, message)) setPaused('storage');
+                } else {
+                  setPaused(paused);
+                  toast.error(
+                    isOffline(error)
+                      ? 'Still offline. Your edit is waiting on this device.'
+                      : 'Could not apply your version. Your edit is still waiting.',
+                  );
+                }
               }
+              return false;
             }
-            return;
           }
-        }
-        if (!drop(entry.clientId)) {
+          if (drop(entry.clientId)) return true;
           if (current()) setPaused('storage');
-          return;
-        }
-      } while (current() && result.conflicted.length > 0);
-    };
-    try {
-      if (navigator.locks) {
-        await navigator.locks.request(`owewell:sync:${ownerId}`, async () => {
-          if (current()) await drain();
+          return false;
         });
-      } else {
-        await drain();
+        if (!proceed) return;
       }
     } finally {
       if (flushing.current === current) flushing.current = null;

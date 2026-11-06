@@ -23,6 +23,7 @@ export interface DraftItem {
 export interface QuickSplitDraft {
   version: 1;
   savedAt: number;
+  revision?: string;
   people: DraftPerson[];
   items: DraftItem[];
   payerId: string;
@@ -30,6 +31,8 @@ export interface QuickSplitDraft {
   youId: string;
   tipPercent?: number;
 }
+
+export type QuickSplitInput = Omit<QuickSplitDraft, 'version' | 'savedAt' | 'revision'>;
 
 const KEY = 'owewell:quick-split-draft';
 /** A week. Long enough to cover a trip, short enough that a stale bill does not reappear. */
@@ -86,6 +89,7 @@ export function readQuickSplitDraft(now = Date.now()): QuickSplitDraft | null {
     return {
       version: 1,
       savedAt: parsed.savedAt,
+      ...(typeof parsed.revision === 'string' ? { revision: parsed.revision } : {}),
       people,
       items,
       payerId: typeof parsed.payerId === 'string' ? parsed.payerId : '',
@@ -100,21 +104,28 @@ export function readQuickSplitDraft(now = Date.now()): QuickSplitDraft | null {
   }
 }
 
-export function writeQuickSplitDraft(draft: Omit<QuickSplitDraft, 'version' | 'savedAt'>): boolean {
+function matchesDraft(latest: QuickSplitDraft, draft: QuickSplitInput): boolean {
+  const { version: _version, savedAt: _time, revision: _revision, ...input } = latest;
+  return JSON.stringify(input) === JSON.stringify(draft);
+}
+
+export function writeQuickSplitDraft(draft: QuickSplitInput): string | null {
+  const latest = readQuickSplitDraft();
+  if (latest?.revision && matchesDraft(latest, draft)) return latest.revision;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify({ version: 1, savedAt: Date.now(), ...draft }));
-    return true;
+    const revision = crypto.randomUUID();
+    window.localStorage.setItem(KEY, JSON.stringify({ version: 1, savedAt: Date.now(), revision, ...draft }));
+    return revision;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function clearQuickSplitDraft(saved?: Omit<QuickSplitDraft, 'version' | 'savedAt'>): void {
-  if (saved) {
+export function clearQuickSplitDraft(saved?: QuickSplitInput | string): void {
+  if (saved !== undefined) {
     const latest = readQuickSplitDraft();
-    if (!latest) return;
-    const { version: _version, savedAt: _time, ...draft } = latest;
-    if (JSON.stringify(draft) !== JSON.stringify(saved)) return;
+    if (!latest || !(typeof saved === 'string' ? latest.revision === saved : matchesDraft(latest, saved)))
+      return;
   }
   try {
     window.localStorage.removeItem(KEY);

@@ -5,7 +5,7 @@ import { dollarsToCents } from '@owewell/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useAsyncScope } from './useAsyncScope';
 import { serverValue } from './splitValues';
-import { writeQuickSplitDraft, type QuickSplitDraft } from './quickSplitDraft';
+import { writeQuickSplitDraft, type QuickSplitInput } from './quickSplitDraft';
 import {
   clearPendingSplit,
   loadPendingSplit,
@@ -15,9 +15,7 @@ import {
   type PendingSplit,
 } from './quicksplit';
 
-type Draft = Omit<QuickSplitDraft, 'version' | 'savedAt'>;
-
-function splitPayload(draft: Draft, payerId: string, youId: string): PendingSplit {
+function splitPayload(draft: QuickSplitInput, payerId: string, youId: string): PendingSplit {
   const people = draft.people.filter((person) => person.name.trim());
   if (people.length < 2) throw new Error('Add at least two people.');
   if (people.length > QUICK_SPLIT_LIMITS.people) {
@@ -62,7 +60,7 @@ function splitPayload(draft: Draft, payerId: string, youId: string): PendingSpli
 
 export function useSaveQuickSplit(
   setError: (message: string | null) => void,
-  finishDraft: (saved: Draft) => void,
+  finishDraft: (saved: QuickSplitInput) => void,
 ) {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -71,17 +69,19 @@ export function useSaveQuickSplit(
   const inFlight = useRef(false);
   const attempt = useRef<PendingSplit | null>(null);
 
-  async function save(draft: Draft, payerId: string, youId: string): Promise<void> {
+  async function save(draft: QuickSplitInput, payerId: string, youId: string): Promise<void> {
     if (inFlight.current) return;
     const current = captureScope();
     setError(null);
     try {
       const payload = splitPayload(draft, payerId, youId);
       if (user) payload.ownerId = user.id;
+      const draftRevision = writeQuickSplitDraft(draft);
+      if (draftRevision) payload.draftRevision = draftRevision;
       const pending = preparePendingSplit(payload, attempt.current ?? loadPendingSplit());
       attempt.current = pending;
       if (!user) {
-        if (!writeQuickSplitDraft(draft) || !stashPendingSplit(pending)) {
+        if (!draftRevision || !stashPendingSplit(pending)) {
           setError(
             'This browser couldn’t keep your bill through sign-in. Keep this page open and sign in from another tab, or copy the summary.',
           );
@@ -90,7 +90,6 @@ export function useSaveQuickSplit(
         login(window.location.origin);
         return;
       }
-      writeQuickSplitDraft(draft);
       stashPendingSplit(pending);
       inFlight.current = true;
       setSaving(true);

@@ -64,6 +64,21 @@ describe('restoring a draft', () => {
     clearQuickSplitDraft();
     expect(readQuickSplitDraft()).toBeNull();
   });
+
+  it('assigns a revision to an older draft and only clears the revision that was saved', () => {
+    store(valid);
+    expect(readQuickSplitDraft()?.revision).toBeUndefined();
+    const { version: _version, savedAt: _time, ...input } = valid;
+    const original = writeQuickSplitDraft(input)!;
+    expect(writeQuickSplitDraft(input)).toBe(original);
+
+    const newer = writeQuickSplitDraft({ ...input, items: [item({ amount: '87.50' })] })!;
+    expect(newer).not.toBe(original);
+    clearQuickSplitDraft(original);
+    expect(readQuickSplitDraft()?.items[0]?.amount).toBe('87.50');
+    clearQuickSplitDraft(newer);
+    expect(readQuickSplitDraft()).toBeNull();
+  });
 });
 
 describe('drafts it refuses', () => {

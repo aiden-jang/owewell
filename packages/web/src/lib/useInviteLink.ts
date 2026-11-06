@@ -44,6 +44,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
 
   const groupId = group?.id;
+  const serverToken = group?.shareToken;
   const sharingOff = !link && (revoked || !!group?.shareDisabled);
   const { begin, captureScope } = useAsyncScope(groupId);
   useLayoutEffect(() => {
@@ -55,12 +56,15 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     window.clearTimeout(copiedTimer.current);
   }, [groupId]);
   useLayoutEffect(() => {
+    copyVersion.current += 1;
+    window.clearTimeout(copiedTimer.current);
+    setCopied(false);
     setRevoked(!!group?.shareDisabled);
-    if (group?.shareDisabled) {
-      setLink(null);
-      setCopied(false);
+    if (group?.shareDisabled || serverToken === null) setLink(null);
+    else if (serverToken) {
+      setLink((current) => (needsPeople || current ? `${window.location.origin}/s/${serverToken}` : null));
     }
-  }, [group?.shareDisabled]);
+  }, [groupId, group?.shareDisabled, serverToken, needsPeople]);
   const mint = useCallback(async (): Promise<string | null> => {
     if (!groupId) return null;
     const token = await groupsApi.createShareLink(groupId);
@@ -70,7 +74,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   // Fetched on its own when the group needs people, so the block has something to show without
   // waiting for a tap. Gated on needsPeople because minting is a write; see the note above.
   useEffect(() => {
-    if (!needsPeople || link || sharingOff) return;
+    if (!needsPeople || link || sharingOff || serverToken) return;
     let alive = true;
     const current = begin();
     void mint()
@@ -81,7 +85,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     return () => {
       alive = false;
     };
-  }, [needsPeople, link, mint, sharingOff, begin]);
+  }, [needsPeople, link, mint, sharingOff, serverToken, begin]);
 
   const reveal = useCallback(async (): Promise<void> => {
     if (changingRef.current) return;

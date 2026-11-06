@@ -189,8 +189,9 @@ export async function flush(
   ownerId?: string,
 ): Promise<FlushResult> {
   const result: FlushResult = { sent: 0, conflicted: [] };
+  const conflictedGroups = new Set<string>();
   for (const entry of queued(groupId, ownerId)) {
-    if (entry.failure) continue;
+    if (entry.failure || conflictedGroups.has(entry.groupId)) continue;
     try {
       await send(entry);
     } catch (err) {
@@ -198,7 +199,9 @@ export async function flush(
       const paused = pauseFor(err);
       if (paused) return { ...result, paused };
       if (isConflict(err) && isEdit(entry)) {
-        return { ...result, conflicted: [entry] };
+        conflictedGroups.add(entry.groupId);
+        result.conflicted.push(entry);
+        continue;
       }
       const message = err instanceof Error ? err.message : 'The server couldn’t save this change.';
       if (!setFailure(entry.clientId, entry.ownerId, message)) {

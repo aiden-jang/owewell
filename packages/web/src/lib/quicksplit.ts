@@ -21,6 +21,7 @@ export interface PendingItem {
 export interface PendingSplit {
   clientId?: string;
   ownerId?: string;
+  draftRevision?: string;
   people: PendingPerson[];
   items: PendingItem[];
 }
@@ -68,6 +69,6 @@ export function clearPendingSplit(): void {
 }
 
 export const quickSplitApi = {
-  save: (split: PendingSplit): Promise<{ groupId: string }> =>
+  save: ({ draftRevision: _revision, ...split }: PendingSplit): Promise<{ groupId: string }> =>
     api.post<{ groupId: string }>('/quick-splits', split, split.ownerId),
 };

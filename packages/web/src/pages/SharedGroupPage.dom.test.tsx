@@ -124,7 +124,7 @@ describe('loading the tab', () => {
       </MemoryRouter>,
     );
     await screen.findByText('Tahoe cabin');
-    await userEvent.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    await userEvent.click(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ }));
     sharedSummary.mockResolvedValue(summary({ groupName: 'Second tab' }));
     await userEvent.click(screen.getByRole('link', { name: 'Second link' }));
     await screen.findByRole('heading', { name: 'Second tab' });
@@ -174,8 +174,8 @@ describe('claiming a seat', () => {
   it('offers a seat only where nobody has claimed one', async () => {
     await open();
     await screen.findByText('Tahoe cabin');
-    expect(within(rowFor('Bob')).getByRole('button', { name: 'This is me' })).toBeInTheDocument();
-    expect(within(rowFor('Alice')).queryByRole('button', { name: 'This is me' })).not.toBeInTheDocument();
+    expect(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ })).toBeInTheDocument();
+    expect(within(rowFor('Alice')).queryByRole('button', { name: /^This is me \(/ })).not.toBeInTheDocument();
   });
 
   /*
@@ -185,7 +185,7 @@ describe('claiming a seat', () => {
   it('sends a signed-out visitor to sign in, carrying the seat with them', async () => {
     const user = await open();
     await screen.findByText('Tahoe cabin');
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    await user.click(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ }));
     expect(login).toHaveBeenCalledWith(expect.stringContaining('/s/tok?claim=u2'));
     expect(claimSeat).not.toHaveBeenCalled();
   });
@@ -194,7 +194,7 @@ describe('claiming a seat', () => {
     currentUser = { id: 'u9', email: 'a@x.com', displayName: 'Aiden' };
     const user = await open();
     await screen.findByText('Tahoe cabin');
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    await user.click(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ }));
     await waitFor(() => expect(claimSeat).toHaveBeenCalledWith('tok', 'u2'));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/groups/g1'));
   });
@@ -207,10 +207,10 @@ describe('claiming a seat', () => {
     sharedSummary.mockResolvedValue(
       summary({ members: summary().members.map((member) => ({ ...member, isPlaceholder: false })) }),
     );
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    await user.click(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ }));
     await waitFor(() => expect(sharedSummary).toHaveBeenCalledTimes(2));
     await screen.findByText('Viewing only. Ask a member to add you to edit this group.');
-    expect(screen.queryByRole('button', { name: 'This is me' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^This is me \(/ })).not.toBeInTheDocument();
   });
 
   it('says why it failed and leaves the seat claimable', async () => {
@@ -218,10 +218,10 @@ describe('claiming a seat', () => {
     claimSeat.mockRejectedValue(new Error('That spot is taken.'));
     const user = await open();
     await screen.findByText('Tahoe cabin');
-    await user.click(within(rowFor('Bob')).getByRole('button', { name: 'This is me' }));
+    await user.click(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ }));
     await waitFor(() => expect(toastStub.error).toHaveBeenCalledWith('That spot is taken.'));
     expect(navigate).not.toHaveBeenCalled();
-    expect(within(rowFor('Bob')).getByRole('button', { name: 'This is me' })).toBeEnabled();
+    expect(within(rowFor('Bob')).getByRole('button', { name: /^This is me \(/ })).toBeEnabled();
   });
 
   // Somebody already in the group has nothing to claim; they get a way in instead.
@@ -229,7 +229,7 @@ describe('claiming a seat', () => {
     currentUser = { id: 'u1', email: 'a@x.com', displayName: 'Alice' };
     await open();
     await screen.findByText('Tahoe cabin');
-    expect(screen.queryByRole('button', { name: 'This is me' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^This is me \(/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open in owewell/ })).toBeInTheDocument();
   });
 });
