@@ -1,3 +1,4 @@
+import { SelectField } from './SelectField';
 import { useState } from 'react';
 import { Money, dollarsToCents } from '@owewell/shared';
 import type { SplitMethod } from '@owewell/core';
@@ -139,9 +140,10 @@ export default function QuickSplitItemRow({
           )}
         </div>
         <div className="flex gap-2">
-          <select
+          <SelectField
             value={item.method}
             onChange={(e) => onUpdate(item.id, { method: e.target.value as SplitMethod })}
+            wrapperClassName="w-full"
             className={inputClass}
             aria-label={`Item ${index + 1} split method`}
           >
@@ -150,23 +152,24 @@ export default function QuickSplitItemRow({
                 Split {m.label.toLowerCase()}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
         {splitPayers && named.length > 0 && (
           <div className="flex items-center gap-2 text-sm text-muted">
             <span>paid by</span>
-            <select
+            <SelectField
               value={item.payerId || effectivePayerId}
               onChange={(e) => onUpdate(item.id, { payerId: e.target.value })}
               aria-label={`Item ${index + 1} paid by`}
-              className="flex-1 rounded-lg border border-line bg-field px-2 py-1.5 text-ink outline-none focus:border-accent"
+              wrapperClassName="flex-1"
+              className="rounded-lg border border-line bg-field px-2 py-1.5 text-ink focus:border-accent"
             >
               {named.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name.trim() || 'Unnamed'}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
         )}
         {item.method !== 'EQUAL' && named.length > 0 && (

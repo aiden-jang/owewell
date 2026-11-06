@@ -22,6 +22,7 @@ import {
 import QuickSplitItemRow from '../components/QuickSplitItemRow';
 import { useShareAction } from '../lib/useShareAction';
 import { inputClass } from '../components/FormFields';
+import { SelectField } from '../components/SelectField';
 import { SessionNotice } from '../components/SessionNotice';
 
 export function QuickSplitPage(): ReactNode {
@@ -233,7 +234,7 @@ export function QuickSplitPage(): ReactNode {
 
                 <label className="block pt-2 text-sm">
                   <span className="mb-1 block text-xs font-medium text-muted">Who paid?</span>
-                  <select
+                  <SelectField
                     value={effectivePayerId}
                     onChange={(event) => setPayerId(event.target.value)}
                     className={inputClass}
@@ -244,11 +245,11 @@ export function QuickSplitPage(): ReactNode {
                         {person.name.trim() || `Person ${index + 1}`}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
                 <label className="block pt-2 text-sm">
                   <span className="mb-1 block text-xs font-medium text-muted">Which one are you?</span>
-                  <select
+                  <SelectField
                     value={effectiveYouId}
                     onChange={(e) => setYouId(e.target.value)}
                     className={inputClass}
@@ -259,7 +260,7 @@ export function QuickSplitPage(): ReactNode {
                         {p.name.trim()}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
               </div>
 

@@ -1,3 +1,4 @@
+import { SelectField } from './SelectField';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { formatMoney as fmt, dollarsToCents } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
@@ -278,11 +279,11 @@ export function AddItemizedExpenseForm({
             </div>
             <div className="receipt-item-payer mt-2 flex items-center gap-2 text-sm text-muted">
               <span>paid by</span>
-              <select
+              <SelectField
                 value={memberIds.has(item.payerId) ? item.payerId : ''}
                 onChange={(e) => updateItem(index, { payerId: e.target.value })}
                 aria-label={`Item ${index + 1} paid by`}
-                className="rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink outline-none focus:border-accent"
+                className="rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink focus:border-accent"
               >
                 {!memberIds.has(item.payerId) && (
                   <option value="" disabled>
@@ -294,7 +295,7 @@ export function AddItemizedExpenseForm({
                     {m.displayName}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           </div>
         ))}

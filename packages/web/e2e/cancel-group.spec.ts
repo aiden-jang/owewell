@@ -38,16 +38,25 @@ test('illustrated group ideas fill only the name and return keyboard focus witho
 });
 
 for (const width of [1440, 390]) {
-  test(`Cancel closes an empty group form without a validation flash at ${width}px`, async ({ page }) => {
+  test(`New keeps the dashboard still and Close restores focus at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await signIn(page);
+    const created = await page.request.post('/api/groups', { data: { name: 'Weekend away' } });
+    expect(created.ok()).toBe(true);
     await page.goto('/');
+    const row = page.getByRole('link', { name: /Weekend away/ });
+    await expect(row).toBeVisible();
+    const position = await row.boundingBox();
+    const scroll = await page.evaluate(() => window.scrollY);
     const open = page.getByRole('button', { name: 'New', exact: true });
     await open.click();
-    const name = page.getByRole('textbox', { name: 'Group name' });
+    const sheet = page.getByRole('dialog', { name: 'New group' });
+    const name = sheet.getByRole('textbox', { name: 'Group name' });
     await expect(name).toBeFocused();
-    const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+    expect(await row.boundingBox()).toEqual(position);
+    expect(await page.evaluate(() => window.scrollY)).toBe(scroll);
+    const cancel = sheet.getByRole('button', { name: 'Close', exact: true });
     await cancel.hover();
     await page.mouse.down();
     try {
@@ -59,6 +68,7 @@ for (const width of [1440, 390]) {
     }
     await expect(name).toHaveCount(0);
     await expect(open).toBeFocused();
+    expect(await row.boundingBox()).toEqual(position);
     await open.click();
     const safari = process.platform === 'darwin' && test.info().project.name === 'webkit';
     await page.keyboard.press(safari ? 'Alt+Shift+Tab' : 'Shift+Tab');
@@ -67,5 +77,8 @@ for (const width of [1440, 390]) {
     await page.keyboard.press('Enter');
     await expect(name).toHaveCount(0);
     await expect(open).toBeFocused();
+    await expect(page.getByRole('banner').getByRole('link', { name: /split a bill/i })).toHaveCount(0);
+    await page.getByRole('link', { name: /split a bill/i }).click();
+    await expect(page).toHaveURL(/\/split$/);
   });
 }

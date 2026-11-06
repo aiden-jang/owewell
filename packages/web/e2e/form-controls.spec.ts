@@ -1,4 +1,45 @@
+import type { Locator } from '@playwright/test';
 import { expect, expectNoHorizontalOverflow, signIn, test } from './fixtures';
+
+async function expectInsetChevron(select: Locator) {
+  const arrow = await select.evaluate((field) => {
+    const icon = field.nextElementSibling;
+    if (!(icon instanceof SVGElement)) return null;
+    const control = field.getBoundingClientRect();
+    const chevron = icon.getBoundingClientRect();
+    return {
+      appearance: getComputedStyle(field).appearance,
+      centerOffset: chevron.y + chevron.height / 2 - (control.y + control.height / 2),
+      inset: control.right - chevron.right,
+      textGap: chevron.left - (control.right - parseFloat(getComputedStyle(field).paddingRight)),
+      pointerEvents: getComputedStyle(icon).pointerEvents,
+    };
+  });
+  expect(arrow).toMatchObject({ appearance: 'none', pointerEvents: 'none' });
+  expect(arrow!.centerOffset).toBeCloseTo(0, 0);
+  expect(arrow!.inset).toBeCloseTo(12, 0);
+  expect(arrow!.textGap).toBeGreaterThanOrEqual(8);
+}
+
+test('calculator dropdowns reserve space for their arrows and keep native selection', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto('/split');
+  const name = 'AlexandriaMontgomeryWithAnUnbrokenName';
+  await page.getByPlaceholder('Person 2').fill(name);
+  await page.getByLabel('different people paid').check();
+  const selects = page.getByRole('combobox');
+  await expect(selects).toHaveCount(4);
+  for (const select of await selects.all()) {
+    await expectInsetChevron(select);
+  }
+  const splitMethod = await page.getByRole('combobox', { name: 'Item 1 split method' }).boundingBox();
+  const description = await page.getByRole('textbox', { name: 'Item 1 description' }).boundingBox();
+  expect(splitMethod?.width).toBe(description?.width);
+  const payer = page.getByRole('combobox', { name: 'Who paid?', exact: true });
+  await payer.selectOption({ label: name });
+  await expect(payer.locator('option:checked')).toHaveText(name);
+  await expectNoHorizontalOverflow(page);
+});
 
 for (const theme of ['warm', 'dark']) {
   for (const width of [1440, 390]) {
@@ -33,9 +74,7 @@ for (const theme of ['warm', 'dark']) {
         const method = scope
           .getByRole('combobox', { name: 'Payment method', exact: true })
           .filter({ visible: true });
-        expect(
-          await method.evaluate((el) => parseFloat(getComputedStyle(el).paddingRight)),
-        ).toBeGreaterThanOrEqual(32);
+        await expectInsetChevron(method);
         await method.click();
         await method.selectOption('zelle');
         await expect(method).toHaveCSS('outline-style', 'none');

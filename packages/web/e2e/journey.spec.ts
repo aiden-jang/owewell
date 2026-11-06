@@ -12,9 +12,14 @@ import { expectNoHorizontalOverflow, expect, signIn, test, type Page } from './f
 async function newGroup(page: Page, name: string): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByPlaceholder('Tahoe trip, apartment 4B, book club...').fill(name);
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByText(name).first().click();
+  const sheet = page.getByRole('dialog', { name: 'New group' });
+  await sheet.getByRole('textbox', { name: 'Group name' }).fill(name);
+  await sheet.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(sheet).toBeHidden();
+  await page
+    .getByRole('link')
+    .filter({ has: page.getByText(name, { exact: true }) })
+    .click();
   await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
 }
 
@@ -95,7 +100,9 @@ test.describe('from an empty account to a balance', () => {
     await page.emulateMedia({ media: 'print' });
     const print = page.getByRole('article', { name: 'Printable group recap' });
     await expect(print).toBeVisible();
-    await expect(page.locator('.app-header')).toBeHidden();
+    await expect(
+      page.getByRole('button', { name: 'Log out', exact: true, includeHidden: true }),
+    ).toBeHidden();
     await expect(print.getByRole('heading', { name: groupName })).toBeVisible();
     await expect(print.getByRole('row', { name: 'Sam Owes $20.00' })).toBeVisible();
     await expect(print.getByText('Dinner', { exact: false })).toBeVisible();

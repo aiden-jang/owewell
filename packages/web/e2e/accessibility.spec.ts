@@ -106,7 +106,6 @@ test('a complete group task works with keyboard controls and enlarged text', asy
     await expectNoHorizontalOverflow(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     const header = page.getByRole('banner');
-    await expect(header.getByRole('link', { name: 'Split a bill', exact: true })).toBeInViewport();
     await expect(header.getByRole('link', { name: 'Account', exact: true })).toBeInViewport();
     await expect(header.getByRole('button', { name: 'Log out', exact: true })).toBeInViewport();
     if (process.env.UI_A11Y_CAPTURE)

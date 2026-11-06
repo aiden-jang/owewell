@@ -1,3 +1,4 @@
+import { SelectField } from './SelectField';
 import type { GroupMember } from '../lib/groups';
 import { inputClass } from './FormFields';
 
@@ -21,7 +22,7 @@ export function PaymentParties({
     <div className="payment-parties grid gap-3 sm:grid-cols-2">
       <label className="text-xs text-muted">
         Who paid
-        <select
+        <SelectField
           value={from}
           onChange={(event) => setFrom(event.target.value)}
           className={inputClass}
@@ -32,11 +33,11 @@ export function PaymentParties({
               {labels.get(member.userId) ?? member.displayName}
             </option>
           ))}
-        </select>
+        </SelectField>
       </label>
       <label className="text-xs text-muted">
         Paid to
-        <select
+        <SelectField
           value={to}
           onChange={(event) => setTo(event.target.value)}
           className={inputClass}
@@ -47,7 +48,7 @@ export function PaymentParties({
               {labels.get(member.userId) ?? member.displayName}
             </option>
           ))}
-        </select>
+        </SelectField>
       </label>
     </div>
   );

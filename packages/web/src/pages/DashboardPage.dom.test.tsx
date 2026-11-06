@@ -91,11 +91,11 @@ beforeEach(() => {
 });
 
 describe('creating a group', () => {
-  test('pressing Cancel never marks an empty name invalid', async () => {
+  test('closing the sheet never marks an empty name invalid', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /new/i }));
     const input = screen.getByRole('textbox');
-    await user.pointer({ target: screen.getByRole('button', { name: /cancel/i }), keys: '[MouseLeft>]' });
+    await user.pointer({ target: screen.getByRole('button', { name: 'Close' }), keys: '[MouseLeft>]' });
     expect(input).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText(/give the group a name/i)).not.toBeInTheDocument();
     await user.pointer({ keys: '[/MouseLeft]' });
@@ -104,7 +104,7 @@ describe('creating a group', () => {
     expect(create).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: /^new$/i }));
     await user.tab({ shift: true });
-    expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
     expect(screen.queryByText(/give the group a name/i)).not.toBeInTheDocument();
     await user.keyboard('{Enter}');
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -153,6 +153,32 @@ describe('creating a group', () => {
     expect(screen.getByRole('textbox')).toHaveValue('');
   });
 
+  test('keeps the name and sheet in place until creation finishes', async () => {
+    const user = await open();
+    let finish!: (group: unknown) => void;
+    create.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await user.click(screen.getByRole('button', { name: /^new$/i }));
+    const name = screen.getByRole('textbox', { name: 'Group name' });
+    await user.type(name, 'Weekend away');
+    await user.click(screen.getByRole('button', { name: /^create$/i }));
+    expect(screen.getByRole('button', { name: 'Close' })).toBeDisabled();
+    expect(name).toHaveAttribute('readonly');
+    await user.keyboard('{Escape}');
+    expect(name).toHaveValue('Weekend away');
+    finish({
+      id: 'new1',
+      name: 'Weekend away',
+      createdAt: new Date().toISOString(),
+      members: [{}],
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   test('Escape closes the form', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /new/i }));
@@ -162,11 +188,12 @@ describe('creating a group', () => {
 });
 
 describe('New and Select are one at a time', () => {
-  test('entering select mode closes the name field', async () => {
-    // The exact report: click New, then Select, and the input stayed open while the footer moved.
+  test('Escape returns focus to New before entering select mode', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /new/i }));
     expect(screen.getByRole('textbox')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: /^new$/i })).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: /select/i }));
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -183,14 +210,14 @@ describe('New and Select are one at a time', () => {
     await user.click(screen.getByRole('button', { name: /cancel/i }));
     await user.click(screen.getByRole('button', { name: /new/i }));
     expect(screen.getByRole('textbox')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New group' })).toBeInTheDocument();
   });
 
   test('Cancel closes the new-group form and clears its draft', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /new/i }));
     await user.type(screen.getByRole('textbox'), 'Ski trip');
-    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /new/i }));
     expect(screen.getByRole('textbox')).toHaveValue('');
@@ -279,5 +306,6 @@ test('the first-group action opens a labeled name field', async () => {
   const user = await open([]);
   await user.click(screen.getByRole('button', { name: 'Create your first group' }));
   expect(screen.getByRole('textbox', { name: 'Group name' })).toHaveFocus();
-  expect(screen.queryByRole('button', { name: 'Create your first group' })).not.toBeInTheDocument();
+  await user.keyboard('{Escape}');
+  expect(screen.getByRole('button', { name: 'Create your first group' })).toHaveFocus();
 });

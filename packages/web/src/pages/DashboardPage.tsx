@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { Icon } from '../components/Icon';
 import { CreateGroupForm } from '../components/CreateGroupForm';
+import { Sheet } from '../components/Sheet';
 import { PendingSplitCard } from '../components/PendingSplitCard';
 import { DashboardGroupCard } from '../components/DashboardGroupCard';
 import { DashboardBalance } from '../components/DashboardBalance';
@@ -101,6 +102,7 @@ export function DashboardPage(): ReactNode {
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
+    if (creating) return;
     if (!name.trim()) {
       touchName();
       return;
@@ -199,43 +201,19 @@ export function DashboardPage(): ReactNode {
                     <button
                       type="button"
                       onClick={(event) => {
-                        if (creatingOpen) {
-                          closeCreate();
-                          event.currentTarget.focus();
-                        } else openCreate();
+                        event.currentTarget.focus({ preventScroll: true });
+                        openCreate();
                       }}
-                      onPointerDown={(event) => {
-                        // Keep the name focused until Cancel closes it, rather than validating on pointer-down.
-                        if (creatingOpen) event.preventDefault();
-                      }}
-                      aria-expanded={creatingOpen}
-                      aria-controls={creatingOpen ? 'create-group-form' : undefined}
+                      aria-haspopup="dialog"
+                      data-focus-return="create-group"
                       className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
                     >
-                      <Icon name={creatingOpen ? 'x' : 'plus'} size={16} />
-                      {creatingOpen ? 'Cancel' : 'New'}
+                      <Icon name="plus" size={16} /> New
                     </button>
                   </>
                 )}
               </div>
             </div>
-
-            {creatingOpen && (
-              <CreateGroupForm
-                name={name}
-                nameTouched={nameTouched}
-                busy={creating}
-                onNameChange={setName}
-                onTouch={touchName}
-                onClose={closeCreate}
-                onSubmit={(event) => void onCreate(event)}
-              />
-            )}
-            {error && (
-              <p role="alert" className="mt-2 text-sm font-medium text-neg">
-                {error}
-              </p>
-            )}
 
             <div className="mt-4">
               {loadError ? (
@@ -258,11 +236,17 @@ export function DashboardPage(): ReactNode {
                   icon="users"
                   title="No groups yet. The calm before the tab."
                   action={
-                    !creatingOpen && (
-                      <Button block={false} onClick={openCreate}>
-                        Create your first group
-                      </Button>
-                    )
+                    <Button
+                      block={false}
+                      aria-haspopup="dialog"
+                      data-focus-return="create-group"
+                      onClick={(event) => {
+                        event.currentTarget.focus({ preventScroll: true });
+                        openCreate();
+                      }}
+                    >
+                      Create your first group
+                    </Button>
                   }
                   body={
                     <>
@@ -324,12 +308,39 @@ export function DashboardPage(): ReactNode {
                       )}
                     </div>
                   )}
+                  {!selectMode && (
+                    <p className="mt-4 text-sm text-muted">
+                      For a one-off expense,{' '}
+                      <Link to="/split" className="font-medium text-accent underline underline-offset-4">
+                        split a bill
+                      </Link>
+                      .
+                    </p>
+                  )}
                 </>
               )}
             </div>
           </section>
         </div>
       </main>
+
+      <Sheet
+        open={creatingOpen}
+        onClose={closeCreate}
+        title="New group"
+        autoFocusField
+        closeDisabled={creating}
+      >
+        <CreateGroupForm
+          name={name}
+          nameTouched={nameTouched}
+          busy={creating}
+          error={error}
+          onNameChange={setName}
+          onTouch={touchName}
+          onSubmit={(event) => void onCreate(event)}
+        />
+      </Sheet>
 
       {selectMode && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card/90 backdrop-blur-md">

@@ -1,3 +1,4 @@
+import { SelectField } from './SelectField';
 import { loginUrl } from '@aidenjang/auth-client';
 import { AUTH_ORIGIN } from '../lib/api';
 import { useEffect, useRef, type ReactNode } from 'react';
@@ -38,7 +39,7 @@ export function PayerSelect({
 }): ReactNode {
   const hasPayer = members.some((m) => m.userId === value);
   return (
-    <select
+    <SelectField
       value={hasPayer ? value : ''}
       onChange={(e) => onChange(e.target.value)}
       className={inputClass}
@@ -54,7 +55,7 @@ export function PayerSelect({
           {m.displayName} paid
         </option>
       ))}
-    </select>
+    </SelectField>
   );
 }
 

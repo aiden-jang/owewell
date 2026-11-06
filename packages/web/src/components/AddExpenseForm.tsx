@@ -1,3 +1,4 @@
+import { SelectField } from './SelectField';
 import { expenseSplitHint } from '../lib/expenseSplitHint';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ExpenseExtras } from './ExpenseExtras';
@@ -324,7 +325,7 @@ export function AddExpenseForm({
         expanded={!!source}
       />
 
-      <select
+      <SelectField
         value={method}
         onChange={(e) => setMethod(e.target.value as SplitMethod)}
         className={inputClass}
@@ -335,7 +336,7 @@ export function AddExpenseForm({
             Split {m.label.toLowerCase()}
           </option>
         ))}
-      </select>
+      </SelectField>
 
       {method !== 'EQUAL' && <p className="-mt-1 text-xs text-muted">{splitMethodHint(method)}</p>}
 

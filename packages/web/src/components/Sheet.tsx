@@ -15,6 +15,7 @@ export function Sheet({
   children,
   autoFocusField = false,
   protectChanges = false,
+  closeDisabled = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,11 +25,14 @@ export function Sheet({
   autoFocusField?: boolean;
   /** Ask before dismissing an unfinished expense or payment. */
   protectChanges?: boolean;
+  closeDisabled?: boolean;
 }): ReactNode {
   const dialogRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const closeDisabledRef = useRef(closeDisabled);
+  closeDisabledRef.current = closeDisabled;
   const dirtyRef = useRef(false);
   const [dirty, setDirty] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -59,6 +63,7 @@ export function Sheet({
     if (contentRef.current) contentRef.current.scrollTop = 0;
   }, [asking]);
   const requestClose = useCallback((): void => {
+    if (closeDisabledRef.current) return;
     if (dirtyRef.current && dialogRef.current?.querySelector('button[type="submit"]:disabled')) return;
     if (dirtyRef.current) setAsking(true);
     else closeRef.current();
@@ -104,9 +109,11 @@ export function Sheet({
           <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
           <button
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={requestClose}
+            disabled={closeDisabled}
             aria-label="Close"
-            className="tap grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink"
+            className="tap grid h-8 w-8 place-items-center rounded-full text-muted transition hover:bg-surface2 hover:text-ink disabled:opacity-50"
           >
             <Icon name="x" size={18} />
           </button>

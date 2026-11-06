@@ -5,46 +5,39 @@ type Props = {
   name: string;
   nameTouched: boolean;
   busy: boolean;
+  error: string | null;
   onNameChange: (name: string) => void;
   onTouch: () => void;
-  onClose: () => void;
   onSubmit: (event: FormEvent) => void;
 };
 
-export function CreateGroupForm({
-  name,
-  nameTouched,
-  busy,
-  onNameChange,
-  onTouch,
-  onClose,
-  onSubmit,
-}: Props) {
+export function CreateGroupForm({ name, nameTouched, busy, error, onNameChange, onTouch, onSubmit }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const ideas = useRef<HTMLDetailsElement>(null);
   return (
-    <form id="create-group-form" onSubmit={onSubmit} className="mt-3">
+    <form onSubmit={onSubmit}>
+      <label htmlFor="new-group-name" className="field-label">
+        Group name
+      </label>
       <div className="flex gap-2">
         <input
           ref={input}
-          autoFocus
-          aria-label="Group name"
+          id="new-group-name"
           required
+          readOnly={busy}
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
           onBlur={(event) => {
             if (
               event.relatedTarget instanceof Element &&
-              (event.relatedTarget.getAttribute('aria-controls') === 'create-group-form' ||
-                event.relatedTarget.closest('.group-ideas'))
+              event.relatedTarget.closest('.group-ideas, .sheet-header')
             )
               return;
             onTouch();
           }}
-          onKeyDown={(e) => e.key === 'Escape' && onClose()}
           aria-invalid={nameTouched && !name.trim()}
           aria-describedby="group-name-hint"
-          placeholder="Tahoe trip, apartment 4B, book club..."
+          placeholder="Weekend trip…"
           className={`min-w-0 flex-1 rounded-xl border bg-field px-3.5 py-2.5 outline-none transition focus:ring-2 focus:ring-accent/20 ${
             nameTouched && !name.trim() ? 'border-neg' : 'border-line focus:border-accent'
           }`}
@@ -52,6 +45,7 @@ export function CreateGroupForm({
         <button
           type="submit"
           disabled={busy || !name.trim()}
+          aria-busy={busy}
           className="btn-gradient shrink-0 rounded-full px-5 py-2.5 font-semibold transition active:scale-[0.98] disabled:opacity-60"
         >
           {busy ? 'Adding…' : 'Create'}
@@ -65,6 +59,11 @@ export function CreateGroupForm({
           ? 'Give the group a name to create it.'
           : 'Name it after the trip, the flat, or the people.'}
       </p>
+      {error && (
+        <p role="alert" className="mt-2 text-sm font-medium text-neg">
+          {error}
+        </p>
+      )}
       <details ref={ideas} className="group-ideas">
         <summary>
           Group ideas <span className="text-faint">optional</span>

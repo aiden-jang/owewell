@@ -5,6 +5,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { categoryMeta, PAYMENT_METHOD_LABELS } from '@owewell/core';
 import { EmptyState } from './EmptyState';
 import { Icon } from './Icon';
+import { SelectField } from './SelectField';
 import { lensAmount, matchesPersonLens } from '../lib/activityFilters';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
@@ -184,11 +185,12 @@ export function ActivityFeed({
           </label>
           {/* Capped: a select is as wide as its longest option, and one long name pushes the
               search field onto its own line. */}
-          <select
+          <SelectField
             value={personFilter ?? ''}
             onChange={(e) => setPersonFilter(e.target.value || null)}
             aria-label="Filter by person"
-            className={`max-w-[8.5rem] truncate rounded-full border px-3 py-2 font-medium outline-none transition focus:border-accent ${
+            wrapperClassName="max-w-[8.5rem]"
+            className={`truncate rounded-full border px-3 py-2 font-medium transition focus:border-accent ${
               personFilter ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-field text-muted'
             }`}
           >
@@ -198,18 +200,18 @@ export function ActivityFeed({
                 {m.userId === currentUserId ? 'You' : m.displayName}
               </option>
             ))}
-          </select>
+          </SelectField>
           {personFilter && (
-            <select
+            <SelectField
               value={relationFilter}
               onChange={(e) => setRelationFilter(e.target.value as typeof relationFilter)}
               aria-label="Filter by relationship to the expense"
-              className="rounded-full border border-accent bg-accent-soft px-3 py-2 font-medium text-accent outline-none transition focus:border-accent"
+              className="rounded-full border border-accent bg-accent-soft px-3 py-2 font-medium text-accent transition focus:border-accent"
             >
               <option value="involved">involved</option>
               <option value="owes">owes</option>
               <option value="paid">paid</option>
-            </select>
+            </SelectField>
           )}
           {categoryFilter && (
             <button

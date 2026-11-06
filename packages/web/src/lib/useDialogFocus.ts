@@ -38,7 +38,7 @@ export function useDialogFocus(
         return true;
       });
 
-    (initialFocus?.() ?? ref.current)?.focus();
+    (initialFocus?.() ?? ref.current)?.focus({ preventScroll: true });
 
     const onKey = (e: KeyboardEvent): void => {
       const activeDialog = document.activeElement?.closest('[role="dialog"]');
@@ -71,11 +71,19 @@ export function useDialogFocus(
     document.addEventListener('keydown', onKey);
     // The page behind must not scroll under a modal, whichever modal it is.
     const prev = document.body.style.overflow;
+    const previousPadding = document.body.style.paddingInlineEnd;
+    const viewport = document.documentElement.clientWidth;
+    const scrollbar = window.innerWidth - viewport;
+    if (viewport > 0 && scrollbar > 0) {
+      const padding = Number.parseFloat(getComputedStyle(document.body).paddingInlineEnd) || 0;
+      document.body.style.paddingInlineEnd = `${padding + scrollbar}px`;
+    }
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+      document.body.style.paddingInlineEnd = previousPadding;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
       else if (returnKey) {
         Array.from(document.querySelectorAll<HTMLElement>('[data-focus-return]'))
           .find((element) => element.dataset.focusReturn === returnKey)
