@@ -15,6 +15,7 @@ export function GroupHeader({
   onToggleArchive,
   onDelete,
   onInvite,
+  inviteBusy = false,
   onExport,
   onPrint,
   onOpenMembers,
@@ -30,6 +31,7 @@ export function GroupHeader({
   onToggleArchive: () => Promise<void>;
   onDelete: () => Promise<void>;
   onInvite: () => void;
+  inviteBusy?: boolean;
   onExport: () => void;
   onPrint: () => void;
   /** Who is in the group is roster management, so it lives here rather than beside the spending. */
@@ -171,6 +173,7 @@ export function GroupHeader({
             <button
               type="button"
               onClick={onInvite}
+              disabled={inviteBusy}
               aria-label="Invite people to this group"
               className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-surface2 text-sm font-medium text-ink transition hover:border-accent hover:text-accent sm:w-auto sm:px-3.5"
             >

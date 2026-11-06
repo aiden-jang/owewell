@@ -135,6 +135,7 @@ export function AddItemizedExpenseForm({
 
   async function onSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
+    if (submitting) return;
     setError(null);
 
     const trimmedDescription = description.trim();
@@ -214,123 +215,124 @@ export function AddItemizedExpenseForm({
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="entry-form space-y-3.5">
-      <DescriptionField value={description} onChange={setDescription} />
-      <PayerSelect members={members} value={payerId} onChange={setPayerId} />
+      <fieldset disabled={submitting} className="entry-fields min-w-0 space-y-3.5">
+        <DescriptionField value={description} onChange={setDescription} />
+        <PayerSelect members={members} value={payerId} onChange={setPayerId} />
 
-      <DateField value={date} onChange={setDate} />
+        <DateField value={date} onChange={setDate} />
 
-      {/* The computed total lets someone check their entries against the printed receipt. */}
-      <div className="entry-amount">
-        <span className="entry-amount-label">Receipt total</span>
-        <p className="tnum font-display text-4xl font-medium tracking-tight">{fmt(grandTotalCents)}</p>
-        <p className="mt-1 text-sm text-muted">
-          {grandTotalCents > 0 ? 'Items, tax and tip' : 'Add the line items below'}
-        </p>
-      </div>
+        {/* The computed total lets someone check their entries against the printed receipt. */}
+        <div className="entry-amount">
+          <span className="entry-amount-label">Receipt total</span>
+          <p className="tnum font-display text-4xl font-medium tracking-tight">{fmt(grandTotalCents)}</p>
+          <p className="mt-1 text-sm text-muted">
+            {grandTotalCents > 0 ? 'Items, tax and tip' : 'Add the line items below'}
+          </p>
+        </div>
 
-      <CategoryPicker value={category} onChange={setCategory} />
+        <CategoryPicker value={category} onChange={setCategory} />
 
-      <NoteField value={note} onChange={setNote} />
+        <NoteField value={note} onChange={setNote} />
 
-      <div className="receipt-items space-y-3">
-        {items.map((item, index) => (
-          <div key={index} className="receipt-item">
-            <span className="receipt-item-label">Item {String(index + 1).padStart(2, '0')}</span>
-            <div className="receipt-item-fields flex gap-2">
-              <input
-                value={item.name}
-                onChange={(e) => updateItem(index, { name: e.target.value })}
-                placeholder={`Item ${index + 1}`}
-                className={inputClass}
-                aria-label={`Item ${index + 1} name`}
-              />
-              <input
-                value={item.amount}
-                onChange={(e) => updateItem(index, { amount: e.target.value })}
-                onBlur={() => updateItem(index, { amount: normalizeAmountInput(item.amount) })}
-                placeholder="0.00"
-                inputMode="decimal"
-                enterKeyHint="next"
-                className="w-28 rounded-xl border border-line bg-field px-3 py-2.5 text-right outline-none focus:border-accent"
-                aria-label={`Item ${index + 1} amount`}
-              />
-              {items.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  className="rounded-xl border border-line px-3 text-muted transition hover:bg-canvas"
-                  aria-label={`Remove item ${index + 1}`}
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-            <div className="receipt-item-people mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {members.map((m) => (
-                <label key={m.userId} className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={item.participantIds.has(m.userId)}
-                    onChange={() => toggleParticipant(index, m.userId)}
-                  />
-                  <span>{m.displayName}</span>
-                </label>
-              ))}
-            </div>
-            <div className="receipt-item-payer mt-2 flex items-center gap-2 text-sm text-muted">
-              <span>paid by</span>
-              <SelectField
-                value={memberIds.has(item.payerId) ? item.payerId : ''}
-                onChange={(e) => updateItem(index, { payerId: e.target.value })}
-                aria-label={`Item ${index + 1} paid by`}
-                className="rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink focus:border-accent"
-              >
-                {!memberIds.has(item.payerId) && (
-                  <option value="" disabled>
-                    Choose who paid
-                  </option>
+        <div className="receipt-items space-y-3">
+          {items.map((item, index) => (
+            <div key={index} className="receipt-item">
+              <span className="receipt-item-label">Item {String(index + 1).padStart(2, '0')}</span>
+              <div className="receipt-item-fields flex gap-2">
+                <input
+                  value={item.name}
+                  onChange={(e) => updateItem(index, { name: e.target.value })}
+                  placeholder={`Item ${index + 1}`}
+                  className={inputClass}
+                  aria-label={`Item ${index + 1} name`}
+                />
+                <input
+                  value={item.amount}
+                  onChange={(e) => updateItem(index, { amount: e.target.value })}
+                  onBlur={() => updateItem(index, { amount: normalizeAmountInput(item.amount) })}
+                  placeholder="0.00"
+                  inputMode="decimal"
+                  enterKeyHint="next"
+                  className="w-28 rounded-xl border border-line bg-field px-3 py-2.5 text-right outline-none focus:border-accent"
+                  aria-label={`Item ${index + 1} amount`}
+                />
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeItem(index)}
+                    className="rounded-xl border border-line px-3 text-muted transition hover:bg-canvas"
+                    aria-label={`Remove item ${index + 1}`}
+                  >
+                    &times;
+                  </button>
                 )}
+              </div>
+              <div className="receipt-item-people mt-2 flex flex-wrap gap-x-4 gap-y-1">
                 {members.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.displayName}
-                  </option>
+                  <label key={m.userId} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={item.participantIds.has(m.userId)}
+                      onChange={() => toggleParticipant(index, m.userId)}
+                    />
+                    <span>{m.displayName}</span>
+                  </label>
                 ))}
-              </SelectField>
+              </div>
+              <div className="receipt-item-payer mt-2 flex items-center gap-2 text-sm text-muted">
+                <span>paid by</span>
+                <SelectField
+                  value={memberIds.has(item.payerId) ? item.payerId : ''}
+                  onChange={(e) => updateItem(index, { payerId: e.target.value })}
+                  aria-label={`Item ${index + 1} paid by`}
+                  className="rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink focus:border-accent"
+                >
+                  {!memberIds.has(item.payerId) && (
+                    <option value="" disabled>
+                      Choose who paid
+                    </option>
+                  )}
+                  {members.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.displayName}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
             </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={addItem}
-          className="w-full rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
-        >
-          + Add another item
-        </button>
-      </div>
+          ))}
+          <button
+            type="button"
+            onClick={addItem}
+            className="w-full rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
+          >
+            + Add another item
+          </button>
+        </div>
 
-      <div className="flex gap-2">
-        <input
-          value={tax}
-          onChange={(e) => setTax(e.target.value)}
-          onBlur={() => setTax(normalizeAmountInput(tax))}
-          placeholder="Tax (optional)"
-          inputMode="decimal"
-          enterKeyHint="next"
-          className={inputClass}
-          aria-label="Tax"
-        />
-        <input
-          value={tip}
-          onChange={(e) => setTip(e.target.value)}
-          onBlur={() => setTip(normalizeAmountInput(tip))}
-          placeholder="Tip (optional)"
-          inputMode="decimal"
-          enterKeyHint="next"
-          className={inputClass}
-          aria-label="Tip"
-        />
-      </div>
-
+        <div className="flex gap-2">
+          <input
+            value={tax}
+            onChange={(e) => setTax(e.target.value)}
+            onBlur={() => setTax(normalizeAmountInput(tax))}
+            placeholder="Tax (optional)"
+            inputMode="decimal"
+            enterKeyHint="next"
+            className={inputClass}
+            aria-label="Tax"
+          />
+          <input
+            value={tip}
+            onChange={(e) => setTip(e.target.value)}
+            onBlur={() => setTip(normalizeAmountInput(tip))}
+            placeholder="Tip (optional)"
+            inputMode="decimal"
+            enterKeyHint="next"
+            className={inputClass}
+            aria-label="Tip"
+          />
+        </div>
+      </fieldset>
       <FormError message={error} />
       <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add receipt'}</SubmitButton>
     </form>

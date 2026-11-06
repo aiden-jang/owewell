@@ -8,8 +8,8 @@ import { useGroupActions } from '../lib/useGroupActions';
 import { GroupActivityShortcut } from '../components/GroupActivityShortcut';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { Icon } from '../components/Icon';
 import { InviteLink } from '../components/InviteLink';
+import { OutboxNotice } from '../components/OutboxNotice';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseSheet } from '../components/AddExpenseSheet';
 import { RecordPaymentForm } from '../components/RecordPaymentForm';
@@ -56,6 +56,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
     showSavedExpense,
     refreshPending,
     pendingCount,
+    outboxSync,
   } = ledger;
   usePageTitle(group?.name ?? 'Opening group');
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -153,6 +154,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         onToggleArchive={toggleArchive}
         onDelete={deleteGroup}
         onInvite={() => void invite.reveal()}
+        inviteBusy={invite.changing}
         onExport={exportActivity}
         onPrint={() => window.print()}
         onOpenMembers={() => setMembersOpen(true)}
@@ -161,17 +163,15 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
       {/* Above the balance, because the balance is what it makes wrong: the figure is computed by
           the server from writes that have not reached it, and a row marked "waiting" further down
           only explains itself if you happen to be looking at that row. */}
-      {pendingCount > 0 && (
-        <p
-          role="status"
-          className="flex items-center justify-center gap-2 rounded-full border border-dashed border-line-strong py-2 text-sm text-muted"
-        >
-          <Icon name="share" size={14} />
-          {pendingCount === 1
+      <OutboxNotice
+        count={pendingCount}
+        waitingMessage={
+          pendingCount === 1
             ? 'One change is waiting for signal'
-            : `${pendingCount} changes are waiting for signal`}
-        </p>
-      )}
+            : `${pendingCount} changes are waiting for signal`
+        }
+        sync={outboxSync}
+      />
 
       {ledgerHasRows && (
         <GroupActivityShortcut
@@ -198,6 +198,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         <InviteLink
           link={invite.link}
           copied={invite.copied}
+          changing={invite.changing}
           onCopy={() => void invite.copy()}
           isOwner={isOwner}
           onRotate={() => void newShareLink()}

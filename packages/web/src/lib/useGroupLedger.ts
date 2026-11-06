@@ -14,7 +14,7 @@ import {
   type QueuedWrite,
 } from './outbox';
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
-import { useOutboxSync } from './useOutboxSync';
+import { useOutboxSync, type OutboxSync } from './useOutboxSync';
 import { useToast } from '../components/Toast';
 
 // Keep optimistic updates narrow: confirmed balances are always computed by the server.
@@ -51,6 +51,7 @@ export interface GroupLedger {
    * balances are wrong in a way no single row explains.
    */
   pendingCount: number;
+  outboxSync: OutboxSync;
 }
 
 export function useGroupLedger(groupId: string): GroupLedger {
@@ -181,7 +182,7 @@ export function useGroupLedger(groupId: string): GroupLedger {
   });
 
   // Scoped to this group; the dashboard runs the same hook unscoped so nothing gets stranded.
-  useOutboxSync({
+  const outboxSync = useOutboxSync({
     groupId,
     onChanged: () => {
       void refreshLedger();
@@ -218,5 +219,6 @@ export function useGroupLedger(groupId: string): GroupLedger {
     dropExpense,
     refreshPending,
     pendingCount: pending.length,
+    outboxSync,
   };
 }

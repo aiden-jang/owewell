@@ -1254,7 +1254,7 @@ input:disabled {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.entry-form > label {
+.entry-fields > label {
   font-weight: 500;
 }
 .entry-participants {
@@ -1275,12 +1275,12 @@ input:disabled {
   border-radius: 16px;
   background: var(--color-surface2);
 }
-.entry-form fieldset button[aria-pressed] {
+.entry-fields fieldset button[aria-pressed] {
   min-height: 44px;
   border-radius: 12px;
   font-weight: 500;
 }
-.entry-form fieldset button[aria-pressed='true'] {
+.entry-fields fieldset button[aria-pressed='true'] {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
 }

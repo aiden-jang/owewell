@@ -74,24 +74,25 @@ export function isAlreadyDone(err: unknown): boolean {
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
-function read(): QueuedWrite[] {
+function read(): QueuedWrite[] | null {
   try {
     const raw = localStorage.getItem(KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as QueuedWrite[]) : [];
+    return Array.isArray(parsed) ? (parsed as QueuedWrite[]) : null;
   } catch {
     // An unreadable queue is an empty one. Throwing here would break every render of the group page.
-    return [];
+    return null;
   }
 }
 
-function write(entries: QueuedWrite[]): void {
+function write(entries: QueuedWrite[]): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(entries));
   } catch {
-    // Full or blocked. Nothing useful to do here: the caller already has the data on screen.
+    return false;
   }
   for (const fn of listeners) fn();
+  return true;
 }
 
 export function subscribe(fn: Listener): () => void {
@@ -101,16 +102,21 @@ export function subscribe(fn: Listener): () => void {
 
 /** Everything still waiting, oldest first, so replay preserves the order they were typed in. */
 export function queued(groupId?: string): QueuedWrite[] {
-  const all = read().sort((a, b) => a.queuedAt - b.queuedAt);
+  const all = (read() ?? []).sort((a, b) => a.queuedAt - b.queuedAt);
   return groupId ? all.filter((e) => e.groupId === groupId) : all;
 }
 
-export function enqueue(entry: QueuedWrite): void {
-  write([...read().filter((e) => e.clientId !== entry.clientId), entry]);
+export const OUTBOX_STORAGE_ERROR =
+  'Could not keep this change on this device. Check browser storage or try again when connected.';
+
+export function enqueue(entry: QueuedWrite): boolean {
+  const entries = read();
+  return entries !== null && write([...entries.filter((e) => e.clientId !== entry.clientId), entry]);
 }
 
-export function drop(clientId: string): void {
-  write(read().filter((e) => e.clientId !== clientId));
+export function drop(clientId: string): boolean {
+  const entries = read();
+  return entries !== null && write(entries.filter((e) => e.clientId !== clientId));
 }
 
 /**
@@ -123,6 +129,7 @@ export function isOffline(err: unknown): boolean {
 
 export interface FlushResult {
   sent: number;
+  paused?: 'sign-in' | 'temporary' | 'storage';
   /** Writes the server refused outright. Dropped from the queue; the caller has to say so. */
   rejected: { entry: QueuedWrite; message: string }[];
   /** Edits the row moved out from under. Dropped too, but they need a question, not a message. */
@@ -141,11 +148,15 @@ export async function flush(
   for (const entry of queued(groupId)) {
     try {
       await send(entry);
-      drop(entry.clientId);
-      result.sent += 1;
     } catch (err) {
       if (isOffline(err)) return result;
-      drop(entry.clientId);
+      if (err instanceof ApiError) {
+        if (err.status === 401) return { ...result, paused: 'sign-in' };
+        if (err.status === 408 || err.status === 429 || err.status >= 500) {
+          return { ...result, paused: 'temporary' };
+        }
+      }
+      if (!drop(entry.clientId)) return { ...result, paused: 'storage' };
       if (isConflict(err) && isEdit(entry)) {
         result.conflicted.push(entry);
         continue;
@@ -154,7 +165,10 @@ export async function flush(
         entry,
         message: err instanceof Error ? err.message : 'The server would not take it.',
       });
+      continue;
     }
+    if (!drop(entry.clientId)) return { ...result, paused: 'storage' };
+    result.sent += 1;
   }
   return result;
 }

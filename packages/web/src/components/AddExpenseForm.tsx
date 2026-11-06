@@ -143,6 +143,7 @@ export function AddExpenseForm({
 
   async function onSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
+    if (submitting) return;
     setError(null);
 
     const trimmedDescription = description.trim();
@@ -278,116 +279,118 @@ export function AddExpenseForm({
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="entry-form space-y-3.5">
-      {/* Keep the amount prominent while preserving digit-based sizing on narrow screens. */}
-      <div className="entry-amount">
-        <span className="entry-amount-label">Expense total</span>
-        <div className="flex items-baseline justify-center gap-1">
-          <span aria-hidden className="font-display text-2xl font-semibold text-faint">
-            {symbol}
-          </span>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onBlur={() => setAmount(normalizeAmountInput(amount))}
-            placeholder="0.00"
-            inputMode="decimal"
-            enterKeyHint="next"
-            aria-label="Amount"
-            required
-            /* Sized to its own digits so the $ stays next to the number instead of drifting off the
+      <fieldset disabled={submitting} className="entry-fields min-w-0 space-y-3.5">
+        {/* Keep the amount prominent while preserving digit-based sizing on narrow screens. */}
+        <div className="entry-amount">
+          <span className="entry-amount-label">Expense total</span>
+          <div className="flex items-baseline justify-center gap-1">
+            <span aria-hidden className="font-display text-2xl font-semibold text-faint">
+              {symbol}
+            </span>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              onBlur={() => setAmount(normalizeAmountInput(amount))}
+              placeholder="0.00"
+              inputMode="decimal"
+              enterKeyHint="next"
+              aria-label="Amount"
+              required
+              /* Sized to its own digits so the $ stays next to the number instead of drifting off the
                left edge of a fixed box. Tabular figures make 1ch exact for every digit. */
-            style={{
-              width: `${Math.max(4, amount.length) + 0.3}ch`,
-              maxWidth: '100%',
-              minWidth: 0,
-              fontSize: `clamp(1.25rem, ${90 / Math.max(4, amount.length)}vw, 3rem)`,
-            }}
-            className="tnum bg-transparent text-center font-display text-5xl font-medium tracking-tight outline-none placeholder:text-faint"
-          />
-        </div>
-        <p className={`mt-2 text-sm ${perPerson ? 'text-muted' : 'text-faint'}`} aria-live="polite">
-          {perPerson ?? `Split ${selected.size} ${selected.size === 1 ? 'way' : 'ways'}`}
-        </p>
-      </div>
-
-      <DescriptionField value={description} onChange={setDescription} />
-      <label className="block text-xs text-muted">
-        Who paid?
-        <PayerSelect members={members} value={payerId} onChange={setPayerId} />
-      </label>
-      <ExpenseExtras
-        date={date}
-        setDate={setDate}
-        category={category}
-        setCategory={setCategory}
-        note={note}
-        setNote={setNote}
-        expanded={!!source}
-      />
-
-      <SelectField
-        value={method}
-        onChange={(e) => setMethod(e.target.value as SplitMethod)}
-        className={inputClass}
-        aria-label="Split method"
-      >
-        {SPLIT_METHODS.map((m) => (
-          <option key={m.value} value={m.value}>
-            Split {m.label.toLowerCase()}
-          </option>
-        ))}
-      </SelectField>
-
-      {method !== 'EQUAL' && <p className="-mt-1 text-xs text-muted">{splitMethodHint(method)}</p>}
-
-      <div className="entry-participants space-y-2">
-        {members.map((m) => (
-          <div key={m.userId} className="flex items-center gap-3">
-            <label className="flex min-w-0 flex-1 items-center gap-2">
-              <input type="checkbox" checked={selected.has(m.userId)} onChange={() => toggle(m.userId)} />
-              <span className="min-w-0 break-words">{m.displayName}</span>
-            </label>
-            {method !== 'EQUAL' && selected.has(m.userId) && (
-              <div className="flex items-center gap-1">
-                <input
-                  value={values[m.userId] ?? ''}
-                  onChange={(e) => setValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
-                  placeholder="0"
-                  inputMode="decimal"
-                  enterKeyHint="next"
-                  aria-label={
-                    method === 'EXACT'
-                      ? `Amount for ${m.displayName}`
-                      : method === 'PERCENT'
-                        ? `Percent for ${m.displayName}`
-                        : `Shares for ${m.displayName}`
-                  }
-                  className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
-                />
-                <span className="w-14 shrink-0 text-sm text-muted">
-                  {method === 'EXACT' ? symbol : splitMethodUnit(method)}
-                </span>
-                {/* Shares and percentages are abstractions; this is the dollars they come to. */}
-                <span className="tnum w-20 text-right text-sm text-muted">
-                  {shareOf.has(m.userId) ? fmt(shareOf.get(m.userId)!) : ''}
-                </span>
-              </div>
-            )}
+              style={{
+                width: `${Math.max(4, amount.length) + 0.3}ch`,
+                maxWidth: '100%',
+                minWidth: 0,
+                fontSize: `clamp(1.25rem, ${90 / Math.max(4, amount.length)}vw, 3rem)`,
+              }}
+              className="tnum bg-transparent text-center font-display text-5xl font-medium tracking-tight outline-none placeholder:text-faint"
+            />
           </div>
-        ))}
-      </div>
+          <p className={`mt-2 text-sm ${perPerson ? 'text-muted' : 'text-faint'}`} aria-live="polite">
+            {perPerson ?? `Split ${selected.size} ${selected.size === 1 ? 'way' : 'ways'}`}
+          </p>
+        </div>
 
-      {splitHint && (
-        <p className={`text-right text-sm tabular-nums ${splitHint.tone}`} aria-live="polite">
-          {splitHint.text}
-        </p>
-      )}
+        <DescriptionField value={description} onChange={setDescription} />
+        <label className="block text-xs text-muted">
+          Who paid?
+          <PayerSelect members={members} value={payerId} onChange={setPayerId} />
+        </label>
+        <ExpenseExtras
+          date={date}
+          setDate={setDate}
+          category={category}
+          setCategory={setCategory}
+          note={note}
+          setNote={setNote}
+          expanded={!!source}
+        />
 
-      {method === 'EQUAL' && shares && new Set(shares.map((share) => share.owedCents)).size > 1 && (
-        <p className="text-xs leading-relaxed text-muted">
-          The total needs a rounding cent. The saved expense will show who has it.
-        </p>
-      )}
+        <SelectField
+          value={method}
+          onChange={(e) => setMethod(e.target.value as SplitMethod)}
+          className={inputClass}
+          aria-label="Split method"
+        >
+          {SPLIT_METHODS.map((m) => (
+            <option key={m.value} value={m.value}>
+              Split {m.label.toLowerCase()}
+            </option>
+          ))}
+        </SelectField>
+
+        {method !== 'EQUAL' && <p className="-mt-1 text-xs text-muted">{splitMethodHint(method)}</p>}
+
+        <div className="entry-participants space-y-2">
+          {members.map((m) => (
+            <div key={m.userId} className="flex items-center gap-3">
+              <label className="flex min-w-0 flex-1 items-center gap-2">
+                <input type="checkbox" checked={selected.has(m.userId)} onChange={() => toggle(m.userId)} />
+                <span className="min-w-0 break-words">{m.displayName}</span>
+              </label>
+              {method !== 'EQUAL' && selected.has(m.userId) && (
+                <div className="flex items-center gap-1">
+                  <input
+                    value={values[m.userId] ?? ''}
+                    onChange={(e) => setValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
+                    placeholder="0"
+                    inputMode="decimal"
+                    enterKeyHint="next"
+                    aria-label={
+                      method === 'EXACT'
+                        ? `Amount for ${m.displayName}`
+                        : method === 'PERCENT'
+                          ? `Percent for ${m.displayName}`
+                          : `Shares for ${m.displayName}`
+                    }
+                    className="w-24 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"
+                  />
+                  <span className="w-14 shrink-0 text-sm text-muted">
+                    {method === 'EXACT' ? symbol : splitMethodUnit(method)}
+                  </span>
+                  {/* Shares and percentages are abstractions; this is the dollars they come to. */}
+                  <span className="tnum w-20 text-right text-sm text-muted">
+                    {shareOf.has(m.userId) ? fmt(shareOf.get(m.userId)!) : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {splitHint && (
+          <p className={`text-right text-sm tabular-nums ${splitHint.tone}`} aria-live="polite">
+            {splitHint.text}
+          </p>
+        )}
+
+        {method === 'EQUAL' && shares && new Set(shares.map((share) => share.owedCents)).size > 1 && (
+          <p className="text-xs leading-relaxed text-muted">
+            The total needs a rounding cent. The saved expense will show who has it.
+          </p>
+        )}
+      </fieldset>
       <FormError message={error} />
       <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add expense'}</SubmitButton>
     </form>

@@ -19,9 +19,10 @@ vi.mock('../lib/expenses', () => ({
   },
 }));
 
-const enqueue = vi.fn();
+const enqueue = vi.fn<(row: unknown) => boolean>();
 const offline = { value: false };
-vi.mock('../lib/outbox', () => ({
+vi.mock('../lib/outbox', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/outbox')>()),
   enqueue: (row: unknown) => enqueue(row),
   isOffline: () => offline.value,
 }));
@@ -91,6 +92,7 @@ async function fillLine(user: Awaited<ReturnType<typeof open>>, n: number, name:
 beforeEach(() => {
   offline.value = false;
   for (const fn of [createItemized, updateItemized, enqueue, onCreated, onQueued]) fn.mockReset();
+  enqueue.mockReturnValue(true);
   createItemized.mockResolvedValue(receipt());
   updateItemized.mockResolvedValue(receipt({ version: 8 }));
   let n = 0;

@@ -35,7 +35,7 @@ test('a complete group task works with keyboard controls and enlarged text', asy
   });
   expect(earlierGroup.ok()).toBe(true);
   await page.goto('/');
-  await activate(page, page.getByRole('button', { name: 'New', exact: true }));
+  await activate(page, page.getByRole('button', { name: /^(New|Create your first group)$/ }));
   await expect(page.getByRole('textbox', { name: 'Group name' })).toBeFocused();
   const name = `Keyboard check ${Date.now()}`;
   await page.keyboard.type(name);

@@ -27,7 +27,8 @@ export function PendingSplitCard({ pending, busy, onSave, onDismiss }: Props) {
         <button
           type="button"
           onClick={onDismiss}
-          className="rounded-full border border-line px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink"
+          disabled={busy}
+          className="rounded-full border border-line px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-ink disabled:opacity-60"
         >
           Not now
         </button>

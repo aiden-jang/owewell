@@ -9,20 +9,23 @@ import { Icon } from '../components/Icon';
 import { CreateGroupForm } from '../components/CreateGroupForm';
 import { Sheet } from '../components/Sheet';
 import { PendingSplitCard } from '../components/PendingSplitCard';
+import { OutboxNotice } from '../components/OutboxNotice';
 import { DashboardGroupCard } from '../components/DashboardGroupCard';
 import { DashboardBalance } from '../components/DashboardBalance';
 import { SkeletonList } from '../components/Skeleton';
 import { useBulkGroupActions } from './useBulkGroupActions';
 import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
-import { clearQuickSplitDraft } from '../lib/quickSplitDraft';
+import { clearQuickSplitDraft, readQuickSplitDraft } from '../lib/quickSplitDraft';
 import { clearPendingSplit, loadPendingSplit, quickSplitApi } from '../lib/quicksplit';
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
+import { useAsyncScope } from '../lib/useAsyncScope';
 
 export function DashboardPage(): ReactNode {
   const navigate = useNavigate();
   const toast = useToast();
+  const { captureScope } = useAsyncScope();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [waiting, setWaiting] = useState(() => queued().length);
   const [loadError, setLoadError] = useState(false);
@@ -65,7 +68,7 @@ export function DashboardPage(): ReactNode {
     loadGroups();
   }, [loadGroups]);
 
-  useOutboxSync({
+  const outboxSync = useOutboxSync({
     onChanged: () => loadGroups(),
     onQueueChanged: () => setWaiting(queued().length),
   });
@@ -81,21 +84,31 @@ export function DashboardPage(): ReactNode {
   }, [groups]);
 
   async function savePending(): Promise<void> {
-    if (!pending) return;
+    if (!pending || savingPending) return;
+    const samePage = captureScope();
+    const startUrl = window.location.href;
+    const current = () => samePage() && window.location.href === startUrl;
+    const savedAt = readQuickSplitDraft()?.savedAt;
     setSavingPending(true);
     try {
       const { groupId } = await quickSplitApi.save(pending);
-      clearPendingSplit();
-      clearQuickSplitDraft();
-      setPending(null);
-      navigate(`/groups/${groupId}`);
+      if (JSON.stringify(loadPendingSplit()) === JSON.stringify(pending)) {
+        clearPendingSplit();
+        if (readQuickSplitDraft()?.savedAt === savedAt) clearQuickSplitDraft();
+      }
+      if (current()) {
+        setPending(null);
+        navigate(`/groups/${groupId}`);
+      }
     } catch {
+      if (!current()) return;
       setSavingPending(false);
       toast.error('Could not save that split. Give it another go.');
     }
   }
 
   function dismissPending(): void {
+    if (savingPending) return;
     clearPendingSplit();
     setPending(null);
   }
@@ -160,12 +173,17 @@ export function DashboardPage(): ReactNode {
         )}
 
         {waiting > 0 && (
-          <p className="mb-4 flex items-center justify-center gap-2 rounded-full border border-dashed border-line-strong py-2 text-sm text-muted">
-            <Icon name="share" size={14} />
-            {waiting === 1
-              ? 'One change is waiting for a connection'
-              : `${waiting} changes are waiting for a connection`}
-          </p>
+          <div className="mb-4">
+            <OutboxNotice
+              count={waiting}
+              waitingMessage={
+                waiting === 1
+                  ? 'One change is waiting for a connection'
+                  : `${waiting} changes are waiting for a connection`
+              }
+              sync={outboxSync}
+            />
+          </div>
         )}
 
         <div className={activeGroups.length > 0 ? 'overview-grid' : undefined}>
@@ -183,6 +201,7 @@ export function DashboardPage(): ReactNode {
                   <button
                     type="button"
                     onClick={exitSelect}
+                    disabled={bulkBusy}
                     className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
                   >
                     Cancel
@@ -198,18 +217,20 @@ export function DashboardPage(): ReactNode {
                         <Icon name="check" size={16} /> Select
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.currentTarget.focus({ preventScroll: true });
-                        openCreate();
-                      }}
-                      aria-haspopup="dialog"
-                      data-focus-return="create-group"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
-                    >
-                      <Icon name="plus" size={16} /> New
-                    </button>
+                    {groups && groups.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.currentTarget.focus({ preventScroll: true });
+                          openCreate();
+                        }}
+                        aria-haspopup="dialog"
+                        data-focus-return="create-group"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface2 px-3.5 py-1.5 text-sm font-medium transition hover:border-accent active:scale-[0.98]"
+                      >
+                        <Icon name="plus" size={16} /> New
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -268,6 +289,7 @@ export function DashboardPage(): ReactNode {
                           group={group}
                           selectMode={selectMode}
                           selected={selected.has(group.id)}
+                          selectionDisabled={bulkBusy}
                           onToggle={toggleSelected}
                         />
                       ))}
@@ -345,7 +367,9 @@ export function DashboardPage(): ReactNode {
       {selectMode && selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card/90 backdrop-blur-md">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <span className="text-sm font-medium">{selected.size} selected</span>
+            <span role="status" className="text-sm font-medium">
+              {bulkBusy ? 'Updating groups…' : `${selected.size} selected`}
+            </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"

@@ -73,7 +73,11 @@ async function open(groups: GroupSummary[] = [group()]) {
     </MemoryRouter>,
   );
   // Wait for the first load, so tests never race the skeleton.
-  await waitFor(() => expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument());
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: groups.length ? /^new$/i : 'Create your first group' }),
+    ).toBeInTheDocument(),
+  );
   return userEvent.setup();
 }
 
@@ -304,6 +308,7 @@ test('equal owed and owing totals explain that groups still need settling', asyn
 
 test('the first-group action opens a labeled name field', async () => {
   const user = await open([]);
+  expect(screen.queryByRole('button', { name: /^new$/i })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Create your first group' }));
   expect(screen.getByRole('textbox', { name: 'Group name' })).toHaveFocus();
   await user.keyboard('{Escape}');

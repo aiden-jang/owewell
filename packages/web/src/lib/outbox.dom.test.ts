@@ -73,6 +73,8 @@ describe('what is waiting', () => {
     // something left junk behind.
     localStorage.setItem('owewell:outbox', '{not json');
     expect(queued()).toEqual([]);
+    expect(enqueue(entry('new', 100))).toBe(false);
+    expect(localStorage.getItem('owewell:outbox')).toBe('{not json');
   });
 });
 
@@ -278,6 +280,25 @@ describe('a queued payment', () => {
     queuedAt: 100,
     payload: { fromUserId: 'u2', toUserId: 'u1', amountCents: 3_000, clientId },
   });
+
+  it.each([401, 408, 429, 503])(
+    'keeps a queued payment until a %s response can be retried',
+    async (status) => {
+      const payment = pay('p1');
+      expect(enqueue(payment)).toBe(true);
+      const send = vi
+        .fn()
+        .mockRejectedValueOnce(new ApiError(status, 'Try later'))
+        .mockResolvedValueOnce(undefined);
+      const paused = await flush(send);
+      expect(paused.paused).toBe(status === 401 ? 'sign-in' : 'temporary');
+      expect(paused.rejected).toEqual([]);
+      expect(queued()).toEqual([payment]);
+      expect((await flush(send)).sent).toBe(1);
+      expect(send).toHaveBeenNthCalledWith(2, payment);
+      expect(queued()).toEqual([]);
+    },
+  );
 
   it('is told apart from the expense writes', () => {
     enqueue(pay('p1'));

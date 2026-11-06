@@ -5,6 +5,7 @@ import { Icon } from './Icon';
 export function InviteLink({
   link,
   copied,
+  changing = false,
   onCopy,
   headline,
   hint,
@@ -14,6 +15,7 @@ export function InviteLink({
 }: {
   link: string;
   copied: boolean;
+  changing?: boolean;
   onCopy: () => void;
   headline?: string;
   hint?: string;
@@ -32,6 +34,7 @@ export function InviteLink({
       <div className="mt-2 flex gap-2">
         <input
           readOnly
+          disabled={changing}
           value={link}
           onFocus={(e) => e.target.select()}
           aria-label="Share link"
@@ -40,20 +43,25 @@ export function InviteLink({
         <button
           type="button"
           onClick={onCopy}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition ${
+          disabled={changing}
+          aria-label="Copy invite link"
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition disabled:opacity-60 ${
             copied ? 'bg-pos/15 text-pos' : 'bg-surface2 hover:bg-surface2/70'
           }`}
         >
-          <Icon name={copied ? 'check' : 'copy'} size={15} />{' '}
-          <span role="status">{copied ? 'Copied' : 'Copy'}</span>
+          <Icon name={copied ? 'check' : 'copy'} size={15} /> <span>{copied ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
+      <p role="status" className={changing ? 'mt-2 text-xs text-muted' : 'sr-only'}>
+        {changing ? 'Updating invite link…' : copied ? 'Invite link copied.' : ''}
+      </p>
       {/* Owner controls stay next to the link they invalidate; membership survives either action. */}
       {isOwner && (onRotate || onRevoke) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           {onRotate && (
             <button
               type="button"
+              disabled={changing}
               onClick={onRotate}
               className="tap font-medium text-muted transition hover:text-ink hover:underline"
             >
@@ -63,6 +71,7 @@ export function InviteLink({
           {onRevoke && (
             <button
               type="button"
+              disabled={changing}
               onClick={onRevoke}
               className="tap font-medium text-muted transition hover:text-neg hover:underline"
             >

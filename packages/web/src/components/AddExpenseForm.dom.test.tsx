@@ -19,9 +19,10 @@ vi.mock('../lib/expenses', () => ({
   },
 }));
 
-const enqueue = vi.fn();
+const enqueue = vi.fn<(row: unknown) => boolean>();
 const offline = { value: false };
-vi.mock('../lib/outbox', () => ({
+vi.mock('../lib/outbox', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/outbox')>()),
   enqueue: (row: unknown) => enqueue(row),
   isOffline: () => offline.value,
 }));
@@ -82,6 +83,7 @@ beforeEach(() => {
   localStorage.clear();
   offline.value = false;
   for (const fn of [create, update, enqueue, onCreated, onQueued]) fn.mockReset();
+  enqueue.mockReturnValue(true);
   create.mockResolvedValue(expense());
   update.mockResolvedValue(expense({ version: 5 }));
   // Counted, not constant: the queued row must carry the id minted BEFORE the request, and a stub
@@ -296,6 +298,19 @@ describe('editing an expense someone already saved', () => {
  * save that timed out on a train does not become two dinners.
  */
 describe('when the write cannot leave the device', () => {
+  it('keeps the entered expense when browser storage rejects the queued write', async () => {
+    offline.value = true;
+    create.mockRejectedValue(new Error('offline'));
+    enqueue.mockReturnValue(false);
+    const user = await open();
+    await fillBasics(user);
+    await submit(user);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not keep this change on this device.');
+    expect(screen.getByRole('textbox', { name: 'What the expense was for' })).toHaveValue('Dinner');
+    expect(onQueued).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
   it('queues a new expense under the id the failed attempt used', async () => {
     offline.value = true;
     create.mockRejectedValue(new Error('offline'));

@@ -5,7 +5,7 @@ test('illustrated group ideas fill only the name and return keyboard focus witho
 }) => {
   await signIn(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('button', { name: 'Create your first group' }).click();
   const creations: string[] = [];
   page.on('request', (request) => {
     if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/groups')

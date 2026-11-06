@@ -44,6 +44,25 @@ export interface RecordSettlementInput {
   clientId?: string | undefined;
 }
 
+function settlementView(row: typeof settlements.$inferSelect): SettlementView {
+  return {
+    id: row.id,
+    fromUserId: row.fromPersonId,
+    toUserId: row.toPersonId,
+    amountCents: row.amountCents,
+    method: (row.method as PaymentMethod | null) ?? null,
+    createdAt: row.createdAt,
+  };
+}
+
+function settlementByClientId(db: DB, groupId: string, clientId: string) {
+  return db
+    .select()
+    .from(settlements)
+    .where(and(eq(settlements.groupId, groupId), eq(settlements.clientId, clientId)))
+    .get();
+}
+
 /** Record a payment between two members. */
 export async function recordSettlement(
   db: DB,
@@ -55,21 +74,8 @@ export async function recordSettlement(
 
   // Payments append a historical fact; retain the client ID so outbox replay cannot record it twice.
   if (input.clientId) {
-    const already = await db
-      .select()
-      .from(settlements)
-      .where(and(eq(settlements.groupId, groupId), eq(settlements.clientId, input.clientId)))
-      .get();
-    if (already) {
-      return {
-        id: already.id,
-        fromUserId: already.fromPersonId,
-        toUserId: already.toPersonId,
-        amountCents: already.amountCents,
-        method: (already.method as PaymentMethod | null) ?? null,
-        createdAt: already.createdAt,
-      };
-    }
+    const already = await settlementByClientId(db, groupId, input.clientId);
+    if (already) return settlementView(already);
   }
 
   if (input.fromUserId === input.toUserId) {
@@ -87,25 +93,25 @@ export async function recordSettlement(
 
   const id = crypto.randomUUID();
   const createdAt = new Date();
-  await db.insert(settlements).values({
-    id,
-    groupId,
-    fromPersonId: input.fromUserId,
-    toPersonId: input.toUserId,
-    amountCents: input.amountCents,
-    method: input.method ?? null,
-    createdById: personId,
-    createdAt,
-    clientId: input.clientId ?? null,
-  });
-  return {
-    id,
-    fromUserId: input.fromUserId,
-    toUserId: input.toUserId,
-    amountCents: input.amountCents,
-    method: input.method ?? null,
-    createdAt,
-  };
+  const [created] = await db
+    .insert(settlements)
+    .values({
+      id,
+      groupId,
+      fromPersonId: input.fromUserId,
+      toPersonId: input.toUserId,
+      amountCents: input.amountCents,
+      method: input.method ?? null,
+      createdById: personId,
+      createdAt,
+      clientId: input.clientId ?? null,
+    })
+    .onConflictDoNothing({ target: [settlements.groupId, settlements.clientId] })
+    .returning();
+  if (created) return settlementView(created);
+  const existing = input.clientId && (await settlementByClientId(db, groupId, input.clientId));
+  if (!existing) throw new Error('Could not read the recorded payment.');
+  return settlementView(existing);
 }
 
 export async function listSettlements(db: DB, personId: string, groupId: string): Promise<SettlementView[]> {

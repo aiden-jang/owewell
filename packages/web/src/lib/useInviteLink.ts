@@ -12,6 +12,7 @@ export interface InviteLink {
   /** The full URL, once minted. Null until something asks for it. */
   link: string | null;
   copied: boolean;
+  changing: boolean;
   /** Still the obvious next step, which is what earns it a place on the page. */
   needsPeople: boolean;
   /** Members who are in the group by name only. */
@@ -31,6 +32,9 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   // Suppress auto-mint after revocation for this visit so turning the link off stays off.
   const [revoked, setRevoked] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const changingRef = useRef(false);
+  const copyVersion = useRef(0);
   const copiedTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
@@ -39,11 +43,13 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
 
   const groupId = group?.id;
-  const { begin } = useAsyncScope(groupId);
+  const { begin, captureScope } = useAsyncScope(groupId);
   useLayoutEffect(() => {
     setLink(null);
     setRevoked(false);
     setCopied(false);
+    changingRef.current = false;
+    setChanging(false);
     window.clearTimeout(copiedTimer.current);
   }, [groupId]);
   const mint = useCallback(async (): Promise<string | null> => {
@@ -69,6 +75,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   }, [needsPeople, link, mint, revoked, begin]);
 
   const reveal = useCallback(async (): Promise<void> => {
+    if (changingRef.current) return;
     const current = begin();
     let url: string | null;
     try {
@@ -95,37 +102,44 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     }
   }, [group?.name, mint, toast, begin]);
 
-  const rotate = useCallback(async (): Promise<void> => {
-    if (!groupId) return;
-    const current = begin();
-    try {
-      const token = await groupsApi.rotateShare(groupId);
-      if (!current()) return;
-      setRevoked(false);
-      setLink(`${window.location.origin}/s/${token}`);
-      toast.success('New link ready. The old one stopped working.');
-    } catch (err) {
-      if (current()) toast.error(err instanceof Error ? err.message : 'Could not make a new link.');
-    }
-  }, [groupId, toast, begin]);
-
-  const revoke = useCallback(async (): Promise<void> => {
-    if (!groupId) return;
-    const current = begin();
-    try {
-      await groupsApi.revokeShare(groupId);
-      if (!current()) return;
-      setRevoked(true);
-      setLink(null);
-      toast.success('Link turned off. Members keep their access.');
-    } catch (err) {
-      if (current()) toast.error(err instanceof Error ? err.message : 'Could not turn the link off.');
-    }
-  }, [groupId, toast, begin]);
+  const changeLink = useCallback(
+    async (turnOff: boolean): Promise<void> => {
+      if (!groupId || changingRef.current) return;
+      const current = begin();
+      changingRef.current = true;
+      setChanging(true);
+      copyVersion.current += 1;
+      window.clearTimeout(copiedTimer.current);
+      setCopied(false);
+      try {
+        let token: string | null = null;
+        if (turnOff) await groupsApi.revokeShare(groupId);
+        else token = await groupsApi.rotateShare(groupId);
+        if (!current()) return;
+        setRevoked(turnOff);
+        setLink(token ? `${window.location.origin}/s/${token}` : null);
+        toast.success(
+          turnOff
+            ? 'Link turned off. Members keep their access.'
+            : 'New link ready. The old one stopped working.',
+        );
+      } catch (err) {
+        if (current()) toast.error(err instanceof Error ? err.message : 'Could not update the share link.');
+      } finally {
+        if (current()) {
+          changingRef.current = false;
+          setChanging(false);
+        }
+      }
+    },
+    [groupId, toast, begin],
+  );
 
   const copy = useCallback(async (): Promise<void> => {
-    if (!link) return;
-    const current = begin();
+    if (!link || changingRef.current) return;
+    const sameGroup = captureScope();
+    const version = ++copyVersion.current;
+    const current = () => sameGroup() && version === copyVersion.current;
     window.clearTimeout(copiedTimer.current);
     setCopied(false);
     try {
@@ -136,7 +150,17 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     } catch {
       if (current()) toast.error('Copy failed. Select the link and copy it manually.');
     }
-  }, [link, toast, begin]);
+  }, [link, toast, captureScope]);
 
-  return { link, copied, needsPeople, unclaimed, reveal, copy, rotate, revoke };
+  return {
+    link,
+    copied,
+    changing,
+    needsPeople,
+    unclaimed,
+    reveal,
+    copy,
+    rotate: () => changeLink(false),
+    revoke: () => changeLink(true),
+  };
 }

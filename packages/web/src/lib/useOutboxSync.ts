@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
 import { expensesApi } from './expenses';
 import { settlementsApi } from './settlements';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
-import { flush, isAlreadyDone, subscribe, type QueuedEdit, type QueuedWrite } from './outbox';
+import {
+  flush,
+  isAlreadyDone,
+  subscribe,
+  type FlushResult,
+  type QueuedEdit,
+  type QueuedWrite,
+} from './outbox';
 
 // Dashboard sync covers all groups; a group screen refreshes only its own ledger.
 
@@ -34,6 +41,12 @@ function sendQueuedWrite(entry: QueuedWrite): Promise<unknown> {
   }
 }
 
+export interface OutboxSync {
+  paused: FlushResult['paused'];
+  syncing: boolean;
+  retry: () => Promise<void>;
+}
+
 export function useOutboxSync({
   groupId,
   onChanged,
@@ -45,10 +58,12 @@ export function useOutboxSync({
   onChanged: () => void;
   /** The queue itself moved, for screens that render what is still waiting. */
   onQueueChanged?: () => void;
-}): void {
+}): OutboxSync {
   const toast = useToast();
   const confirm = useConfirm();
   const flushing = useRef(false);
+  const [syncing, setSyncing] = useState(false);
+  const [paused, setPaused] = useState<FlushResult['paused']>();
   // Held in refs so the callbacks can change every render without restarting the effect below.
   const changed = useRef(onChanged);
   changed.current = onChanged;
@@ -78,8 +93,10 @@ export function useOutboxSync({
     // Serialize flushes so overlapping reconnect events do not replay the same entry concurrently.
     if (flushing.current) return;
     flushing.current = true;
+    setSyncing(true);
     try {
-      const { sent, rejected, conflicted } = await flush(sendQueuedWrite, groupId);
+      const { sent, rejected, conflicted, paused: reason } = await flush(sendQueuedWrite, groupId);
+      setPaused(reason);
       queueChanged.current?.();
 
       if (sent > 0) {
@@ -103,6 +120,7 @@ export function useOutboxSync({
       }
     } finally {
       flushing.current = false;
+      setSyncing(false);
     }
   }, [applyMine, confirm, groupId, toast]);
 
@@ -116,4 +134,6 @@ export function useOutboxSync({
       unsubscribe();
     };
   }, [run]);
+
+  return { paused, syncing, retry: run };
 }

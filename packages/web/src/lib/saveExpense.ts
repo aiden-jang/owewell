@@ -1,6 +1,6 @@
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
 import type { Expense } from './expenses';
-import { enqueue, isOffline, type QueuedCreate, type QueuedEdit } from './outbox';
+import { enqueue, isOffline, OUTBOX_STORAGE_ERROR, type QueuedCreate, type QueuedEdit } from './outbox';
 
 type ExpensePayload = CreateExpensePayload | CreateItemizedPayload;
 
@@ -55,7 +55,9 @@ export async function saveExpense<P extends ExpensePayload>({
       queuedAt: Date.now(),
       payload,
     };
-    enqueue(editing ? { ...row, kind: kinds.edit, expenseId: editing.id } : { ...row, kind: kinds.create });
-    return { status: 'queued' };
+    const saved = enqueue(
+      editing ? { ...row, kind: kinds.edit, expenseId: editing.id } : { ...row, kind: kinds.create },
+    );
+    return saved ? { status: 'queued' } : { status: 'failed', message: OUTBOX_STORAGE_ERROR };
   }
 }

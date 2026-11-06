@@ -41,7 +41,7 @@ test('a private address waits for its session instead of redirecting to the calc
     await expect(page.getByLabel('Item 1 amount')).toHaveCount(0);
     await expect(page).toHaveURL('/');
     release();
-    await expect(page.getByRole('button', { name: 'New', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^(New|Create your first group)$/ })).toBeVisible();
     await expect(page).toHaveURL('/');
   } finally {
     release();

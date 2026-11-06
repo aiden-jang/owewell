@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { useToast } from '../components/Toast';
@@ -6,8 +6,8 @@ import { useConfirm } from '../components/Confirm';
 import type { PaymentHandles } from '../components/MembersPanel';
 import { groupsApi, type Balance } from './groups';
 import { expensesApi } from './expenses';
-import { settlementsApi, type Settlement, type SuggestedPayment } from './settlements';
-import { drop as dropWrite, enqueue as enqueueWrite, isOffline } from './outbox';
+import { preparePayment, settlementsApi, type Settlement, type SuggestedPayment } from './settlements';
+import { drop as dropWrite, enqueue as enqueueWrite, isOffline, OUTBOX_STORAGE_ERROR } from './outbox';
 import { formatMoney as fmt } from '@owewell/shared';
 import type { GroupLedger } from './useGroupLedger';
 import type { InviteLink } from './useInviteLink';
@@ -30,6 +30,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   const toast = useToast();
   const confirm = useConfirm();
   const [settling, setSettling] = useState(false);
+  const recording = useRef(false);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
   async function newShareLink(): Promise<void> {
@@ -53,21 +54,24 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
 
   /** Resolves true when the payment reached the ledger, which is the panel's cue to reset the row. */
   async function markPaid(payment: SuggestedPayment, method: PaymentMethod): Promise<boolean> {
-    const ok = await confirm({
-      title: 'Record this payment?',
-      body: `${payment.fromName} paid ${payment.toName} ${fmt(payment.amountCents)} via ${PAYMENT_METHOD_LABELS[method]}. This updates the group’s balances. No money is sent by owewell.`,
-      confirmLabel: 'Record payment',
-    });
-    if (!ok) return false;
-    setSettling(true);
+    if (recording.current) return false;
+    recording.current = true;
     try {
+      const ok = await confirm({
+        title: 'Record this payment?',
+        body: `${payment.fromName} paid ${payment.toName} ${fmt(payment.amountCents)} via ${PAYMENT_METHOD_LABELS[method]}. This updates the group’s balances. No money is sent by owewell.`,
+        confirmLabel: 'Record payment',
+      });
+      if (!ok) return false;
+      setSettling(true);
       const beforeBalances = balances;
-      const settlement = await settlementsApi.record(id, {
+      const payload = preparePayment(id, {
         fromUserId: payment.fromUserId,
         toUserId: payment.toUserId,
         amountCents: payment.amountCents,
         method,
       });
+      const settlement = await settlementsApi.record(id, payload);
       const latest = await refreshLedger();
       if (latest) {
         setPaymentReceipt(
@@ -83,6 +87,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       toast.error('Could not record that payment.');
       return false;
     } finally {
+      recording.current = false;
       setSettling(false);
     }
   }
@@ -125,7 +130,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
        * row is hidden from the feed by the queued delete itself, so undo is simply forgetting it.
        */
       const clientId = crypto.randomUUID();
-      enqueueWrite({
+      const queued = enqueueWrite({
         clientId,
         groupId: id,
         kind: 'delete',
@@ -133,11 +138,18 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
         description: removed?.description ?? 'that expense',
         queuedAt: Date.now(),
       });
+      if (!queued) {
+        toast.error(OUTBOX_STORAGE_ERROR);
+        return;
+      }
       refreshPending();
       toast.success(`${name} It syncs when you have signal.`, {
         label: 'Undo',
         onClick: () => {
-          dropWrite(clientId);
+          if (!dropWrite(clientId)) {
+            toast.error(OUTBOX_STORAGE_ERROR);
+            return;
+          }
           refreshPending();
         },
       });

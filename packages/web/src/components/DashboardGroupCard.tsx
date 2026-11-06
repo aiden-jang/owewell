@@ -28,10 +28,17 @@ type Props = {
   group: GroupSummary;
   selectMode: boolean;
   selected: boolean;
+  selectionDisabled?: boolean;
   onToggle: (id: string) => void;
 };
 
-export function DashboardGroupCard({ group, selectMode, selected, onToggle }: Props): ReactNode {
+export function DashboardGroupCard({
+  group,
+  selectMode,
+  selected,
+  selectionDisabled,
+  onToggle,
+}: Props): ReactNode {
   const label = perGroupLabel(group.netCents, group.totalSpentCents > 0, group.totalUnsettledCents > 0, fmt);
   // Empty groups show their creation date; spending groups show the latest activity.
   const activity =
@@ -86,6 +93,7 @@ export function DashboardGroupCard({ group, selectMode, selected, onToggle }: Pr
       {selecting ? (
         <button
           type="button"
+          disabled={selectionDisabled}
           onClick={() => onToggle(group.id)}
           aria-pressed={isSel}
           className={`w-full text-left ${cls}`}

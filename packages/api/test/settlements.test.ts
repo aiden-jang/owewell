@@ -30,6 +30,16 @@ async function net(): Promise<Record<string, number>> {
 }
 
 describe('settlements', () => {
+  test('concurrent retries return one recorded payment', async () => {
+    const payment = { fromUserId: bob, toUserId: alice, amountCents: 500, clientId: 'same-payment' };
+    const [first, retry] = await Promise.all([
+      recordSettlement(db, alice, groupId, payment),
+      recordSettlement(db, alice, groupId, payment),
+    ]);
+    expect(retry).toEqual(first);
+    expect(await listSettlements(db, alice, groupId)).toEqual([first]);
+  });
+
   test('recording the final payment zeroes both sides', async () => {
     // Alice pays 1000 split evenly: Bob owes Alice 500.
     await createExpense(db, alice, groupId, {

@@ -11,7 +11,7 @@ import { expectNoHorizontalOverflow, expect, signIn, test, type Page } from './f
 
 async function newGroup(page: Page, name: string): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('button', { name: /^(New|Create your first group)$/ }).click();
   const sheet = page.getByRole('dialog', { name: 'New group' });
   await sheet.getByRole('textbox', { name: 'Group name' }).fill(name);
   await sheet.getByRole('button', { name: 'Create', exact: true }).click();
