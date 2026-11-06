@@ -242,7 +242,7 @@ describe('an edit that conflicted while it waited', () => {
     api.update.mockRejectedValue(new ApiError(503, 'Still no.'));
     const view = await mount();
     await waitFor(() => expect(view.result.current.paused).toBe('temporary'));
-    expect(toastStub.error).toHaveBeenCalledWith('Could not apply your version. Your edit is still waiting.');
+    expect(toastStub.error).toHaveBeenCalledWith('Could not apply your change. It is still waiting.');
     expect(queued(undefined, 'u1')).toEqual([edit()]);
   });
 });

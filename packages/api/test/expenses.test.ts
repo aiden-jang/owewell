@@ -694,10 +694,37 @@ describe('undoing a delete', () => {
     expect(await listExpenses(db, alice, groupId)).toHaveLength(0);
 
     const restored = await restoreExpense(db, alice, groupId, created.id);
-    expect(restored).toEqual(before);
+    expect(restored).toEqual({ ...before, version: before.version + 2 });
     // 1000 three ways leaves a cent to place, so this is the assertion that a re-create would fail:
     // it would reroll who absorbs it and move a penny between two people.
     expect(await getBalances(db, alice, groupId)).toEqual(balancesBefore);
+  });
+
+  test('retries the same deletion and only lets its own Undo restore the row', async () => {
+    const created = await createExpense(db, alice, groupId, {
+      description: 'Dinner',
+      amountCents: 1_000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    const firstDelete = crypto.randomUUID();
+    const secondDelete = crypto.randomUUID();
+    await deleteExpense(db, alice, groupId, created.id, created.version, firstDelete);
+    await deleteExpense(db, alice, groupId, created.id, created.version, firstDelete);
+    const restored = await restoreExpense(db, alice, groupId, created.id, firstDelete);
+    await expect(
+      deleteExpense(db, alice, groupId, created.id, created.version, firstDelete),
+    ).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+    await deleteExpense(db, alice, groupId, created.id, restored.version, secondDelete);
+    await expect(restoreExpense(db, alice, groupId, created.id, firstDelete)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    expect(await listExpenses(db, alice, groupId)).toEqual([]);
+    const latest = await restoreExpense(db, alice, groupId, created.id, secondDelete);
+    expect(latest).toMatchObject({ id: created.id, amountCents: 1_000, version: created.version + 4 });
   });
 
   test('refuses once a payment is recorded, like every other write', async () => {

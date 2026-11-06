@@ -26,9 +26,14 @@ export interface QueuedCreate extends QueuedBase {
   payload: CreateExpensePayload | CreateItemizedPayload;
 }
 
-/** Deleting is repeatable, so no idempotency key. A 404 on replay is success; see `isAlreadyDone`. */
 export interface QueuedDelete extends QueuedBase {
   kind: 'delete';
+  expenseId: string;
+  expectedVersion?: number;
+}
+
+interface QueuedRestore extends QueuedBase {
+  kind: 'restore';
   expenseId: string;
 }
 
@@ -50,7 +55,7 @@ export interface QueuedSettlement extends QueuedBase {
   payload: RecordSettlementPayload;
 }
 
-export type QueuedWrite = QueuedCreate | QueuedDelete | QueuedEdit | QueuedSettlement;
+export type QueuedWrite = QueuedCreate | QueuedDelete | QueuedRestore | QueuedEdit | QueuedSettlement;
 
 export const isSettlement = (entry: QueuedWrite): entry is QueuedSettlement => entry.kind === 'settlement';
 /** Everything that appears in the feed as a row waiting to be sent. */
@@ -71,6 +76,12 @@ export function isConflict(err: unknown): boolean {
 /** 404 means failure everywhere else. On a replayed delete it means done — stop carrying it. */
 export function isAlreadyDone(err: unknown): boolean {
   return err instanceof ApiError && err.status === 404;
+}
+
+export async function withOutboxLock<T>(ownerId: string | undefined, action: () => Promise<T>): Promise<T> {
+  return ownerId && navigator.locks
+    ? await navigator.locks.request(`owewell:sync:${ownerId}`, action)
+    : action();
 }
 
 type Listener = () => void;
@@ -168,8 +179,7 @@ export function isOffline(err: unknown): boolean {
 export interface FlushResult {
   sent: number;
   paused?: 'sign-in' | 'temporary' | 'storage';
-  /** Edits that still need a decision before they can leave the queue. */
-  conflicted: QueuedEdit[];
+  conflicted: (QueuedEdit | QueuedDelete)[];
 }
 
 export function pauseFor(error: unknown): FlushResult['paused'] {
@@ -192,7 +202,10 @@ export async function flush(
   const conflictedGroups = new Set<string>();
   for (const entry of queued(groupId, ownerId)) {
     if (entry.failure || conflictedGroups.has(entry.groupId)) continue;
-    if (isEdit(entry) && !Number.isSafeInteger(entry.payload.expectedVersion)) {
+    if (
+      (isDelete(entry) || isEdit(entry)) &&
+      !Number.isSafeInteger(isDelete(entry) ? entry.expectedVersion : entry.payload.expectedVersion)
+    ) {
       conflictedGroups.add(entry.groupId);
       result.conflicted.push(entry);
       continue;
@@ -203,7 +216,7 @@ export async function flush(
       if (isOffline(err)) return result;
       const paused = pauseFor(err);
       if (paused) return { ...result, paused };
-      if (isConflict(err) && isEdit(entry)) {
+      if (isConflict(err) && (isEdit(entry) || isDelete(entry))) {
         conflictedGroups.add(entry.groupId);
         result.conflicted.push(entry);
         continue;

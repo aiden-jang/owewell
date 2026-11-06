@@ -1,6 +1,19 @@
 import type { CreateExpensePayload, CreateItemizedPayload, Expense } from '@owewell/core';
 import { api } from './api';
 
+function deletionPath(
+  groupId: string,
+  expenseId: string,
+  restore: boolean,
+  clientId?: string,
+  version?: number,
+) {
+  const query = new URLSearchParams();
+  if (clientId) query.set('clientId', clientId);
+  if (version !== undefined) query.set('expectedVersion', String(version));
+  return `/groups/${groupId}/expenses/${expenseId}${restore ? '/restore' : ''}${query.size ? `?${query}` : ''}`;
+}
+
 // Re-export the shared contract so components can keep importing expense types from here.
 export type { CreateExpensePayload, CreateItemizedPayload, Expense, SplitMethod } from '@owewell/core';
 
@@ -31,11 +44,17 @@ export const expensesApi = {
     api
       .put<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/itemized`, payload, actorId)
       .then((r) => r.expense),
-  remove: (groupId: string, expenseId: string, actorId?: string): Promise<{ ok: boolean }> =>
-    api.del<{ ok: boolean }>(`/groups/${groupId}/expenses/${expenseId}`, actorId),
+  remove: (
+    groupId: string,
+    expenseId: string,
+    actorId?: string,
+    clientId?: string,
+    version?: number,
+  ): Promise<{ ok: boolean }> =>
+    api.del<{ ok: boolean }>(deletionPath(groupId, expenseId, false, clientId, version), actorId),
   /** Undo a delete. Returns the restored expense so the feed can put the row back immediately. */
-  restore: (groupId: string, expenseId: string): Promise<Expense> =>
+  restore: (groupId: string, expenseId: string, clientId: string, actorId?: string): Promise<Expense> =>
     api
-      .post<{ expense: Expense }>(`/groups/${groupId}/expenses/${expenseId}/restore`, {})
+      .post<{ expense: Expense }>(deletionPath(groupId, expenseId, true, clientId), {}, actorId)
       .then((r) => r.expense),
 };

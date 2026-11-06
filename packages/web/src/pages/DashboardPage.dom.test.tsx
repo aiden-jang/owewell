@@ -43,12 +43,6 @@ vi.mock('../lib/groups', () => ({
   },
 }));
 
-vi.mock('../lib/quicksplit', () => ({
-  loadPendingSplit: () => null,
-  clearPendingSplit: vi.fn(),
-  quickSplitApi: { save: vi.fn() },
-}));
-
 vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 
 vi.mock('../components/AppHeader', () => ({ AppHeader: () => null }));

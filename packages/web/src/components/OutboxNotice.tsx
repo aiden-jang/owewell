@@ -27,7 +27,9 @@ export function OutboxNotice({
           ? 'Sync paused. Check browser storage before retrying.'
           : paused === 'conflict'
             ? 'An offline edit needs your decision. Your version is still on this device.'
-            : waitingMessage;
+            : paused === 'delete-conflict'
+              ? 'An expense changed before its queued deletion could sync.'
+              : waitingMessage;
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl border border-dashed border-line-strong px-3 py-2 text-sm text-muted">
       {count > 0 && <p role="status">{message}</p>}
@@ -46,7 +48,13 @@ export function OutboxNotice({
             onClick={() => void retry()}
             className="font-medium text-accent underline underline-offset-4 disabled:opacity-60"
           >
-            {syncing ? 'Syncing…' : paused === 'conflict' ? 'Review edit' : 'Retry sync'}
+            {syncing
+              ? 'Syncing…'
+              : paused === 'conflict'
+                ? 'Review edit'
+                : paused === 'delete-conflict'
+                  ? 'Review deletion'
+                  : 'Retry sync'}
           </button>
         ))}
       {unassigned > 0 && (

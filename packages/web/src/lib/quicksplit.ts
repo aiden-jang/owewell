@@ -27,10 +27,20 @@ export interface PendingSplit {
 }
 
 const KEY = 'owewell:pending-split';
+const PREFIX = `${KEY}:`;
 
-export function preparePendingSplit(split: PendingSplit, previous: PendingSplit | null): PendingSplit {
+export interface SavedPendingSplit {
+  id: string;
+  split: PendingSplit;
+}
+
+export function preparePendingSplit(
+  split: PendingSplit,
+  previous?: PendingSplit,
+): PendingSplit & { clientId: string } {
   const same =
-    previous?.ownerId === split.ownerId &&
+    previous &&
+    (!previous.ownerId || previous.ownerId === split.ownerId) &&
     JSON.stringify([previous?.people, previous?.items]) === JSON.stringify([split.people, split.items]);
   return {
     ...split,
@@ -38,34 +48,66 @@ export function preparePendingSplit(split: PendingSplit, previous: PendingSplit 
   };
 }
 
-export function stashPendingSplit(split: PendingSplit): boolean {
+export function stashPendingSplit(split: PendingSplit & { clientId: string }): boolean {
   try {
-    localStorage.setItem(KEY, JSON.stringify(split));
+    localStorage.setItem(`${PREFIX}${split.clientId}`, JSON.stringify(split));
     return true;
   } catch {
     return false;
   }
 }
 
-export function loadPendingSplit(): PendingSplit | null {
+export function readPendingSplit(id: string): SavedPendingSplit | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(id === 'legacy' ? KEY : `${PREFIX}${id}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PendingSplit;
     // Guard against a stale pre-multi-item split lingering in localStorage.
     if (!Array.isArray(parsed.people) || !Array.isArray(parsed.items)) return null;
-    return parsed;
+    return { id, split: parsed };
   } catch {
     return null;
   }
 }
 
-export function clearPendingSplit(): void {
+export function listPendingSplits(): SavedPendingSplit[] {
   try {
-    localStorage.removeItem(KEY);
+    return [
+      'legacy',
+      ...Object.keys(localStorage)
+        .filter((key) => key.startsWith(PREFIX))
+        .map((key) => key.slice(PREFIX.length)),
+    ]
+      .map(readPendingSplit)
+      .filter((record): record is SavedPendingSplit => record !== null);
+  } catch {
+    return [];
+  }
+}
+
+export function clearPendingSplit(record: SavedPendingSplit): void {
+  if (JSON.stringify(readPendingSplit(record.id)?.split) !== JSON.stringify(record.split)) return;
+  try {
+    localStorage.removeItem(record.id === 'legacy' ? KEY : `${PREFIX}${record.id}`);
   } catch {
     // ignore
   }
+}
+
+export function pendingSplitsForDraft(revision: string): SavedPendingSplit[] {
+  return listPendingSplits().filter(({ split }) => split.draftRevision === revision);
+}
+
+export async function withPendingSplitLock<T>(id: string, action: () => Promise<T>): Promise<T> {
+  return navigator.locks ? await navigator.locks.request(`owewell:save-split:${id}`, action) : action();
+}
+
+export function subscribeToPendingSplits(refresh: () => void): () => void {
+  const onStorage = ({ key }: StorageEvent) => {
+    if (key === null || key === KEY || key.startsWith(PREFIX)) refresh();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
 }
 
 export const quickSplitApi = {

@@ -1,4 +1,5 @@
 import type { SplitMethod } from '@owewell/core';
+import { pendingSplitsForDraft } from './quicksplit';
 
 // Reject malformed storage as a whole; partial recovery could silently drop a participant.
 
@@ -161,7 +162,7 @@ export function writeQuickSplitDraft(draft: QuickSplitInput, parent: string | nu
       `${PREFIX}${revision}`,
       JSON.stringify({ version: 1, savedAt: now, revision, ...draft }),
     );
-    if (parent) clearQuickSplitDraft(parent);
+    if (parent && !pendingSplitsForDraft(parent).length) clearQuickSplitDraft(parent);
     return revision;
   } catch {
     return null;

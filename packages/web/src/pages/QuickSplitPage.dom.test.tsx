@@ -122,7 +122,7 @@ describe('the split itself', () => {
     await namePeople(user, 'Alice', 'Bob');
     await fillItem(user, 1, 'Dinner', '40');
     await user.click(screen.getByRole('button', { name: 'Sign in to save split' }));
-    expect(authStub.login).toHaveBeenCalledWith(window.location.origin);
+    expect(authStub.login).toHaveBeenCalledWith(expect.stringContaining(`${window.location.origin}/?split=`));
     const [draft] = listQuickSplitDrafts();
     expect(draft?.people.map((person) => person.name)).toEqual(['Alice', 'Bob']);
     expect(draft?.items[0]).toMatchObject({ description: 'Dinner', amount: '40.00' });

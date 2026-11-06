@@ -102,6 +102,7 @@ export const expenses = sqliteTable(
     // silently erased somebody else's".
     version: integer('version').notNull().default(1),
     deletedAt: integer('deleted_at', { mode: 'timestamp' }), // soft delete; keeps balances auditable
+    deleteClientId: text('delete_client_id'),
   },
   (t) => ({
     byGroup: index('exp_group').on(t.groupId),

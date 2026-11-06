@@ -14,7 +14,18 @@ import {
   type Settlement,
   type SuggestedPayment,
 } from './settlements';
-import { drop as dropWrite, enqueue as enqueueWrite, isOffline, OUTBOX_STORAGE_ERROR } from './outbox';
+import {
+  drop as dropWrite,
+  enqueue as enqueueWrite,
+  isAlreadyDone,
+  isConflict,
+  isOffline,
+  OUTBOX_STORAGE_ERROR,
+  pauseFor,
+  setFailure,
+  withOutboxLock,
+  type QueuedDelete,
+} from './outbox';
 import { formatMoney as fmt } from '@owewell/shared';
 import type { GroupLedger } from './useGroupLedger';
 import type { InviteLink } from './useInviteLink';
@@ -135,60 +146,70 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   // Undo restores the soft-deleted row and its original odd-cent allocation.
   async function deleteExpense(expenseId: string): Promise<void> {
     const removed = expenses.find((e) => e.id === expenseId);
-    const name = removed ? `Deleted ${removed.description}.` : 'Expense deleted.';
+    if (!removed) return;
+    const entry: QueuedDelete = {
+      clientId: crypto.randomUUID(),
+      groupId: id,
+      ownerId,
+      kind: 'delete',
+      expenseId,
+      description: removed.description,
+      expectedVersion: removed.version,
+      queuedAt: Date.now(),
+    };
+    const undo = { label: 'Undo', onClick: () => void undoDeleteExpense(entry) };
     try {
-      await expensesApi.remove(id, expenseId, ownerId);
+      await expensesApi.remove(id, expenseId, ownerId, entry.clientId, entry.expectedVersion);
       // Off the list on the same tick as the toast, rather than one refetch later.
       dropExpense(expenseId);
       void refreshLedger();
-      toast.success(name, { label: 'Undo', onClick: () => void undoDeleteExpense(expenseId) });
+      toast.success(`Deleted ${entry.description}.`, undo);
     } catch (err) {
       if (!isOffline(err)) {
-        toast.error('Could not delete that expense.');
+        if (isConflict(err)) void refreshLedger();
+        toast.error(err instanceof Error ? err.message : 'Could not delete that expense.');
         return;
       }
-      /*
-       * Queued, and undone by dropping the queue entry.
-       *
-       * Calling restore here would be asking the server to put back something it never removed. The
-       * row is hidden from the feed by the queued delete itself, so undo is simply forgetting it.
-       */
-      const clientId = crypto.randomUUID();
-      const queued = enqueueWrite({
-        clientId,
-        groupId: id,
-        ownerId,
-        kind: 'delete',
-        expenseId,
-        description: removed?.description ?? 'that expense',
-        queuedAt: Date.now(),
-      });
-      if (!queued) {
+      if (!enqueueWrite(entry)) {
         toast.error(OUTBOX_STORAGE_ERROR);
         return;
       }
       refreshPending();
-      toast.success(`${name} It syncs when you have signal.`, {
-        label: 'Undo',
-        onClick: () => {
-          if (!dropWrite(clientId)) {
-            toast.error(OUTBOX_STORAGE_ERROR);
-            return;
-          }
-          refreshPending();
-        },
-      });
+      toast.success(`Deletion queued for ${entry.description}. It syncs when you reconnect.`, undo);
     }
   }
 
-  async function undoDeleteExpense(expenseId: string): Promise<void> {
-    try {
-      const restored = await expensesApi.restore(id, expenseId);
-      showSavedExpense(restored);
+  async function undoDeleteExpense(entry: QueuedDelete): Promise<void> {
+    await withOutboxLock(entry.ownerId, async () => {
+      // An interrupted delete may already have landed. Keep the inverse until the server answers.
+      if (!enqueueWrite({ ...entry, kind: 'restore' })) {
+        toast.error(OUTBOX_STORAGE_ERROR);
+        return;
+      }
+      refreshPending();
+      try {
+        const restored = await expensesApi.restore(
+          entry.groupId,
+          entry.expenseId,
+          entry.clientId,
+          entry.ownerId,
+        );
+        showSavedExpense(restored);
+      } catch (error) {
+        if (!isAlreadyDone(error)) {
+          if (isOffline(error) || pauseFor(error)) {
+            toast.success('Undo is saved on this device and will sync when you reconnect.');
+          } else {
+            const message = error instanceof Error ? error.message : 'Could not undo that deletion.';
+            toast.error(setFailure(entry.clientId, entry.ownerId, message) ? message : OUTBOX_STORAGE_ERROR);
+          }
+          return;
+        }
+      }
+      if (!dropWrite(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
+      refreshPending();
       void refreshLedger();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not put that back.');
-    }
+    });
   }
 
   async function toggleArchive(): Promise<void> {

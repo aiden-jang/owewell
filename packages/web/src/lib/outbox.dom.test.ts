@@ -180,12 +180,6 @@ describe('dropping', () => {
   });
 });
 
-/*
- * Deletes, which are queued on different terms from creates.
- *
- * A create needs an idempotency key so a replay is recognised. A delete needs none: it is repeatable
- * by nature, and the failure mode a key would prevent — doing it twice — is the outcome anyway.
- */
 describe('a queued delete', () => {
   const del = (clientId: string, expenseId: string) => ({
     clientId,
@@ -194,6 +188,7 @@ describe('a queued delete', () => {
     expenseId,
     description: 'Dinner',
     queuedAt: 100,
+    expectedVersion: 1,
   });
 
   it('is told apart from a create', () => {
@@ -210,6 +205,18 @@ describe('a queued delete', () => {
     await flush(send);
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ kind: 'delete', expenseId: 'e1' }));
     expect(queued()).toEqual([]);
+  });
+
+  it('requires review for older unversioned deletes and for stale deletes', async () => {
+    const { expectedVersion: _version, ...older } = del('d1', 'e1');
+    const send = vi.fn().mockRejectedValue(new ApiError(409, 'Changed.'));
+    enqueue(older);
+    expect((await flush(send)).conflicted).toEqual([older]);
+    expect(send).not.toHaveBeenCalled();
+    const stale = del('d1', 'e1');
+    enqueue(stale);
+    expect((await flush(send)).conflicted).toEqual([stale]);
+    expect(send).toHaveBeenCalledOnce();
   });
 
   /*

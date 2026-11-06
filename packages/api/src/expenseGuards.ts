@@ -94,11 +94,15 @@ export async function memberPersonIds(db: DB, groupId: string): Promise<Set<stri
   return new Set(rows.map((r) => r.personId));
 }
 
+export function noSettlements(groupId: string) {
+  return sql`not exists (select 1 from ${settlements} where ${settlements.groupId} = ${groupId})`;
+}
+
 /** Fail the transaction if a competing edit, deletion, or payment won after the read. */
 export function nextExpenseVersion(groupId: string, version: number) {
   return sql<number>`case
     when ${expenses.deletedAt} is null and ${expenses.version} = ${version}
-      and not exists (select 1 from ${settlements} where ${settlements.groupId} = ${groupId})
+      and ${noSettlements(groupId)}
     then ${expenses.version} + 1
     else null end`;
 }

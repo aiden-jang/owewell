@@ -8,10 +8,12 @@ import { serverValue } from './splitValues';
 import type { QuickSplitInput } from './quickSplitDraft';
 import {
   clearPendingSplit,
-  loadPendingSplit,
+  pendingSplitsForDraft,
   preparePendingSplit,
   quickSplitApi,
+  readPendingSplit,
   stashPendingSplit,
+  withPendingSplitLock,
   type PendingSplit,
 } from './quicksplit';
 
@@ -79,7 +81,12 @@ export function useSaveQuickSplit(
       if (user) payload.ownerId = user.id;
       const draftRevision = persistDraft(draft);
       if (draftRevision) payload.draftRevision = draftRevision;
-      const pending = preparePendingSplit(payload, attempt.current ?? loadPendingSplit());
+      const previous = draftRevision
+        ? pendingSplitsForDraft(draftRevision).find(
+            ({ split }) => !split.ownerId || split.ownerId === payload.ownerId,
+          )
+        : undefined;
+      const pending = preparePendingSplit(payload, previous?.split ?? attempt.current ?? undefined);
       attempt.current = pending;
       if (!user) {
         if (!draftRevision || !stashPendingSplit(pending)) {
@@ -88,17 +95,26 @@ export function useSaveQuickSplit(
           );
           return;
         }
-        login(window.location.origin);
+        const returnTo = new URL('/', window.location.origin);
+        returnTo.searchParams.set('split', pending.clientId);
+        login(returnTo.href);
         return;
       }
-      stashPendingSplit(pending);
       inFlight.current = true;
       setSaving(true);
-      const { groupId } = await quickSplitApi.save(pending);
-      if (loadPendingSplit()?.clientId === pending.clientId) clearPendingSplit();
-      if (!current()) return;
-      finishDraft(draftRevision);
-      navigate(`/groups/${groupId}`);
+      await withPendingSplitLock(pending.clientId, async () => {
+        if (!current()) return;
+        const stored = readPendingSplit(pending.clientId)?.split;
+        if (stored?.ownerId && stored.ownerId !== user.id) {
+          throw new Error('This split is waiting to save on another account.');
+        }
+        if (stashPendingSplit(pending) && previous?.id === 'legacy') clearPendingSplit(previous);
+        const { groupId } = await quickSplitApi.save(pending);
+        clearPendingSplit({ id: pending.clientId, split: pending });
+        if (!current()) return;
+        finishDraft(draftRevision);
+        navigate(`/groups/${groupId}`);
+      });
     } catch (error) {
       if (current()) setError(error instanceof Error ? error.message : 'Could not save the split.');
     } finally {

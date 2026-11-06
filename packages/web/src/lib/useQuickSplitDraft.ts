@@ -51,9 +51,9 @@ function updateTips(items: Item[], percent?: number | null): Item[] {
 }
 
 /** Editable bill state, on-device recovery, participant changes and generated tips. */
-export function useQuickSplitDraft() {
+export function useQuickSplitDraft(ownerId?: string) {
   const { initialDraft, observedDraft, otherDrafts, persistDraft, loadDraft, discardDraft, finishDraft } =
-    useQuickSplitRecovery();
+    useQuickSplitRecovery(ownerId);
   const [people, setPeople] = useState<Person[]>(initialDraft?.people ?? [newPerson('You'), newPerson('')]);
   const initialTip =
     initialDraft?.tipPercent ?? initialDraft?.items.find((item) => item.generatedTip)?.generatedTip ?? null;

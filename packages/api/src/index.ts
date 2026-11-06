@@ -260,19 +260,36 @@ api.put('/groups/:id/expenses/:expenseId/itemized', async (c) => {
   return c.json({ expense });
 });
 
+const expenseDeleteQuery = z.object({
+  clientId: z.string().min(8).max(64).optional(),
+  expectedVersion: z.coerce.number().int().positive().optional(),
+});
+
 api.post('/groups/:id/expenses/:expenseId/restore', async (c) => {
+  const query = expenseDeleteQuery.safeParse(c.req.query());
+  if (!query.success) return c.json({ error: 'ValidationError', issues: query.error.flatten() }, 400);
   const expense = await restoreExpense(
     createDb(c.env),
     c.get('person').id,
     c.req.param('id'),
     c.req.param('expenseId'),
+    query.data.clientId,
   );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ expense });
 });
 
 api.delete('/groups/:id/expenses/:expenseId', async (c) => {
-  await deleteExpense(createDb(c.env), c.get('person').id, c.req.param('id'), c.req.param('expenseId'));
+  const query = expenseDeleteQuery.safeParse(c.req.query());
+  if (!query.success) return c.json({ error: 'ValidationError', issues: query.error.flatten() }, 400);
+  await deleteExpense(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    c.req.param('expenseId'),
+    query.data.expectedVersion,
+    query.data.clientId,
+  );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ ok: true });
 });

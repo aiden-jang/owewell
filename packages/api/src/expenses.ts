@@ -1,6 +1,6 @@
 import { insertStatements } from './db/rows.js';
 import { changedFields, computeSplit } from '@owewell/shared';
-import { and, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import {
@@ -11,6 +11,7 @@ import {
   findByClientId,
   commitExpenseCreate,
   memberPersonIds,
+  noSettlements,
 } from './expenseGuards.js';
 import { listExpenses } from './expenseList.js';
 export { getBalances } from './balances.js';
@@ -155,16 +156,34 @@ export async function deleteExpense(
   personId: string,
   groupId: string,
   expenseId: string,
+  expectedVersion?: number,
+  clientId?: string,
 ): Promise<void> {
   await requireMembership(db, personId, groupId);
+  const target = and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId));
   const e = await db
-    .select({ id: expenses.id })
+    .select({
+      version: expenses.version,
+      deletedAt: expenses.deletedAt,
+      deleteClientId: expenses.deleteClientId,
+    })
     .from(expenses)
-    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
+    .where(target)
     .get();
-  if (!e) throw new ExpenseError('NOT_FOUND', 'That expense is already gone.');
+  if (e?.deletedAt && clientId && e.deleteClientId === clientId) return;
+  if (!e || e.deletedAt) throw new ExpenseError('NOT_FOUND', 'That expense is already gone.');
   await assertUnlocked(db, groupId);
-  await db.update(expenses).set({ deletedAt: new Date() }).where(eq(expenses.id, expenseId));
+  assertVersion(e.version, expectedVersion);
+  const deleted = await db
+    .update(expenses)
+    .set({ deletedAt: new Date(), deleteClientId: clientId ?? null, version: e.version + 1 })
+    .where(and(target, isNull(expenses.deletedAt), eq(expenses.version, e.version), noSettlements(groupId)))
+    .returning({ id: expenses.id })
+    .get();
+  if (!deleted) {
+    await assertUnlocked(db, groupId);
+    throw new ExpenseError('CONFLICT', 'Somebody changed this expense while you were away.');
+  }
 }
 
 /** Restore the same row and splits to preserve odd-cent allocation. The ledger must be unlocked. */
@@ -173,16 +192,26 @@ export async function restoreExpense(
   personId: string,
   groupId: string,
   expenseId: string,
+  clientId?: string,
 ): Promise<ExpenseView> {
   await requireMembership(db, personId, groupId);
-  const e = await db
-    .select({ id: expenses.id })
-    .from(expenses)
-    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, groupId), isNotNull(expenses.deletedAt)))
+  const target = and(
+    eq(expenses.id, expenseId),
+    eq(expenses.groupId, groupId),
+    isNotNull(expenses.deletedAt),
+    clientId ? eq(expenses.deleteClientId, clientId) : undefined,
+  );
+  const updated = await db
+    .update(expenses)
+    .set({ deletedAt: null, deleteClientId: null, version: sql`${expenses.version} + 1` })
+    .where(and(target, noSettlements(groupId)))
+    .returning({ id: expenses.id })
     .get();
-  if (!e) throw new ExpenseError('NOT_FOUND', 'That expense is not waiting to be restored.');
-  await assertUnlocked(db, groupId);
-  await db.update(expenses).set({ deletedAt: null }).where(eq(expenses.id, expenseId));
+  if (!updated) {
+    const deleted = await db.select({ id: expenses.id }).from(expenses).where(target).get();
+    if (deleted) await assertUnlocked(db, groupId);
+    throw new ExpenseError('NOT_FOUND', 'That expense is not waiting to be restored.');
+  }
 
   // Read it back through the same path the feed uses rather than assembling a view by hand, so an
   // undone itemized receipt comes back with its line items and its correction line intact.

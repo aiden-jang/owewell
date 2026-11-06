@@ -11,6 +11,7 @@ import {
   drop,
   flush,
   isConflict,
+  isDelete,
   isOffline,
   OUTBOX_STORAGE_ERROR,
   pauseFor,
@@ -19,6 +20,7 @@ import {
   unassignedWrites,
   isAlreadyDone,
   subscribe,
+  withOutboxLock,
   type FlushResult,
   type QueuedWrite,
 } from './outbox';
@@ -47,9 +49,17 @@ function sendQueuedWrite(entry: QueuedWrite, ownerId: string): Promise<unknown> 
     case 'delete':
       // A queued delete finding nothing to delete got what it wanted, so it leaves the queue rather
       // than being reported as a failure the person has to do something about.
-      return expensesApi.remove(entry.groupId, entry.expenseId, ownerId).catch((err: unknown) => {
-        if (!isAlreadyDone(err)) throw err;
-      });
+      return expensesApi
+        .remove(entry.groupId, entry.expenseId, ownerId, entry.clientId, entry.expectedVersion)
+        .catch((err: unknown) => {
+          if (!isAlreadyDone(err)) throw err;
+        });
+    case 'restore':
+      return expensesApi
+        .restore(entry.groupId, entry.expenseId, entry.clientId, ownerId)
+        .catch((err: unknown) => {
+          if (!isAlreadyDone(err)) throw err;
+        });
     case 'itemized':
       return expensesApi.createItemized(entry.groupId, entry.payload as CreateItemizedPayload, ownerId);
     default:
@@ -58,7 +68,7 @@ function sendQueuedWrite(entry: QueuedWrite, ownerId: string): Promise<unknown> 
 }
 
 export interface OutboxSync {
-  paused: FlushResult['paused'] | 'conflict';
+  paused: FlushResult['paused'] | 'conflict' | 'delete-conflict';
   syncing: boolean;
   unassigned: number;
   failed: QueuedWrite[];
@@ -102,8 +112,7 @@ export function useOutboxSync({
     flushing.current = current;
     setSyncing(true);
     const send = (entry: QueuedWrite) => sendQueuedWrite(entry, ownerId);
-    const underLock = async <T>(action: () => Promise<T>): Promise<T> =>
-      navigator.locks ? await navigator.locks.request(`owewell:sync:${ownerId}`, action) : action();
+    const underLock = async <T>(action: () => Promise<T>): Promise<T> => withOutboxLock(ownerId, action);
     let changedAgain: string | undefined;
     try {
       while (current()) {
@@ -122,6 +131,11 @@ export function useOutboxSync({
         }
         const entry = result.conflicted[0];
         if (!entry || result.paused) return;
+        const deleting = isDelete(entry);
+        const stillQueued = () => {
+          const latest = queued(groupId, ownerId).find((row) => row.clientId === entry.clientId);
+          return !!latest && JSON.stringify(latest) === JSON.stringify(entry);
+        };
 
         let expense;
         try {
@@ -129,7 +143,7 @@ export function useOutboxSync({
         } catch (error) {
           if (current()) {
             setPaused(pauseFor(error) ?? 'temporary');
-            toast.error('Couldn’t load the ledger version. Your edit is still waiting on this device.');
+            toast.error('Couldn’t load the ledger version. Your change is still waiting on this device.');
           }
           return;
         }
@@ -138,7 +152,10 @@ export function useOutboxSync({
           const kept = await underLock(
             async () =>
               current() &&
-              setFailure(entry.clientId, ownerId, 'This expense is no longer available to edit.'),
+              (!stillQueued() ||
+                (!expense && deleting
+                  ? drop(entry.clientId)
+                  : setFailure(entry.clientId, ownerId, 'This expense is no longer available.'))),
           );
           if (!kept) {
             if (current()) setPaused('storage');
@@ -153,27 +170,33 @@ export function useOutboxSync({
             changedAgain === entry.clientId
               ? `“${entry.description}” changed again`
               : `“${entry.description}” changed while you were offline`,
-          body: `The ledger shows “${description}” for ${Money.fromCents(amountCents).format()}. Your edit is “${entry.description}” for ${Money.fromCents(entry.amountCents).format()}. Applying yours replaces the ledger entry, including its split details.`,
-          confirmLabel: 'Apply mine',
-          cancelLabel: 'Keep theirs',
+          body: deleting
+            ? `The ledger now shows “${description}” for ${Money.fromCents(amountCents).format()}. Review this version before deleting it.`
+            : `The ledger shows “${description}” for ${Money.fromCents(amountCents).format()}. Your edit is “${entry.description}” for ${Money.fromCents(entry.amountCents).format()}. Applying yours replaces the ledger entry, including its split details.`,
+          confirmLabel: deleting ? 'Delete expense' : 'Apply mine',
+          cancelLabel: deleting ? 'Keep expense' : 'Keep theirs',
+          tone: deleting ? 'danger' : 'default',
           onDismiss: () => {
             dismissed = true;
           },
         });
         if (!current()) return;
         if (dismissed) {
-          setPaused('conflict');
+          setPaused(deleting ? 'delete-conflict' : 'conflict');
           return;
         }
 
         // Another tab can sync while the prompt is open. Recheck before acting on the decision.
         const proceed = await underLock(async () => {
           if (!current()) return false;
-          const latest = queued(groupId, ownerId).find((row) => row.clientId === entry.clientId);
-          if (!latest || JSON.stringify(latest) !== JSON.stringify(entry)) return true;
+          if (!stillQueued()) return true;
           if (keepMine) {
             try {
-              await send({ ...entry, payload: { ...entry.payload, expectedVersion: version } });
+              await send(
+                deleting
+                  ? { ...entry, expectedVersion: version }
+                  : { ...entry, payload: { ...entry.payload, expectedVersion: version } },
+              );
               if (current()) changed.current();
             } catch (error) {
               if (isConflict(error)) {
@@ -183,14 +206,14 @@ export function useOutboxSync({
               if (current()) {
                 const paused = pauseFor(error);
                 if (!isOffline(error) && !paused) {
-                  const message = error instanceof Error ? error.message : 'Could not apply your version.';
+                  const message = error instanceof Error ? error.message : 'Could not apply your change.';
                   if (!setFailure(entry.clientId, ownerId, message)) setPaused('storage');
                 } else {
                   setPaused(paused);
                   toast.error(
                     isOffline(error)
-                      ? 'Still offline. Your edit is waiting on this device.'
-                      : 'Could not apply your version. Your edit is still waiting.',
+                      ? 'Still offline. Your change is waiting on this device.'
+                      : 'Could not apply your change. It is still waiting.',
                   );
                 }
               }

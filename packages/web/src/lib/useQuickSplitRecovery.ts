@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { clearPendingSplit, pendingSplitsForDraft } from './quicksplit';
 import {
   clearQuickSplitDraft,
   draftId,
@@ -11,7 +12,9 @@ import {
   type QuickSplitInput,
 } from './quickSplitDraft';
 
-export function useQuickSplitRecovery() {
+export function useQuickSplitRecovery(ownerId?: string) {
+  const owner = useRef(ownerId);
+  owner.current = ownerId;
   const [savedDrafts, setSavedDrafts] = useState(listQuickSplitDrafts);
   const [initialDraft] = useState(() => preferredQuickSplitDraft(savedDrafts));
   const revision = useRef(initialDraft ? draftId(initialDraft) : null);
@@ -40,10 +43,15 @@ export function useQuickSplitRecovery() {
 
   const finishDraft = useCallback((saved: string | null): void => {
     observedDraft.current = null;
-    if (saved) clearQuickSplitDraft(saved);
+    if (saved && !pendingSplitsForDraft(saved).length) clearQuickSplitDraft(saved);
   }, []);
 
   const discardDraft = useCallback((): void => {
+    if (revision.current) {
+      for (const record of pendingSplitsForDraft(revision.current)) {
+        if (!record.split.ownerId || record.split.ownerId === owner.current) clearPendingSplit(record);
+      }
+    }
     finishDraft(revision.current);
     loadDraft(null);
   }, [finishDraft, loadDraft]);

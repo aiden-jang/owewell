@@ -58,7 +58,7 @@ export function QuickSplitPage(): ReactNode {
     generatedTipTotal,
     canTryExample,
     tryExample,
-  } = useQuickSplitDraft();
+  } = useQuickSplitDraft(user?.id);
   const { saving, save } = useSaveQuickSplit(setError, persistDraft, finishDraft);
   const { status: shareStatus, share } = useShareAction(setError);
 

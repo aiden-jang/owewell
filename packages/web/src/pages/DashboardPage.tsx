@@ -2,7 +2,7 @@ import { DashboardIntro } from '../components/SplitIntro';
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useDashboardMode } from './useDashboardMode.js';
 import { useDashboardGroups } from './useDashboardGroups';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
@@ -17,16 +17,8 @@ import { DashboardBalance } from '../components/DashboardBalance';
 import { SkeletonList } from '../components/Skeleton';
 import { useBulkGroupActions } from './useBulkGroupActions';
 import { useAuth } from '../auth/AuthContext';
-import { useToast } from '../components/Toast';
 import { groupsApi } from '../lib/groups';
-import { clearQuickSplitDraft } from '../lib/quickSplitDraft';
-import {
-  clearPendingSplit,
-  loadPendingSplit,
-  preparePendingSplit,
-  quickSplitApi,
-  stashPendingSplit,
-} from '../lib/quicksplit';
+import { usePendingSplits } from './usePendingSplits';
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
 import { useAsyncScope } from '../lib/useAsyncScope';
@@ -34,10 +26,10 @@ import { finishGroupCreate, rememberGroupCreate, type GroupCreateAttempt } from 
 import { ApiError } from '../lib/api';
 
 export function DashboardPage(): ReactNode {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const ownerId = user?.id;
-  const toast = useToast();
+  const [params] = useSearchParams();
+  const pending = usePendingSplits(ownerId, params.get('split'));
   const { captureScope } = useAsyncScope(ownerId);
   const { groups, loadError, loadGroups, applyGroupChange } = useDashboardGroups(ownerId);
   const [waiting, setWaiting] = useState(0);
@@ -45,11 +37,6 @@ export function DashboardPage(): ReactNode {
   const creatingRef = useRef(false);
   const createAttempt = useRef<GroupCreateAttempt | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(() => {
-    const saved = loadPendingSplit();
-    return saved && (!saved.ownerId || saved.ownerId === ownerId) ? saved : null;
-  });
-  const [savingPending, setSavingPending] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const mode = useDashboardMode(() => setError(null));
   const {
@@ -89,43 +76,6 @@ export function DashboardPage(): ReactNode {
     }
     return { owed, owe, net: owed - owe };
   }, [groups]);
-
-  async function savePending(): Promise<void> {
-    if (!pending || savingPending) return;
-    const samePage = captureScope();
-    const startUrl = window.location.href;
-    const current = () => samePage() && window.location.href === startUrl;
-    const latest = loadPendingSplit();
-    if (JSON.stringify(latest) !== JSON.stringify(pending)) {
-      setPending(latest && (!latest.ownerId || latest.ownerId === ownerId) ? latest : null);
-      return;
-    }
-    const attempt = preparePendingSplit({ ...pending, ...(ownerId ? { ownerId } : {}) }, pending);
-    const stored = stashPendingSplit(attempt);
-    setPending(attempt);
-    setSavingPending(true);
-    try {
-      const { groupId } = await quickSplitApi.save(attempt);
-      if (JSON.stringify(loadPendingSplit()) === JSON.stringify(stored ? attempt : pending)) {
-        clearPendingSplit();
-        if (typeof attempt.draftRevision === 'string') clearQuickSplitDraft(attempt.draftRevision);
-      }
-      if (current()) {
-        setPending(null);
-        navigate(`/groups/${groupId}`);
-      }
-    } catch {
-      if (!current()) return;
-      setSavingPending(false);
-      toast.error('Could not save that split. Give it another go.');
-    }
-  }
-
-  function dismissPending(): void {
-    if (savingPending) return;
-    if (JSON.stringify(loadPendingSplit()) === JSON.stringify(pending)) clearPendingSplit();
-    setPending(null);
-  }
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -194,14 +144,21 @@ export function DashboardPage(): ReactNode {
         className={`workspace-width mx-auto w-full animate-rise px-4 py-8 ${selectMode ? 'pb-28' : ''}`}
       >
         <DashboardIntro />
-        {pending && (
-          <PendingSplitCard
-            pending={pending}
-            busy={savingPending}
-            onSave={() => void savePending()}
-            onDismiss={dismissPending}
-          />
+        {pending.missingResume && (
+          <p className="mb-4 text-sm text-muted" role="status">
+            That split is no longer waiting to save.
+          </p>
         )}
+        {pending.visible.map((record) => (
+          <PendingSplitCard
+            key={record.id}
+            pending={record.split}
+            busy={pending.savingId !== null}
+            saving={pending.savingId === record.id}
+            onSave={() => void pending.save(record)}
+            onDismiss={() => pending.dismiss(record)}
+          />
+        ))}
 
         {(waiting > 0 || outboxSync.unassigned > 0 || outboxSync.failed.length > 0) && (
           <div className="mb-4">
