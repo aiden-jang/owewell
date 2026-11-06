@@ -35,7 +35,7 @@ const create = vi.fn();
 vi.mock('../lib/groups', () => ({
   groupsApi: {
     list: () => list(),
-    create: (name: string) => create(name),
+    create: (name: string, clientId: string, ownerId?: string) => create(name, clientId, ownerId),
     // The page calls these per id, not in bulk. Named wrongly, they are undefined at the call site and
     // the failure surfaces as "cannot read properties of undefined (reading 'then')".
     setArchived: vi.fn().mockResolvedValue(undefined),
@@ -84,6 +84,7 @@ async function open(groups: GroupSummary[] = [group()]) {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   list.mockReset();
   create.mockReset();
   toastStub.success.mockClear();
@@ -152,7 +153,7 @@ describe('creating a group', () => {
     await user.type(screen.getByRole('textbox'), 'Ski trip');
     await user.click(screen.getByRole('button', { name: /^create$/i }));
 
-    await waitFor(() => expect(create).toHaveBeenCalledWith('Ski trip'));
+    await waitFor(() => expect(create).toHaveBeenCalledWith('Ski trip', expect.any(String), 'u1'));
     // Re-opening must not show the previous name still sitting there.
     await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /new/i }));

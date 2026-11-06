@@ -16,6 +16,7 @@ export function GroupHeader({
   onDelete,
   onInvite,
   inviteBusy = false,
+  inviteOff = false,
   onExport,
   onPrint,
   onOpenMembers,
@@ -32,6 +33,7 @@ export function GroupHeader({
   onDelete: () => Promise<void>;
   onInvite: () => void;
   inviteBusy?: boolean;
+  inviteOff?: boolean;
   onExport: () => void;
   onPrint: () => void;
   /** Who is in the group is roster management, so it lives here rather than beside the spending. */
@@ -173,15 +175,15 @@ export function GroupHeader({
             <button
               type="button"
               onClick={onInvite}
-              disabled={inviteBusy}
-              aria-label="Invite people to this group"
+              disabled={inviteBusy || (inviteOff && !isOwner)}
+              aria-label={inviteOff && isOwner ? 'Create a new invite link' : 'Invite people to this group'}
               className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full border border-line-strong bg-surface2 text-sm font-medium text-ink transition hover:border-accent hover:text-accent sm:w-auto sm:px-3.5"
             >
               {/* Icon-only on phones, where the header competes with a long group name for width. The
                       aria-label above carries the meaning either way, so nothing is lost to a screen
                       reader. */}
               <Icon name="share" size={15} />
-              <span className="hidden sm:inline">Invite</span>
+              <span className="hidden sm:inline">{inviteOff && isOwner ? 'New invite link' : 'Invite'}</span>
             </button>
             <div className="relative">
               <button

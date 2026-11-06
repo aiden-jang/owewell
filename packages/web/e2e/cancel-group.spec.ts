@@ -78,7 +78,8 @@ for (const width of [1440, 390]) {
     await expect(name).toHaveCount(0);
     await expect(open).toBeFocused();
     await expect(page.getByRole('banner').getByRole('link', { name: /split a bill/i })).toHaveCount(0);
-    await page.getByRole('link', { name: /split a bill/i }).click();
+    await expect(page.getByRole('main').getByText(/for a one-off expense/i)).toHaveCount(0);
+    await page.getByRole('contentinfo').getByRole('link', { name: 'Bill calculator' }).click();
     await expect(page).toHaveURL(/\/split$/);
   });
 }

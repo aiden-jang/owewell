@@ -18,6 +18,7 @@ export type GroupErrorCode =
   | 'NOT_FOUND'
   | 'ALREADY_MEMBER'
   | 'NOT_OWNER'
+  | 'SHARING_OFF'
   | 'CANNOT_REMOVE_OWNER'
   | 'NOT_PLACEHOLDER'
   | 'NOT_EDITABLE'
@@ -52,6 +53,7 @@ export interface GroupDetail {
   createdById: string;
   createdAt: Date;
   archived: boolean;
+  shareDisabled: boolean;
   viewerId: string; // the caller's person id, so the UI knows which member is "me"
   members: GroupMemberView[];
 }
@@ -143,6 +145,7 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
     createdById: g.createdById,
     createdAt: g.createdAt,
     archived: mine?.archivedAt != null,
+    shareDisabled: g.shareDisabled,
     viewerId: personId,
     members: await membersOf(db, groupId),
   };
@@ -164,13 +167,30 @@ export async function setGroupArchived(
   return getGroup(db, personId, groupId);
 }
 
-export async function createGroup(db: DB, personId: string, name: string): Promise<GroupDetail> {
+export async function createGroup(db: DB, personId: string, name: string, clientId?: string) {
+  const findAttempt = () =>
+    clientId
+      ? db
+          .select({ id: groups.id })
+          .from(groups)
+          .where(and(eq(groups.createdById, personId), eq(groups.createClientId, clientId)))
+          .get()
+      : undefined;
+  const existing = await findAttempt();
+  if (existing) return { ...(await getGroup(db, personId, existing.id)), created: false };
+
   const id = crypto.randomUUID();
-  await db.batch([
-    db.insert(groups).values({ id, name, createdById: personId }),
-    db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: id, personId, role: 'OWNER' }),
-  ]);
-  return getGroup(db, personId, id);
+  try {
+    await db.batch([
+      db.insert(groups).values({ id, name, createdById: personId, createClientId: clientId ?? null }),
+      db.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: id, personId, role: 'OWNER' }),
+    ]);
+  } catch (error) {
+    const winner = await findAttempt();
+    if (!winner) throw error;
+    return { ...(await getGroup(db, personId, winner.id)), created: false };
+  }
+  return { ...(await getGroup(db, personId, id)), created: true };
 }
 
 export async function listGroups(db: DB, personId: string): Promise<GroupSummary[]> {

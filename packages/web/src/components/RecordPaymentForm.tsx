@@ -6,6 +6,7 @@ import { PaymentMethodSelect } from './PaymentMethodSelect';
 import {
   hasQueuedPayment,
   preparePayment,
+  queuePayment,
   settlementsApi,
   type Settlement,
   type SuggestedPayment,
@@ -15,7 +16,7 @@ import type { GroupMember } from '../lib/groups';
 import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
 import { normalizeAmountInput } from '../lib/format';
-import { enqueue, isOffline, OUTBOX_STORAGE_ERROR } from '../lib/outbox';
+import { isOffline, OUTBOX_STORAGE_ERROR } from '../lib/outbox';
 import { FormError } from './FormFields';
 
 interface Props {
@@ -156,18 +157,8 @@ export function RecordPaymentForm({
       onRecorded(await settlementsApi.record(groupId, payload, ownerId));
     } catch (err) {
       if (onQueued && isOffline(err)) {
-        // Reuse the client ID when queuing a payment so later replay cannot duplicate it.
         const summary = `${nameOf(fromUserId)} → ${nameOf(toUserId)}`;
-        const saved = enqueue({
-          clientId: payload.clientId,
-          groupId,
-          ownerId,
-          kind: 'settlement',
-          description: summary,
-          amountCents,
-          queuedAt: Date.now(),
-          payload,
-        });
+        const saved = queuePayment(groupId, payload, summary, ownerId);
         if (saved) onQueued(summary);
         else setError(OUTBOX_STORAGE_ERROR);
         return;

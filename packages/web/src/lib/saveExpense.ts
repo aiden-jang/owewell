@@ -12,6 +12,7 @@ interface Args<P extends ExpensePayload> {
   ownerId?: string | undefined;
   attempt: { current: { key: string; id: string } | null };
   editing: Expense | undefined;
+  recoveryId?: string | undefined;
   /** Everything the server needs except the two fields this function owns. */
   base: Omit<P, 'clientId' | 'expectedVersion'>;
   /** For the outbox row's summary line, so a queued write reads sensibly in the pending list. */
@@ -31,6 +32,7 @@ export async function saveExpense<P extends ExpensePayload>({
   ownerId,
   attempt,
   editing,
+  recoveryId,
   base,
   amountCents,
   kinds,
@@ -40,7 +42,7 @@ export async function saveExpense<P extends ExpensePayload>({
   failureMessage,
 }: Args<P>): Promise<SaveOutcome> {
   const key = JSON.stringify([groupId, ownerId, editing?.id, editing?.version, base]);
-  const clientId = attempt.current?.key === key ? attempt.current.id : crypto.randomUUID();
+  const clientId = recoveryId ?? (attempt.current?.key === key ? attempt.current.id : crypto.randomUUID());
   attempt.current = { key, id: clientId };
   // An edit says which version it was based on; a create has none to be based on.
   const versioned = editing ? { expectedVersion: editing.version } : {};

@@ -53,7 +53,7 @@ const edit = (over: Partial<QueuedEdit> = {}): QueuedEdit =>
   }) as QueuedEdit;
 
 /** Nothing queued, unless a test says otherwise. */
-const nothing = { sent: 0, rejected: [], conflicted: [] };
+const nothing = { sent: 0, conflicted: [] };
 
 async function mount(props: Record<string, unknown> = {}) {
   const { useOutboxSync } = await import('./useOutboxSync');
@@ -149,17 +149,31 @@ describe('what it says when things land', () => {
     expect(onChanged).toHaveBeenCalled();
   });
 
-  // It is out of the queue and only the person can retype it, so it has to be named.
-  it('names a write the server refused', async () => {
-    flush.mockResolvedValue({ ...nothing, rejected: [{ entry: edit(), message: 'Too long.' }] });
-    await mount();
-    await waitFor(() =>
-      expect(toastStub.error).toHaveBeenCalledWith('“Dinner” could not be saved: Too long.'),
-    );
+  it('shows a previous rejected write after reopening and scopes it to the signed-in account', async () => {
+    const saved = edit({ failure: 'Too long.' });
+    enqueue(saved);
+    enqueue(edit({ clientId: 'other', ownerId: 'u2', failure: 'Not yours.' }));
+    const { result } = await mount();
+    expect(result.current.failed).toEqual([saved]);
   });
 });
 
 describe('an edit that conflicted while it waited', () => {
+  it('keeps the edit when the conflict dialog is dismissed without a decision', async () => {
+    const saved = edit();
+    enqueue(saved);
+    flush.mockResolvedValueOnce({ ...nothing, conflicted: [saved] });
+    confirmStub.mockImplementationOnce(async ({ onDismiss }) => {
+      onDismiss();
+      return false;
+    });
+    const { result } = await mount();
+    await waitFor(() => expect(confirmStub).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.syncing).toBe(false));
+    expect(queued()).toEqual([saved]);
+    expect(api.update).not.toHaveBeenCalled();
+  });
+
   it('asks, and does nothing if you keep theirs', async () => {
     enqueue(edit());
     flush.mockResolvedValueOnce({ ...nothing, conflicted: [edit()] });

@@ -4,7 +4,6 @@ import { createPortal, flushSync } from 'react-dom';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
 import type { GroupLedger } from '../lib/useGroupLedger';
 import { fullDay } from '../lib/relativeTime';
-import './print-recap.css';
 
 export function PrintRecap({ ledger }: { ledger: GroupLedger }) {
   const [printing, setPrinting] = useState(false);

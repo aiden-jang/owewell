@@ -13,6 +13,7 @@ import {
   OUTBOX_STORAGE_ERROR,
   pauseFor,
   queued,
+  setFailure,
   unassignedWrites,
   isAlreadyDone,
   subscribe,
@@ -56,11 +57,14 @@ function sendQueuedWrite(entry: QueuedWrite, ownerId: string): Promise<unknown> 
 }
 
 export interface OutboxSync {
-  paused: FlushResult['paused'];
+  paused: FlushResult['paused'] | 'conflict';
   syncing: boolean;
   unassigned: number;
+  failed: QueuedWrite[];
   recover: () => Promise<void>;
   retry: () => Promise<void>;
+  retryFailed: (entry: QueuedWrite) => Promise<void>;
+  discardFailed: (entry: QueuedWrite) => Promise<void>;
 }
 
 export function useOutboxSync({
@@ -82,8 +86,9 @@ export function useOutboxSync({
   const flushing = useRef<(() => boolean) | null>(null);
   const { captureScope } = useAsyncScope(JSON.stringify([groupId, ownerId]));
   const [unassigned, setUnassigned] = useState(() => unassignedWrites(groupId).length);
+  const [failed, setFailed] = useState<QueuedWrite[]>([]);
   const [syncing, setSyncing] = useState(false);
-  const [paused, setPaused] = useState<FlushResult['paused']>();
+  const [paused, setPaused] = useState<OutboxSync['paused']>();
   // Held in refs so the callbacks can change every render without restarting the effect below.
   const changed = useRef(onChanged);
   changed.current = onChanged;
@@ -110,18 +115,23 @@ export function useOutboxSync({
           );
           changed.current();
         }
-        for (const { entry, message } of result.rejected) {
-          toast.error(`“${entry.description}” could not be saved: ${message}`);
-        }
         const entry = result.conflicted[0];
         if (!entry) break;
+        let dismissed = false;
         const keepMine = await confirm({
           title: `“${entry.description}” changed while you were offline`,
-          body: 'Apply your version, or keep the version currently in the ledger?',
+          body: 'Apply your version, keep the version in the ledger, or decide later. Your edit stays on this device until you choose.',
           confirmLabel: 'Apply mine',
           cancelLabel: 'Keep theirs',
+          onDismiss: () => {
+            dismissed = true;
+          },
         });
         if (!current()) return;
+        if (dismissed) {
+          setPaused('conflict');
+          return;
+        }
         if (!queued(groupId, ownerId).some((row) => row.clientId === entry.clientId)) continue;
         if (keepMine) {
           try {
@@ -130,12 +140,18 @@ export function useOutboxSync({
             if (current()) changed.current();
           } catch (error) {
             if (current()) {
-              setPaused(pauseFor(error));
-              toast.error(
-                isOffline(error)
-                  ? 'Still offline. Your edit is waiting on this device.'
-                  : 'Could not apply your version. Your edit is still waiting.',
-              );
+              const paused = pauseFor(error);
+              if (!isOffline(error) && !paused) {
+                const message = error instanceof Error ? error.message : 'Could not apply your version.';
+                if (!setFailure(entry.clientId, ownerId, message)) setPaused('storage');
+              } else {
+                setPaused(paused);
+                toast.error(
+                  isOffline(error)
+                    ? 'Still offline. Your edit is waiting on this device.'
+                    : 'Could not apply your version. Your edit is still waiting.',
+                );
+              }
             }
             return;
           }
@@ -179,9 +195,31 @@ export function useOutboxSync({
     await run();
   }, [captureScope, confirm, groupId, ownerId, run, toast]);
 
+  async function retryFailed(entry: QueuedWrite): Promise<void> {
+    if (!ownerId || flushing.current?.() || entry.ownerId !== ownerId) return;
+    if (!setFailure(entry.clientId, ownerId)) {
+      toast.error(OUTBOX_STORAGE_ERROR);
+      return;
+    }
+    await run();
+  }
+
+  async function discardFailed(entry: QueuedWrite): Promise<void> {
+    if (!ownerId || entry.ownerId !== ownerId) return;
+    const current = captureScope();
+    const approved = await confirm({
+      title: 'Discard this saved change?',
+      body: `“${entry.description}” will be removed from this device.`,
+      confirmLabel: 'Discard change',
+      tone: 'danger',
+    });
+    if (approved && current() && !drop(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
+  }
+
   useEffect(() => {
     const refresh = () => {
       setUnassigned(unassignedWrites(groupId).length);
+      setFailed(ownerId ? queued(groupId, ownerId).filter((entry) => entry.failure) : []);
       queueChanged.current?.();
     };
     setSyncing(false);
@@ -195,7 +233,7 @@ export function useOutboxSync({
       window.removeEventListener('online', onOnline);
       unsubscribe();
     };
-  }, [groupId, run]);
+  }, [groupId, ownerId, run]);
 
-  return { paused, syncing, retry: run, unassigned, recover };
+  return { paused, syncing, retry: run, unassigned, recover, failed, retryFailed, discardFailed };
 }

@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type Ref } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { useDialogFocus } from '../lib/useDialogFocus';
 
 interface ConfirmOptions {
@@ -6,6 +15,7 @@ interface ConfirmOptions {
   body?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  onDismiss?: () => void;
   /** 'danger' paints the confirm button in the accent color for destructive actions. */
   tone?: 'danger' | 'default';
 }
@@ -21,25 +31,36 @@ interface Pending extends ConfirmOptions {
 /** A promise-based replacement for window.confirm, themed to match the app. */
 export function ConfirmProvider({ children }: { children: ReactNode }): ReactNode {
   const [pending, setPending] = useState<Pending | null>(null);
+  const active = useRef<Pending | null>(null);
 
-  const confirm = useCallback<ConfirmFn>(
-    (options) => new Promise<boolean>((resolve) => setPending({ ...options, resolve })),
-    [],
-  );
-
-  const settle = useCallback((ok: boolean): void => {
-    setPending((current) => {
-      current?.resolve(ok);
-      return null;
+  const confirm = useCallback<ConfirmFn>((options) => {
+    if (active.current) {
+      options.onDismiss?.();
+      return Promise.resolve(false);
+    }
+    return new Promise<boolean>((resolve) => {
+      active.current = { ...options, resolve };
+      setPending(active.current);
     });
+  }, []);
+
+  const settle = useCallback((ok: boolean, dismissed = false): void => {
+    const current = active.current;
+    active.current = null;
+    setPending(null);
+    if (dismissed) current?.onDismiss?.();
+    current?.resolve(ok);
   }, []);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const bodyId = useId();
 
-  // Trap focus and restore it to the trigger; confirmations initially focus their primary action.
-  const cancel = useCallback(() => settle(false), [settle]);
-  useDialogFocus(dialogRef, pending !== null, cancel, () => confirmRef.current);
+  const dismiss = useCallback(() => settle(false, true), [settle]);
+  useDialogFocus(dialogRef, pending !== null, dismiss, () =>
+    pending?.onDismiss ? null : pending?.tone === 'danger' ? cancelRef.current : confirmRef.current,
+  );
 
   return (
     <ConfirmContext.Provider value={confirm}>
@@ -49,7 +70,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
           className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) settle(false);
+            if (event.target === event.currentTarget) dismiss();
           }}
         >
           {/* The dialog is the panel, not the backdrop: a trap that includes the backdrop would
@@ -59,14 +80,29 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
             role="dialog"
             aria-modal="true"
             aria-label={pending.title}
+            aria-describedby={pending.body ? bodyId : undefined}
             tabIndex={-1}
             /* Fade in without moving the answer while somebody is trying to press it. */
-            className="animate-fade surface w-full rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
+            className="animate-fade surface max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
           >
-            <h2 className="font-display text-xl font-semibold tracking-tight">{pending.title}</h2>
-            {pending.body && <p className="mt-2 text-sm text-muted">{pending.body}</p>}
-            <div className="mt-6 flex justify-end gap-2">
+            <h2 className="break-words font-display text-xl font-semibold tracking-tight">{pending.title}</h2>
+            {pending.body && (
+              <p id={bodyId} className="mt-2 text-sm text-muted">
+                {pending.body}
+              </p>
+            )}
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              {pending.onDismiss && (
+                <button
+                  type="button"
+                  onClick={dismiss}
+                  className="tap px-3 py-2 text-sm font-medium text-muted hover:underline"
+                >
+                  Decide later
+                </button>
+              )}
               <button
+                ref={cancelRef}
                 type="button"
                 onClick={() => settle(false)}
                 className="rounded-full border border-line px-4 py-2 text-sm font-medium transition hover:bg-canvas active:scale-[0.98]"

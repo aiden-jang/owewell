@@ -9,7 +9,7 @@ import { GroupActivityShortcut } from '../components/GroupActivityShortcut';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { InviteLink } from '../components/InviteLink';
-import { OutboxNotice } from '../components/OutboxNotice';
+import { GroupOutbox } from '../components/GroupOutbox';
 import { Sheet } from '../components/Sheet';
 import { AddExpenseSheet } from '../components/AddExpenseSheet';
 import { RecordPaymentForm } from '../components/RecordPaymentForm';
@@ -151,6 +151,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
         onDelete={deleteGroup}
         onInvite={() => void invite.reveal()}
         inviteBusy={invite.changing}
+        inviteOff={invite.sharingOff}
         onExport={exportActivity}
         onPrint={() => window.print()}
         onOpenMembers={() => setMembersOpen(true)}
@@ -159,14 +160,16 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
       {/* Above the balance, because the balance is what it makes wrong: the figure is computed by
           the server from writes that have not reached it, and a row marked "waiting" further down
           only explains itself if you happen to be looking at that row. */}
-      <OutboxNotice
+      <GroupOutbox
+        group={group}
+        ownerId={user?.id}
         count={pendingCount}
-        waitingMessage={
-          pendingCount === 1
-            ? 'One change is waiting for signal'
-            : `${pendingCount} changes are waiting for signal`
-        }
         sync={outboxSync}
+        onSaved={(saved) => {
+          showSavedExpense(saved);
+          void refreshLedger();
+          toast.success('Saved the corrected expense.');
+        }}
       />
 
       {ledgerHasRows && (
@@ -213,6 +216,11 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
               }
             : {})}
         />
+      )}
+      {invite.sharingOff && !invite.link && (
+        <p className="text-sm text-muted" role="status">
+          {isOwner ? 'The invite link is off.' : 'The owner turned off the invite link.'}
+        </p>
       )}
 
       <div className="ledger-grid">

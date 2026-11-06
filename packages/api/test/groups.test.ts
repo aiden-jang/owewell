@@ -35,6 +35,24 @@ describe('groups', () => {
     expect(group.members[0]).toMatchObject({ userId: alice, role: 'OWNER', displayName: 'Alice' });
   });
 
+  test('concurrent retries create one group and one owner, with attempts scoped by person', async () => {
+    const db = testDb();
+    const clientId = crypto.randomUUID();
+    const attempts = await Promise.all([
+      createGroup(db, alice, 'Trip', clientId),
+      createGroup(db, alice, 'Trip', clientId),
+    ]);
+    const original = attempts[0]!;
+    expect(attempts.map((group) => group.id)).toEqual([original.id, original.id]);
+    expect(attempts.filter((group) => group.created)).toHaveLength(1);
+    expect(original.members).toHaveLength(1);
+    expect(await listGroups(db, alice)).toHaveLength(1);
+
+    const bob = await seedPerson(db, 'Bob');
+    expect((await createGroup(db, bob, 'Trip', clientId)).id).not.toBe(original.id);
+    expect((await createGroup(db, alice, 'Trip', crypto.randomUUID())).id).not.toBe(original.id);
+  });
+
   test('addPlaceholderMember creates a name-only member', async () => {
     const db = testDb();
     const group = await createGroup(db, alice, 'Trip');
@@ -221,15 +239,24 @@ describe('groups', () => {
     expect(await getSharedSummary(db, '')).toBeNull();
   });
 
-  test('a fresh link can be minted after revoking', async () => {
+  test('normal invite requests cannot reopen sharing after revocation, even for the owner', async () => {
     const db = testDb();
     const group = await createGroup(db, alice, 'Trip');
+    const memberId = (await addPlaceholderMember(db, alice, group.id, 'Bob')).userId;
     const first = await getOrCreateShareToken(db, alice, group.id);
     await revokeShareToken(db, alice, group.id);
 
-    const second = await getOrCreateShareToken(db, alice, group.id);
+    expect((await getGroup(db, alice, group.id)).shareDisabled).toBe(true);
+    for (const personId of [alice, memberId]) {
+      await expect(getOrCreateShareToken(db, personId, group.id)).rejects.toMatchObject({
+        code: 'SHARING_OFF',
+      });
+    }
+    const second = await rotateShareToken(db, alice, group.id);
     expect(second).not.toBe(first);
     expect(await getSharedSummary(db, second)).not.toBeNull();
+    expect((await getGroup(db, alice, group.id)).shareDisabled).toBe(false);
+    expect(await getOrCreateShareToken(db, memberId, group.id)).toBe(second);
   });
 
   /*

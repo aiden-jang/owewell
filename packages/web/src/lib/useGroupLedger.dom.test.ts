@@ -18,7 +18,6 @@ const get = vi.fn();
 const balancesApi = vi.fn();
 const listExpenses = vi.fn();
 const listSettlements = vi.fn();
-const suggestedApi = vi.fn();
 
 vi.mock('./groups', () => ({
   groupsApi: { get: (...a: unknown[]) => get(...a), balances: (...a: unknown[]) => balancesApi(...a) },
@@ -27,7 +26,6 @@ vi.mock('./expenses', () => ({ expensesApi: { list: (...a: unknown[]) => listExp
 vi.mock('./settlements', () => ({
   settlementsApi: {
     list: (...a: unknown[]) => listSettlements(...a),
-    suggested: (...a: unknown[]) => suggestedApi(...a),
   },
 }));
 
@@ -78,7 +76,10 @@ const GROUP: GroupDetail = {
   createdById: 'a',
   createdAt: '2026-08-10T12:00:00.000Z',
 };
-const BALANCES = [{ userId: 'a', displayName: 'Alice', netCents: 500, paidCents: 500, owedCents: 0 }];
+const BALANCES = [
+  { userId: 'a', displayName: 'Alice', netCents: 500, paidCents: 500, owedCents: 0 },
+  { userId: 'b', displayName: 'Bob', netCents: -500, paidCents: 0, owedCents: 500 },
+];
 const SUGGESTED = [{ fromUserId: 'b', fromName: 'Bob', toUserId: 'a', toName: 'Alice', amountCents: 500 }];
 
 function serveOk(): void {
@@ -86,7 +87,6 @@ function serveOk(): void {
   balancesApi.mockResolvedValue(BALANCES);
   listExpenses.mockResolvedValue([expense('e1', 'Dinner')]);
   listSettlements.mockResolvedValue([]);
-  suggestedApi.mockResolvedValue(SUGGESTED);
 }
 
 async function open(groupId = 'g1') {
@@ -98,7 +98,7 @@ async function open(groupId = 'g1') {
 
 beforeEach(() => {
   outbox = [];
-  for (const fn of [get, balancesApi, listExpenses, listSettlements, suggestedApi]) fn.mockReset();
+  for (const fn of [get, balancesApi, listExpenses, listSettlements]) fn.mockReset();
   toastStub.error.mockReset();
   serveOk();
 });
@@ -208,7 +208,7 @@ describe('loading', () => {
     expect(get).toHaveBeenCalledWith('g1');
     expect(result.current.group).toBe(GROUP);
     expect(result.current.balances).toBe(BALANCES);
-    expect(result.current.suggested).toBe(SUGGESTED);
+    expect(result.current.suggested).toEqual(SUGGESTED);
   });
 
   it('refetches when the page moves to another group', async () => {

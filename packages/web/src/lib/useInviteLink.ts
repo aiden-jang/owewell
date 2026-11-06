@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { groupsApi, type GroupDetail } from './groups';
 import { useToast } from '../components/Toast';
 import { useAsyncScope } from './useAsyncScope';
+import { ApiError } from './api';
 
 // Minting an invite writes a token; request it only when inviting is needed or explicitly chosen.
 
@@ -13,6 +14,7 @@ export interface InviteLink {
   link: string | null;
   copied: boolean;
   changing: boolean;
+  sharingOff: boolean;
   /** Still the obvious next step, which is what earns it a place on the page. */
   needsPeople: boolean;
   /** Members who are in the group by name only. */
@@ -29,7 +31,6 @@ export interface InviteLink {
 export function useInviteLink(group: GroupDetail | null): InviteLink {
   const toast = useToast();
   const [link, setLink] = useState<string | null>(null);
-  // Suppress auto-mint after revocation for this visit so turning the link off stays off.
   const [revoked, setRevoked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [changing, setChanging] = useState(false);
@@ -43,6 +44,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   const needsPeople = !!group && !group.archived && ((group.members?.length ?? 0) === 1 || unclaimed > 0);
 
   const groupId = group?.id;
+  const sharingOff = !link && (revoked || !!group?.shareDisabled);
   const { begin, captureScope } = useAsyncScope(groupId);
   useLayoutEffect(() => {
     setLink(null);
@@ -52,6 +54,13 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     setChanging(false);
     window.clearTimeout(copiedTimer.current);
   }, [groupId]);
+  useLayoutEffect(() => {
+    setRevoked(!!group?.shareDisabled);
+    if (group?.shareDisabled) {
+      setLink(null);
+      setCopied(false);
+    }
+  }, [group?.shareDisabled]);
   const mint = useCallback(async (): Promise<string | null> => {
     if (!groupId) return null;
     const token = await groupsApi.createShareLink(groupId);
@@ -61,7 +70,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   // Fetched on its own when the group needs people, so the block has something to show without
   // waiting for a tap. Gated on needsPeople because minting is a write; see the note above.
   useEffect(() => {
-    if (!needsPeople || link || revoked) return;
+    if (!needsPeople || link || sharingOff) return;
     let alive = true;
     const current = begin();
     void mint()
@@ -72,17 +81,28 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     return () => {
       alive = false;
     };
-  }, [needsPeople, link, mint, revoked, begin]);
+  }, [needsPeople, link, mint, sharingOff, begin]);
 
   const reveal = useCallback(async (): Promise<void> => {
     if (changingRef.current) return;
     const current = begin();
+    changingRef.current = true;
+    setChanging(true);
     let url: string | null;
     try {
-      url = await mint();
-    } catch {
-      if (current()) toast.error('Could not create a share link.');
+      url =
+        sharingOff && groupId
+          ? `${window.location.origin}/s/${await groupsApi.rotateShare(groupId)}`
+          : await mint();
+    } catch (error) {
+      if (current())
+        toast.error(error instanceof ApiError ? error.message : 'Could not create a share link.');
       return;
+    } finally {
+      if (current()) {
+        changingRef.current = false;
+        setChanging(false);
+      }
     }
     if (!current() || !url) return;
     // On screen no matter what the browser supports, before anything else is attempted.
@@ -100,7 +120,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
         /* dismissed */
       }
     }
-  }, [group?.name, mint, toast, begin]);
+  }, [group?.name, groupId, mint, sharingOff, toast, begin]);
 
   const changeLink = useCallback(
     async (turnOff: boolean): Promise<void> => {
@@ -156,6 +176,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     link,
     copied,
     changing,
+    sharingOff,
     needsPeople,
     unclaimed,
     reveal,

@@ -16,6 +16,7 @@ import {
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { useOutboxSync, type OutboxSync } from './useOutboxSync';
 import { useToast } from '../components/Toast';
+import { namedTransfers } from '@owewell/shared';
 
 // Keep optimistic updates narrow: confirmed balances are always computed by the server.
 
@@ -65,7 +66,9 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
   // A transient load failure (network / 5xx) is distinct from a real 404/403: the former gets a
   // retry, the latter the "went missing" state. Don't conflate a hiccup with a deleted group.
   const [loadFailed, setLoadFailed] = useState(false);
-  const [pending, setPending] = useState<QueuedWrite[]>(() => queued(groupId, ownerId));
+  const [pending, setPending] = useState<QueuedWrite[]>(() =>
+    queued(groupId, ownerId).filter((entry) => !entry.failure),
+  );
   const { begin, invalidate, captureScope } = useAsyncScope(groupId);
   const hasLoaded = useRef(false);
   useLayoutEffect(() => {
@@ -77,7 +80,7 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
     setSuggested([]);
     setNotFound(false);
     setLoadFailed(false);
-    setPending(queued(groupId, ownerId));
+    setPending(queued(groupId, ownerId).filter((entry) => !entry.failure));
   }, [groupId, ownerId]);
 
   const fetchAll = useCallback(async (): Promise<{
@@ -88,14 +91,14 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
     if (!belongs()) return null;
     const current = begin();
     try {
-      const [g, b, e, st, s] = await Promise.all([
+      const [g, b, e, st] = await Promise.all([
         groupsApi.get(groupId),
         groupsApi.balances(groupId),
         expensesApi.list(groupId),
         settlementsApi.list(groupId),
-        settlementsApi.suggested(groupId),
       ]);
       if (!belongs()) return null;
+      const s = namedTransfers(b);
       if (current()) {
         hasLoaded.current = true;
         setGroup(g);
@@ -152,7 +155,9 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
     [captureScope, groupId, invalidate],
   );
 
-  const refreshPending = useCallback(() => setPending(queued(groupId, ownerId)), [groupId, ownerId]);
+  const refreshPending = useCallback(() => {
+    setPending(queued(groupId, ownerId).filter((entry) => !entry.failure));
+  }, [groupId, ownerId]);
 
   /*
    * Show a saved expense now; let the refetch catch up. Don't recompute balances here — netting

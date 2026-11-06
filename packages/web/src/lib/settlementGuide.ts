@@ -1,6 +1,6 @@
 import type { Balance } from './groups';
 import type { SuggestedPayment } from './settlements';
-import { simplifyDebts } from '@owewell/shared';
+import { namedTransfers } from '@owewell/shared';
 
 export interface SettlementStepImpact {
   payment: SuggestedPayment;
@@ -44,14 +44,7 @@ export function previewPaymentPlan(
           ? balance.netCents - payment.amountCents
           : balance.netCents,
   }));
-  const names = new Map(balances.map((balance) => [balance.userId, balance.displayName]));
-  const remaining = simplifyDebts(
-    projected.map((balance) => ({ userId: balance.userId, netCents: balance.netCents })),
-  ).map((transfer) => ({
-    ...transfer,
-    fromName: names.get(transfer.fromUserId) ?? 'Someone',
-    toName: names.get(transfer.toUserId) ?? 'Someone',
-  }));
+  const remaining = namedTransfers(projected);
   const usefulLimit = Math.min(Math.max(0, -from.netCents), Math.max(0, to.netCents));
 
   return {

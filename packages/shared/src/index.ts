@@ -9,7 +9,7 @@ export {
   type SplitParticipantInput,
   type SplitShare,
 } from './split.js';
-export { simplifyDebts, SettleError, type NetBalance, type Transfer } from './settle.js';
+export { namedTransfers, simplifyDebts, SettleError, type NetBalance, type Transfer } from './settle.js';
 export {
   computeItemizedSplit,
   computeItemizedPayers,

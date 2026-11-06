@@ -32,10 +32,13 @@ export const groups = sqliteTable(
       .default(sql`(unixepoch())`),
     // Unguessable token for the public, read-only share page. Null until a member creates a link.
     shareToken: text('share_token').unique(),
+    shareDisabled: integer('share_disabled', { mode: 'boolean' }).notNull().default(false),
+    createClientId: text('create_client_id'),
     quickSplitClientId: text('quick_split_client_id'),
   },
   (t) => ({
     quickSplitAttempt: uniqueIndex('groups_quick_split_attempt').on(t.createdById, t.quickSplitClientId),
+    createAttempt: uniqueIndex('groups_create_attempt').on(t.createdById, t.createClientId),
   }),
 );
 

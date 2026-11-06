@@ -9,6 +9,7 @@ import { expensesApi } from './expenses';
 import {
   hasQueuedPayment,
   preparePayment,
+  queuePayment,
   settlementsApi,
   type Settlement,
   type SuggestedPayment,
@@ -82,7 +83,19 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
         return false;
       }
       const payload = preparePayment(id, paymentDraft, ownerId);
-      const settlement = await settlementsApi.record(id, payload, ownerId);
+      let settlement: Settlement;
+      try {
+        settlement = await settlementsApi.record(id, payload, ownerId);
+      } catch (error) {
+        if (!isOffline(error)) throw error;
+        if (!queuePayment(id, payload, `${payment.fromName} → ${payment.toName}`, ownerId)) {
+          toast.error(OUTBOX_STORAGE_ERROR);
+          return false;
+        }
+        refreshPending();
+        toast.success('Payment queued on this device. Balances update after it syncs.');
+        return true;
+      }
       const latest = await refreshLedger();
       if (latest) {
         setPaymentReceipt(
@@ -94,8 +107,8 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
         toast.success('Payment logged.');
       }
       return true;
-    } catch {
-      toast.error('Could not record that payment.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not record that payment.');
       return false;
     } finally {
       recording.current = false;

@@ -12,12 +12,17 @@ import { notifyGroupChanged } from './realtime.js';
 export function registerGroupRoutes(api: Hono<{ Bindings: Env; Variables: { person: Person } }>): void {
   api.post('/groups', async (c) => {
     const parsed = z
-      .object({ name: z.string().trim().min(1).max(80) })
+      .object({ name: z.string().trim().min(1).max(80), clientId: z.uuid().optional() })
       .safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-    const group = await createGroup(createDb(c.env), c.get('person').id, parsed.data.name);
-    writeEvent(c.env, 'group_created');
-    return c.json({ group }, 201);
+    const { created, ...group } = await createGroup(
+      createDb(c.env),
+      c.get('person').id,
+      parsed.data.name,
+      parsed.data.clientId,
+    );
+    if (created) writeEvent(c.env, 'group_created');
+    return c.json({ group }, created ? 201 : 200);
   });
 
   api.get('/groups', async (c) => {
@@ -66,12 +71,14 @@ export function registerGroupRoutes(api: Hono<{ Bindings: Env; Variables: { pers
   // Mint a replacement, killing every copy of the old link. Owner-only.
   api.post('/groups/:id/share/rotate', async (c) => {
     const token = await rotateShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
+    c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
     return c.json({ token });
   });
 
   // Remove the public view entirely. Owner-only.
   api.delete('/groups/:id/share', async (c) => {
     await revokeShareToken(createDb(c.env), c.get('person').id, c.req.param('id'));
+    c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
     return c.json({ ok: true });
   });
 }

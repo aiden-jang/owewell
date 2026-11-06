@@ -17,6 +17,7 @@ interface QueuedBase {
   /** Enough to name it in a message without unpacking the payload. */
   description: string;
   queuedAt: number;
+  failure?: string | undefined;
 }
 
 export interface QueuedCreate extends QueuedBase {
@@ -144,6 +145,18 @@ export function drop(clientId: string): boolean {
   return entries !== null && write(entries.filter((e) => e.clientId !== clientId));
 }
 
+export function setFailure(clientId: string, ownerId: string | undefined, failure?: string): boolean {
+  const entries = read();
+  return (
+    entries !== null &&
+    write(
+      entries.map((entry) =>
+        entry.clientId === clientId && entry.ownerId === ownerId ? { ...entry, failure } : entry,
+      ),
+    )
+  );
+}
+
 /**
  * Worth retrying, or not: a dropped connection succeeds later, a 422 never will. A TypeError from
  * `fetch` is the only signal the browser gives for the first.
@@ -155,8 +168,6 @@ export function isOffline(err: unknown): boolean {
 export interface FlushResult {
   sent: number;
   paused?: 'sign-in' | 'temporary' | 'storage';
-  /** Writes the server refused outright. Dropped from the queue; the caller has to say so. */
-  rejected: { entry: QueuedWrite; message: string }[];
   /** Edits that still need a decision before they can leave the queue. */
   conflicted: QueuedEdit[];
 }
@@ -170,15 +181,16 @@ export function pauseFor(error: unknown): FlushResult['paused'] {
 
 /**
  * Oldest first. Stops at the first network failure — if one request can't reach the server, neither
- * can the next. A rejection is different: that entry can never succeed, so drop it and report it.
+ * can the next. Keep rejected input for review and continue with the other entries.
  */
 export async function flush(
   send: (entry: QueuedWrite) => Promise<unknown>,
   groupId?: string,
   ownerId?: string,
 ): Promise<FlushResult> {
-  const result: FlushResult = { sent: 0, rejected: [], conflicted: [] };
+  const result: FlushResult = { sent: 0, conflicted: [] };
   for (const entry of queued(groupId, ownerId)) {
+    if (entry.failure) continue;
     try {
       await send(entry);
     } catch (err) {
@@ -188,11 +200,10 @@ export async function flush(
       if (isConflict(err) && isEdit(entry)) {
         return { ...result, conflicted: [entry] };
       }
-      if (!drop(entry.clientId)) return { ...result, paused: 'storage' };
-      result.rejected.push({
-        entry,
-        message: err instanceof Error ? err.message : 'The server would not take it.',
-      });
+      const message = err instanceof Error ? err.message : 'The server couldn’t save this change.';
+      if (!setFailure(entry.clientId, entry.ownerId, message)) {
+        return { ...result, paused: 'storage' };
+      }
       continue;
     }
     if (!drop(entry.clientId)) return { ...result, paused: 'storage' };

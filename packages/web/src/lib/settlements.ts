@@ -1,6 +1,6 @@
-import type { RecordSettlementPayload, Settlement, SuggestedPayment } from '@owewell/core';
+import type { RecordSettlementPayload, Settlement } from '@owewell/core';
 import { api } from './api';
-import { isSettlement, queued } from './outbox';
+import { enqueue, isSettlement, queued } from './outbox';
 
 // Re-export the shared contract so components can keep importing settlement types from here.
 export type { RecordSettlementPayload, Settlement, SuggestedPayment } from '@owewell/core';
@@ -55,6 +55,24 @@ export function preparePayment(
   return { ...body, clientId };
 }
 
+export function queuePayment(
+  groupId: string,
+  payload: RecordSettlementPayload & { clientId: string },
+  description: string,
+  ownerId?: string,
+): boolean {
+  return enqueue({
+    clientId: payload.clientId,
+    groupId,
+    ownerId,
+    kind: 'settlement',
+    description,
+    amountCents: payload.amountCents,
+    queuedAt: Date.now(),
+    payload,
+  });
+}
+
 function completePaymentAttempt(groupId: string, body: RecordSettlementPayload, ownerId?: string): void {
   const key = paymentKey(groupId, body, ownerId);
   if (!body.clientId || savedAttempt(key) !== body.clientId) return;
@@ -67,10 +85,6 @@ function completePaymentAttempt(groupId: string, body: RecordSettlementPayload, 
 }
 
 export const settlementsApi = {
-  suggested: (groupId: string): Promise<SuggestedPayment[]> =>
-    api
-      .get<{ suggested: SuggestedPayment[] }>(`/groups/${groupId}/settlements/suggested`)
-      .then((r) => r.suggested),
   list: (groupId: string): Promise<Settlement[]> =>
     api.get<{ settlements: Settlement[] }>(`/groups/${groupId}/settlements`).then((r) => r.settlements),
   record: async (groupId: string, body: RecordSettlementPayload, actorId?: string): Promise<Settlement> => {

@@ -67,8 +67,10 @@ export function computeQuickSplit(input: {
     let sentIndex = 0;
 
     for (const item of items) {
-      const amountCents = item.amount.trim() ? dollarsToCents(item.amount) : 0;
-      if (amountCents <= 0 || named.length === 0) continue;
+      if (!item.amount.trim()) continue;
+      const amountCents = dollarsToCents(item.amount);
+      if (amountCents <= 0) return empty;
+      if (named.length === 0) continue;
 
       const shares = computeSplit(
         item.method,

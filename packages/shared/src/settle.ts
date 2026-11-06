@@ -17,6 +17,15 @@ export class SettleError extends Error {
   }
 }
 
+export function namedTransfers(balances: readonly (NetBalance & { displayName: string })[]) {
+  const names = new Map(balances.map((balance) => [balance.userId, balance.displayName]));
+  return simplifyDebts(balances).map((transfer) => ({
+    ...transfer,
+    fromName: names.get(transfer.fromUserId) ?? 'Someone',
+    toName: names.get(transfer.toUserId) ?? 'Someone',
+  }));
+}
+
 /** Greedily match the largest debtor and creditor using positive whole cents.
  * The transfers clear all balances but need not be the theoretical minimum. */
 export function simplifyDebts(balances: readonly NetBalance[]): Transfer[] {

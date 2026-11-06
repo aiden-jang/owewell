@@ -275,9 +275,25 @@ describe('turning the link off', () => {
     await waitFor(() => expect(result.current.link).toContain('tok123'));
     await act(() => result.current.revoke());
 
-    createShareLink.mockResolvedValue('tok456');
+    rotateShare.mockResolvedValue('tok456');
     await act(() => result.current.reveal());
     expect(result.current.link).toContain('tok456');
+  });
+
+  it('stays off when reopening a group that still has unclaimed spots', async () => {
+    const { result } = await open({ ...HAS_PLACEHOLDER, shareDisabled: true });
+    expect(result.current.link).toBeNull();
+    expect(createShareLink).not.toHaveBeenCalled();
+    expect(rotateShare).not.toHaveBeenCalled();
+  });
+
+  it('creates only one replacement when the owner taps twice', async () => {
+    const { result } = await open({ ...HAS_PLACEHOLDER, shareDisabled: true });
+    await act(async () => {
+      await Promise.all([result.current.reveal(), result.current.reveal()]);
+    });
+    expect(rotateShare).toHaveBeenCalledTimes(1);
+    expect(result.current.link).toContain('tok999');
   });
 });
 

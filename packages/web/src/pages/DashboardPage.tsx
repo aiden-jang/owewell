@@ -1,8 +1,8 @@
 import { DashboardIntro } from '../components/SplitIntro';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useDashboardMode } from './useDashboardMode.js';
 import { useDashboardGroups } from './useDashboardGroups';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
@@ -30,6 +30,8 @@ import {
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
 import { useAsyncScope } from '../lib/useAsyncScope';
+import { finishGroupCreate, rememberGroupCreate, type GroupCreateAttempt } from '../lib/groupCreateAttempt';
+import { ApiError } from '../lib/api';
 
 export function DashboardPage(): ReactNode {
   const navigate = useNavigate();
@@ -38,8 +40,10 @@ export function DashboardPage(): ReactNode {
   const toast = useToast();
   const { captureScope } = useAsyncScope(ownerId);
   const { groups, loadError, loadGroups, applyGroupChange } = useDashboardGroups(ownerId);
-  const [waiting, setWaiting] = useState(() => (ownerId ? queued(undefined, ownerId).length : 0));
+  const [waiting, setWaiting] = useState(0);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
+  const createAttempt = useRef<GroupCreateAttempt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(() => {
     const saved = loadPendingSplit();
@@ -72,7 +76,8 @@ export function DashboardPage(): ReactNode {
   const outboxSync = useOutboxSync({
     ownerId,
     onChanged: () => loadGroups(),
-    onQueueChanged: () => setWaiting(ownerId ? queued(undefined, ownerId).length : 0),
+    onQueueChanged: () =>
+      setWaiting(ownerId ? queued(undefined, ownerId).filter((entry) => !entry.failure).length : 0),
   });
 
   const totals = useMemo(() => {
@@ -120,35 +125,52 @@ export function DashboardPage(): ReactNode {
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (creating) return;
+    if (creatingRef.current) return;
     if (!name.trim()) {
       touchName();
       return;
     }
+    creatingRef.current = true;
+    const current = captureScope();
     setCreating(true);
     setError(null);
     try {
-      const group = await groupsApi.create(name.trim());
-      applyGroupChange((prev) => [
-        {
-          id: group.id,
-          name: group.name,
-          createdAt: group.createdAt,
-          archived: false,
-          memberCount: group.members.length,
-          netCents: 0,
-          totalUnsettledCents: 0,
-          totalSpentCents: 0,
-          lastActivityAt: group.createdAt,
-          isOwner: true,
-        },
-        ...(prev ?? []).filter(({ id }) => id !== group.id),
-      ]);
+      const attempt = rememberGroupCreate(name.trim(), ownerId, createAttempt.current);
+      createAttempt.current = attempt;
+      const group = await groupsApi.create(attempt.name, attempt.clientId, ownerId);
+      finishGroupCreate(attempt.clientId);
+      createAttempt.current = null;
+      if (!current()) return;
+      applyGroupChange((prev) =>
+        prev?.some(({ id }) => id === group.id)
+          ? prev
+          : [
+              {
+                id: group.id,
+                name: group.name,
+                createdAt: group.createdAt,
+                archived: group.archived,
+                memberCount: group.members.length,
+                netCents: 0,
+                totalUnsettledCents: 0,
+                totalSpentCents: 0,
+                lastActivityAt: group.createdAt,
+                isOwner: true,
+              },
+              ...(prev ?? []),
+            ],
+      );
       closeCreate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create that group.');
+      if (current())
+        setError(
+          err instanceof ApiError && err.status < 500
+            ? err.message
+            : 'Couldn’t confirm the group was created. Try again with the same name.',
+        );
     } finally {
-      setCreating(false);
+      creatingRef.current = false;
+      if (current()) setCreating(false);
     }
   }
 
@@ -177,7 +199,7 @@ export function DashboardPage(): ReactNode {
           />
         )}
 
-        {(waiting > 0 || outboxSync.unassigned > 0) && (
+        {(waiting > 0 || outboxSync.unassigned > 0 || outboxSync.failed.length > 0) && (
           <div className="mb-4">
             <OutboxNotice
               count={waiting}
@@ -274,15 +296,7 @@ export function DashboardPage(): ReactNode {
                       Create your first group
                     </Button>
                   }
-                  body={
-                    <>
-                      Make one to start splitting, or{' '}
-                      <Link to="/split" className="font-medium text-accent hover:underline">
-                        split a bill
-                      </Link>{' '}
-                      for a one-off expense.
-                    </>
-                  }
+                  body="Create a group to start keeping track of shared expenses."
                 />
               ) : (
                 <>
@@ -334,15 +348,6 @@ export function DashboardPage(): ReactNode {
                         </ul>
                       )}
                     </div>
-                  )}
-                  {!selectMode && (
-                    <p className="mt-4 text-sm text-muted">
-                      For a one-off expense,{' '}
-                      <Link to="/split" className="font-medium text-accent underline underline-offset-4">
-                        split a bill
-                      </Link>
-                      .
-                    </p>
                   )}
                 </>
               )}

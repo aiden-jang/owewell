@@ -34,20 +34,23 @@ export interface SharedGroupSummary {
   breakdown: { category: string; cents: number }[];
 }
 
-/** Two UUIDs' worth of entropy, hex only, so the link isn't guessable. */
 /** Create (once) or return the group's public share token. Members only. */
 export async function getOrCreateShareToken(db: DB, personId: string, groupId: string): Promise<string> {
   await requireMembership(db, personId, groupId);
+  // The predicate also prevents an automatic or stale request from undoing a concurrent revoke.
+  await db
+    .update(groups)
+    .set({ shareToken: mintShareToken() })
+    .where(and(eq(groups.id, groupId), eq(groups.shareDisabled, false), isNull(groups.shareToken)));
   const g = await db
     .select({ shareToken: groups.shareToken })
     .from(groups)
     .where(eq(groups.id, groupId))
     .get();
   if (!g) throw new GroupError('NOT_FOUND', 'Group not found.');
-  if (g.shareToken) return g.shareToken;
-  const token = mintShareToken();
-  await db.update(groups).set({ shareToken: token }).where(eq(groups.id, groupId));
-  return token;
+  if (!g.shareToken)
+    throw new GroupError('SHARING_OFF', 'The owner turned off this link. Only they can make a new one.');
+  return g.shareToken;
 }
 
 // Only the owner can revoke a link. Claimed seats retain membership independently of that token.
@@ -56,14 +59,14 @@ export async function getOrCreateShareToken(db: DB, personId: string, groupId: s
 export async function rotateShareToken(db: DB, personId: string, groupId: string): Promise<string> {
   await requireOwner(db, personId, groupId);
   const token = mintShareToken();
-  await db.update(groups).set({ shareToken: token }).where(eq(groups.id, groupId));
+  await db.update(groups).set({ shareToken: token, shareDisabled: false }).where(eq(groups.id, groupId));
   return token;
 }
 
 /** Clear the token, so the group has no public view at all until somebody makes a new link. */
 export async function revokeShareToken(db: DB, personId: string, groupId: string): Promise<void> {
   await requireOwner(db, personId, groupId);
-  await db.update(groups).set({ shareToken: null }).where(eq(groups.id, groupId));
+  await db.update(groups).set({ shareToken: null, shareDisabled: true }).where(eq(groups.id, groupId));
 }
 
 /** Resolve a share token to its read-only summary. No auth: anyone with the link may view.

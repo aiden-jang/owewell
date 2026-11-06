@@ -147,6 +147,21 @@ describe('the split itself', () => {
     expect(owedLines()).toEqual(['Alice owes Bob$20.00']);
   });
 
+  it('does not expose an incomplete split while a nonblank item is invalid', async () => {
+    const user = await open();
+    await namePeople(user, 'Alice', 'Bob');
+    await user.type(screen.getByLabelText('Item 1 amount'), '40');
+    await user.click(screen.getByRole('button', { name: '+ Add item' }));
+    const second = screen.getByLabelText('Item 2 amount');
+    expect(screen.getByRole('button', { name: 'Copy summary' })).toBeEnabled();
+    await user.type(second, '-5');
+    expect(second).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('button', { name: 'Copy summary' })).not.toBeInTheDocument();
+    await user.clear(second);
+    await user.type(second, '5');
+    expect(screen.getByRole('button', { name: 'Copy summary' })).toBeEnabled();
+  });
+
   it('lets a fresh visitor explore an explicitly labeled example', async () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: /Try a \$48 example/ }));

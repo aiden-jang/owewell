@@ -30,16 +30,19 @@ export function useExpenseDraft(
   members: GroupMember[],
   editing: Expense | undefined,
   template: Expense | undefined,
+  recovering?: boolean,
 ): Draft {
   const source = editing ?? template;
   const defaultPayer =
-    source && members.some((member) => member.userId === source.payerId)
+    source && (recovering || members.some((member) => member.userId === source.payerId))
       ? source.payerId
       : (members[0]?.userId ?? '');
 
   const [description, setDescription] = useState(source?.description ?? '');
   const [payerId, setPayerId] = useState(defaultPayer);
-  const [date, setDate] = useState(editing ? editing.date.slice(0, 10) : todayStr());
+  const [date, setDate] = useState(
+    editing || recovering ? source?.date.slice(0, 10) || todayStr() : todayStr(),
+  );
   const [category, setCategory] = useState<ExpenseCategory>(source?.category ?? DEFAULT_EXPENSE_CATEGORY);
   const [note, setNote] = useState(source?.note ?? '');
   const [error, setError] = useState<string | null>(null);

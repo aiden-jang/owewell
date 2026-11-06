@@ -25,7 +25,7 @@ export function SharedSpendBreakdown({
               type="button"
               onClick={() => setBreakdownView(v)}
               aria-pressed={breakdownView === v}
-              className={`rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
+              className={`tap min-h-11 min-w-11 rounded-full px-2.5 font-medium capitalize transition ${
                 breakdownView === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
               }`}
             >

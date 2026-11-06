@@ -29,6 +29,7 @@ interface Props {
   editing?: Expense;
   /** Prefill a new expense from an old one while keeping today as the date. */
   template?: Expense;
+  recoveryId?: string;
   /**
    * Called instead of onCreated when the write could not leave the device and was queued.
    *
@@ -48,6 +49,7 @@ export function AddExpenseForm({
   onPendingChange,
   editing,
   template,
+  recoveryId,
 }: Props): ReactNode {
   const attempt = useRef<{ key: string; id: string } | null>(null);
   const symbol = currencySymbol();
@@ -67,7 +69,7 @@ export function AddExpenseForm({
     setError,
     submitting,
     setSubmitting,
-  } = useExpenseDraft(members, editing, template);
+  } = useExpenseDraft(members, editing, template, !!recoveryId);
   useEffect(() => {
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
@@ -196,6 +198,7 @@ export function AddExpenseForm({
         ownerId,
         attempt,
         editing,
+        recoveryId,
         base: {
           description: trimmedDescription,
           amountCents,

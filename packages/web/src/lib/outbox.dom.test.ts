@@ -13,6 +13,7 @@ import {
   isPendingRow,
   isSettlement,
   queued,
+  setFailure,
   unassignedWrites,
 } from './outbox';
 import { ApiError } from './api';
@@ -140,15 +141,7 @@ describe('flushing', () => {
     expect(queued().map((e) => e.clientId)).toEqual(['b', 'c']);
   });
 
-  /*
-   * A rejection is permanent, so it leaves the queue.
-   *
-   * The realistic case: you add an expense offline, somebody else records a payment while you are
-   * still out of signal, and by the time your write goes out the ledger is locked. Retrying that
-   * forever would be a queue that never drains, so it is dropped and handed back for the UI to say
-   * out loud.
-   */
-  it('drops what the server refused and reports it', async () => {
+  it('keeps refused input for review without blocking later writes or replaying it automatically', async () => {
     enqueue(entry('doomed', 100));
     enqueue(entry('fine', 200));
     const send = vi
@@ -157,8 +150,16 @@ describe('flushing', () => {
       .mockResolvedValueOnce(undefined);
     const result = await flush(send);
     expect(result.sent).toBe(1);
-    expect(result.rejected).toHaveLength(1);
-    expect(result.rejected[0]!.entry.clientId).toBe('doomed');
+    expect(queued()).toEqual([
+      {
+        ...entry('doomed', 100),
+        failure: "Can't change or delete an expense once a payment has been recorded.",
+      },
+    ]);
+    expect((await flush(send)).sent).toBe(0);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(setFailure('doomed', undefined)).toBe(true);
+    expect((await flush(send)).sent).toBe(1);
     expect(queued()).toEqual([]);
   });
 
@@ -259,8 +260,6 @@ describe('a queued edit', () => {
     const result = await flush(send);
 
     expect(result.conflicted.map((e) => e.expenseId)).toEqual(['x1']);
-    expect(result.rejected).toEqual([]);
-    // Off the queue either way: it cannot be retried as-is, and the caller now owns the question.
     expect(queued()).toEqual([expect.objectContaining({ expenseId: 'x1' })]);
   });
 
@@ -269,7 +268,7 @@ describe('a queued edit', () => {
     const send = vi.fn().mockRejectedValue(new ApiError(422, 'Amount must be more than zero.'));
     const result = await flush(send);
     expect(result.conflicted).toEqual([]);
-    expect(result.rejected).toHaveLength(1);
+    expect(queued()[0]?.failure).toBe('Amount must be more than zero.');
   });
 
   it('recognises 409 and nothing else as a conflict', () => {
@@ -308,7 +307,6 @@ describe('a queued payment', () => {
         .mockResolvedValueOnce(undefined);
       const paused = await flush(send);
       expect(paused.paused).toBe(status === 401 ? 'sign-in' : 'temporary');
-      expect(paused.rejected).toEqual([]);
       expect(queued()).toEqual([payment]);
       expect((await flush(send)).sent).toBe(1);
       expect(send).toHaveBeenNthCalledWith(2, payment);

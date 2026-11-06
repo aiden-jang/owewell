@@ -6,8 +6,8 @@ export type { Balance, GroupDetail, GroupMember, GroupSummary, SharedGroupSummar
 
 export const groupsApi = {
   list: (): Promise<GroupSummary[]> => api.get<{ groups: GroupSummary[] }>('/groups').then((r) => r.groups),
-  create: (name: string): Promise<GroupDetail> =>
-    api.post<{ group: GroupDetail }>('/groups', { name }).then((r) => r.group),
+  create: (name: string, clientId: string, ownerId?: string): Promise<GroupDetail> =>
+    api.post<{ group: GroupDetail }>('/groups', { name, clientId }, ownerId).then((r) => r.group),
   get: (id: string): Promise<GroupDetail> =>
     api.get<{ group: GroupDetail }>(`/groups/${id}`).then((r) => r.group),
   // Add a name-only placeholder (someone not on owewell yet). Real accounts join via an

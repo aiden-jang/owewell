@@ -1,4 +1,4 @@
-import { simplifyDebts } from '@owewell/shared';
+import { namedTransfers } from '@owewell/shared';
 import type { PaymentMethod } from '@owewell/core';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DB } from './db/client.js';
@@ -155,13 +155,5 @@ export async function getSuggestedPayments(
   groupId: string,
 ): Promise<SuggestedPayment[]> {
   const balances = await getBalances(db, personId, groupId);
-  const nameByPerson = new Map(balances.map((b) => [b.userId, b.displayName]));
-  const transfers = simplifyDebts(balances.map((b) => ({ userId: b.userId, netCents: b.netCents })));
-  return transfers.map((t) => ({
-    fromUserId: t.fromUserId,
-    fromName: nameByPerson.get(t.fromUserId) ?? 'Someone',
-    toUserId: t.toUserId,
-    toName: nameByPerson.get(t.toUserId) ?? 'Someone',
-    amountCents: t.amountCents,
-  }));
+  return namedTransfers(balances);
 }

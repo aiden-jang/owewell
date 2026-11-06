@@ -35,7 +35,7 @@ export function SpendBreakdown({
               type="button"
               onClick={() => setView(v)}
               aria-pressed={view === v}
-              className={`tap rounded-full px-2.5 py-0.5 font-medium capitalize transition ${
+              className={`tap min-h-11 min-w-11 rounded-full px-2.5 font-medium capitalize transition ${
                 view === v ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
               }`}
             >

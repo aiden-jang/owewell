@@ -39,6 +39,7 @@ interface Props {
   editing?: Expense;
   /** Prefill a new receipt from an old one while keeping today as the date. */
   template?: Expense;
+  recoveryId?: string;
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
   onPendingChange?: (pending: boolean) => void;
@@ -53,6 +54,7 @@ export function AddItemizedExpenseForm({
   onPendingChange,
   editing,
   template,
+  recoveryId,
 }: Props): ReactNode {
   const attempt = useRef<{ key: string; id: string } | null>(null);
   const {
@@ -72,7 +74,7 @@ export function AddItemizedExpenseForm({
     setError,
     submitting,
     setSubmitting,
-  } = useExpenseDraft(members, editing, template);
+  } = useExpenseDraft(members, editing, template, !!recoveryId);
   useEffect(() => {
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
@@ -86,8 +88,7 @@ export function AddItemizedExpenseForm({
           participantIds: new Set(
             it.participantIds.filter((id) => members.some((member) => member.userId === id)),
           ),
-          payerId:
-            it.payerId && members.some((member) => member.userId === it.payerId) ? it.payerId : defaultPayer,
+          payerId: it.payerId && (recoveryId || memberIds.has(it.payerId)) ? it.payerId : defaultPayer,
         }))
       : [{ name: '', amount: '', participantIds: memberIds, payerId: defaultPayer }];
   const [tax, setTax] = useState(source?.taxCents ? centsToInput(source.taxCents) : '');
@@ -189,6 +190,7 @@ export function AddItemizedExpenseForm({
         ownerId,
         attempt,
         editing,
+        recoveryId,
         base: {
           description: trimmedDescription,
           payerId,
