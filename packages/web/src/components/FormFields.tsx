@@ -36,13 +36,19 @@ export function PayerSelect({
   value: string;
   onChange: (userId: string) => void;
 }): ReactNode {
+  const hasPayer = members.some((m) => m.userId === value);
   return (
     <select
-      value={value}
+      value={hasPayer ? value : ''}
       onChange={(e) => onChange(e.target.value)}
       className={inputClass}
       aria-label="Paid by"
     >
+      {!hasPayer && (
+        <option value="" disabled>
+          Choose who paid
+        </option>
+      )}
       {members.map((m) => (
         <option key={m.userId} value={m.userId}>
           {m.displayName} paid

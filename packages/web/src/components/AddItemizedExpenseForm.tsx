@@ -73,7 +73,7 @@ export function AddItemizedExpenseForm({
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
   }, [submitting, onPendingChange]);
-  const allMemberIds = (): Set<string> => new Set(members.map((m) => m.userId));
+  const memberIds = new Set(members.map((m) => m.userId));
   const initialItems = (): ItemDraft[] =>
     source?.items && source.items.length > 0
       ? source.items.map((it) => ({
@@ -85,7 +85,7 @@ export function AddItemizedExpenseForm({
           payerId:
             it.payerId && members.some((member) => member.userId === it.payerId) ? it.payerId : defaultPayer,
         }))
-      : [{ name: '', amount: '', participantIds: allMemberIds(), payerId: defaultPayer }];
+      : [{ name: '', amount: '', participantIds: memberIds, payerId: defaultPayer }];
   const [tax, setTax] = useState(source?.taxCents ? centsToInput(source.taxCents) : '');
   const [tip, setTip] = useState(source?.tipCents ? centsToInput(source.tipCents) : '');
   const [items, setItems] = useState<ItemDraft[]>(initialItems);
@@ -105,7 +105,7 @@ export function AddItemizedExpenseForm({
     setTax('');
     setTip('');
     setNote('');
-    setItems([{ name: '', amount: '', participantIds: allMemberIds(), payerId }]);
+    setItems([{ name: '', amount: '', participantIds: memberIds, payerId }]);
   }
 
   function updateItem(index: number, patch: Partial<ItemDraft>): void {
@@ -125,7 +125,7 @@ export function AddItemizedExpenseForm({
   }
 
   function addItem(): void {
-    setItems((prev) => [...prev, { name: '', amount: '', participantIds: allMemberIds(), payerId }]);
+    setItems((prev) => [...prev, { name: '', amount: '', participantIds: memberIds, payerId }]);
   }
 
   function removeItem(index: number): void {
@@ -142,17 +142,23 @@ export function AddItemizedExpenseForm({
       return;
     }
 
+    if (!memberIds.has(payerId) || items.some((item) => item.payerId && !memberIds.has(item.payerId))) {
+      setError('Choose who paid from the current group members.');
+      return;
+    }
+
     let payloadItems: { name: string; amountCents: number; participantIds: string[]; payerId?: string }[];
     try {
       payloadItems = items.map((item) => {
         const amountCents = dollarsToCents(item.amount);
-        if (amountCents <= 0 || !item.name.trim() || item.participantIds.size === 0) {
+        const participantIds = [...item.participantIds].filter((id) => memberIds.has(id));
+        if (amountCents <= 0 || !item.name.trim() || participantIds.length === 0) {
           throw new Error('invalid item');
         }
         return {
           name: item.name.trim(),
           amountCents,
-          participantIds: [...item.participantIds],
+          participantIds,
           ...(item.payerId ? { payerId: item.payerId } : {}),
         };
       });
@@ -273,11 +279,16 @@ export function AddItemizedExpenseForm({
             <div className="receipt-item-payer mt-2 flex items-center gap-2 text-sm text-muted">
               <span>paid by</span>
               <select
-                value={item.payerId}
+                value={memberIds.has(item.payerId) ? item.payerId : ''}
                 onChange={(e) => updateItem(index, { payerId: e.target.value })}
                 aria-label={`Item ${index + 1} paid by`}
                 className="rounded-lg border border-line bg-field px-2 py-1 text-sm text-ink outline-none focus:border-accent"
               >
+                {!memberIds.has(item.payerId) && (
+                  <option value="" disabled>
+                    Choose who paid
+                  </option>
+                )}
                 {members.map((m) => (
                   <option key={m.userId} value={m.userId}>
                     {m.displayName}

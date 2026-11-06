@@ -59,10 +59,9 @@ export function AddExpenseSheet({
     setMode(option);
   }
 
-  // Remounted when the roster changes: both forms seed their participant rows from the members they
-  // were opened with, and a half-filled split that predates a new member is worse than a fresh one.
+  // The roster can update live. Keep the draft and its chosen participants in place.
   const formProps = {
-    key: `${groupId}-${mode}-${members.length}`,
+    key: `${groupId}-${mode}`,
     groupId,
     members,
     onCreated: (saved: Expense) => onCreated(saved, mode),

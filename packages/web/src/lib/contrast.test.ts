@@ -68,7 +68,7 @@ describe.each(Object.entries(THEMES))('%s theme', (_name, p) => {
 
   test.each(['pos', 'neg'] as const)('%s money colour is readable on every surface', (role) => {
     // These carry meaning, not decoration: if "you owe" is hard to read the app has failed at its job.
-    for (const surface of SURFACES) {
+    for (const surface of [...SURFACES, 'accentSoft'] as const) {
       const ratio = contrast(p[role], p[surface]);
       expect(ratio, `${role} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_TEXT);
     }

@@ -62,7 +62,7 @@ export const DARK: Palette = {
   accentInk: '#142d2f',
   field: '#1d2829',
   pos: '#4ade80',
-  neg: '#f87171',
+  neg: '#fb8585',
   negSolid: '#d34238',
 };
 

@@ -162,6 +162,10 @@ export function AddExpenseForm({
       return;
     }
 
+    if (!members.some((m) => m.userId === payerId)) {
+      setError('Choose who paid from the current group members.');
+      return;
+    }
     const chosen = members.filter((m) => selected.has(m.userId));
     if (chosen.length === 0) {
       setError('Pick at least one person.');

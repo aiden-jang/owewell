@@ -11,7 +11,7 @@ import { PendingSplitCard } from '../components/PendingSplitCard';
 import { DashboardGroupCard } from '../components/DashboardGroupCard';
 import { DashboardBalance } from '../components/DashboardBalance';
 import { SkeletonList } from '../components/Skeleton';
-import { useConfirm } from '../components/Confirm';
+import { useBulkGroupActions } from './useBulkGroupActions';
 import { useToast } from '../components/Toast';
 import { groupsApi, type GroupSummary } from '../lib/groups';
 import { clearQuickSplitDraft } from '../lib/quickSplitDraft';
@@ -21,7 +21,6 @@ import { useOutboxSync } from '../lib/useOutboxSync';
 
 export function DashboardPage(): ReactNode {
   const navigate = useNavigate();
-  const confirm = useConfirm();
   const toast = useToast();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [waiting, setWaiting] = useState(() => queued().length);
@@ -31,7 +30,6 @@ export function DashboardPage(): ReactNode {
   const [pending, setPending] = useState(() => loadPendingSplit());
   const [savingPending, setSavingPending] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [bulkBusy, setBulkBusy] = useState(false);
   const mode = useDashboardMode(() => setError(null));
   const {
     creatingOpen,
@@ -48,44 +46,7 @@ export function DashboardPage(): ReactNode {
     exitSelect,
   } = mode;
 
-  async function onBulkArchive(): Promise<void> {
-    const ids = [...selected];
-    if (ids.length === 0 || bulkBusy) return;
-    setBulkBusy(true);
-    try {
-      await Promise.all(ids.map((id) => groupsApi.setArchived(id, true)));
-      setGroups((prev) => (prev ?? []).map((g) => (selected.has(g.id) ? { ...g, archived: true } : g)));
-      toast.success(`Archived ${ids.length} ${ids.length === 1 ? 'group' : 'groups'}.`);
-    } catch {
-      toast.error('Could not archive some of those.');
-    } finally {
-      setBulkBusy(false);
-    }
-    exitSelect();
-  }
-
-  async function onBulkDelete(): Promise<void> {
-    const ids = [...selected];
-    if (ids.length === 0) return;
-    const ok = await confirm({
-      title: `Delete ${ids.length} ${ids.length === 1 ? 'group' : 'groups'}?`,
-      body: 'This permanently removes them for everyone. It can’t be undone.',
-      confirmLabel: 'Delete',
-      tone: 'danger',
-    });
-    if (!ok || bulkBusy) return;
-    setBulkBusy(true);
-    try {
-      await Promise.all(ids.map((id) => groupsApi.remove(id)));
-      setGroups((prev) => (prev ?? []).filter((g) => !selected.has(g.id)));
-      toast.success(`Deleted ${ids.length} ${ids.length === 1 ? 'group' : 'groups'}.`);
-    } catch {
-      toast.error('Could not delete some of those.');
-    } finally {
-      setBulkBusy(false);
-    }
-    exitSelect();
-  }
+  const { bulkBusy, onBulkArchive, onBulkDelete } = useBulkGroupActions(selected, setGroups, exitSelect);
 
   const loadGroups = useCallback(() => {
     setLoadError(false);
@@ -215,7 +176,7 @@ export function DashboardPage(): ReactNode {
               <h2 id="your-groups" className="font-display text-xl font-semibold tracking-tight">
                 Your groups
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {selectMode ? (
                   <button
                     type="button"
@@ -337,6 +298,8 @@ export function DashboardPage(): ReactNode {
                       <button
                         type="button"
                         onClick={() => setShowArchived((v) => !v)}
+                        aria-expanded={showArchived}
+                        aria-controls={showArchived ? 'archived-groups' : undefined}
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition hover:text-ink"
                       >
                         <Icon name="archive" size={15} /> Archived ({archivedGroups.length})
@@ -347,7 +310,7 @@ export function DashboardPage(): ReactNode {
                         />
                       </button>
                       {showArchived && (
-                        <ul className="dashboard-groups surface mt-2.5">
+                        <ul id="archived-groups" className="dashboard-groups surface mt-2.5">
                           {archivedGroups.map((group) => (
                             <DashboardGroupCard
                               key={group.id}
