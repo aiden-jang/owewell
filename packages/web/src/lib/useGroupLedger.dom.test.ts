@@ -20,7 +20,10 @@ const listExpenses = vi.fn();
 const listSettlements = vi.fn();
 
 vi.mock('./groups', () => ({
-  groupsApi: { get: (...a: unknown[]) => get(...a), balances: (...a: unknown[]) => balancesApi(...a) },
+  groupsApi: {
+    get: (...a: unknown[]) => get(...a),
+    balances: async (...a: unknown[]) => ({ balances: await balancesApi(...a) }),
+  },
 }));
 vi.mock('./expenses', () => ({ expensesApi: { list: (...a: unknown[]) => listExpenses(...a) } }));
 vi.mock('./settlements', () => ({

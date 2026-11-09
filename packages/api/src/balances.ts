@@ -2,8 +2,16 @@ import { inIds } from './db/ids.js';
 import { and, eq, isNull } from 'drizzle-orm';
 import { computeItemizedPayers } from '@owewell/shared';
 import type { DB } from './db/client.js';
-import { expenseItems, expenseSplits, expenses, groupMembers, people, settlements } from './db/schema.js';
-import { requireMembership } from './groups.js';
+import {
+  expenseItems,
+  expenseSplits,
+  expenses,
+  groupMembers,
+  groups,
+  people,
+  settlements,
+} from './db/schema.js';
+import { GroupError, requireMembership } from './groups.js';
 
 // Ledger balances must net to zero before settlement suggestions are computed.
 
@@ -22,6 +30,18 @@ export interface MemberBalance {
 export async function getBalances(db: DB, personId: string, groupId: string): Promise<MemberBalance[]> {
   await requireMembership(db, personId, groupId);
   return computeBalances(db, groupId);
+}
+
+export async function getBalanceSnapshot(db: DB, personId: string, groupId: string) {
+  const group = await db
+    .select({ ledgerVersion: groups.ledgerVersion })
+    .from(groups)
+    .innerJoin(groupMembers, eq(groupMembers.groupId, groups.id))
+    .where(and(eq(groups.id, groupId), eq(groupMembers.personId, personId)))
+    .get();
+  if (!group) throw new GroupError('NOT_FOUND', 'Group not found.');
+  // Capture the version first. A write during the balance read invalidates the quote.
+  return { ledgerVersion: group.ledgerVersion, balances: await computeBalances(db, groupId) };
 }
 
 /** The balance math with no access check. Callers (getBalances, the public share summary) are

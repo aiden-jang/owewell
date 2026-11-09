@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { createGroup } from '../src/groups.js';
 import { addPlaceholderMember } from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
+import { getBalanceSnapshot } from '../src/balances.js';
 import {
   SettlementError,
   deleteSettlement,
@@ -38,6 +39,33 @@ describe('settlements', () => {
     ]);
     expect(retry).toEqual(first);
     expect(await listSettlements(db, alice, groupId)).toEqual([first]);
+  });
+
+  test('a balance snapshot can be confirmed once, including concurrent writes and retries', async () => {
+    await createExpense(db, alice, groupId, {
+      description: 'Lunch',
+      amountCents: 1000,
+      payerId: alice,
+      splitMethod: 'EQUAL',
+      participants: [{ userId: alice }, { userId: bob }],
+    });
+    const { ledgerVersion } = await getBalanceSnapshot(db, alice, groupId);
+    expect(ledgerVersion).toBeGreaterThan(0);
+    const payment = { fromUserId: bob, toUserId: alice, amountCents: 500, suggestedVersion: ledgerVersion };
+    const attempts = ['suggestion-a', 'suggestion-b'].map((clientId) => ({ ...payment, clientId }));
+    const outcomes = await Promise.allSettled(
+      attempts.map((attempt) => recordSettlement(db, alice, groupId, attempt)),
+    );
+    expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(['fulfilled', 'rejected']);
+    for (const [i, outcome] of outcomes.entries()) {
+      if (outcome.status === 'fulfilled') {
+        await expect(recordSettlement(db, alice, groupId, attempts[i]!)).resolves.toEqual(outcome.value);
+      } else {
+        expect(outcome.reason).toMatchObject({ code: 'STALE_SUGGESTION' });
+      }
+    }
+    expect(await listSettlements(db, alice, groupId)).toHaveLength(1);
+    expect(await net()).toEqual({ [alice]: 0, [bob]: 0 });
   });
 
   test('recording the final payment zeroes both sides', async () => {

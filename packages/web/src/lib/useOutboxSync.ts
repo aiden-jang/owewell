@@ -9,6 +9,7 @@ import { useAsyncScope } from './useAsyncScope';
 import {
   adoptWrites,
   drop,
+  enqueue,
   flush,
   isConflict,
   isDelete,
@@ -22,6 +23,7 @@ import {
   subscribe,
   withOutboxLock,
   type FlushResult,
+  type QueuedDelete,
   type QueuedWrite,
 } from './outbox';
 
@@ -72,6 +74,9 @@ export interface OutboxSync {
   syncing: boolean;
   unassigned: number;
   failed: QueuedWrite[];
+  pendingDeletes: QueuedDelete[];
+  undoingDelete: string | null;
+  undoDelete: (entry: QueuedDelete) => Promise<void>;
   recover: () => Promise<void>;
   retry: () => Promise<void>;
   retryFailed: (entry: QueuedWrite) => Promise<void>;
@@ -98,6 +103,8 @@ export function useOutboxSync({
   const { captureScope } = useAsyncScope(JSON.stringify([groupId, ownerId]));
   const [unassigned, setUnassigned] = useState(() => unassignedWrites(groupId).length);
   const [failed, setFailed] = useState<QueuedWrite[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<QueuedDelete[]>([]);
+  const [undoingDelete, setUndoingDelete] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [paused, setPaused] = useState<OutboxSync['paused']>();
   // Held in refs so the callbacks can change every render without restarting the effect below.
@@ -273,10 +280,44 @@ export function useOutboxSync({
     if (approved && current() && !drop(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
   }
 
+  async function undoDelete(entry: QueuedDelete): Promise<void> {
+    if (!ownerId || entry.ownerId !== ownerId || undoingDelete) return;
+    setUndoingDelete(entry.clientId);
+    try {
+      await withOutboxLock(ownerId, async () => {
+        // A disconnected delete may have landed. Persist the inverse before asking the server.
+        if (!enqueue({ ...entry, failure: undefined, kind: 'restore' })) {
+          toast.error(OUTBOX_STORAGE_ERROR);
+          return;
+        }
+        try {
+          await expensesApi.restore(entry.groupId, entry.expenseId, entry.clientId, ownerId);
+        } catch (error) {
+          if (!isAlreadyDone(error)) {
+            if (isOffline(error) || pauseFor(error)) {
+              toast.success('Undo is saved on this device and will sync when you reconnect.');
+            } else {
+              const message = error instanceof Error ? error.message : 'Could not undo that deletion.';
+              toast.error(setFailure(entry.clientId, ownerId, message) ? message : OUTBOX_STORAGE_ERROR);
+            }
+            return;
+          }
+        }
+        if (!drop(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
+        else toast.success('Deletion undone.');
+        changed.current();
+      });
+    } finally {
+      setUndoingDelete(null);
+    }
+  }
+
   useEffect(() => {
     const refresh = () => {
       setUnassigned(unassignedWrites(groupId).length);
-      setFailed(ownerId ? queued(groupId, ownerId).filter((entry) => entry.failure) : []);
+      const entries = ownerId ? queued(groupId, ownerId) : [];
+      setFailed(entries.filter((entry) => entry.failure));
+      setPendingDeletes(entries.filter(isDelete).filter((entry) => !entry.failure));
       queueChanged.current?.();
     };
     setSyncing(false);
@@ -292,5 +333,17 @@ export function useOutboxSync({
     };
   }, [groupId, ownerId, run]);
 
-  return { paused, syncing, retry: run, unassigned, recover, failed, retryFailed, discardFailed };
+  return {
+    paused,
+    syncing,
+    retry: run,
+    unassigned,
+    recover,
+    failed,
+    pendingDeletes,
+    undoingDelete,
+    undoDelete,
+    retryFailed,
+    discardFailed,
+  };
 }

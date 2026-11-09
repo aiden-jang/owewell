@@ -1,12 +1,12 @@
 import { namedTransfers } from '@owewell/shared';
 import type { PaymentMethod } from '@owewell/core';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
 import { getBalances } from './balances.js';
-import { groupMembers, settlements } from './db/schema.js';
+import { groupMembers, groups, settlements } from './db/schema.js';
 
-export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND';
+export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND' | 'STALE_SUGGESTION';
 
 export class SettlementError extends Error {
   constructor(
@@ -39,9 +39,10 @@ export interface RecordSettlementInput {
   fromUserId: string;
   toUserId: string;
   amountCents: number;
-  method?: PaymentMethod;
+  method?: PaymentMethod | undefined;
   /** Client-chosen id, so a payment recorded offline and sent later is logged exactly once. */
   clientId?: string | undefined;
+  suggestedVersion?: number | undefined;
 }
 
 function settlementView(row: typeof settlements.$inferSelect): SettlementView {
@@ -93,25 +94,49 @@ export async function recordSettlement(
 
   const id = crypto.randomUUID();
   const createdAt = new Date();
-  const [created] = await db
-    .insert(settlements)
-    .values({
-      id,
-      groupId,
-      fromPersonId: input.fromUserId,
-      toPersonId: input.toUserId,
-      amountCents: input.amountCents,
-      method: input.method ?? null,
-      createdById: personId,
-      createdAt,
-      clientId: input.clientId ?? null,
-    })
+  const insert = db.insert(settlements);
+  const write =
+    input.suggestedVersion === undefined
+      ? insert.values({
+          id,
+          groupId,
+          fromPersonId: input.fromUserId,
+          toPersonId: input.toUserId,
+          amountCents: input.amountCents,
+          method: input.method ?? null,
+          createdById: personId,
+          createdAt,
+          clientId: input.clientId ?? null,
+        })
+      : insert.select(
+          db
+            .select({
+              id: sql`${id}`.as('id'),
+              groupId: groups.id,
+              fromPersonId: sql`${input.fromUserId}`.as('from_person_id'),
+              toPersonId: sql`${input.toUserId}`.as('to_person_id'),
+              amountCents: sql`${input.amountCents}`.as('amount_cents'),
+              method: sql`${input.method ?? null}`.as('method'),
+              createdById: sql`${personId}`.as('created_by_id'),
+              createdAt: sql`${Math.floor(createdAt.getTime() / 1000)}`.as('created_at'),
+              clientId: sql`${input.clientId ?? null}`.as('client_id'),
+            })
+            .from(groups)
+            .where(and(eq(groups.id, groupId), eq(groups.ledgerVersion, input.suggestedVersion))),
+        );
+  const [created] = await write
     .onConflictDoNothing({ target: [settlements.groupId, settlements.clientId] })
     .returning();
   if (created) return settlementView(created);
   const existing = input.clientId && (await settlementByClientId(db, groupId, input.clientId));
-  if (!existing) throw new Error('Could not read the recorded payment.');
-  return settlementView(existing);
+  if (existing) return settlementView(existing);
+  if (input.suggestedVersion !== undefined) {
+    throw new SettlementError(
+      'STALE_SUGGESTION',
+      'Group balances changed. Review them before recording this payment.',
+    );
+  }
+  throw new Error('Could not read the recorded payment.');
 }
 
 export async function listSettlements(db: DB, personId: string, groupId: string): Promise<SettlementView[]> {

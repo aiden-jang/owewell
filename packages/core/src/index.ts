@@ -231,6 +231,7 @@ export interface RecordSettlementPayload {
   method?: PaymentMethod;
   /** Client-chosen id, so a payment recorded offline and sent later is logged exactly once. */
   clientId?: string;
+  suggestedVersion?: number;
 }
 
 export interface SuggestedPayment {
@@ -239,6 +240,7 @@ export interface SuggestedPayment {
   toUserId: string;
   toName: string;
   amountCents: number;
+  ledgerVersion?: number;
 }
 
 /** Read-only group view served on the public share page (no payment handles, no line items). */

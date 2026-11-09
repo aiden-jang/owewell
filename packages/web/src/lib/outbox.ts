@@ -18,6 +18,7 @@ interface QueuedBase {
   description: string;
   queuedAt: number;
   failure?: string | undefined;
+  failureCode?: string | undefined;
 }
 
 export interface QueuedCreate extends QueuedBase {
@@ -156,13 +157,18 @@ export function drop(clientId: string): boolean {
   return entries !== null && write(entries.filter((e) => e.clientId !== clientId));
 }
 
-export function setFailure(clientId: string, ownerId: string | undefined, failure?: string): boolean {
+export function setFailure(
+  clientId: string,
+  ownerId: string | undefined,
+  failure?: string,
+  failureCode?: string,
+): boolean {
   const entries = read();
   return (
     entries !== null &&
     write(
       entries.map((entry) =>
-        entry.clientId === clientId && entry.ownerId === ownerId ? { ...entry, failure } : entry,
+        entry.clientId === clientId && entry.ownerId === ownerId ? { ...entry, failure, failureCode } : entry,
       ),
     )
   );
@@ -222,7 +228,9 @@ export async function flush(
         continue;
       }
       const message = err instanceof Error ? err.message : 'The server couldn’t save this change.';
-      if (!setFailure(entry.clientId, entry.ownerId, message)) {
+      const data = err instanceof ApiError ? err.data : null;
+      const code = data && typeof data === 'object' && 'error' in data ? data.error : undefined;
+      if (!setFailure(entry.clientId, entry.ownerId, message, typeof code === 'string' ? code : undefined)) {
         return { ...result, paused: 'storage' };
       }
       continue;

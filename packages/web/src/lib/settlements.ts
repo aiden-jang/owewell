@@ -18,6 +18,7 @@ function paymentKey(
     body.fromUserId,
     body.toUserId,
     body.amountCents,
+    ...(body.suggestedVersion === undefined ? [] : [body.suggestedVersion]),
   ])}`;
 }
 
@@ -36,7 +37,12 @@ export function hasQueuedPayment(
 ) {
   return queued(groupId, ownerId)
     .filter(isSettlement)
-    .some(({ payload }) => paymentKey(groupId, payload, ownerId) === paymentKey(groupId, body, ownerId));
+    .some(
+      ({ payload }) =>
+        payload.fromUserId === body.fromUserId &&
+        payload.toUserId === body.toUserId &&
+        payload.amountCents === body.amountCents,
+    );
 }
 
 export function preparePayment(

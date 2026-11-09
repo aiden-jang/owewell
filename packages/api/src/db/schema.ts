@@ -35,6 +35,7 @@ export const groups = sqliteTable(
     shareDisabled: integer('share_disabled', { mode: 'boolean' }).notNull().default(false),
     createClientId: text('create_client_id'),
     quickSplitClientId: text('quick_split_client_id'),
+    ledgerVersion: integer('ledger_version').notNull().default(0),
   },
   (t) => ({
     quickSplitAttempt: uniqueIndex('groups_quick_split_attempt').on(t.createdById, t.quickSplitClientId),

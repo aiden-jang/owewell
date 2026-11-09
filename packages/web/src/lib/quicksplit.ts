@@ -37,6 +37,7 @@ export interface SavedPendingSplit {
 export function preparePendingSplit(
   split: PendingSplit,
   previous?: PendingSplit,
+  fallbackId?: string,
 ): PendingSplit & { clientId: string } {
   const same =
     previous &&
@@ -44,7 +45,7 @@ export function preparePendingSplit(
     JSON.stringify([previous?.people, previous?.items]) === JSON.stringify([split.people, split.items]);
   return {
     ...split,
-    clientId: split.clientId ?? (same ? previous?.clientId : undefined) ?? crypto.randomUUID(),
+    clientId: split.clientId ?? (same ? previous?.clientId : undefined) ?? fallbackId ?? crypto.randomUUID(),
   };
 }
 

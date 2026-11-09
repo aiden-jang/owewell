@@ -91,14 +91,16 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
     if (!belongs()) return null;
     const current = begin();
     try {
-      const [g, b, e, st] = await Promise.all([
+      const [g, { balances: b, ledgerVersion }, e, st] = await Promise.all([
         groupsApi.get(groupId),
         groupsApi.balances(groupId),
         expensesApi.list(groupId),
         settlementsApi.list(groupId),
       ]);
       if (!belongs()) return null;
-      const s = namedTransfers(b);
+      const s = namedTransfers(b).map((payment) =>
+        ledgerVersion === undefined ? payment : { ...payment, ledgerVersion },
+      );
       if (current()) {
         hasLoaded.current = true;
         setGroup(g);

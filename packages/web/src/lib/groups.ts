@@ -27,8 +27,8 @@ export const groupsApi = {
     api
       .patch<{ member: GroupMember }>(`/groups/${id}/members/${userId}/payment`, handles)
       .then((r) => r.member),
-  balances: (id: string): Promise<Balance[]> =>
-    api.get<{ balances: Balance[] }>(`/groups/${id}/balances`).then((r) => r.balances),
+  balances: (id: string): Promise<{ balances: Balance[]; ledgerVersion?: number }> =>
+    api.get(`/groups/${id}/balances`),
   rename: (id: string, name: string): Promise<GroupDetail> =>
     api.patch<{ group: GroupDetail }>(`/groups/${id}`, { name }).then((r) => r.group),
   setArchived: (id: string, archived: boolean): Promise<GroupDetail> =>

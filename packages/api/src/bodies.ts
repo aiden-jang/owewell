@@ -48,6 +48,7 @@ export const recordSettlementBody = z.object({
   toUserId: z.string().min(1),
   amountCents: z.number().int().positive(),
   method: z.enum(PAYMENT_METHODS).optional(),
+  suggestedVersion: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
   clientId: z.string().min(8).max(64).optional(),
 });
 

@@ -15,15 +15,10 @@ import {
   type SuggestedPayment,
 } from './settlements';
 import {
-  drop as dropWrite,
   enqueue as enqueueWrite,
-  isAlreadyDone,
   isConflict,
   isOffline,
   OUTBOX_STORAGE_ERROR,
-  pauseFor,
-  setFailure,
-  withOutboxLock,
   type QueuedDelete,
 } from './outbox';
 import { formatMoney as fmt } from '@owewell/shared';
@@ -41,7 +36,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     setGroup,
     dropExpense,
     refreshPending,
-    showSavedExpense,
+    outboxSync,
     load,
   } = ledger;
   const navigate = useNavigate();
@@ -73,6 +68,11 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   /** Resolves true when the payment reached the ledger, which is the panel's cue to reset the row. */
   async function markPaid(payment: SuggestedPayment, method: PaymentMethod): Promise<boolean> {
     if (recording.current) return false;
+    if (payment.ledgerVersion === undefined) {
+      void refreshLedger();
+      toast.error('Could not verify this suggestion. Review the balances and try again.');
+      return false;
+    }
     recording.current = true;
     try {
       const ok = await confirm({
@@ -88,6 +88,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
         toUserId: payment.toUserId,
         amountCents: payment.amountCents,
         method,
+        suggestedVersion: payment.ledgerVersion,
       };
       if (hasQueuedPayment(id, paymentDraft, ownerId)) {
         toast.error('This payment is already waiting to sync.');
@@ -119,6 +120,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       }
       return true;
     } catch (error) {
+      if (isConflict(error)) void refreshLedger();
       toast.error(error instanceof Error ? error.message : 'Could not record that payment.');
       return false;
     } finally {
@@ -157,7 +159,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       expectedVersion: removed.version,
       queuedAt: Date.now(),
     };
-    const undo = { label: 'Undo', onClick: () => void undoDeleteExpense(entry) };
+    const undo = { label: 'Undo', onClick: () => void outboxSync.undoDelete(entry) };
     try {
       await expensesApi.remove(id, expenseId, ownerId, entry.clientId, entry.expectedVersion);
       // Off the list on the same tick as the toast, rather than one refetch later.
@@ -177,39 +179,6 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       refreshPending();
       toast.success(`Deletion queued for ${entry.description}. It syncs when you reconnect.`, undo);
     }
-  }
-
-  async function undoDeleteExpense(entry: QueuedDelete): Promise<void> {
-    await withOutboxLock(entry.ownerId, async () => {
-      // An interrupted delete may already have landed. Keep the inverse until the server answers.
-      if (!enqueueWrite({ ...entry, kind: 'restore' })) {
-        toast.error(OUTBOX_STORAGE_ERROR);
-        return;
-      }
-      refreshPending();
-      try {
-        const restored = await expensesApi.restore(
-          entry.groupId,
-          entry.expenseId,
-          entry.clientId,
-          entry.ownerId,
-        );
-        showSavedExpense(restored);
-      } catch (error) {
-        if (!isAlreadyDone(error)) {
-          if (isOffline(error) || pauseFor(error)) {
-            toast.success('Undo is saved on this device and will sync when you reconnect.');
-          } else {
-            const message = error instanceof Error ? error.message : 'Could not undo that deletion.';
-            toast.error(setFailure(entry.clientId, entry.ownerId, message) ? message : OUTBOX_STORAGE_ERROR);
-          }
-          return;
-        }
-      }
-      if (!dropWrite(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
-      refreshPending();
-      void refreshLedger();
-    });
   }
 
   async function toggleArchive(): Promise<void> {

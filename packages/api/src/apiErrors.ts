@@ -22,7 +22,8 @@ export const handleApiError: ErrorHandler<{ Bindings: Env; Variables: { person: 
     return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof SettlementError) {
-    return c.json({ error: err.code, message: err.message }, err.code === 'NOT_FOUND' ? 404 : 422);
+    const status = err.code === 'NOT_FOUND' ? 404 : err.code === 'STALE_SUGGESTION' ? 409 : 422;
+    return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof QuickSplitError) {
     return c.json({ error: err.code, message: err.message }, 422);

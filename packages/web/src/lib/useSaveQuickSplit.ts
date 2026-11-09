@@ -60,6 +60,18 @@ function splitPayload(draft: QuickSplitInput, payerId: string, youId: string): P
   };
 }
 
+async function splitSaveId(draft: QuickSplitInput, payload: PendingSplit): Promise<string> {
+  // Row IDs identify this bill even after another tab clears its draft from storage.
+  const input = JSON.stringify([
+    draft.people.map((person) => person.id),
+    draft.items.map((item) => item.id),
+    payload.people,
+    payload.items,
+  ]);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function useSaveQuickSplit(
   setError: (message: string | null) => void,
   persistDraft: (draft: QuickSplitInput) => string | null,
@@ -70,10 +82,11 @@ export function useSaveQuickSplit(
   const { captureScope } = useAsyncScope(user?.id);
   const [saving, setSaving] = useState(false);
   const inFlight = useRef(false);
-  const attempt = useRef<PendingSplit | null>(null);
 
   async function save(draft: QuickSplitInput, payerId: string, youId: string): Promise<void> {
     if (inFlight.current) return;
+    inFlight.current = true;
+    if (user) setSaving(true);
     const current = captureScope();
     setError(null);
     try {
@@ -86,25 +99,22 @@ export function useSaveQuickSplit(
             ({ split }) => !split.ownerId || split.ownerId === payload.ownerId,
           )
         : undefined;
-      const pending = preparePendingSplit(payload, previous?.split ?? attempt.current ?? undefined);
-      attempt.current = pending;
-      if (!user) {
-        if (!draftRevision || !stashPendingSplit(pending)) {
-          setError(
-            'This browser couldn’t keep your bill through sign-in. Keep this page open and sign in from another tab, or copy the summary.',
-          );
-          return;
-        }
-        const returnTo = new URL('/', window.location.origin);
-        returnTo.searchParams.set('split', pending.clientId);
-        login(returnTo.href);
-        return;
-      }
-      inFlight.current = true;
-      setSaving(true);
+      const pending = preparePendingSplit(payload, previous?.split, await splitSaveId(draft, payload));
       await withPendingSplitLock(pending.clientId, async () => {
         if (!current()) return;
         const stored = readPendingSplit(pending.clientId)?.split;
+        if (!user) {
+          if (!stored?.ownerId && (!draftRevision || !stashPendingSplit(pending))) {
+            setError(
+              'This browser couldn’t keep your bill through sign-in. Keep this page open and sign in from another tab, or copy the summary.',
+            );
+            return;
+          }
+          const returnTo = new URL('/', window.location.origin);
+          returnTo.searchParams.set('split', pending.clientId);
+          login(returnTo.href);
+          return;
+        }
         if (stored?.ownerId && stored.ownerId !== user.id) {
           throw new Error('This split is waiting to save on another account.');
         }

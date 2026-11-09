@@ -13,7 +13,8 @@ import { getOrCreatePerson, type Person } from './people.js';
 import { requireMembership } from './groups.js';
 import { claimPlaceholder, getSharedSummary } from './sharing.js';
 import { addPlaceholderMember, removeMember, renameMember, setPaymentHandles } from './members.js';
-import { createExpense, deleteExpense, getBalances, restoreExpense, updateExpense } from './expenses.js';
+import { createExpense, deleteExpense, restoreExpense, updateExpense } from './expenses.js';
+import { getBalanceSnapshot } from './balances.js';
 import { createItemizedExpense, updateItemizedExpense } from './itemizedExpenses.js';
 import { listExpenses } from './expenseList.js';
 import { deleteSettlement, getSuggestedPayments, listSettlements, recordSettlement } from './settlements.js';
@@ -186,7 +187,7 @@ api.delete('/groups/:id/members/:personId', async (c) => {
 });
 
 api.get('/groups/:id/balances', async (c) => {
-  return c.json({ balances: await getBalances(createDb(c.env), c.get('person').id, c.req.param('id')) });
+  return c.json(await getBalanceSnapshot(createDb(c.env), c.get('person').id, c.req.param('id')));
 });
 
 api.get('/groups/:id/expenses', async (c) => {
@@ -309,13 +310,12 @@ api.get('/groups/:id/settlements/suggested', async (c) => {
 api.post('/groups/:id/settlements', async (c) => {
   const parsed = recordSettlementBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const settlement = await recordSettlement(createDb(c.env), c.get('person').id, c.req.param('id'), {
-    fromUserId: parsed.data.fromUserId,
-    toUserId: parsed.data.toUserId,
-    amountCents: parsed.data.amountCents,
-    ...(parsed.data.method ? { method: parsed.data.method } : {}),
-    ...(parsed.data.clientId ? { clientId: parsed.data.clientId } : {}),
-  });
+  const settlement = await recordSettlement(
+    createDb(c.env),
+    c.get('person').id,
+    c.req.param('id'),
+    parsed.data,
+  );
   writeEvent(c.env, 'settlement_recorded', parsed.data.method ?? 'unspecified');
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ settlement }, 201);
