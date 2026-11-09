@@ -25,6 +25,7 @@ interface Args<P extends ExpensePayload> {
   ownerId?: string | undefined;
   attempt: { current: ExpenseAttempt | null };
   onAttempt?: () => void;
+  onCorrectionQueued?: () => void;
   editing: Expense | undefined;
   correction?: QueuedCreate | QueuedEdit | undefined;
   /** Everything the server needs except the two fields this function owns. */
@@ -45,6 +46,7 @@ export async function saveExpense<P extends ExpensePayload>({
   ownerId,
   attempt,
   onAttempt,
+  onCorrectionQueued,
   editing,
   correction,
   base,
@@ -80,24 +82,36 @@ export async function saveExpense<P extends ExpensePayload>({
     const row = editing
       ? { ...fields, kind: kinds.edit, expenseId: editing.id }
       : { ...fields, kind: kinds.create };
-    // Persist the winning correction before sending, so a reload mid-request can replay it.
-    if (correction && !enqueue(row)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+    // Hand off this tab’s submitted draft only after the queue can replay it.
+    if (correction) {
+      if (!enqueue(row)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+      onCorrectionQueued?.();
+    }
     try {
       const expense = editing
         ? await update(groupId, editing.id, payload, ownerId)
         : await create(groupId, payload, ownerId);
-      if (correction && !isCurrentOutboxEntry(row)) return { status: 'failed', message: CORRECTION_CONFLICT };
+      if (correction && !isCurrentOutboxEntry(row)) {
+        onAttempt?.();
+        return { status: 'failed', message: CORRECTION_CONFLICT };
+      }
       if (correction && !drop(clientId)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
       attempt.current = null;
       return { status: 'saved', expense };
     } catch (err) {
+      if (correction && !isCurrentOutboxEntry(row)) {
+        onAttempt?.();
+        return { status: 'failed', message: CORRECTION_CONFLICT };
+      }
       if (canQueue && isOffline(err)) {
         if (!correction && !enqueue(row)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
         attempt.current = null;
         return { status: 'queued' };
       }
-      if (correction && !isCurrentOutboxEntry(row)) return { status: 'failed', message: CORRECTION_CONFLICT };
-      if (correction && !enqueue(correction)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+      if (correction) {
+        onAttempt?.();
+        if (!enqueue(correction)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+      }
       return { status: 'failed', message: err instanceof Error ? err.message : failureMessage };
     }
   }

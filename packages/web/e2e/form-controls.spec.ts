@@ -1,5 +1,39 @@
 import type { Locator } from '@playwright/test';
 import { expect, expectNoHorizontalOverflow, signIn, test } from './fixtures';
+import { dinner } from './ledger-fixtures';
+
+async function expectPlaceholderContrast(field: Locator, minimum = 4.5) {
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('');
+  const contrast = await field.evaluate((input) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext('2d')!;
+    const luminance = () => {
+      const [r, g, b] = Array.from(ctx.getImageData(0, 0, 1, 1).data, (value) => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const layers = [];
+    for (let node: Element | null = input; node; node = node.parentElement) {
+      layers.unshift(getComputedStyle(node).backgroundColor);
+    }
+    for (const background of layers) {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, 1, 1);
+    }
+    const background = luminance();
+    const hint = getComputedStyle(input, '::placeholder');
+    ctx.fillStyle = hint.color;
+    ctx.globalAlpha = Number(hint.opacity);
+    ctx.fillRect(0, 0, 1, 1);
+    const text = luminance();
+    return (Math.max(text, background) + 0.05) / (Math.min(text, background) + 0.05);
+  });
+  expect(contrast, `Contrast for ${await field.getAttribute('placeholder')}`).toBeGreaterThanOrEqual(minimum);
+}
 
 async function expectInsetChevron(select: Locator) {
   const arrow = await select.evaluate((field) => {
@@ -42,6 +76,33 @@ test('calculator dropdowns reserve space for their arrows and keep native select
 });
 
 for (const theme of ['warm', 'dark']) {
+  test(`calculator and receipt placeholders stay readable in ${theme}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: theme === 'warm' ? 320 : 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript((choice) => localStorage.setItem('owewell:theme', choice), theme);
+    await page.goto('/split');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expectPlaceholderContrast(page.getByLabel('Person 2 name'));
+    await expectPlaceholderContrast(page.getByLabel('Item 1 amount'), 3);
+    await page.getByText('Add a tip', { exact: true }).click();
+    await expectPlaceholderContrast(page.getByLabel('Custom tip percentage'));
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: info.outputPath('calculator-placeholders.png'), animations: 'disabled' });
+
+    const { url } = await dinner(page);
+    await page.goto(url);
+    await page.getByRole('button', { name: 'Add expense', exact: true }).first().click();
+    const form = page.getByRole('dialog', { name: 'Add to the tab', exact: true });
+    await form.getByRole('button', { name: 'Itemize a receipt' }).click();
+    await expectPlaceholderContrast(form.getByLabel('What the expense was for'));
+    await expectPlaceholderContrast(form.getByLabel('Item 1 amount', { exact: true }));
+    await expectPlaceholderContrast(form.getByLabel('Tax', { exact: true }));
+    await expectNoHorizontalOverflow(page);
+    await form.getByLabel('Item 1 amount', { exact: true }).focus();
+    await expect(form.getByLabel('Item 1 amount', { exact: true })).toBeFocused();
+    await page.screenshot({ path: info.outputPath('receipt-placeholders.png'), animations: 'disabled' });
+  });
+
   for (const width of [1440, 390]) {
     test(`payment controls keep inset arrows and keyboard focus at ${width}px in ${theme}`, async ({
       page,

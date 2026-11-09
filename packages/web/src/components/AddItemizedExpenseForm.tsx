@@ -218,6 +218,7 @@ export function AddItemizedExpenseForm({
         ownerId,
         attempt: recovery.attempt,
         onAttempt: recovery.rememberAttempt,
+        onCorrectionQueued: recovery.clearSavedDraft,
         editing: editing && baseVersion !== undefined ? { ...editing, version: baseVersion } : editing,
         correction,
         base: {

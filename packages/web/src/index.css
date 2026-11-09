@@ -489,6 +489,12 @@ input[type='checkbox'] {
 }
 
 @layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-faint);
+    opacity: 1;
+  }
+
   /* Native <button> defaults to the arrow cursor (only links get a pointer). Give every
      interactive control a pointer, while disabled buttons keep the not-allowed cue. */
   button:not(:disabled),

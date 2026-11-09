@@ -55,7 +55,7 @@ export function QuickSplitTip({
             }}
             placeholder="other"
             inputMode="decimal"
-            className="w-12 bg-transparent py-1 outline-none placeholder:text-muted/70"
+            className="w-12 bg-transparent py-1 outline-none"
           />
           <button
             type="button"

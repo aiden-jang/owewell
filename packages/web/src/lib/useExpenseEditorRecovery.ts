@@ -33,10 +33,15 @@ export function useExpenseEditorRecovery(
     initial.current = snapshot;
   });
 
-  function finish() {
-    finished.current = true;
+  function clearSavedDraft() {
     if (lastSaved.current !== undefined) discardExpenseEditorDraft(key, lastSaved.current);
+    lastSaved.current = undefined;
   }
 
-  return { attempt, rememberAttempt, finish };
+  function finish() {
+    finished.current = true;
+    clearSavedDraft();
+  }
+
+  return { attempt, rememberAttempt, clearSavedDraft, finish };
 }
