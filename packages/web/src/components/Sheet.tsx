@@ -41,7 +41,8 @@ export function Sheet({
   closeDisabledRef.current = closeDisabled;
   const dirtyRef = useRef(false);
   const [changed, setDirty] = useState(false);
-  const controlled = unsavedChanges !== undefined;
+  const controlledRef = useRef(false);
+  controlledRef.current = unsavedChanges !== undefined;
   const dirty = open && (unsavedChanges ?? (changed || restoredChanges));
   dirtyRef.current = dirty;
   const [asking, setAsking] = useState(false);
@@ -73,11 +74,15 @@ export function Sheet({
   }, [asking]);
   const requestClose = useCallback((): void => {
     if (closeDisabledRef.current) return;
-    if (!controlled && dirtyRef.current && dialogRef.current?.querySelector('button[type="submit"]:disabled'))
+    if (
+      !controlledRef.current &&
+      dirtyRef.current &&
+      dialogRef.current?.querySelector('button[type="submit"]:disabled')
+    )
       return;
     if (dirtyRef.current) setAsking(true);
     else closeRef.current();
-  }, [controlled]);
+  }, []);
   function markChanged(): void {
     if (!protectChanges || unsavedChanges !== undefined) return;
     dirtyRef.current = true;

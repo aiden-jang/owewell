@@ -1,9 +1,21 @@
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
 import type { Expense } from './expenses';
 import type { ExpenseAttempt } from './expenseEditorDraft';
-import { enqueue, isOffline, OUTBOX_STORAGE_ERROR, type QueuedCreate, type QueuedEdit } from './outbox';
+import {
+  drop,
+  enqueue,
+  isCurrentOutboxEntry,
+  isOffline,
+  OUTBOX_STORAGE_ERROR,
+  withOutboxLock,
+  type QueuedCreate,
+  type QueuedEdit,
+} from './outbox';
 
 type ExpensePayload = CreateExpensePayload | CreateItemizedPayload;
+
+export const CORRECTION_CONFLICT =
+  'Correction conflict. Another tab picked up this change. Your draft is still here. Check the group’s expense before making further changes.';
 
 export type SaveOutcome =
   { status: 'saved'; expense: Expense } | { status: 'queued' } | { status: 'failed'; message: string };
@@ -14,7 +26,7 @@ interface Args<P extends ExpensePayload> {
   attempt: { current: ExpenseAttempt | null };
   onAttempt?: () => void;
   editing: Expense | undefined;
-  recoveryId?: string | undefined;
+  correction?: QueuedCreate | QueuedEdit | undefined;
   /** Everything the server needs except the two fields this function owns. */
   base: Omit<P, 'clientId' | 'expectedVersion'>;
   /** For the outbox row's summary line, so a queued write reads sensibly in the pending list. */
@@ -27,15 +39,14 @@ interface Args<P extends ExpensePayload> {
   failureMessage: string;
 }
 
-/** Mint the create ID before requesting so retries keep the same identity.
- * Queue creates only; edits require conflict handling against the current row. */
+/** Mint the ID before requesting so retries keep the same identity. */
 export async function saveExpense<P extends ExpensePayload>({
   groupId,
   ownerId,
   attempt,
   onAttempt,
   editing,
-  recoveryId,
+  correction,
   base,
   amountCents,
   kinds,
@@ -45,36 +56,51 @@ export async function saveExpense<P extends ExpensePayload>({
   failureMessage,
 }: Args<P>): Promise<SaveOutcome> {
   const key = JSON.stringify([groupId, ownerId, editing?.id, editing?.version, base]);
-  const clientId = recoveryId ?? (attempt.current?.key === key ? attempt.current.id : crypto.randomUUID());
+  const clientId =
+    correction?.clientId ?? (attempt.current?.key === key ? attempt.current.id : crypto.randomUUID());
   attempt.current = { key, id: clientId };
   onAttempt?.();
   // An edit says which version it was based on; a create has none to be based on.
   const versioned = editing ? { expectedVersion: editing.version } : {};
   const payload = { ...base, clientId, ...versioned } as P;
 
-  try {
-    const expense = editing
-      ? await update(groupId, editing.id, payload, ownerId)
-      : await create(groupId, payload, ownerId);
-    attempt.current = null;
-    return { status: 'saved', expense };
-  } catch (err) {
-    if (!canQueue || !isOffline(err)) {
-      return { status: 'failed', message: err instanceof Error ? err.message : failureMessage };
+  async function save(): Promise<SaveOutcome> {
+    if (correction && !isCurrentOutboxEntry(correction)) {
+      return { status: 'failed', message: CORRECTION_CONFLICT };
     }
-    const row = {
+    const fields = {
       clientId,
       groupId,
       ownerId,
       description: payload.description,
       amountCents,
-      queuedAt: Date.now(),
+      queuedAt: Math.max(Date.now(), (correction?.queuedAt ?? 0) + 1),
       payload,
     };
-    const saved = enqueue(
-      editing ? { ...row, kind: kinds.edit, expenseId: editing.id } : { ...row, kind: kinds.create },
-    );
-    if (saved) attempt.current = null;
-    return saved ? { status: 'queued' } : { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+    const row = editing
+      ? { ...fields, kind: kinds.edit, expenseId: editing.id }
+      : { ...fields, kind: kinds.create };
+    // Persist the winning correction before sending, so a reload mid-request can replay it.
+    if (correction && !enqueue(row)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+    try {
+      const expense = editing
+        ? await update(groupId, editing.id, payload, ownerId)
+        : await create(groupId, payload, ownerId);
+      if (correction && !isCurrentOutboxEntry(row)) return { status: 'failed', message: CORRECTION_CONFLICT };
+      if (correction && !drop(clientId)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+      attempt.current = null;
+      return { status: 'saved', expense };
+    } catch (err) {
+      if (canQueue && isOffline(err)) {
+        if (!correction && !enqueue(row)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+        attempt.current = null;
+        return { status: 'queued' };
+      }
+      if (correction && !isCurrentOutboxEntry(row)) return { status: 'failed', message: CORRECTION_CONFLICT };
+      if (correction && !enqueue(correction)) return { status: 'failed', message: OUTBOX_STORAGE_ERROR };
+      return { status: 'failed', message: err instanceof Error ? err.message : failureMessage };
+    }
   }
+
+  return correction ? withOutboxLock(ownerId, save) : save();
 }

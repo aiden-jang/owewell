@@ -16,6 +16,7 @@ import {
 } from './FormFields';
 import { useExpenseDraft } from '../lib/useExpenseDraft';
 import { saveExpense } from '../lib/saveExpense';
+import type { QueuedCreate, QueuedEdit } from '../lib/outbox';
 import { readExpenseEditorDraft } from '../lib/expenseEditorDraft';
 import { useExpenseEditorRecovery } from '../lib/useExpenseEditorRecovery';
 
@@ -41,7 +42,8 @@ interface Props {
   editing?: Expense;
   /** Prefill a new receipt from an old one while keeping today as the date. */
   template?: Expense;
-  recoveryId?: string;
+  correction?: QueuedCreate | QueuedEdit | undefined;
+  correctionConflict?: boolean;
   draftKey?: string | undefined;
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
@@ -57,7 +59,8 @@ export function AddItemizedExpenseForm({
   onPendingChange,
   editing,
   template,
-  recoveryId,
+  correction,
+  correctionConflict = false,
   draftKey,
 }: Props): ReactNode {
   const [stored] = useState(() => readExpenseEditorDraft(draftKey));
@@ -80,7 +83,7 @@ export function AddItemizedExpenseForm({
     setError,
     submitting,
     setSubmitting,
-  } = useExpenseDraft(members, editing, template, !!recoveryId, restored?.fields);
+  } = useExpenseDraft(members, editing, template, !!correction, restored?.fields);
   useEffect(() => {
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
@@ -94,7 +97,7 @@ export function AddItemizedExpenseForm({
           participantIds: new Set(
             it.participantIds.filter((id) => members.some((member) => member.userId === id)),
           ),
-          payerId: it.payerId && (recoveryId || memberIds.has(it.payerId)) ? it.payerId : defaultPayer,
+          payerId: it.payerId && (correction || memberIds.has(it.payerId)) ? it.payerId : defaultPayer,
         }))
       : [{ name: '', amount: '', participantIds: memberIds, payerId: defaultPayer }];
   const [tax, setTax] = useState(input?.tax ?? (source?.taxCents ? centsToInput(source.taxCents) : ''));
@@ -164,7 +167,7 @@ export function AddItemizedExpenseForm({
 
   async function onSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || correctionConflict) return;
     setError(null);
 
     const trimmedDescription = description.trim();
@@ -216,7 +219,7 @@ export function AddItemizedExpenseForm({
         attempt: recovery.attempt,
         onAttempt: recovery.rememberAttempt,
         editing: editing && baseVersion !== undefined ? { ...editing, version: baseVersion } : editing,
-        recoveryId,
+        correction,
         base: {
           description: trimmedDescription,
           payerId,
@@ -367,8 +370,12 @@ export function AddItemizedExpenseForm({
           />
         </div>
       </fieldset>
-      <FormError message={error} />
-      <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add receipt'}</SubmitButton>
+      {!correctionConflict && (
+        <>
+          <FormError message={error} />
+          <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add receipt'}</SubmitButton>
+        </>
+      )}
     </form>
   );
 }

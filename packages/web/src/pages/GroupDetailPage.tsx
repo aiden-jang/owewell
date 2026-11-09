@@ -162,6 +162,7 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
           the server from writes that have not reached it, and a row marked "waiting" further down
           only explains itself if you happen to be looking at that row. */}
       <GroupOutbox
+        key={user?.id}
         group={group}
         ownerId={user?.id}
         count={pendingCount}

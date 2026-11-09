@@ -15,6 +15,7 @@ import {
   queueDeleteUndo,
   flush,
   isConflict,
+  isCurrentOutboxEntry,
   isDelete,
   isOffline,
   OUTBOX_STORAGE_ERROR,
@@ -158,10 +159,7 @@ export function useOutboxSync({
         const entry = result.conflicted[0];
         if (!entry || result.paused) return;
         const deleting = isDelete(entry);
-        const stillQueued = () => {
-          const latest = queued(groupId, ownerId).find((row) => row.clientId === entry.clientId);
-          return !!latest && JSON.stringify(latest) === JSON.stringify(entry);
-        };
+        const stillQueued = () => isCurrentOutboxEntry(entry);
 
         let expense;
         try {
@@ -286,11 +284,14 @@ export function useOutboxSync({
 
   async function retryFailed(entry: QueuedWrite): Promise<void> {
     if (!ownerId || flushing.current?.() || entry.ownerId !== ownerId) return;
-    if (!setFailure(entry.clientId, ownerId)) {
+    const current = captureScope();
+    const ready = await withOutboxLock(ownerId, async () => {
+      if (!current() || !isCurrentOutboxEntry(entry)) return false;
+      if (setFailure(entry.clientId, ownerId)) return true;
       toast.error(OUTBOX_STORAGE_ERROR);
-      return;
-    }
-    await run();
+      return false;
+    });
+    if (ready && current()) await run();
   }
 
   async function discardFailed(entry: QueuedWrite): Promise<void> {
@@ -302,7 +303,11 @@ export function useOutboxSync({
       confirmLabel: 'Discard change',
       tone: 'danger',
     });
-    if (approved && current() && !drop(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
+    if (!approved) return;
+    await withOutboxLock(ownerId, async () => {
+      if (current() && isCurrentOutboxEntry(entry) && !drop(entry.clientId))
+        toast.error(OUTBOX_STORAGE_ERROR);
+    });
   }
 
   async function undoDelete(entry: QueuedDelete): Promise<void> {

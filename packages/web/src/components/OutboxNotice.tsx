@@ -2,6 +2,7 @@ import { loginUrl } from '@aidenjang/auth-client';
 import { formatMoney } from '@owewell/shared';
 import { Link } from 'react-router-dom';
 import { AUTH_ORIGIN } from '../lib/api';
+import { correctionDraftKey } from '../lib/expenseEditorDraft';
 import { isCreate, isEdit, needsPaymentReview, type QueuedWrite } from '../lib/outbox';
 import type { OutboxSync } from '../lib/useOutboxSync';
 import { PendingDeletionList } from './PendingDeletionList';
@@ -101,6 +102,7 @@ export function OutboxNotice({
                     (isCreate(entry) || isEdit(entry)) && (
                       <button
                         type="button"
+                        data-focus-return={correctionDraftKey(entry)}
                         onClick={() => onCorrect(entry)}
                         className="tap inline-flex min-h-11 items-center font-medium text-accent underline"
                       >

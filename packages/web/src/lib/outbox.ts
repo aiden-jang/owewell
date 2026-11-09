@@ -137,6 +137,14 @@ export function queued(groupId?: string, ownerId?: string): QueuedWrite[] {
     .sort((a, b) => a.queuedAt - b.queuedAt);
 }
 
+export function isCurrentOutboxEntry(entry: QueuedWrite): boolean {
+  const latest = read()?.find(
+    (row) =>
+      row.clientId === entry.clientId && row.groupId === entry.groupId && row.ownerId === entry.ownerId,
+  );
+  return JSON.stringify(latest) === JSON.stringify(entry);
+}
+
 export function unassignedWrites(groupId?: string): QueuedWrite[] {
   return queued(groupId).filter((entry) => !entry.ownerId);
 }

@@ -17,6 +17,7 @@ import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { useTotalExpenseDraft } from '../lib/useTotalExpenseDraft';
 import { saveExpense } from '../lib/saveExpense';
+import type { QueuedCreate, QueuedEdit } from '../lib/outbox';
 
 interface Props {
   groupId: string;
@@ -28,7 +29,8 @@ interface Props {
   editing?: Expense;
   /** Prefill a new expense from an old one while keeping today as the date. */
   template?: Expense;
-  recoveryId?: string;
+  correction?: QueuedCreate | QueuedEdit | undefined;
+  correctionConflict?: boolean;
   draftKey?: string | undefined;
   /**
    * Called instead of onCreated when the write could not leave the device and was queued.
@@ -49,7 +51,8 @@ export function AddExpenseForm({
   onPendingChange,
   editing,
   template,
-  recoveryId,
+  correction,
+  correctionConflict = false,
   draftKey,
 }: Props): ReactNode {
   const symbol = currencySymbol();
@@ -79,7 +82,7 @@ export function AddExpenseForm({
     setValues,
     baseVersion,
     recovery,
-  } = useTotalExpenseDraft(groupId, members, editing, template, recoveryId, draftKey);
+  } = useTotalExpenseDraft(groupId, members, editing, template, !!correction, draftKey);
   useEffect(() => {
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
@@ -124,7 +127,7 @@ export function AddExpenseForm({
 
   async function onSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || correctionConflict) return;
     setError(null);
 
     const trimmedDescription = description.trim();
@@ -188,7 +191,7 @@ export function AddExpenseForm({
         attempt: recovery.attempt,
         onAttempt: recovery.rememberAttempt,
         editing: editing && baseVersion !== undefined ? { ...editing, version: baseVersion } : editing,
-        recoveryId,
+        correction,
         base: {
           description: trimmedDescription,
           amountCents,
@@ -377,8 +380,12 @@ export function AddExpenseForm({
           </p>
         )}
       </fieldset>
-      <FormError message={error} />
-      <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add expense'}</SubmitButton>
+      {!correctionConflict && (
+        <>
+          <FormError message={error} />
+          <SubmitButton submitting={submitting}>{editing ? 'Save changes' : 'Add expense'}</SubmitButton>
+        </>
+      )}
     </form>
   );
 }

@@ -40,6 +40,29 @@ export function expenseEditorKey(ownerId: string | undefined, groupId: string, e
   return ownerId ? `owewell:expense-draft:v1:${JSON.stringify([ownerId, groupId, editor])}` : undefined;
 }
 
+export function correctionDraftKey(entry: {
+  ownerId?: string | undefined;
+  groupId: string;
+  clientId: string;
+  queuedAt: number;
+}) {
+  return expenseEditorKey(entry.ownerId, entry.groupId, `outbox:${entry.clientId}:${entry.queuedAt}`);
+}
+
+export function readCorrectionDrafts(ownerId: string | undefined, groupId: string) {
+  const prefix = expenseEditorKey(ownerId, groupId, 'outbox:')?.slice(0, -2);
+  if (!prefix) return [];
+  try {
+    return Object.keys(sessionStorage).flatMap((key) => {
+      if (!key.startsWith(prefix)) return [];
+      const draft = readExpenseEditorDraft(key);
+      return draft ? [{ key, mode: draft.input.mode, description: draft.fields.description }] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
 function hasStrings(value: object, keys: readonly string[]) {
   return keys.every((key) => typeof Reflect.get(value, key) === 'string');
 }

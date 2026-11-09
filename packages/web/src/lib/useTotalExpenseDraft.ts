@@ -13,13 +13,13 @@ export function useTotalExpenseDraft(
   members: GroupMember[],
   editing: Expense | undefined,
   template: Expense | undefined,
-  recoveryId: string | undefined,
+  recovering: boolean,
   draftKey: string | undefined,
 ) {
   const [stored] = useState(() => readExpenseEditorDraft(draftKey));
   const restored = stored?.input.mode === 'simple' ? stored : null;
   const input = stored?.input.mode === 'simple' ? stored.input : null;
-  const fields = useExpenseDraft(members, editing, template, !!recoveryId, restored?.fields);
+  const fields = useExpenseDraft(members, editing, template, recovering, restored?.fields);
   const { source, description, payerId, date, category, note } = fields;
   const [preference] = useState(() => readSplitPreference(groupId));
   const memberIds = members.map((member) => member.userId);
