@@ -49,10 +49,16 @@ export const recordSettlementBody = z.object({
   amountCents: z.number().int().positive(),
   method: z.enum(PAYMENT_METHODS).optional(),
   suggestedVersion: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+  reviewRequired: z.literal(true).optional(),
+  confirmedManual: z.literal(true).optional(),
   clientId: z.string().min(8).max(64).optional(),
 });
 
 export const quickSplitBody = z.object({
+  draftId: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
   clientId: z.string().min(8).max(64).optional(),
   people: z
     .array(

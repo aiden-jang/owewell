@@ -1,6 +1,12 @@
-import { PaymentParties } from './PaymentParties';
+import { PaymentParties, type PaymentParty } from './PaymentParties';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { formatMoney as fmt, currencySymbol, dollarsToCents, type MoneyFormatter } from '@owewell/shared';
+import {
+  formatMoney as fmt,
+  currencySymbol,
+  dollarsToCents,
+  participantLabels,
+  type MoneyFormatter,
+} from '@owewell/shared';
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { PaymentMethodSelect } from './PaymentMethodSelect';
 import {
@@ -51,10 +57,29 @@ export function RecordPaymentForm({
   onRecorded,
   onQueued,
 }: Props): ReactNode {
-  const memberOf = (id: string): GroupMember | undefined => members.find((m) => m.userId === id);
-  const nameOf = (id: string): string => memberOf(id)?.displayName ?? 'Someone';
-  const firstFrom = defaultFromId ?? members[0]?.userId ?? '';
-  const firstTo = members.find((m) => m.userId !== firstFrom)?.userId ?? '';
+  const parties = useMemo<PaymentParty[]>(
+    () => [
+      ...members,
+      ...balances
+        .filter(
+          (balance) =>
+            balance.former &&
+            balance.netCents !== 0 &&
+            !members.some(({ userId }) => userId === balance.userId),
+        )
+        .map(({ userId, displayName }) => ({
+          userId,
+          displayName,
+          venmoHandle: null,
+          cashappCashtag: null,
+          paypalHandle: null,
+        })),
+    ],
+    [members, balances],
+  );
+  const memberOf = (id: string): PaymentParty | undefined => parties.find((party) => party.userId === id);
+  const firstFrom = defaultFromId ?? parties[0]?.userId ?? '';
+  const firstTo = parties.find((party) => party.userId !== firstFrom)?.userId ?? '';
   const [fromUserId, setFromUserId] = useState(firstFrom);
   const [toUserId, setToUserId] = useState(firstTo);
   const [amount, setAmount] = useState('');
@@ -65,24 +90,8 @@ export function RecordPaymentForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Two members can share a display name (e.g. two placeholders both called "Alex"). Paying the
-  // wrong one is a real money mistake, so disambiguate repeated names with a numeric suffix.
-  const labelFor = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const m of members) counts.set(m.displayName, (counts.get(m.displayName) ?? 0) + 1);
-    const seen = new Map<string, number>();
-    const labels = new Map<string, string>();
-    for (const m of members) {
-      if ((counts.get(m.displayName) ?? 0) > 1) {
-        const n = (seen.get(m.displayName) ?? 0) + 1;
-        seen.set(m.displayName, n);
-        labels.set(m.userId, `${m.displayName} (${n})`);
-      } else {
-        labels.set(m.userId, m.displayName);
-      }
-    }
-    return labels;
-  }, [members]);
+  const labelFor = useMemo(() => participantLabels(parties), [parties]);
+  const nameOf = (id: string): string => labelFor.get(id) ?? 'Someone';
 
   const amountCents = useMemo(() => {
     try {
@@ -215,7 +224,7 @@ export function RecordPaymentForm({
           </fieldset>
         )}
         <PaymentParties
-          members={members}
+          members={parties}
           labels={labelFor}
           from={fromUserId}
           to={toUserId}

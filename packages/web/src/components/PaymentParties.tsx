@@ -3,6 +3,11 @@ import type { GroupMember } from '../lib/groups';
 import { inputClass } from './FormFields';
 
 /** Explicit sender and recipient labels remain visible after choosing a name. */
+export type PaymentParty = Pick<
+  GroupMember,
+  'userId' | 'displayName' | 'venmoHandle' | 'cashappCashtag' | 'paypalHandle'
+>;
+
 export function PaymentParties({
   members,
   labels,
@@ -11,7 +16,7 @@ export function PaymentParties({
   setFrom,
   setTo,
 }: {
-  members: GroupMember[];
+  members: PaymentParty[];
   labels: Map<string, string>;
   from: string;
   to: string;

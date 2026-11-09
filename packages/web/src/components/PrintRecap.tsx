@@ -1,4 +1,4 @@
-import { formatMoney as fmt } from '@owewell/shared';
+import { formatMoney as fmt, participantLabels } from '@owewell/shared';
 import { useEffect, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { PAYMENT_METHOD_LABELS } from '@owewell/core';
@@ -25,8 +25,9 @@ export function PrintRecap({ ledger }: { ledger: GroupLedger }) {
   }, []);
   const { group, expenses, settlements, balances, pendingCount } = ledger;
   if (!printing || !group) return null;
-  const names = new Map(group.members.map((member) => [member.userId, member.displayName]));
-  const nameOf = (id: string) => names.get(id) ?? 'Someone';
+  const names = participantLabels(balances);
+  const nameOf = (id: string) =>
+    names.get(id) ?? group.members.find((member) => member.userId === id)?.displayName ?? 'Someone';
   return createPortal(
     <article className="print-recap" aria-label="Printable group recap">
       <header>

@@ -133,7 +133,7 @@ registerGroupRoutes(api);
 
 // Add a member: a name-only placeholder seat. Real people join by claiming their seat via the
 // group's share link (see /owewell/shared/:token/claim); there's no separate invite flow.
-const addMemberBody = z.object({ name: z.string().trim().min(1).max(80) });
+const addMemberBody = z.object({ name: z.string().trim().min(1).max(80), clientId: z.uuid().optional() });
 api.post('/groups/:id/members', async (c) => {
   const parsed = addMemberBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
@@ -142,6 +142,7 @@ api.post('/groups/:id/members', async (c) => {
     c.get('person').id,
     c.req.param('id'),
     parsed.data.name,
+    parsed.data.clientId,
   );
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ member }, 201);
@@ -310,12 +311,14 @@ api.get('/groups/:id/settlements/suggested', async (c) => {
 api.post('/groups/:id/settlements', async (c) => {
   const parsed = recordSettlementBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
-  const settlement = await recordSettlement(
-    createDb(c.env),
-    c.get('person').id,
-    c.req.param('id'),
-    parsed.data,
-  );
+  const { confirmedManual, ...payment } = parsed.data;
+  const reviewRequired =
+    payment.reviewRequired ||
+    (!!payment.clientId && payment.suggestedVersion === undefined && !confirmedManual ? true : undefined);
+  const settlement = await recordSettlement(createDb(c.env), c.get('person').id, c.req.param('id'), {
+    ...payment,
+    reviewRequired,
+  });
   writeEvent(c.env, 'settlement_recorded', parsed.data.method ?? 'unspecified');
   c.executionCtx.waitUntil(notifyGroupChanged(c.env, c.req.param('id')));
   return c.json({ settlement }, 201);
@@ -347,6 +350,7 @@ api.post('/quick-splits', async (c) => {
   if (!parsed.success) return c.json({ error: 'ValidationError', issues: parsed.error.flatten() }, 400);
   const result = await createQuickSplit(createDb(c.env), c.get('person').id, {
     clientId: parsed.data.clientId,
+    draftId: parsed.data.draftId,
     people: parsed.data.people.map((p) => ({
       name: p.name,
       isPayer: Boolean(p.isPayer),

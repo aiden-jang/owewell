@@ -6,10 +6,11 @@ import { settlementsApi } from './settlements';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { useAsyncScope } from './useAsyncScope';
+import { useQueuedPaymentReview } from './useQueuedPaymentReview';
 import {
   adoptWrites,
   drop,
-  enqueue,
+  queueDeleteUndo,
   flush,
   isConflict,
   isDelete,
@@ -24,6 +25,7 @@ import {
   withOutboxLock,
   type FlushResult,
   type QueuedDelete,
+  type QueuedSettlement,
   type QueuedWrite,
 } from './outbox';
 
@@ -33,7 +35,19 @@ import {
 function sendQueuedWrite(entry: QueuedWrite, ownerId: string): Promise<unknown> {
   switch (entry.kind) {
     case 'settlement':
-      return settlementsApi.record(entry.groupId, entry.payload, ownerId);
+      return settlementsApi.record(
+        entry.groupId,
+        {
+          ...entry.payload,
+          clientId: entry.payload.clientId ?? entry.clientId,
+          ...(entry.payload.suggestedVersion === undefined
+            ? entry.manual
+              ? { confirmedManual: true }
+              : { reviewRequired: true }
+            : {}),
+        },
+        ownerId,
+      );
     case 'edit':
       return expensesApi.update(
         entry.groupId,
@@ -77,6 +91,7 @@ export interface OutboxSync {
   pendingDeletes: QueuedDelete[];
   undoingDelete: string | null;
   undoDelete: (entry: QueuedDelete) => Promise<void>;
+  reviewPayment: (entry: QueuedSettlement) => Promise<void>;
   recover: () => Promise<void>;
   retry: () => Promise<void>;
   retryFailed: (entry: QueuedWrite) => Promise<void>;
@@ -110,6 +125,7 @@ export function useOutboxSync({
   // Held in refs so the callbacks can change every render without restarting the effect below.
   const changed = useRef(onChanged);
   changed.current = onChanged;
+  const reviewPayment = useQueuedPaymentReview(ownerId, () => changed.current());
   const queueChanged = useRef(onQueueChanged);
   queueChanged.current = onQueueChanged;
 
@@ -146,7 +162,9 @@ export function useOutboxSync({
 
         let expense;
         try {
-          expense = (await expensesApi.list(entry.groupId)).find((row) => row.id === entry.expenseId);
+          expense = (await expensesApi.list(entry.groupId, ownerId)).find(
+            (row) => row.id === entry.expenseId,
+          );
         } catch (error) {
           if (current()) {
             setPaused(pauseFor(error) ?? 'temporary');
@@ -286,7 +304,7 @@ export function useOutboxSync({
     try {
       await withOutboxLock(ownerId, async () => {
         // A disconnected delete may have landed. Persist the inverse before asking the server.
-        if (!enqueue({ ...entry, failure: undefined, kind: 'restore' })) {
+        if (!queueDeleteUndo(entry)) {
           toast.error(OUTBOX_STORAGE_ERROR);
           return;
         }
@@ -343,6 +361,7 @@ export function useOutboxSync({
     pendingDeletes,
     undoingDelete,
     undoDelete,
+    reviewPayment,
     retryFailed,
     discardFailed,
   };

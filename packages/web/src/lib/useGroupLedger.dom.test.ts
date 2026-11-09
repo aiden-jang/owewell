@@ -208,7 +208,7 @@ describe('loading', () => {
   it('fetches the whole ledger for the group it was given', async () => {
     const { result } = await open();
     await waitFor(() => expect(result.current.expenses).toHaveLength(1));
-    expect(get).toHaveBeenCalledWith('g1');
+    expect(get).toHaveBeenCalledWith('g1', undefined);
     expect(result.current.group).toBe(GROUP);
     expect(result.current.balances).toBe(BALANCES);
     expect(result.current.suggested).toEqual(SUGGESTED);
@@ -218,7 +218,7 @@ describe('loading', () => {
     const { result, rerender } = await open();
     await waitFor(() => expect(result.current.group).toBe(GROUP));
     rerender({ id: 'g2' });
-    await waitFor(() => expect(get).toHaveBeenCalledWith('g2'));
+    await waitFor(() => expect(get).toHaveBeenCalledWith('g2', undefined));
   });
 });
 

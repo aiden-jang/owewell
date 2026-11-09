@@ -4,12 +4,13 @@ export interface GroupCreateAttempt {
   clientId: string;
 }
 
-const key = 'owewell:group-create:v1';
+const groupKey = 'owewell:group-create:v1';
 
-export function rememberGroupCreate(
+export function rememberCreateAttempt(
   name: string,
   ownerId: string | undefined,
   current: GroupCreateAttempt | null,
+  key = groupKey,
 ): GroupCreateAttempt {
   let stored: GroupCreateAttempt | null = null;
   try {
@@ -35,7 +36,7 @@ export function rememberGroupCreate(
   return attempt;
 }
 
-export function finishGroupCreate(clientId: string): void {
+export function finishCreateAttempt(clientId: string, key = groupKey): void {
   try {
     const stored: GroupCreateAttempt | null = JSON.parse(sessionStorage.getItem(key) ?? 'null');
     if (stored?.clientId === clientId) sessionStorage.removeItem(key);

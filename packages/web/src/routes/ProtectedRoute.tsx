@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState';
 import { AppHeader } from '../components/AppHeader';
 import { Button } from '../components/Button';
 import { BrandMark } from '../components/BrandMark';
+import { OfflineDeleteRecovery } from '../components/OfflineDeleteRecovery';
 
 export function ProtectedRoute(): ReactNode {
   const { user, login, loading, sessionError, retrySession } = useAuth();
@@ -41,6 +42,7 @@ export function ProtectedRoute(): ReactNode {
             body="Your sign-in may still be valid. Wait a moment, then try again."
             action={<Button onClick={() => void retrySession()}>Try again</Button>}
           />
+          <OfflineDeleteRecovery />
           <Link
             to="/split"
             className="mt-4 block text-center text-sm font-medium text-accent hover:underline"
@@ -79,5 +81,5 @@ export function ProtectedRoute(): ReactNode {
       </div>
     );
   }
-  return <Outlet />;
+  return <Outlet key={user.id} />;
 }

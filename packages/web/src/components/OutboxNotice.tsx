@@ -2,19 +2,22 @@ import { loginUrl } from '@aidenjang/auth-client';
 import { formatMoney } from '@owewell/shared';
 import { Link } from 'react-router-dom';
 import { AUTH_ORIGIN } from '../lib/api';
-import { isCreate, isEdit, type QueuedWrite } from '../lib/outbox';
+import { isCreate, isEdit, needsPaymentReview, type QueuedWrite } from '../lib/outbox';
 import type { OutboxSync } from '../lib/useOutboxSync';
+import { PendingDeletionList } from './PendingDeletionList';
 
 export function OutboxNotice({
   count,
   waitingMessage,
   sync,
   onCorrect,
+  groupName,
 }: {
   count: number;
   waitingMessage: string;
   sync: OutboxSync;
   onCorrect?: (entry: QueuedWrite) => void;
+  groupName?: ((groupId: string) => string | undefined) | undefined;
 }) {
   const { paused, syncing, retry, unassigned, recover, failed, retryFailed, discardFailed } = sync;
   if (!count && !unassigned && !failed.length) return null;
@@ -57,26 +60,12 @@ export function OutboxNotice({
                   : 'Retry sync'}
           </button>
         ))}
-      {sync.pendingDeletes.length > 0 && (
-        <ul aria-label="Pending deletions" className="w-full divide-y divide-line border-t border-line">
-          {sync.pendingDeletes.map((entry) => (
-            <li key={entry.clientId} className="flex flex-wrap items-center justify-between gap-x-3">
-              <span className="min-w-0 py-1 [overflow-wrap:anywhere]">
-                <span className="font-medium text-ink">{entry.description}</span> is waiting to be deleted.
-              </span>
-              <button
-                type="button"
-                disabled={sync.undoingDelete !== null}
-                onClick={() => void sync.undoDelete(entry)}
-                className="tap inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4 hover:text-ink disabled:opacity-60"
-                aria-label={`Undo deletion of ${entry.description}`}
-              >
-                {sync.undoingDelete === entry.clientId ? 'Undoing…' : 'Undo deletion'}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <PendingDeletionList
+        entries={sync.pendingDeletes}
+        undo={sync.undoDelete}
+        busy={sync.undoingDelete}
+        {...(groupName ? { groupName } : {})}
+      />
       {unassigned > 0 && (
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
           <p>
@@ -126,7 +115,16 @@ export function OutboxNotice({
                       Open group
                     </Link>
                   )}
-                  {entry.failureCode !== 'STALE_SUGGESTION' && (
+                  {needsPaymentReview(entry) ? (
+                    <button
+                      type="button"
+                      disabled={syncing}
+                      onClick={() => void sync.reviewPayment(entry)}
+                      className="tap inline-flex min-h-11 items-center font-medium text-accent underline disabled:opacity-60"
+                    >
+                      Review payment
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       disabled={syncing}

@@ -1,4 +1,4 @@
-import { and, eq, isNull, notInArray } from 'drizzle-orm';
+import { and, eq, notExists } from 'drizzle-orm';
 import type { AuthUser } from '@aidenjang/auth-client';
 import type { DB } from './db/client.js';
 import {
@@ -60,25 +60,38 @@ export async function getOrCreatePerson(db: DB, authUser: AuthUser): Promise<Per
 }
 
 /** Delete only unreferenced placeholders. Retained ledger history still owns its people. */
-export async function pruneOrphanPlaceholders(db: DB): Promise<void> {
-  const referenced = new Set<string>();
-  const collect = (rows: { id: string | null }[]): void => {
-    for (const r of rows) if (r.id) referenced.add(r.id);
-  };
-  const [members, payers, splits, itemPayers, shares, settleFrom, settleTo] = await Promise.all([
-    db.selectDistinct({ id: groupMembers.personId }).from(groupMembers),
-    db.selectDistinct({ id: expenses.payerId }).from(expenses),
-    db.selectDistinct({ id: expenseSplits.personId }).from(expenseSplits),
-    db.selectDistinct({ id: expenseItems.payerId }).from(expenseItems),
-    db.selectDistinct({ id: expenseItemShares.personId }).from(expenseItemShares),
-    db.selectDistinct({ id: settlements.fromPersonId }).from(settlements),
-    db.selectDistinct({ id: settlements.toPersonId }).from(settlements),
-  ]);
-  [members, payers, splits, itemPayers, shares, settleFrom, settleTo].forEach(collect);
-
-  const keepIds = [...referenced];
-  const base = and(eq(people.isPlaceholder, true));
-  await db
+export function pruneOrphanPlaceholders(db: DB, onlyId?: string) {
+  return db
     .delete(people)
-    .where(keepIds.length ? and(base, notInArray(people.id, keepIds)) : and(base, isNull(people.authUserId)));
+    .where(
+      and(
+        eq(people.isPlaceholder, true),
+        onlyId ? eq(people.id, onlyId) : undefined,
+        notExists(
+          db.select({ id: groupMembers.id }).from(groupMembers).where(eq(groupMembers.personId, people.id)),
+        ),
+        notExists(db.select({ id: expenses.id }).from(expenses).where(eq(expenses.payerId, people.id))),
+        notExists(
+          db
+            .select({ id: expenseSplits.id })
+            .from(expenseSplits)
+            .where(eq(expenseSplits.personId, people.id)),
+        ),
+        notExists(
+          db.select({ id: expenseItems.id }).from(expenseItems).where(eq(expenseItems.payerId, people.id)),
+        ),
+        notExists(
+          db
+            .select({ id: expenseItemShares.id })
+            .from(expenseItemShares)
+            .where(eq(expenseItemShares.personId, people.id)),
+        ),
+        notExists(
+          db.select({ id: settlements.id }).from(settlements).where(eq(settlements.fromPersonId, people.id)),
+        ),
+        notExists(
+          db.select({ id: settlements.id }).from(settlements).where(eq(settlements.toPersonId, people.id)),
+        ),
+      ),
+    );
 }

@@ -12,11 +12,12 @@ import {
   settlements,
 } from './db/schema.js';
 import type { BatchItem } from 'drizzle-orm/batch';
-import { simplifyDebts } from '@owewell/shared';
+import { participantLabels, simplifyDebts } from '@owewell/shared';
 import { computeBalances } from './balances.js';
 import { mintShareToken } from './shareToken.js';
 import { pruneOrphanPlaceholders } from './people.js';
 import { GroupError, requireMembership, requireOwner } from './groups.js';
+import { groupWriteGuard } from './groupWriteGuard.js';
 
 // Read-only summaries and placeholder claims are authorized by the share token.
 
@@ -29,7 +30,13 @@ export interface SharedGroupSummary {
   totalSpentCents: number;
   perPersonCents: number;
   totalSettledCents: number;
-  members: { userId: string; displayName: string; netCents: number; isPlaceholder: boolean }[];
+  members: {
+    userId: string;
+    displayName: string;
+    netCents: number;
+    isPlaceholder: boolean;
+    former?: boolean;
+  }[];
   suggested: { fromName: string; toName: string; amountCents: number }[];
   breakdown: { category: string; cents: number }[];
 }
@@ -77,7 +84,7 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
   if (!g) return null;
 
   const balances = await computeBalances(db, g.id);
-  const nameByPerson = new Map(balances.map((b) => [b.userId, b.displayName]));
+  const nameByPerson = participantLabels(balances);
   const suggested = simplifyDebts(balances.map((b) => ({ userId: b.userId, netCents: b.netCents }))).map(
     (t) => ({
       fromName: nameByPerson.get(t.fromUserId) ?? 'Someone',
@@ -131,7 +138,8 @@ export async function getSharedSummary(db: DB, token: string): Promise<SharedGro
       userId: b.userId,
       displayName: b.displayName,
       netCents: b.netCents,
-      isPlaceholder: isPlaceholderById.get(b.userId) ?? false,
+      isPlaceholder: !b.former && (isPlaceholderById.get(b.userId) ?? false),
+      ...(b.former ? { former: true } : {}),
     })),
     suggested,
     breakdown,
@@ -150,7 +158,11 @@ export async function claimPlaceholder(
   token: string,
   placeholderId: string,
 ): Promise<{ groupId: string }> {
-  const g = await db.select({ id: groups.id }).from(groups).where(eq(groups.shareToken, token)).get();
+  const g = await db
+    .select({ id: groups.id, version: groups.ledgerVersion })
+    .from(groups)
+    .where(eq(groups.shareToken, token))
+    .get();
   if (!g) throw new GroupError('NOT_FOUND', 'This share link is not valid.');
   const groupId = g.id;
 
@@ -309,11 +321,25 @@ export async function claimPlaceholder(
       .where(and(eq(settlements.groupId, groupId), eq(settlements.toPersonId, placeholderId))),
   );
 
-  // D1 runs a batch as one implicit transaction, so a failure anywhere rolls the whole merge back and
-  // the group is left consistent (seat and money both still on the placeholder) rather than split.
-  await db.batch(writes as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  try {
+    const [guard] = await db.batch([
+      groupWriteGuard(db, groupId, g.version, eq(groups.shareToken, token)),
+      ...writes,
+      pruneOrphanPlaceholders(db, placeholderId),
+    ]);
+    if (!guard.length) throw new GroupError('NOT_FOUND', 'This group no longer exists.');
+  } catch (error) {
+    const latest = await db
+      .select({ version: groups.ledgerVersion, token: groups.shareToken })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .get();
+    if (!latest || latest.token !== token) throw new GroupError('NOT_FOUND', 'This share link is not valid.');
+    if (latest.version !== g.version) {
+      throw new GroupError('LEDGER_CHANGED', 'The group changed. Review the available spots and try again.');
+    }
+    throw error;
+  }
 
-  // The placeholder is now unreferenced; clean it up.
-  await pruneOrphanPlaceholders(db);
   return { groupId };
 }

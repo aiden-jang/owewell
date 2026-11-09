@@ -22,7 +22,12 @@ export const handleApiError: ErrorHandler<{ Bindings: Env; Variables: { person: 
     return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof SettlementError) {
-    const status = err.code === 'NOT_FOUND' ? 404 : err.code === 'STALE_SUGGESTION' ? 409 : 422;
+    const status =
+      err.code === 'NOT_FOUND'
+        ? 404
+        : ['STALE_SUGGESTION', 'LEGACY_PAYMENT_REVIEW'].includes(err.code)
+          ? 409
+          : 422;
     return c.json({ error: err.code, message: err.message }, status);
   }
   if (err instanceof QuickSplitError) {

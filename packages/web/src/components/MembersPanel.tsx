@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { Balance, GroupMember } from '../lib/groups';
-import { formatMoney as fmt } from '@owewell/shared';
+import { formatMoney as fmt, participantLabels } from '@owewell/shared';
 import { balanceLabel, RowAction } from './MemberRowParts';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
@@ -134,6 +134,8 @@ export function MembersPanel({
     }
   }
 
+  const names = participantLabels(members);
+
   return (
     /* No heading: the sheet's own title already says "Members". */
     <section>
@@ -261,7 +263,7 @@ export function MembersPanel({
                        */}
                       <span className="flex items-baseline gap-1.5">
                         <span className="min-w-0 break-words [overflow-wrap:anywhere] font-medium">
-                          {member.displayName}
+                          {names.get(member.userId) ?? member.displayName}
                         </span>
                         {member.role === 'OWNER' && (
                           <span className="shrink-0 text-2xs text-faint">owner</span>
@@ -365,6 +367,11 @@ export function MembersPanel({
           Added someone by name? Use <span className="font-medium text-ink">Invite</span> up top for a link
           they can use to sign in and claim their spot.
         </p>
+        {hasActivity && !paymentsRecorded && (
+          <p className="mt-1 text-xs text-muted">
+            Adding someone includes them in open expenses shared by everyone.
+          </p>
+        )}
         {isOwner && paymentsRecorded && (
           <p className="mt-1 text-xs text-faint">
             Members can&rsquo;t be removed once a payment has been recorded.

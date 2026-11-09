@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@owewell/core';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/Confirm';
+import { finishCreateAttempt, rememberCreateAttempt, type GroupCreateAttempt } from './groupCreateAttempt';
 import type { PaymentHandles } from '../components/MembersPanel';
 import { groupsApi, type Balance } from './groups';
 import { expensesApi } from './expenses';
@@ -44,6 +45,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   const confirm = useConfirm();
   const [settling, setSettling] = useState(false);
   const recording = useRef(false);
+  const addingMember = useRef<GroupCreateAttempt | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<SettlementReceiptData | null>(null);
 
   async function newShareLink(): Promise<void> {
@@ -157,6 +159,9 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
       expenseId,
       description: removed.description,
       expectedVersion: removed.version,
+      ...(group ? { groupName: group.name } : {}),
+      amountCents: removed.amountCents,
+      date: removed.date,
       queuedAt: Date.now(),
     };
     const undo = { label: 'Undo', onClick: () => void outboxSync.undoDelete(entry) };
@@ -184,7 +189,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   async function toggleArchive(): Promise<void> {
     if (!group) return;
     try {
-      const updated = await groupsApi.setArchived(id, !group.archived);
+      const updated = await groupsApi.setArchived(id, !group.archived, ownerId);
       setGroup(updated);
       toast.success(updated.archived ? 'Group archived.' : 'Group restored.');
     } catch (err) {
@@ -201,7 +206,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     });
     if (!ok) return;
     try {
-      await settlementsApi.remove(id, settlementId);
+      await settlementsApi.remove(id, settlementId, ownerId);
       await refreshLedger();
       toast.success('Payment undone.');
     } catch {
@@ -211,7 +216,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
 
   async function renameGroup(name: string): Promise<void> {
     try {
-      setGroup(await groupsApi.rename(id, name));
+      setGroup(await groupsApi.rename(id, name, ownerId));
       toast.success('Renamed.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not rename the group.');
@@ -228,7 +233,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     });
     if (!ok) return;
     try {
-      await groupsApi.remove(id);
+      await groupsApi.remove(id, ownerId);
       navigate('/');
     } catch {
       toast.error('Could not delete the group.');
@@ -249,7 +254,7 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
     });
     if (!ok) return;
     try {
-      await groupsApi.removeMember(id, targetUserId);
+      await groupsApi.removeMember(id, targetUserId, ownerId);
       await load();
       toast.success('Removed them from the group.');
     } catch (err) {
@@ -260,18 +265,28 @@ export function useGroupActions(id: string, ledger: GroupLedger, invite: InviteL
   }
 
   async function renameMember(memberId: string, name: string): Promise<void> {
-    await groupsApi.renameMember(id, memberId, name);
+    await groupsApi.renameMember(id, memberId, name, ownerId);
     await load();
   }
 
   async function saveMemberHandles(memberId: string, handles: PaymentHandles): Promise<void> {
-    await groupsApi.setPaymentHandles(id, memberId, handles);
+    await groupsApi.setPaymentHandles(id, memberId, handles, ownerId);
     await load();
     toast.success('Payment handles saved.');
   }
 
   async function addMember(name: string): Promise<void> {
-    await groupsApi.addPlaceholder(id, name);
+    const key = `owewell:member-add:${id}:${ownerId}:${name}`;
+    const attempt = rememberCreateAttempt(
+      name,
+      ownerId,
+      addingMember.current?.name === name ? addingMember.current : null,
+      key,
+    );
+    addingMember.current = attempt;
+    await groupsApi.addPlaceholder(id, attempt.name, ownerId, attempt.clientId);
+    finishCreateAttempt(attempt.clientId, key);
+    addingMember.current = null;
     await load();
     toast.success('Added them to the group.');
   }

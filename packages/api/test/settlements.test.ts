@@ -41,6 +41,18 @@ describe('settlements', () => {
     expect(await listSettlements(db, alice, groupId)).toEqual([first]);
   });
 
+  test('an older replay acknowledges the same saved attempt but holds an unknown one', async () => {
+    const payment = { fromUserId: bob, toUserId: alice, amountCents: 500, clientId: 'already-saved' };
+    const original = await recordSettlement(db, alice, groupId, payment);
+    await expect(recordSettlement(db, alice, groupId, { ...payment, reviewRequired: true })).resolves.toEqual(
+      original,
+    );
+    await expect(
+      recordSettlement(db, alice, groupId, { ...payment, clientId: 'unknown-attempt', reviewRequired: true }),
+    ).rejects.toMatchObject({ code: 'LEGACY_PAYMENT_REVIEW' });
+    expect(await listSettlements(db, alice, groupId)).toEqual([original]);
+  });
+
   test('a balance snapshot can be confirmed once, including concurrent writes and retries', async () => {
     await createExpense(db, alice, groupId, {
       description: 'Lunch',

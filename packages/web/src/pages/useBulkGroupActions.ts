@@ -7,6 +7,7 @@ export function useBulkGroupActions(
   selected: ReadonlySet<string>,
   setGroups: Dispatch<SetStateAction<GroupSummary[] | null>>,
   exitSelect: () => void,
+  ownerId?: string,
 ) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -18,8 +19,8 @@ export function useBulkGroupActions(
     try {
       const results = await Promise.allSettled(
         ids.map(async (id) => {
-          if (action === 'archive') await groupsApi.setArchived(id, true);
-          else await groupsApi.remove(id);
+          if (action === 'archive') await groupsApi.setArchived(id, true, ownerId);
+          else await groupsApi.remove(id, ownerId);
         }),
       );
       const updated = new Set(ids.filter((_, index) => results[index]?.status === 'fulfilled'));

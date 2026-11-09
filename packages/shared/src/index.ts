@@ -26,3 +26,4 @@ export {
   type CorrectionField,
   type ExpenseSnapshot,
 } from './corrections.js';
+export { participantLabels } from './participantLabels.js';

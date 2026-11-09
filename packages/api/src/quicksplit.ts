@@ -1,6 +1,6 @@
 import { quickSplitSeed, type SplitMethod } from '@owewell/shared';
 import type { DB } from './db/client.js';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { insertStatements } from './db/rows.js';
 import { groups, groupMembers, people, expenses, expenseSplits } from './db/schema.js';
 import { planExpenseCreate } from './expenseCreate.js';
@@ -38,6 +38,7 @@ export interface QuickSplitInput {
   people: QuickSplitPerson[];
   items: QuickSplitItem[];
   clientId?: string | undefined;
+  draftId?: string | undefined;
 }
 
 /** Build the computeSplit participants for one item, aligning values to the shared people order. */
@@ -72,15 +73,36 @@ export async function createQuickSplit(
     throw new QuickSplitError('NO_ITEMS', 'Add at least one item.');
   }
 
-  const clientId = input.clientId;
-  const findSaved = () =>
-    clientId
+  const { clientId, draftId } = input;
+  const findByDraft = () =>
+    draftId
       ? db
           .select({ groupId: groups.id })
           .from(groups)
-          .where(and(eq(groups.createdById, personId), eq(groups.quickSplitClientId, clientId)))
+          .where(and(eq(groups.createdById, personId), eq(groups.quickSplitDraftId, draftId)))
           .get()
       : undefined;
+  const findSaved = async () => {
+    const draft = await findByDraft();
+    if (draft || !clientId) return draft;
+    const saved = await db
+      .select({ groupId: groups.id })
+      .from(groups)
+      .where(and(eq(groups.createdById, personId), eq(groups.quickSplitClientId, clientId)))
+      .get();
+    if (!saved || !draftId) return saved;
+    try {
+      await db
+        .update(groups)
+        .set({ quickSplitDraftId: draftId })
+        .where(and(eq(groups.id, saved.groupId), isNull(groups.quickSplitDraftId)));
+      return saved;
+    } catch (error) {
+      const linked = await findByDraft();
+      if (linked) return linked;
+      throw error;
+    }
+  };
   const saved = await findSaved();
   if (saved) return saved;
 
@@ -115,6 +137,7 @@ export async function createQuickSplit(
         name: input.items[0]!.description.trim() || 'Quick split',
         createdById: personId,
         quickSplitClientId: clientId ?? null,
+        quickSplitDraftId: draftId ?? null,
       }),
       ...insertStatements(
         db,

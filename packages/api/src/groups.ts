@@ -22,7 +22,8 @@ export type GroupErrorCode =
   | 'CANNOT_REMOVE_OWNER'
   | 'NOT_PLACEHOLDER'
   | 'NOT_EDITABLE'
-  | 'HAS_ACTIVITY';
+  | 'HAS_ACTIVITY'
+  | 'LEDGER_CHANGED';
 
 export class GroupError extends Error {
   constructor(
@@ -134,7 +135,6 @@ export async function getGroup(db: DB, personId: string, groupId: string): Promi
   await requireMembership(db, personId, groupId);
   const g = await db.select().from(groups).where(eq(groups.id, groupId)).get();
   if (!g) throw new GroupError('NOT_FOUND', 'Group not found.');
-  // `archived` is the caller's own view (personal hide), not a group-wide state.
   const mine = await db
     .select({ archivedAt: groupMembers.archivedAt })
     .from(groupMembers)

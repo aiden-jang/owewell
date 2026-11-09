@@ -13,6 +13,7 @@ import {
   quickSplitApi,
   readPendingSplit,
   stashPendingSplit,
+  splitSaveId,
   withPendingSplitLock,
   type PendingSplit,
 } from './quicksplit';
@@ -60,18 +61,6 @@ function splitPayload(draft: QuickSplitInput, payerId: string, youId: string): P
   };
 }
 
-async function splitSaveId(draft: QuickSplitInput, payload: PendingSplit): Promise<string> {
-  // Row IDs identify this bill even after another tab clears its draft from storage.
-  const input = JSON.stringify([
-    draft.people.map((person) => person.id),
-    draft.items.map((item) => item.id),
-    payload.people,
-    payload.items,
-  ]);
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 export function useSaveQuickSplit(
   setError: (message: string | null) => void,
   persistDraft: (draft: QuickSplitInput) => string | null,
@@ -99,7 +88,8 @@ export function useSaveQuickSplit(
             ({ split }) => !split.ownerId || split.ownerId === payload.ownerId,
           )
         : undefined;
-      const pending = preparePendingSplit(payload, previous?.split, await splitSaveId(draft, payload));
+      payload.draftId = await splitSaveId(draft, payload);
+      const pending = preparePendingSplit(payload, previous?.split, payload.draftId);
       await withPendingSplitLock(pending.clientId, async () => {
         if (!current()) return;
         const stored = readPendingSplit(pending.clientId)?.split;

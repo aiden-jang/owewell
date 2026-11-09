@@ -28,7 +28,7 @@ export interface InviteLink {
   revoke: () => Promise<void>;
 }
 
-export function useInviteLink(group: GroupDetail | null): InviteLink {
+export function useInviteLink(group: GroupDetail | null, ownerId?: string): InviteLink {
   const toast = useToast();
   const [link, setLink] = useState<string | null>(null);
   const [revoked, setRevoked] = useState(false);
@@ -67,9 +67,9 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
   }, [groupId, group?.shareDisabled, serverToken, needsPeople]);
   const mint = useCallback(async (): Promise<string | null> => {
     if (!groupId) return null;
-    const token = await groupsApi.createShareLink(groupId);
+    const token = await groupsApi.createShareLink(groupId, ownerId);
     return `${window.location.origin}/s/${token}`;
-  }, [groupId]);
+  }, [groupId, ownerId]);
 
   // Fetched on its own when the group needs people, so the block has something to show without
   // waiting for a tap. Gated on needsPeople because minting is a write; see the note above.
@@ -96,7 +96,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
     try {
       url =
         sharingOff && groupId
-          ? `${window.location.origin}/s/${await groupsApi.rotateShare(groupId)}`
+          ? `${window.location.origin}/s/${await groupsApi.rotateShare(groupId, ownerId)}`
           : await mint();
     } catch (error) {
       if (current())
@@ -124,7 +124,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
         /* dismissed */
       }
     }
-  }, [group?.name, groupId, mint, sharingOff, toast, begin]);
+  }, [group?.name, groupId, ownerId, mint, sharingOff, toast, begin]);
 
   const changeLink = useCallback(
     async (turnOff: boolean): Promise<void> => {
@@ -137,8 +137,8 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
       setCopied(false);
       try {
         let token: string | null = null;
-        if (turnOff) await groupsApi.revokeShare(groupId);
-        else token = await groupsApi.rotateShare(groupId);
+        if (turnOff) await groupsApi.revokeShare(groupId, ownerId);
+        else token = await groupsApi.rotateShare(groupId, ownerId);
         if (!current()) return;
         setRevoked(turnOff);
         setLink(token ? `${window.location.origin}/s/${token}` : null);
@@ -156,7 +156,7 @@ export function useInviteLink(group: GroupDetail | null): InviteLink {
         }
       }
     },
-    [groupId, toast, begin],
+    [groupId, ownerId, toast, begin],
   );
 
   const copy = useCallback(async (): Promise<void> => {

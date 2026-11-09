@@ -4,7 +4,7 @@ import { createGroup, getGroup } from '../src/groups.js';
 import { claimPlaceholder, getOrCreateShareToken } from '../src/sharing.js';
 import { addPlaceholderMember } from '../src/members.js';
 import { createExpense, getBalances } from '../src/expenses.js';
-import { getSuggestedPayments } from '../src/settlements.js';
+import { getSuggestedPayments, recordSettlement } from '../src/settlements.js';
 import { expenseSplits, groupMembers } from '../src/db/schema.js';
 import { testDb, seedPerson } from './helpers.js';
 
@@ -73,6 +73,14 @@ describe('a person with money and no seat', () => {
     const suggested = await getSuggestedPayments(db, alice, groupId);
     expect(suggested).toHaveLength(1);
     expect(suggested[0]).toMatchObject({ fromUserId: ghost, toUserId: alice, amountCents: 1925 });
+    const payment = await recordSettlement(db, alice, groupId, {
+      fromUserId: ghost,
+      toUserId: alice,
+      amountCents: 1925,
+      method: 'cash',
+    });
+    expect(payment).toMatchObject({ fromUserId: ghost, toUserId: alice, amountCents: 1925 });
+    expect((await getBalances(db, alice, groupId)).every((balance) => balance.netCents === 0)).toBe(true);
   });
 });
 

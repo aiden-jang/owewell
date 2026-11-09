@@ -35,10 +35,12 @@ export const groups = sqliteTable(
     shareDisabled: integer('share_disabled', { mode: 'boolean' }).notNull().default(false),
     createClientId: text('create_client_id'),
     quickSplitClientId: text('quick_split_client_id'),
+    quickSplitDraftId: text('quick_split_draft_id'),
     ledgerVersion: integer('ledger_version').notNull().default(0),
   },
   (t) => ({
     quickSplitAttempt: uniqueIndex('groups_quick_split_attempt').on(t.createdById, t.quickSplitClientId),
+    quickSplitDraft: uniqueIndex('groups_quick_split_draft').on(t.createdById, t.quickSplitDraftId),
     createAttempt: uniqueIndex('groups_create_attempt').on(t.createdById, t.createClientId),
   }),
 );
@@ -59,9 +61,11 @@ export const groupMembers = sqliteTable(
       .default(sql`(unixepoch())`),
     // Per-member "hide from my list". Null = active in this member's view. Personal, not global.
     archivedAt: integer('archived_at', { mode: 'timestamp' }),
+    addClientId: text('add_client_id'),
   },
   (t) => ({
     groupPerson: uniqueIndex('gm_group_person').on(t.groupId, t.personId),
+    addAttempt: uniqueIndex('gm_add_attempt').on(t.groupId, t.addClientId),
     byPerson: index('gm_person').on(t.personId),
   }),
 );

@@ -18,8 +18,8 @@ function deletionPath(
 export type { CreateExpensePayload, CreateItemizedPayload, Expense, SplitMethod } from '@owewell/core';
 
 export const expensesApi = {
-  list: (groupId: string): Promise<Expense[]> =>
-    api.get<{ expenses: Expense[] }>(`/groups/${groupId}/expenses`).then((r) => r.expenses),
+  list: (groupId: string, actorId?: string): Promise<Expense[]> =>
+    api.get<{ expenses: Expense[] }>(`/groups/${groupId}/expenses`, actorId).then((r) => r.expenses),
   create: (groupId: string, payload: CreateExpensePayload, actorId?: string): Promise<Expense> =>
     api.post<{ expense: Expense }>(`/groups/${groupId}/expenses`, payload, actorId).then((r) => r.expense),
   update: (

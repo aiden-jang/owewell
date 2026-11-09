@@ -1,7 +1,7 @@
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { formatMoney as fmt, type MoneyFormatter } from '@owewell/shared';
+import { formatMoney as fmt, participantLabels, type MoneyFormatter } from '@owewell/shared';
 import type { SharedGroupSummary } from '@owewell/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
@@ -37,7 +37,8 @@ export function SharedGroupPage(): ReactNode {
 
 function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
   const { user, login, loading, sessionError } = useAuth();
-  const { begin, captureScope } = useAsyncScope();
+  const { begin } = useAsyncScope();
+  const { captureScope } = useAsyncScope(user?.id);
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -46,8 +47,11 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
   usePageTitle(status === 'ready' && summary ? summary.groupName : 'Shared group');
   const [claiming, setClaiming] = useState<string | null>(null);
   const [expiredSeat, setExpiredSeat] = useState<string | null>(null);
-  const autoClaimed = useRef(false);
   const loadSummaryAfterClaim = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    setClaiming(null);
+    setExpiredSeat(null);
+  }, [user?.id]);
 
   const signInForSeat = useCallback(
     (seatId: string) => {
@@ -69,7 +73,7 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
       setClaiming(seatId);
       const current = captureScope();
       try {
-        const { groupId } = await groupsApi.claimSeat(token, seatId);
+        const { groupId } = await groupsApi.claimSeat(token, seatId, user.id);
         if (current()) navigate(`/groups/${groupId}`);
       } catch (err) {
         if (!current()) return;
@@ -106,7 +110,8 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
     ],
   );
 
-  const viewerIsMember = !!user && !!summary && summary.members.some((m) => m.userId === user.id);
+  const viewerIsMember =
+    !!user && !!summary && summary.members.some((m) => !m.former && m.userId === user.id);
   const hasOpenSeats = !!summary && summary.members.some((m) => m.isPlaceholder);
 
   const loadSummary = useCallback((): void => {
@@ -135,16 +140,13 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
     loadSummary();
   }, [loadSummary]);
 
-  // Returning from sign-in with ?claim=<seat>: finish the claim now and head to the group.
-  // Already-members go straight in. Within this page, a failed automatic claim can be retried by hand.
+  const requestedSeat = searchParams.get('claim');
+  const labels = participantLabels(summary?.members ?? []);
   useEffect(() => {
-    const seatId = searchParams.get('claim');
-    if (loading || sessionError || status !== 'ready' || !summary || !user || !seatId || autoClaimed.current)
-      return;
-    autoClaimed.current = true;
-    if (viewerIsMember) navigate(`/groups/${summary.groupId}`);
-    else void claimSeat(seatId);
-  }, [claimSeat, loading, navigate, searchParams, sessionError, status, summary, user, viewerIsMember]);
+    if (requestedSeat && status === 'ready' && viewerIsMember && summary) {
+      navigate(`/groups/${summary.groupId}`, { replace: true });
+    }
+  }, [navigate, requestedSeat, status, summary, viewerIsMember]);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -283,8 +285,14 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                       </button>
                     </p>
                   )}
+                  {requestedSeat && user && hasOpenSeats && !viewerIsMember && (
+                    <p className="mt-3 text-sm text-muted" role="status">
+                      Review the names and balances, then choose your spot to join this group.
+                    </p>
+                  )}
                   <ul className="mt-3 space-y-2">
-                    {summary.members.map((m, i) => {
+                    {summary.members.map((m) => {
+                      const name = labels.get(m.userId) ?? m.displayName;
                       const label = balanceLabel(
                         m.netCents,
                         summary.totalSpentCents > 0 || summary.totalSettledCents > 0,
@@ -293,13 +301,15 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                       const claimable = m.isPlaceholder && !viewerIsMember;
                       return (
                         <li
-                          key={i}
-                          className="surface flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                          key={m.userId}
+                          className={`surface flex items-center justify-between gap-3 rounded-xl px-4 py-3 ${
+                            requestedSeat === m.userId && claimable ? 'outline outline-accent' : ''
+                          }`}
                         >
                           <span className="flex min-w-0 flex-1 items-center gap-3">
                             <Avatar name={m.displayName} />
                             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                              <span className="font-medium [overflow-wrap:anywhere]">{m.displayName}</span>
+                              <span className="font-medium [overflow-wrap:anywhere]">{name}</span>
                               {label.text && (
                                 <span
                                   className={`tnum text-xs font-medium [overflow-wrap:anywhere] ${label.tone}`}
@@ -315,9 +325,7 @@ function SharedGroupView({ token }: { token: string | undefined }): ReactNode {
                               onClick={() => void claimSeat(m.userId)}
                               disabled={claiming !== null || loading || sessionError}
                               aria-label={
-                                claiming === m.userId
-                                  ? `Claiming ${m.displayName}’s spot`
-                                  : `This is me (${m.displayName})`
+                                claiming === m.userId ? `Claiming ${name}’s spot` : `This is me (${name})`
                               }
                               className="tap shrink-0 rounded-full border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
                             >

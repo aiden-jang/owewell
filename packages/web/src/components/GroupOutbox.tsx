@@ -77,6 +77,7 @@ export function GroupOutbox({
             : `${count} changes are waiting for a connection`
         }
         sync={sync}
+        groupName={() => group.name}
         onCorrect={(change) => {
           if (isCreate(change) || isEdit(change)) setEntry(change);
         }}

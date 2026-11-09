@@ -31,6 +31,9 @@ export interface QueuedDelete extends QueuedBase {
   kind: 'delete';
   expenseId: string;
   expectedVersion?: number;
+  groupName?: string;
+  amountCents?: number;
+  date?: string;
 }
 
 interface QueuedRestore extends QueuedBase {
@@ -52,6 +55,7 @@ export interface QueuedEdit extends QueuedBase {
 /** Appends rather than overwrites, so replaying it late can only duplicate — which the id prevents. */
 export interface QueuedSettlement extends QueuedBase {
   kind: 'settlement';
+  manual?: true;
   amountCents: number;
   payload: RecordSettlementPayload;
 }
@@ -59,6 +63,10 @@ export interface QueuedSettlement extends QueuedBase {
 export type QueuedWrite = QueuedCreate | QueuedDelete | QueuedRestore | QueuedEdit | QueuedSettlement;
 
 export const isSettlement = (entry: QueuedWrite): entry is QueuedSettlement => entry.kind === 'settlement';
+type PaymentReview = QueuedSettlement & { failureCode: 'STALE_SUGGESTION' | 'LEGACY_PAYMENT_REVIEW' };
+export const needsPaymentReview = (entry: QueuedWrite): entry is PaymentReview =>
+  isSettlement(entry) &&
+  (entry.failureCode === 'STALE_SUGGESTION' || entry.failureCode === 'LEGACY_PAYMENT_REVIEW');
 /** Everything that appears in the feed as a row waiting to be sent. */
 export const isPendingRow = (entry: QueuedWrite): entry is QueuedCreate | QueuedSettlement =>
   isCreate(entry) || isSettlement(entry);
@@ -150,6 +158,10 @@ export const OUTBOX_STORAGE_ERROR =
 export function enqueue(entry: QueuedWrite): boolean {
   const entries = read();
   return entries !== null && write([...entries.filter((e) => e.clientId !== entry.clientId), entry]);
+}
+
+export function queueDeleteUndo(entry: QueuedDelete): boolean {
+  return enqueue({ ...entry, failure: undefined, failureCode: undefined, kind: 'restore' });
 }
 
 export function drop(clientId: string): boolean {

@@ -235,9 +235,12 @@ describe('claiming a seat', () => {
 });
 
 describe('coming back from sign-in with ?claim=', () => {
-  it('finishes the claim without being asked twice', async () => {
+  it('asks the returning viewer to choose their spot before claiming it', async () => {
     currentUser = { id: 'u9', email: 'a@x.com', displayName: 'Aiden' };
-    await open('/s/tok?claim=u2');
+    const user = await open('/s/tok?claim=u2');
+    await screen.findByText(/review the names and balances/i);
+    expect(claimSeat).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'This is me (Bob)' }));
     await waitFor(() => expect(claimSeat).toHaveBeenCalledWith('tok', 'u2'));
     expect(claimSeat).toHaveBeenCalledTimes(1);
   });
@@ -249,7 +252,7 @@ describe('coming back from sign-in with ?claim=', () => {
   it('takes an existing member straight in instead of claiming again', async () => {
     currentUser = { id: 'u1', email: 'a@x.com', displayName: 'Alice' };
     await open('/s/tok?claim=u2');
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/groups/g1'));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/groups/g1', { replace: true }));
     expect(claimSeat).not.toHaveBeenCalled();
   });
 });

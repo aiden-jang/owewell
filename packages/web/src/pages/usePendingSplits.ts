@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
-import { clearQuickSplitDraft } from '../lib/quickSplitDraft';
+import { clearQuickSplitDraft, draftId, listQuickSplitDrafts } from '../lib/quickSplitDraft';
 import {
   clearPendingSplit,
   listPendingSplits,
@@ -10,6 +10,7 @@ import {
   quickSplitApi,
   readPendingSplit,
   stashPendingSplit,
+  splitSaveId,
   subscribeToPendingSplits,
   withPendingSplitLock,
   type SavedPendingSplit,
@@ -43,6 +44,10 @@ export function usePendingSplits(ownerId: string | undefined, resumeId: string |
       if (!latest || (latest.split.ownerId && latest.split.ownerId !== ownerId)) return;
       if (JSON.stringify(latest.split) !== JSON.stringify(record.split)) return;
       const split = preparePendingSplit({ ...latest.split, ownerId }, latest.split);
+      if (!split.draftId && split.draftRevision) {
+        const draft = listQuickSplitDrafts().find((value) => draftId(value) === split.draftRevision);
+        if (draft) split.draftId = await splitSaveId(draft, split);
+      }
       if (!stashPendingSplit(split)) throw new Error('Couldn’t keep this save on your device. Try again.');
       if (record.id === 'legacy') clearPendingSplit(latest);
       const { groupId } = await quickSplitApi.save(split);

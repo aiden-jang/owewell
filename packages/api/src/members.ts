@@ -1,6 +1,5 @@
-import { insertRows } from './db/rows.js';
 import { inIds } from './db/ids.js';
-import { allocateCents, computeItemizedSplit, computeSplit } from '@owewell/shared';
+import { allocateCents } from '@owewell/shared';
 import { and, count, eq, isNull, or } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { pruneOrphanPlaceholders } from './people.js';
@@ -15,7 +14,7 @@ import {
 } from './db/schema.js';
 import { GroupError, memberView, requireMembership, requireOwner, type GroupMemberView } from './groups.js';
 
-// Membership changes recompute affected splits. Token-authorized seat claims belong in groups.ts.
+export { addPlaceholderMember } from './addMember.js';
 
 /**
  * Rename a member. Only name-only placeholders can be renamed here; a real account owns its
@@ -109,138 +108,6 @@ export async function setPaymentHandles(
 
 /** Add newcomers only to EQUAL splits and itemized receipts previously shared by the whole group.
  * Subset, EXACT, PERCENT, and SHARES allocations remain unchanged. */
-async function replaceSplits(
-  db: DB,
-  expenseId: string,
-  shares: { userId: string; owedCents: number }[],
-): Promise<void> {
-  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-  await insertRows(
-    db,
-    expenseSplits,
-    shares.map((s) => ({ id: crypto.randomUUID(), expenseId, personId: s.userId, owedCents: s.owedCents })),
-  );
-}
-
-const sameSet = (ids: string[], set: Set<string>): boolean =>
-  ids.length === set.size && ids.every((id) => set.has(id));
-
-/** Internal: the roster changed, so everybody's share of the shared expenses did too. */
-async function resplitSharedExpenses(
-  db: DB,
-  groupId: string,
-  priorMemberIds: string[],
-  newMemberId: string,
-): Promise<void> {
-  if (priorMemberIds.length === 0) return;
-  const priorSet = new Set(priorMemberIds);
-  const everyone = [...priorMemberIds, newMemberId];
-
-  const rows = await db
-    .select({
-      id: expenses.id,
-      amountCents: expenses.amountCents,
-      splitMethod: expenses.splitMethod,
-      taxCents: expenses.taxCents,
-      tipCents: expenses.tipCents,
-    })
-    .from(expenses)
-    .where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
-    .all();
-
-  for (const e of rows) {
-    if (e.splitMethod === 'EQUAL') {
-      const parts = (
-        await db
-          .select({ personId: expenseSplits.personId })
-          .from(expenseSplits)
-          .where(eq(expenseSplits.expenseId, e.id))
-          .all()
-      ).map((r) => r.personId);
-      if (!sameSet(parts, priorSet)) continue; // subset splits stay as-is
-      await replaceSplits(
-        db,
-        e.id,
-        computeSplit(
-          'EQUAL',
-          e.amountCents,
-          everyone.map((userId) => ({ userId })),
-          e.id,
-        ),
-      );
-    } else if (e.splitMethod === 'ITEMIZED') {
-      const itemRows = await db
-        .select({ id: expenseItems.id, amountCents: expenseItems.amountCents })
-        .from(expenseItems)
-        .where(eq(expenseItems.expenseId, e.id))
-        .all();
-      const shareRows = await db
-        .select({ itemId: expenseItemShares.itemId, personId: expenseItemShares.personId })
-        .from(expenseItemShares)
-        .where(
-          inIds(
-            expenseItemShares.itemId,
-            itemRows.map((i) => i.id),
-          ),
-        )
-        .all();
-      const partsByItem = new Map<string, string[]>();
-      for (const s of shareRows)
-        partsByItem.set(s.itemId, [...(partsByItem.get(s.itemId) ?? []), s.personId]);
-      // Only receipts where *every* item was shared by everyone.
-      if (!itemRows.every((i) => sameSet(partsByItem.get(i.id) ?? [], priorSet))) continue;
-      for (const i of itemRows) {
-        await db.insert(expenseItemShares).values({
-          id: crypto.randomUUID(),
-          itemId: i.id,
-          personId: newMemberId,
-        });
-      }
-      const shares = computeItemizedSplit({
-        items: itemRows.map((i) => ({ amountCents: i.amountCents, participantIds: everyone })),
-        taxCents: e.taxCents,
-        tipCents: e.tipCents,
-        seed: e.id,
-      });
-      await replaceSplits(db, e.id, shares);
-    }
-  }
-}
-
-/** Add a name-only person (no account) to the group, backed by a placeholder people row. */
-export async function addPlaceholderMember(
-  db: DB,
-  personId: string,
-  groupId: string,
-  name: string,
-): Promise<GroupMemberView> {
-  await requireMembership(db, personId, groupId);
-  const priorMemberIds = (
-    await db
-      .select({ id: groupMembers.personId })
-      .from(groupMembers)
-      .where(eq(groupMembers.groupId, groupId))
-      .all()
-  ).map((r) => r.id);
-  const newPersonId = crypto.randomUUID();
-  await db.insert(people).values({ id: newPersonId, displayName: name, isPlaceholder: true });
-  await db
-    .insert(groupMembers)
-    .values({ id: crypto.randomUUID(), groupId, personId: newPersonId, role: 'MEMBER' });
-  await resplitSharedExpenses(db, groupId, priorMemberIds, newPersonId);
-  return {
-    userId: newPersonId,
-    displayName: name,
-    email: null,
-    role: 'MEMBER',
-    joinedAt: new Date(),
-    isPlaceholder: true,
-    venmoHandle: null,
-    cashappCashtag: null,
-    paypalHandle: null,
-  };
-}
-
 /**
  * "Un-add" a member from the ledger: re-split each expense as if they were never a participant
  * (their owed share is redistributed across the remaining participants), and hand anything they

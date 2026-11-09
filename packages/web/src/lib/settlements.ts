@@ -1,6 +1,6 @@
 import type { RecordSettlementPayload, Settlement } from '@owewell/core';
 import { api } from './api';
-import { enqueue, isSettlement, queued } from './outbox';
+import { enqueue, isSettlement, needsPaymentReview, queued } from './outbox';
 
 // Re-export the shared contract so components can keep importing settlement types from here.
 export type { RecordSettlementPayload, Settlement, SuggestedPayment } from '@owewell/core';
@@ -37,6 +37,7 @@ export function hasQueuedPayment(
 ) {
   return queued(groupId, ownerId)
     .filter(isSettlement)
+    .filter((entry) => !needsPaymentReview(entry))
     .some(
       ({ payload }) =>
         payload.fromUserId === body.fromUserId &&
@@ -58,7 +59,11 @@ export function preparePayment(
   } catch {
     // In-memory identity still covers retries in this page when storage is blocked.
   }
-  return { ...body, clientId };
+  return {
+    ...body,
+    clientId,
+    ...(body.suggestedVersion === undefined ? { confirmedManual: true as const } : {}),
+  };
 }
 
 export function queuePayment(
@@ -72,6 +77,7 @@ export function queuePayment(
     groupId,
     ownerId,
     kind: 'settlement',
+    ...(payload.suggestedVersion === undefined ? { manual: true } : {}),
     description,
     amountCents: payload.amountCents,
     queuedAt: Date.now(),
@@ -91,8 +97,10 @@ function completePaymentAttempt(groupId: string, body: RecordSettlementPayload, 
 }
 
 export const settlementsApi = {
-  list: (groupId: string): Promise<Settlement[]> =>
-    api.get<{ settlements: Settlement[] }>(`/groups/${groupId}/settlements`).then((r) => r.settlements),
+  list: (groupId: string, actorId?: string): Promise<Settlement[]> =>
+    api
+      .get<{ settlements: Settlement[] }>(`/groups/${groupId}/settlements`, actorId)
+      .then((r) => r.settlements),
   record: async (groupId: string, body: RecordSettlementPayload, actorId?: string): Promise<Settlement> => {
     const { settlement } = await api.post<{ settlement: Settlement }>(
       `/groups/${groupId}/settlements`,
@@ -102,6 +110,6 @@ export const settlementsApi = {
     completePaymentAttempt(groupId, body, actorId);
     return settlement;
   },
-  remove: (groupId: string, settlementId: string): Promise<void> =>
-    api.del(`/groups/${groupId}/settlements/${settlementId}`).then(() => undefined),
+  remove: (groupId: string, settlementId: string, actorId?: string): Promise<void> =>
+    api.del(`/groups/${groupId}/settlements/${settlementId}`, actorId).then(() => undefined),
 };

@@ -46,7 +46,11 @@ async function request<T>(path: string, options: RequestInit = {}, actorId?: str
         : `Request failed (${res.status})`;
     throw new ApiError(
       res.status,
-      res.status === 401 ? 'Your sign-in expired. Sign in again, then retry.' : message,
+      res.status === 401
+        ? data && typeof data === 'object' && 'error' in data && data.error === 'ACCOUNT_CHANGED'
+          ? 'Your account changed in another tab. Reload this page before making changes.'
+          : 'Your sign-in expired. Sign in again, then retry.'
+        : message,
       data,
     );
   }
@@ -55,7 +59,7 @@ async function request<T>(path: string, options: RequestInit = {}, actorId?: str
 }
 
 export const api = {
-  get: <T>(path: string): Promise<T> => request<T>(path),
+  get: <T>(path: string, actorId?: string): Promise<T> => request<T>(path, {}, actorId),
   post: <T>(path: string, body?: unknown, actorId?: string): Promise<T> => {
     const init: RequestInit = { method: 'POST' };
     if (body !== undefined) {
@@ -63,12 +67,12 @@ export const api = {
     }
     return request<T>(path, init, actorId);
   },
-  patch: <T>(path: string, body?: unknown): Promise<T> => {
+  patch: <T>(path: string, body?: unknown, actorId?: string): Promise<T> => {
     const init: RequestInit = { method: 'PATCH' };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
     }
-    return request<T>(path, init);
+    return request<T>(path, init, actorId);
   },
   put: <T>(path: string, body?: unknown, actorId?: string): Promise<T> => {
     const init: RequestInit = { method: 'PUT' };

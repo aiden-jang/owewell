@@ -89,14 +89,14 @@ describe('which call each queued kind turns into', () => {
     await captured!(entry);
   };
 
-  it('sends a queued settlement to the settlements endpoint', async () => {
+  it('sends an older queued settlement to the review gate', async () => {
     await send({
       ...base,
       kind: 'settlement',
       amountCents: 500,
       payload: { x: 1 },
     } as unknown as QueuedWrite);
-    expect(record).toHaveBeenCalledWith('g1', { x: 1 }, 'u1');
+    expect(record).toHaveBeenCalledWith('g1', { x: 1, clientId: 'c1', reviewRequired: true }, 'u1');
   });
 
   it('sends a plain create to create, and an itemized one to createItemized', async () => {

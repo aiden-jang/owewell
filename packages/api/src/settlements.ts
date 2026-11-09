@@ -3,10 +3,11 @@ import type { PaymentMethod } from '@owewell/core';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
-import { getBalances } from './balances.js';
+import { computeBalances, getBalances } from './balances.js';
 import { groupMembers, groups, settlements } from './db/schema.js';
 
-export type SettlementErrorCode = 'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND' | 'STALE_SUGGESTION';
+export type SettlementErrorCode =
+  'INVALID_PARTICIPANT' | 'SAME_PARTY' | 'NOT_FOUND' | 'STALE_SUGGESTION' | 'LEGACY_PAYMENT_REVIEW';
 
 export class SettlementError extends Error {
   constructor(
@@ -43,6 +44,7 @@ export interface RecordSettlementInput {
   /** Client-chosen id, so a payment recorded offline and sent later is logged exactly once. */
   clientId?: string | undefined;
   suggestedVersion?: number | undefined;
+  reviewRequired?: true | undefined;
 }
 
 function settlementView(row: typeof settlements.$inferSelect): SettlementView {
@@ -79,6 +81,12 @@ export async function recordSettlement(
     if (already) return settlementView(already);
   }
 
+  if (input.reviewRequired) {
+    throw new SettlementError(
+      'LEGACY_PAYMENT_REVIEW',
+      'Review this older payment before sending it to the ledger.',
+    );
+  }
   if (input.fromUserId === input.toUserId) {
     throw new SettlementError('SAME_PARTY', 'A payment needs two different people.');
   }
@@ -89,7 +97,15 @@ export async function recordSettlement(
     .all();
   const ids = new Set(rows.map((r) => r.personId));
   if (!ids.has(input.fromUserId) || !ids.has(input.toUserId)) {
-    throw new SettlementError('INVALID_PARTICIPANT', 'Both people must be members of the group.');
+    for (const balance of await computeBalances(db, groupId)) {
+      if (balance.former && balance.netCents !== 0) ids.add(balance.userId);
+    }
+    if (!ids.has(input.fromUserId) || !ids.has(input.toUserId)) {
+      throw new SettlementError(
+        'INVALID_PARTICIPANT',
+        'Both people must be members of the group or appear in its ledger.',
+      );
+    }
   }
 
   const id = crypto.randomUUID();

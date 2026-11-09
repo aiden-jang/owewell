@@ -86,6 +86,7 @@ export interface GroupDetail {
 export interface Balance {
   userId: string;
   displayName: string;
+  former?: boolean;
   netCents: number;
   /** What they paid on bills, excluding settlements. */
   paidCents: number;
@@ -232,6 +233,8 @@ export interface RecordSettlementPayload {
   /** Client-chosen id, so a payment recorded offline and sent later is logged exactly once. */
   clientId?: string;
   suggestedVersion?: number;
+  reviewRequired?: true;
+  confirmedManual?: true;
 }
 
 export interface SuggestedPayment {
@@ -252,7 +255,13 @@ export interface SharedGroupSummary {
   perPersonCents: number;
   totalSettledCents: number;
   // isPlaceholder members are unclaimed seats a signed-in visitor can claim as their own.
-  members: { userId: string; displayName: string; netCents: number; isPlaceholder: boolean }[];
+  members: {
+    userId: string;
+    displayName: string;
+    netCents: number;
+    isPlaceholder: boolean;
+    former?: boolean;
+  }[];
   suggested: { fromName: string; toName: string; amountCents: number }[];
   breakdown: { category: string; cents: number }[];
 }

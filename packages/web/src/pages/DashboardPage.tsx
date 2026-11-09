@@ -22,7 +22,11 @@ import { usePendingSplits } from './usePendingSplits';
 import { queued } from '../lib/outbox';
 import { useOutboxSync } from '../lib/useOutboxSync';
 import { useAsyncScope } from '../lib/useAsyncScope';
-import { finishGroupCreate, rememberGroupCreate, type GroupCreateAttempt } from '../lib/groupCreateAttempt';
+import {
+  finishCreateAttempt,
+  rememberCreateAttempt,
+  type GroupCreateAttempt,
+} from '../lib/groupCreateAttempt';
 import { ApiError } from '../lib/api';
 
 export function DashboardPage(): ReactNode {
@@ -58,6 +62,7 @@ export function DashboardPage(): ReactNode {
     selected,
     applyGroupChange,
     exitSelect,
+    ownerId,
   );
 
   const outboxSync = useOutboxSync({
@@ -89,10 +94,10 @@ export function DashboardPage(): ReactNode {
     setCreating(true);
     setError(null);
     try {
-      const attempt = rememberGroupCreate(name.trim(), ownerId, createAttempt.current);
+      const attempt = rememberCreateAttempt(name.trim(), ownerId, createAttempt.current);
       createAttempt.current = attempt;
       const group = await groupsApi.create(attempt.name, attempt.clientId, ownerId);
-      finishGroupCreate(attempt.clientId);
+      finishCreateAttempt(attempt.clientId);
       createAttempt.current = null;
       if (!current()) return;
       applyGroupChange((prev) =>
@@ -170,6 +175,7 @@ export function DashboardPage(): ReactNode {
                   : `${waiting} changes are waiting for a connection`
               }
               sync={outboxSync}
+              groupName={(id) => groups?.find((group) => group.id === id)?.name}
             />
           </div>
         )}
@@ -232,7 +238,7 @@ export function DashboardPage(): ReactNode {
                   title="Couldn't load your groups."
                   body="Probably a hiccup on our end, not you."
                   action={
-                    <Button variant="secondary" onClick={loadGroups}>
+                    <Button variant="secondary" onClick={() => loadGroups()}>
                       Try again
                     </Button>
                   }

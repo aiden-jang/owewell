@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAsyncScope } from '../lib/useAsyncScope';
 import { loginUrl, logoutUrl, signupUrl } from '@aidenjang/auth-client';
 import { api, AUTH_ORIGIN } from '../lib/api';
+import { rememberLastAccount } from '../lib/lastAccount';
 
 export interface AuthUser {
   id: string;
@@ -34,24 +35,49 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
   const [sessionError, setSessionError] = useState(false);
   const { begin } = useAsyncScope();
 
-  const retrySession = useCallback(async () => {
-    const current = begin();
-    setLoading(true);
-    setSessionError(false);
-    try {
-      const res = await api.get<{ user: AuthUser | null; personId?: string }>('/me');
-      if (!current()) return;
-      // Ledger membership compares app-local person IDs rather than Accounts user IDs.
-      setUser(res.user ? { ...res.user, id: res.personId ?? res.user.id } : null);
-    } catch {
-      if (current()) setSessionError(true);
-    } finally {
-      if (current()) setLoading(false);
-    }
-  }, [begin]);
+  const checkSession = useCallback(
+    async (showLoading: boolean) => {
+      const current = begin();
+      if (showLoading) {
+        setLoading(true);
+        setSessionError(false);
+      }
+      try {
+        const res = await api.get<{ user: AuthUser | null; personId?: string }>('/me');
+        if (!current()) return;
+        // Ledger membership compares app-local person IDs rather than Accounts user IDs.
+        setSessionError(false);
+        const account = res.user ? { ...res.user, id: res.personId ?? res.user.id } : null;
+        rememberLastAccount(account?.id ?? null);
+        setUser((previous) =>
+          previous?.id === account?.id &&
+          previous?.displayName === account?.displayName &&
+          previous?.email === account?.email
+            ? previous
+            : account,
+        );
+      } catch {
+        if (current() && showLoading) setSessionError(true);
+      } finally {
+        if (current() && showLoading) setLoading(false);
+      }
+    },
+    [begin],
+  );
+  const retrySession = useCallback(() => checkSession(true), [checkSession]);
   useEffect(() => {
     void retrySession();
   }, [retrySession]);
+  useEffect(() => {
+    if (loading || sessionError) return;
+    const refresh = () => void checkSession(false);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
+  }, [checkSession, loading, sessionError]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -66,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
         window.location.assign(signupUrl(AUTH_ORIGIN, returnTo ?? here()));
       },
       logout: (returnTo?: string) => {
+        rememberLastAccount(null);
         window.location.assign(logoutUrl(AUTH_ORIGIN, returnTo ?? window.location.origin));
       },
       accountUrl: new URL('/account', AUTH_ORIGIN).toString(),

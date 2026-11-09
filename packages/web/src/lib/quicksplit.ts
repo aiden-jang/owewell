@@ -1,5 +1,6 @@
 import { api } from './api';
 import type { SplitMethod } from './expenses';
+import type { QuickSplitInput } from './quickSplitDraft';
 
 export interface PendingPerson {
   name: string;
@@ -22,6 +23,7 @@ export interface PendingSplit {
   clientId?: string;
   ownerId?: string;
   draftRevision?: string;
+  draftId?: string;
   people: PendingPerson[];
   items: PendingItem[];
 }
@@ -32,6 +34,23 @@ const PREFIX = `${KEY}:`;
 export interface SavedPendingSplit {
   id: string;
   split: PendingSplit;
+}
+
+export async function splitSaveId(draft: QuickSplitInput, payload: PendingSplit): Promise<string> {
+  const input = JSON.stringify([
+    draft.people.filter((person) => person.name.trim()).map((person) => person.id),
+    draft.items.filter((item) => item.amount.trim()).map((item) => item.id),
+    payload.people,
+    payload.items.map((item) => ({
+      description: item.description.trim() || 'Quick split',
+      amountCents: item.amountCents,
+      splitMethod: item.splitMethod,
+      values: payload.people.map((_, i) => item.values?.[i] ?? null),
+      ...(item.payerIndex === undefined ? {} : { payerIndex: item.payerIndex }),
+    })),
+  ]);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export function preparePendingSplit(

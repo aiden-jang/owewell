@@ -172,7 +172,7 @@ export function BalanceHero({
         )}
         {!hasActivity ? (
           <p className="mt-4 text-sm text-muted">Add an expense to get the tab going.</p>
-        ) : memberCount < 2 ? (
+        ) : memberCount < 2 && !balances.some((balance) => balance.former && balance.netCents !== 0) ? (
           <p className="mt-4 text-sm text-muted">Add someone else before you can log a payment.</p>
         ) : !groupSettled ? (
           <button

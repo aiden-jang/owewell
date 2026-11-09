@@ -1,4 +1,4 @@
-import { formatMoney as fmt } from '@owewell/shared';
+import { formatMoney as fmt, participantLabels } from '@owewell/shared';
 import { PrintRecap } from '../components/PrintRecap';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { GroupShell, GroupLoadingState } from '../components/GroupShell';
@@ -78,12 +78,12 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
 
   useEffect(() => {
     groupsApi
-      .list()
+      .list(user?.id)
       .then((gs) => setAllGroups(gs.filter((g) => !g.archived)))
       .catch(() => undefined);
-  }, []);
+  }, [user?.id]);
 
-  const invite = useInviteLink(group);
+  const invite = useInviteLink(group, user?.id);
   const {
     settling,
     paymentReceipt,
@@ -107,8 +107,9 @@ function GroupDetailContent({ id }: { id: string }): ReactNode {
     return <GroupLoadingState loadFailed={loadFailed} notFound={notFound} onRetry={() => void load()} />;
   }
 
+  const ledgerNames = participantLabels(balances);
   const nameOf = (userId: string): string =>
-    group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
+    ledgerNames.get(userId) ?? group.members.find((m) => m.userId === userId)?.displayName ?? 'Someone';
   const detailExpense = visibleExpenses.find((e) => e.id === detailExpenseId) ?? null;
   const isOwner = group.members.find((m) => m.userId === user?.id)?.role === 'OWNER';
   // You can be square while the group still has debts between others, so "all settled" is about the

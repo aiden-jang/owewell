@@ -16,7 +16,7 @@ import {
 import { useGroupRealtime } from '../hooks/useGroupRealtime';
 import { useOutboxSync, type OutboxSync } from './useOutboxSync';
 import { useToast } from '../components/Toast';
-import { namedTransfers } from '@owewell/shared';
+import { namedTransfers, participantLabels } from '@owewell/shared';
 
 // Keep optimistic updates narrow: confirmed balances are always computed by the server.
 
@@ -92,15 +92,16 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
     const current = begin();
     try {
       const [g, { balances: b, ledgerVersion }, e, st] = await Promise.all([
-        groupsApi.get(groupId),
-        groupsApi.balances(groupId),
-        expensesApi.list(groupId),
-        settlementsApi.list(groupId),
+        groupsApi.get(groupId, ownerId),
+        groupsApi.balances(groupId, ownerId),
+        expensesApi.list(groupId, ownerId),
+        settlementsApi.list(groupId, ownerId),
       ]);
       if (!belongs()) return null;
-      const s = namedTransfers(b).map((payment) =>
-        ledgerVersion === undefined ? payment : { ...payment, ledgerVersion },
-      );
+      const labels = participantLabels(b);
+      const s = namedTransfers(
+        b.map((person) => ({ ...person, displayName: labels.get(person.userId)! })),
+      ).map((payment) => (ledgerVersion === undefined ? payment : { ...payment, ledgerVersion }));
       if (current()) {
         hasLoaded.current = true;
         setGroup(g);
@@ -115,7 +116,7 @@ export function useGroupLedger(groupId: string, ownerId?: string): GroupLedger {
       if (current()) throw error;
       return null;
     }
-  }, [groupId, begin, captureScope]);
+  }, [groupId, ownerId, begin, captureScope]);
 
   const load = useCallback(async (): Promise<void> => {
     setNotFound(false);
