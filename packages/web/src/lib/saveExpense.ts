@@ -1,5 +1,6 @@
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
 import type { Expense } from './expenses';
+import type { ExpenseAttempt } from './expenseEditorDraft';
 import { enqueue, isOffline, OUTBOX_STORAGE_ERROR, type QueuedCreate, type QueuedEdit } from './outbox';
 
 type ExpensePayload = CreateExpensePayload | CreateItemizedPayload;
@@ -10,7 +11,8 @@ export type SaveOutcome =
 interface Args<P extends ExpensePayload> {
   groupId: string;
   ownerId?: string | undefined;
-  attempt: { current: { key: string; id: string } | null };
+  attempt: { current: ExpenseAttempt | null };
+  onAttempt?: () => void;
   editing: Expense | undefined;
   recoveryId?: string | undefined;
   /** Everything the server needs except the two fields this function owns. */
@@ -31,6 +33,7 @@ export async function saveExpense<P extends ExpensePayload>({
   groupId,
   ownerId,
   attempt,
+  onAttempt,
   editing,
   recoveryId,
   base,
@@ -44,6 +47,7 @@ export async function saveExpense<P extends ExpensePayload>({
   const key = JSON.stringify([groupId, ownerId, editing?.id, editing?.version, base]);
   const clientId = recoveryId ?? (attempt.current?.key === key ? attempt.current.id : crypto.randomUUID());
   attempt.current = { key, id: clientId };
+  onAttempt?.();
   // An edit says which version it was based on; a create has none to be based on.
   const versioned = editing ? { expectedVersion: editing.version } : {};
   const payload = { ...base, clientId, ...versioned } as P;

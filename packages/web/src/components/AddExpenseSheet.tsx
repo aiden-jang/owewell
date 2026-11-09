@@ -5,6 +5,11 @@ import { AddExpenseForm } from './AddExpenseForm';
 import { AddItemizedExpenseForm } from './AddItemizedExpenseForm';
 import type { Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
+import {
+  discardExpenseEditorDraft,
+  expenseEditorKey,
+  readExpenseEditorDraft,
+} from '../lib/expenseEditorDraft';
 
 // Preserve the chosen entry mode when the sheet closes.
 
@@ -38,17 +43,24 @@ export function AddExpenseSheet({
   /** It could not be sent, so it is in the outbox under this description. */
   onQueued: (description: string) => void;
 }): ReactNode {
-  const [mode, setMode] = useState<ExpenseMode>('simple');
+  const draftKey = expenseEditorKey(ownerId, groupId);
+  const [restored, setRestored] = useState(() => readExpenseEditorDraft(draftKey)?.input.mode);
+  const [mode, setMode] = useState<ExpenseMode>(restored ?? 'simple');
   const [saving, setSaving] = useState(false);
   const dirty = useRef(false);
   const confirm = useConfirm();
   useEffect(() => {
     if (!open) dirty.current = false;
   }, [open]);
+  function discard() {
+    discardExpenseEditorDraft(draftKey);
+    setRestored(undefined);
+    dirty.current = false;
+  }
   async function switchMode(option: ExpenseMode): Promise<void> {
     if (option === mode || saving) return;
     if (
-      dirty.current &&
+      (dirty.current || readExpenseEditorDraft(draftKey)) &&
       !(await confirm({
         title: 'Switch expense format?',
         body: 'This discards the unfinished entry. Nothing has been added to the group.',
@@ -57,23 +69,41 @@ export function AddExpenseSheet({
       }))
     )
       return;
-    dirty.current = false;
+    discard();
     setMode(option);
   }
 
   // The roster can update live. Keep the draft and its chosen participants in place.
   const formProps = {
-    key: `${groupId}-${mode}`,
     groupId,
     ownerId,
     members,
-    onCreated: (saved: Expense) => onCreated(saved, mode),
-    onQueued,
+    draftKey,
+    onCreated: (saved: Expense) => {
+      setRestored(undefined);
+      onCreated(saved, mode);
+    },
+    onQueued: (description: string) => {
+      setRestored(undefined);
+      onQueued(description);
+    },
     onPendingChange: setSaving,
   };
 
   return (
-    <Sheet key={mode} open={open} onClose={onClose} title="Add to the tab" autoFocusField protectChanges>
+    <Sheet
+      key={mode}
+      open={open}
+      onClose={() => {
+        discard();
+        onClose();
+      }}
+      onDiscard={discard}
+      restoredChanges={!!restored}
+      title="Add to the tab"
+      autoFocusField
+      protectChanges
+    >
       <div className="expense-mode mb-2.5 inline-flex w-full rounded-full border border-line bg-field p-1">
         {(['simple', 'itemized'] as const).map((option) => (
           <button
@@ -91,6 +121,11 @@ export function AddExpenseSheet({
         ))}
       </div>
       <p className="mb-4 text-xs text-muted">{BLURB[mode]}</p>
+      {restored && (
+        <p role="status" className="mb-3 text-sm text-muted">
+          Your unfinished expense is back.
+        </p>
+      )}
       <div
         onChangeCapture={() => {
           dirty.current = true;

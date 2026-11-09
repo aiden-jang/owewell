@@ -262,7 +262,7 @@ test('dashboard Undo identifies two older pending deletions by group', async ({ 
     })),
   );
   await page.goto('/');
-  const pending = page.getByRole('list', { name: 'Pending deletions' });
+  const pending = page.getByRole('list', { name: 'Pending and recent deletions' });
   await expect(
     pending.getByRole('button', { name: 'Undo deletion of Dinner in Dinner party', exact: true }),
   ).toBeVisible();

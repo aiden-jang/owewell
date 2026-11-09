@@ -1,5 +1,6 @@
 import type { CreateExpensePayload, CreateItemizedPayload, RecordSettlementPayload } from '@owewell/core';
 import { ApiError } from './api';
+import { forgetSyncedDeletion, recentDeletionsPrefix, rememberSyncedDeletion } from './recentDeletions';
 
 /*
  * Writes queued in localStorage when the network is missing, replayed later.
@@ -120,7 +121,7 @@ function write(entries: QueuedWrite[]): boolean {
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);
   const onStorage = (event: StorageEvent) => {
-    if (event.key === KEY || event.key === null) fn();
+    if (event.key === KEY || event.key?.startsWith(recentDeletionsPrefix) || event.key === null) fn();
   };
   window.addEventListener('storage', onStorage);
   return () => {
@@ -161,7 +162,9 @@ export function enqueue(entry: QueuedWrite): boolean {
 }
 
 export function queueDeleteUndo(entry: QueuedDelete): boolean {
-  return enqueue({ ...entry, failure: undefined, failureCode: undefined, kind: 'restore' });
+  const kept = enqueue({ ...entry, failure: undefined, failureCode: undefined, kind: 'restore' });
+  if (kept && entry.ownerId) forgetSyncedDeletion(entry.ownerId, entry.clientId);
+  return kept;
 }
 
 export function drop(clientId: string): boolean {
@@ -228,8 +231,9 @@ export async function flush(
       result.conflicted.push(entry);
       continue;
     }
+    let sent: unknown;
     try {
-      await send(entry);
+      sent = await send(entry);
     } catch (err) {
       if (isOffline(err)) return result;
       const paused = pauseFor(err);
@@ -247,6 +251,8 @@ export async function flush(
       }
       continue;
     }
+    if (isDelete(entry) && sent !== false && !rememberSyncedDeletion(entry))
+      return { ...result, paused: 'storage' };
     if (!drop(entry.clientId)) return { ...result, paused: 'storage' };
     result.sent += 1;
   }

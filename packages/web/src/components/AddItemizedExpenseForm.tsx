@@ -1,5 +1,5 @@
 import { SelectField } from './SelectField';
-import { useRef, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { formatMoney as fmt, dollarsToCents } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
@@ -16,6 +16,8 @@ import {
 } from './FormFields';
 import { useExpenseDraft } from '../lib/useExpenseDraft';
 import { saveExpense } from '../lib/saveExpense';
+import { readExpenseEditorDraft } from '../lib/expenseEditorDraft';
+import { useExpenseEditorRecovery } from '../lib/useExpenseEditorRecovery';
 
 function centsToInput(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -40,6 +42,7 @@ interface Props {
   /** Prefill a new receipt from an old one while keeping today as the date. */
   template?: Expense;
   recoveryId?: string;
+  draftKey?: string | undefined;
   /** Called instead of onCreated when the write could not leave the device and was queued. */
   onQueued?: (description: string) => void;
   onPendingChange?: (pending: boolean) => void;
@@ -55,8 +58,11 @@ export function AddItemizedExpenseForm({
   editing,
   template,
   recoveryId,
+  draftKey,
 }: Props): ReactNode {
-  const attempt = useRef<{ key: string; id: string } | null>(null);
+  const [stored] = useState(() => readExpenseEditorDraft(draftKey));
+  const restored = stored?.input.mode === 'itemized' ? stored : null;
+  const input = stored?.input.mode === 'itemized' ? stored.input : null;
   const {
     source,
     defaultPayer,
@@ -74,7 +80,7 @@ export function AddItemizedExpenseForm({
     setError,
     submitting,
     setSubmitting,
-  } = useExpenseDraft(members, editing, template, !!recoveryId);
+  } = useExpenseDraft(members, editing, template, !!recoveryId, restored?.fields);
   useEffect(() => {
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
@@ -91,9 +97,28 @@ export function AddItemizedExpenseForm({
           payerId: it.payerId && (recoveryId || memberIds.has(it.payerId)) ? it.payerId : defaultPayer,
         }))
       : [{ name: '', amount: '', participantIds: memberIds, payerId: defaultPayer }];
-  const [tax, setTax] = useState(source?.taxCents ? centsToInput(source.taxCents) : '');
-  const [tip, setTip] = useState(source?.tipCents ? centsToInput(source.tipCents) : '');
-  const [items, setItems] = useState<ItemDraft[]>(initialItems);
+  const [tax, setTax] = useState(input?.tax ?? (source?.taxCents ? centsToInput(source.taxCents) : ''));
+  const [tip, setTip] = useState(input?.tip ?? (source?.tipCents ? centsToInput(source.tipCents) : ''));
+  const [items, setItems] = useState<ItemDraft[]>(() =>
+    input
+      ? input.items.map((item) => ({ ...item, participantIds: new Set(item.participantIds) }))
+      : initialItems(),
+  );
+  const baseVersion = restored?.baseVersion ?? editing?.version;
+  const recovery = useExpenseEditorRecovery(
+    draftKey,
+    {
+      fields: { description, payerId, date, category, note },
+      input: {
+        mode: 'itemized',
+        tax,
+        tip,
+        items: items.map((item) => ({ ...item, participantIds: [...item.participantIds] })),
+      },
+      baseVersion,
+    },
+    restored,
+  );
 
   // Live receipt total (items + tax + tip) so you can check it against the printed total before
   // saving. Computed in integer cents to avoid float drift; blank/invalid fields count as 0.
@@ -188,8 +213,9 @@ export function AddItemizedExpenseForm({
       const outcome = await saveExpense({
         groupId,
         ownerId,
-        attempt,
-        editing,
+        attempt: recovery.attempt,
+        onAttempt: recovery.rememberAttempt,
+        editing: editing && baseVersion !== undefined ? { ...editing, version: baseVersion } : editing,
         recoveryId,
         base: {
           description: trimmedDescription,
@@ -212,6 +238,7 @@ export function AddItemizedExpenseForm({
         setError(outcome.message);
         return;
       }
+      recovery.finish();
       if (!editing) clearAfterCreate();
       if (outcome.status === 'queued') onQueued?.(trimmedDescription);
       else onCreated(outcome.expense);

@@ -1,9 +1,8 @@
 import { SelectField } from './SelectField';
-import { initialValues } from '../lib/expenseSplitHint';
 import { expenseSplitHint } from '../lib/expenseSplitHint';
-import { useRef, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, type FormEvent, type ReactNode } from 'react';
 import { ExpenseExtras } from './ExpenseExtras';
-import { readSplitPreference, writeSplitPreference } from '../lib/splitPreference';
+import { writeSplitPreference } from '../lib/splitPreference';
 import { DescriptionField, FormError, PayerSelect, SubmitButton, inputClass } from './FormFields';
 import {
   formatMoney as fmt,
@@ -16,7 +15,7 @@ import { expensesApi, type Expense } from '../lib/expenses';
 import { normalizeAmountInput } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
-import { useExpenseDraft } from '../lib/useExpenseDraft';
+import { useTotalExpenseDraft } from '../lib/useTotalExpenseDraft';
 import { saveExpense } from '../lib/saveExpense';
 
 interface Props {
@@ -30,6 +29,7 @@ interface Props {
   /** Prefill a new expense from an old one while keeping today as the date. */
   template?: Expense;
   recoveryId?: string;
+  draftKey?: string | undefined;
   /**
    * Called instead of onCreated when the write could not leave the device and was queued.
    *
@@ -50,8 +50,8 @@ export function AddExpenseForm({
   editing,
   template,
   recoveryId,
+  draftKey,
 }: Props): ReactNode {
-  const attempt = useRef<{ key: string; id: string } | null>(null);
   const symbol = currencySymbol();
   const {
     source,
@@ -69,32 +69,21 @@ export function AddExpenseForm({
     setError,
     submitting,
     setSubmitting,
-  } = useExpenseDraft(members, editing, template, !!recoveryId);
+    amount,
+    setAmount,
+    method,
+    setMethod,
+    selected,
+    setSelected,
+    values,
+    setValues,
+    baseVersion,
+    recovery,
+  } = useTotalExpenseDraft(groupId, members, editing, template, recoveryId, draftKey);
   useEffect(() => {
     onPendingChange?.(submitting);
     return () => onPendingChange?.(false);
   }, [submitting, onPendingChange]);
-  const [preference] = useState(() => readSplitPreference(groupId));
-  const remembered =
-    preference?.participants.filter((id) => members.some((member) => member.userId === id)) ?? [];
-  const [amount, setAmount] = useState(source ? (source.amountCents / 100).toFixed(2) : '');
-  const [method, setMethod] = useState<SplitMethod>(
-    source && source.splitMethod !== 'ITEMIZED' ? source.splitMethod : (preference?.method ?? 'EQUAL'),
-  );
-  const [selected, setSelected] = useState<Set<string>>(
-    source
-      ? new Set(
-          source.splits.map((s) => s.userId).filter((id) => members.some((member) => member.userId === id)),
-        )
-      : new Set(remembered.length ? remembered : members.map((m) => m.userId)),
-  );
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    source
-      ? initialValues(source)
-      : preference?.method === 'SHARES'
-        ? Object.fromEntries(members.map((member) => [member.userId, '1']))
-        : {},
-  );
 
   function clearAfterCreate(): void {
     setDescription('');
@@ -196,8 +185,9 @@ export function AddExpenseForm({
       const outcome = await saveExpense({
         groupId,
         ownerId,
-        attempt,
-        editing,
+        attempt: recovery.attempt,
+        onAttempt: recovery.rememberAttempt,
+        editing: editing && baseVersion !== undefined ? { ...editing, version: baseVersion } : editing,
         recoveryId,
         base: {
           description: trimmedDescription,
@@ -220,6 +210,7 @@ export function AddExpenseForm({
         setError(outcome.message);
         return;
       }
+      recovery.finish();
       if (!editing) {
         writeSplitPreference(
           groupId,

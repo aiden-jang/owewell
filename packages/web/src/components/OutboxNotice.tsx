@@ -20,7 +20,7 @@ export function OutboxNotice({
   groupName?: ((groupId: string) => string | undefined) | undefined;
 }) {
   const { paused, syncing, retry, unassigned, recover, failed, retryFailed, discardFailed } = sync;
-  if (!count && !unassigned && !failed.length) return null;
+  if (!count && !unassigned && !failed.length && !sync.undoableDeletions.length) return null;
   const message =
     paused === 'sign-in'
       ? 'Sign in again to send your waiting changes.'
@@ -61,7 +61,7 @@ export function OutboxNotice({
           </button>
         ))}
       <PendingDeletionList
-        entries={sync.pendingDeletes}
+        entries={sync.undoableDeletions}
         undo={sync.undoDelete}
         busy={sync.undoingDelete}
         {...(groupName ? { groupName } : {})}

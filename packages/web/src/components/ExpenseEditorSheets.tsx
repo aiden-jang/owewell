@@ -5,6 +5,11 @@ import { Sheet } from './Sheet';
 import { ExpenseDetail } from './ExpenseDetail';
 import { AddExpenseForm } from './AddExpenseForm';
 import { AddItemizedExpenseForm } from './AddItemizedExpenseForm';
+import {
+  discardExpenseEditorDraft,
+  expenseEditorKey,
+  readExpenseEditorDraft,
+} from '../lib/expenseEditorDraft';
 
 type Props = {
   group: GroupDetail;
@@ -28,7 +33,13 @@ export function ExpenseEditorSheets({
   onSaved,
   onQueued,
 }: Props) {
-  const [editor, setEditor] = useState<{ expense: Expense; mode: 'edit' | 'duplicate' } | null>(null);
+  const [editor, setEditor] = useState<{
+    expense: Expense;
+    mode: 'edit' | 'duplicate';
+    draftKey: string | undefined;
+    restored: boolean;
+  } | null>(null);
+  const { draftKey, restored = false } = editor ?? {};
   const itemized = editor?.expense.splitMethod === 'ITEMIZED';
   const Form = itemized ? AddItemizedExpenseForm : AddExpenseForm;
   const title =
@@ -41,7 +52,8 @@ export function ExpenseEditorSheets({
         : 'Edit expense';
   const openEditor = (mode: 'edit' | 'duplicate') => {
     if (!detailExpense) return;
-    setEditor({ expense: detailExpense, mode });
+    const key = expenseEditorKey(viewerId, group.id, `${mode}:${detailExpense.id}`);
+    setEditor({ expense: detailExpense, mode, draftKey: key, restored: !!readExpenseEditorDraft(key) });
     onCloseDetail();
   };
   return (
@@ -60,9 +72,24 @@ export function ExpenseEditorSheets({
           />
         )}
       </Sheet>
-      <Sheet protectChanges open={!!editor} onClose={() => setEditor(null)} title={title}>
+      <Sheet
+        protectChanges
+        restoredChanges={restored}
+        open={!!editor}
+        onClose={() => {
+          discardExpenseEditorDraft(draftKey);
+          setEditor(null);
+        }}
+        onDiscard={() => discardExpenseEditorDraft(draftKey)}
+        title={title}
+      >
         {editor && (
           <>
+            {restored && (
+              <p role="status" className="mb-3 text-sm text-muted">
+                Your unfinished expense is back.
+              </p>
+            )}
             {editor.mode === 'duplicate' && (
               <p className="mb-4 text-sm text-muted">
                 Everything is copied over with today&rsquo;s date. Change anything that was different this
@@ -73,6 +100,7 @@ export function ExpenseEditorSheets({
               key={`${editor.mode}-${editor.expense.id}`}
               groupId={group.id}
               ownerId={viewerId}
+              draftKey={draftKey}
               members={group.members}
               {...(editor.mode === 'edit' ? { editing: editor.expense } : { template: editor.expense })}
               onCreated={(saved) => {

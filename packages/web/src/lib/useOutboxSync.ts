@@ -7,6 +7,8 @@ import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { useAsyncScope } from './useAsyncScope';
 import { useQueuedPaymentReview } from './useQueuedPaymentReview';
+import { rememberSyncedDeletion, type UndoableDeletion } from './recentDeletions';
+import { useUndoableDeletions } from './useUndoableDeletions';
 import {
   adoptWrites,
   drop,
@@ -69,6 +71,7 @@ function sendQueuedWrite(entry: QueuedWrite, ownerId: string): Promise<unknown> 
         .remove(entry.groupId, entry.expenseId, ownerId, entry.clientId, entry.expectedVersion)
         .catch((err: unknown) => {
           if (!isAlreadyDone(err)) throw err;
+          return false;
         });
     case 'restore':
       return expensesApi
@@ -88,7 +91,7 @@ export interface OutboxSync {
   syncing: boolean;
   unassigned: number;
   failed: QueuedWrite[];
-  pendingDeletes: QueuedDelete[];
+  undoableDeletions: UndoableDeletion[];
   undoingDelete: string | null;
   undoDelete: (entry: QueuedDelete) => Promise<void>;
   reviewPayment: (entry: QueuedSettlement) => Promise<void>;
@@ -118,7 +121,7 @@ export function useOutboxSync({
   const { captureScope } = useAsyncScope(JSON.stringify([groupId, ownerId]));
   const [unassigned, setUnassigned] = useState(() => unassignedWrites(groupId).length);
   const [failed, setFailed] = useState<QueuedWrite[]>([]);
-  const [pendingDeletes, setPendingDeletes] = useState<QueuedDelete[]>([]);
+  const undoableDeletions = useUndoableDeletions(ownerId, groupId);
   const [undoingDelete, setUndoingDelete] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [paused, setPaused] = useState<OutboxSync['paused']>();
@@ -217,11 +220,15 @@ export function useOutboxSync({
           if (!stillQueued()) return true;
           if (keepMine) {
             try {
-              await send(
+              const sent = await send(
                 deleting
                   ? { ...entry, expectedVersion: version }
                   : { ...entry, payload: { ...entry.payload, expectedVersion: version } },
               );
+              if (deleting && sent !== false && !rememberSyncedDeletion(entry)) {
+                if (current()) setPaused('storage');
+                return false;
+              }
               if (current()) changed.current();
             } catch (error) {
               if (isConflict(error)) {
@@ -335,7 +342,6 @@ export function useOutboxSync({
       setUnassigned(unassignedWrites(groupId).length);
       const entries = ownerId ? queued(groupId, ownerId) : [];
       setFailed(entries.filter((entry) => entry.failure));
-      setPendingDeletes(entries.filter(isDelete).filter((entry) => !entry.failure));
       queueChanged.current?.();
     };
     setSyncing(false);
@@ -358,7 +364,7 @@ export function useOutboxSync({
     unassigned,
     recover,
     failed,
-    pendingDeletes,
+    undoableDeletions,
     undoingDelete,
     undoDelete,
     reviewPayment,

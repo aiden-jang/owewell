@@ -1,10 +1,23 @@
 // Cache only this app's static files. Group data and shared auth always use the network.
-const CACHE = 'owewell-v4';
+const CACHE = 'owewell-v5';
 const SHELL = '/';
 
+async function cacheShell(cache, response) {
+  const html = await response.clone().text();
+  const assets = new Set(Array.from(html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g), ([, url]) => url));
+  const missing = await Promise.all([...assets].map(async (url) => (await cache.match(url, { ignoreVary: true })) ? null : url));
+  await cache.addAll(missing.filter(Boolean));
+  await cache.put(SHELL, response);
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll([SHELL, '/theme-init.js'])));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    const shell = await fetch(SHELL, { cache: 'no-cache' });
+    if (!shell.ok) throw new Error('Could not cache the Owewell shell.');
+    await Promise.all([cacheShell(cache, shell), cache.add('/theme-init.js')]);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -28,13 +41,15 @@ self.addEventListener('fetch', (event) => {
     const response = await fetch(request, immutable ? undefined : { cache: 'no-cache' });
     if (response.ok && (!navigation || response.headers.get('content-type')?.includes('text/html'))) {
       const copy = response.clone();
-      event.waitUntil(caches.open(CACHE).then((cache) => cache.put(key, copy)));
+      event.waitUntil(caches.open(CACHE).then((cache) =>
+        navigation ? cacheShell(cache, copy) : cache.put(key, copy)
+      ).catch(() => undefined));
     }
     return response;
   }
 
   // Hashed bundles are immutable. Icons, the manifest and HTML can change at the same URL.
   event.respondWith(immutable
-    ? caches.match(key).then((hit) => hit || fromNetwork())
+    ? caches.match(key, { ignoreVary: true }).then((hit) => hit || fromNetwork())
     : fromNetwork().catch(() => caches.match(key)));
 });

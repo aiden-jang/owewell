@@ -17,6 +17,8 @@ export function Sheet({
   protectChanges = false,
   unsavedChanges,
   closeDisabled = false,
+  restoredChanges = false,
+  onDiscard,
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,6 +30,8 @@ export function Sheet({
   protectChanges?: boolean;
   unsavedChanges?: boolean;
   closeDisabled?: boolean;
+  restoredChanges?: boolean;
+  onDiscard?: () => void;
 }): ReactNode {
   const dialogRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -38,7 +42,7 @@ export function Sheet({
   const dirtyRef = useRef(false);
   const [changed, setDirty] = useState(false);
   const controlled = unsavedChanges !== undefined;
-  const dirty = open && (unsavedChanges ?? changed);
+  const dirty = open && (unsavedChanges ?? (changed || restoredChanges));
   dirtyRef.current = dirty;
   const [asking, setAsking] = useState(false);
   const keepRef = useRef<HTMLButtonElement>(null);
@@ -149,6 +153,7 @@ export function Sheet({
                   type="button"
                   className="rounded-full border border-line-strong px-4 py-2 text-sm font-medium"
                   onClick={() => {
+                    onDiscard?.();
                     if (navigationRef.current) navigationRef.current.proceed();
                     else closeRef.current();
                   }}

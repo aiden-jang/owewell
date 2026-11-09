@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { API_ORIGIN, API_PORT, AUTH_PORT, WEB_PORT } from './e2e/servers';
+import { API_ORIGIN, API_PORT, AUTH_PORT, PREVIEW_PORT, WEB_PORT } from './e2e/servers';
 
 /**
  * Browser end-to-end tests, in a real browser against the real Worker and a real local D1.
@@ -69,6 +69,13 @@ export default defineConfig({
       port: WEB_PORT,
       reuseExistingServer: false,
       timeout: 120_000,
+      stdout: 'ignore',
+    },
+    {
+      command: `pnpm run preview --port ${PREVIEW_PORT} --strictPort`,
+      env: { OWEWELL_E2E_API_PORT: String(API_PORT) },
+      port: PREVIEW_PORT,
+      reuseExistingServer: false,
       stdout: 'ignore',
     },
   ],

@@ -2,4 +2,5 @@
 export const AUTH_PORT = 24499;
 export const API_PORT = 24200;
 export const WEB_PORT = 30001;
+export const PREVIEW_PORT = 30002;
 export const API_ORIGIN = `http://127.0.0.1:${API_PORT}`;

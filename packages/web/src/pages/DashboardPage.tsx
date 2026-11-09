@@ -165,7 +165,10 @@ export function DashboardPage(): ReactNode {
           />
         ))}
 
-        {(waiting > 0 || outboxSync.unassigned > 0 || outboxSync.failed.length > 0) && (
+        {(waiting > 0 ||
+          outboxSync.unassigned > 0 ||
+          outboxSync.failed.length > 0 ||
+          outboxSync.undoableDeletions.length > 0) && (
           <div className="mb-4">
             <OutboxNotice
               count={waiting}
