@@ -2,6 +2,11 @@ import { useState } from 'react';
 import type { Expense } from '../lib/expenses';
 import type { GroupDetail } from '../lib/groups';
 import {
+  discardExpenseEditorDraft,
+  expenseEditorKey,
+  readExpenseEditorDraft,
+} from '../lib/expenseEditorDraft';
+import {
   drop,
   isCreate,
   isEdit,
@@ -62,8 +67,13 @@ export function GroupOutbox({
   onSaved: (expense: Expense) => void;
 }) {
   const toast = useToast();
-  const [entry, setEntry] = useState<QueuedCreate | QueuedEdit | null>(null);
+  const [correction, setCorrection] = useState<{
+    entry: QueuedCreate | QueuedEdit;
+    draftKey: string | undefined;
+    restored: boolean;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
+  const { entry, draftKey, restored = false } = correction ?? {};
   const Form = entry && 'items' in entry.payload ? AddItemizedExpenseForm : AddExpenseForm;
   const draft = entry ? restoreDraft(entry) : null;
 
@@ -79,14 +89,21 @@ export function GroupOutbox({
         sync={sync}
         groupName={() => group.name}
         onCorrect={(change) => {
-          if (isCreate(change) || isEdit(change)) setEntry(change);
+          if (!isCreate(change) && !isEdit(change)) return;
+          const key = expenseEditorKey(ownerId, group.id, `outbox:${change.clientId}:${change.queuedAt}`);
+          setCorrection({ entry: change, draftKey: key, restored: !!readExpenseEditorDraft(key) });
         }}
       />
       <Sheet
         open={!!entry}
-        onClose={() => setEntry(null)}
+        onClose={() => {
+          discardExpenseEditorDraft(draftKey);
+          setCorrection(null);
+        }}
+        onDiscard={() => discardExpenseEditorDraft(draftKey)}
         title="Edit saved expense"
         protectChanges
+        restoredChanges={restored}
         closeDisabled={saving}
       >
         {entry && draft && (
@@ -94,21 +111,27 @@ export function GroupOutbox({
             <p className="mb-4 text-sm text-muted">
               Review who paid and who shared the cost, then save the corrected expense.
             </p>
+            {restored && (
+              <p role="status" className="mb-3 text-sm text-muted">
+                Your unfinished correction is back.
+              </p>
+            )}
             <Form
               key={entry.clientId}
               groupId={group.id}
               ownerId={ownerId}
               members={group.members}
               recoveryId={entry.clientId}
+              draftKey={draftKey}
               {...(isEdit(entry) ? { editing: draft } : { template: draft })}
               onPendingChange={setSaving}
               onCreated={(saved) => {
                 if (!drop(entry.clientId)) toast.error(OUTBOX_STORAGE_ERROR);
-                setEntry(null);
+                setCorrection(null);
                 onSaved(saved);
               }}
               onQueued={() => {
-                setEntry(null);
+                setCorrection(null);
                 toast.success('Corrected expense kept on this device. It will sync when you reconnect.');
               }}
             />
