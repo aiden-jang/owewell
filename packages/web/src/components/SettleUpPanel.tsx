@@ -64,13 +64,16 @@ export function SettleUpPanel({
 
   function shareSettlePlan(): void {
     if (suggested.length === 0) return;
-    const lines = suggested.map(
+    const lines = orderedSuggestions.map(
       (payment) => `• ${payment.fromName} pays ${payment.toName} ${fmt(payment.amountCents)}`,
     );
-    const transferLabel = suggested.length === 1 ? 'transfer' : 'transfers';
     void sharePlan({
       title: `${group.name} settle-up`,
-      text: `${group.name} settle-up\n${fmt(settlePlanTotal)} across ${suggested.length} ${transferLabel}\n\n${lines.join('\n')}`,
+      text: [
+        `Hey everyone! Here’s what’s left to settle for ${group.name}.`,
+        lines.join('\n'),
+        `${fmt(settlePlanTotal)} remaining in total. Once you’ve paid, please record it in owewell.`,
+      ].join('\n\n'),
       failureMessage: 'Could not share the settle-up plan.',
     });
   }

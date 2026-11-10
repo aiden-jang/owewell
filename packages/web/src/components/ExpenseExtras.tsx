@@ -21,16 +21,18 @@ export function ExpenseExtras({
   expanded: boolean;
 }) {
   return (
-    <details className="expense-extras" open={expanded}>
-      <summary>Date, category & note</summary>
-      <div className="space-y-3 pt-3">
-        <label className="block text-xs text-muted">
-          Date
-          <DateField value={date} onChange={setDate} />
-        </label>
-        <CategoryPicker value={category} onChange={setCategory} />
-        <NoteField value={note} onChange={setNote} />
-      </div>
-    </details>
+    <>
+      <CategoryPicker value={category} onChange={setCategory} />
+      <details className="expense-extras" open={expanded}>
+        <summary>Date & note</summary>
+        <div className="space-y-3 pt-3">
+          <label className="block text-xs text-muted">
+            Date
+            <DateField value={date} onChange={setDate} />
+          </label>
+          <NoteField value={note} onChange={setNote} />
+        </div>
+      </details>
+    </>
   );
 }

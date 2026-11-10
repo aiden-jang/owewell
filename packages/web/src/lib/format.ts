@@ -21,3 +21,12 @@ export function normalizeAmountInput(raw: string): string {
     return raw;
   }
 }
+
+export function updateAmountInput(raw: string, update: (value: string) => void): void {
+  if (/^-?\d*(?:\.\d*)?$/.test(raw)) {
+    update(raw);
+    return;
+  }
+  const normalized = normalizeAmountInput(raw);
+  if (/^-?\d+\.\d{2}$/.test(normalized)) update(normalized);
+}

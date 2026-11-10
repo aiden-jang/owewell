@@ -244,10 +244,17 @@ test('group settings remain usable with long names and dark mode', async ({ page
   const description = 'A rather large shared booking with a long description';
   const note = 'ReceiptReference' + 'x'.repeat(180);
   await page.getByLabel('What the expense was for').fill(description);
-  await page.getByText('Date, category & note', { exact: true }).click();
+  await page.getByText('Date & note', { exact: true }).click();
   await page.getByLabel('Note', { exact: true }).fill(note);
   await page.locator('form').getByRole('button', { name: 'Add expense', exact: true }).click();
   await expect(page.getByLabel('Amount', { exact: true })).toBeHidden();
+  const latestTitle = page.locator('.latest-expense').getByText(description, { exact: true });
+  await expect(latestTitle).toHaveCSS('overflow-wrap', 'anywhere');
+  await expect(latestTitle).not.toHaveCSS('white-space', 'nowrap');
+  await page.getByRole('link', { name: 'Jump to activity' }).click();
+  const activity = page.locator('#group-activity');
+  await expect(activity).toBeInViewport();
+  await expect(activity).toHaveCSS('outline-style', 'none');
   await page.getByRole('button', { name: `${description}, $123,456.78. See details.`, exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText(note);
   await expect(page.locator('.toast')).toHaveCount(0);
@@ -410,7 +417,12 @@ test('an uneven equal split explains the preview and names its saved rounding sh
   }
   await page.getByRole('button', { name: 'Close', exact: true }).first().click();
   await page.getByRole('button', { name: 'Add expense', exact: true }).first().click();
-  await page.getByLabel('Amount', { exact: true }).fill('1.00');
+  await expect(page.getByRole('group', { name: 'Category' })).toBeVisible();
+  const amount = page.getByLabel('Amount', { exact: true });
+  await amount.pressSequentially('abc');
+  await expect(amount).toHaveValue('');
+  await amount.fill('1.00');
+  await expect(page.getByText(/Your share \$0\.33–\$0\.34/)).toBeVisible();
   await page.getByLabel('What the expense was for').fill('One dollar, three people');
   await expect(page.getByText(/The total needs a rounding cent/)).toBeVisible();
   await page.locator('form').getByRole('button', { name: 'Add expense', exact: true }).click();

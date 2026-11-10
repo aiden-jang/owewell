@@ -146,14 +146,28 @@ describe('what it refuses to send', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  // What native validation cannot catch: a field that is filled in but is not a number.
-  it('rejects an amount that is not one', async () => {
+  it('rejects text while still validating an unfinished decimal', async () => {
     const user = await open();
     await user.type(screen.getByLabelText('What the expense was for'), 'Dinner');
-    await user.type(screen.getByLabelText('Amount'), 'twelve');
+    const amount = screen.getByLabelText('Amount');
+    await user.type(amount, 'twelve');
+    expect(amount).toHaveValue('');
+    await user.type(amount, '.');
     await submit(user);
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid amount.');
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('accepts decimal typing and pasting a formatted amount without changing its value', async () => {
+    const user = await open();
+    const amount = screen.getByLabelText('Amount');
+    await user.type(amount, '12.a5');
+    expect(amount).toHaveValue('12.5');
+    await user.clear(amount);
+    await user.paste('$1,234.56');
+    expect(amount).toHaveValue('1234.56');
+    await user.paste(' dollars');
+    expect(amount).toHaveValue('1234.56');
   });
 
   it('refuses a zero amount rather than booking a free dinner', async () => {

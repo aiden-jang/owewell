@@ -1,18 +1,20 @@
 import { SelectField } from './SelectField';
 import { expenseSplitHint } from '../lib/expenseSplitHint';
+import { expenseShareCaption } from '../lib/expenseSharePreview';
 import { useEffect, type FormEvent, type ReactNode } from 'react';
 import { ExpenseExtras } from './ExpenseExtras';
 import { writeSplitPreference } from '../lib/splitPreference';
 import { DescriptionField, FormError, PayerSelect, SubmitButton, inputClass } from './FormFields';
 import {
   formatMoney as fmt,
+  computeEditedSplit,
   computeSplit,
   currencySymbol,
   dollarsToCents,
   type SplitMethod,
 } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
-import { normalizeAmountInput } from '../lib/format';
+import { normalizeAmountInput, updateAmountInput } from '../lib/format';
 import type { GroupMember } from '../lib/groups';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { useTotalExpenseDraft } from '../lib/useTotalExpenseDraft';
@@ -230,42 +232,23 @@ export function AddExpenseForm({
     }
   }
 
-  const splitHint = expenseSplitHint(
-    method,
-    amount,
-    values,
-    members.filter((member) => selected.has(member.userId)),
-    fmt,
-  );
-
-  // The server assigns the expense ID/rounding seed; show a range when the odd cent is not yet known.
-  const shares = ((): { userId: string; owedCents: number }[] | null => {
-    let cents: number;
+  const chosen = members.filter((member) => selected.has(member.userId));
+  const splitHint = expenseSplitHint(method, amount, values, chosen, fmt);
+  const shares = (() => {
     try {
-      cents = dollarsToCents(amount);
-    } catch {
-      return null;
-    }
-    if (cents <= 0) return null;
-    const chosen = members.filter((m) => selected.has(m.userId));
-    if (chosen.length === 0) return null;
-    try {
-      return computeSplit(method, cents, buildParticipants(chosen));
+      const cents = dollarsToCents(amount);
+      if (cents <= 0 || chosen.length === 0) return null;
+      const participants = buildParticipants(chosen);
+      return editing
+        ? computeEditedSplit(method, cents, participants, editing)
+        : computeSplit(method, cents, participants);
     } catch {
       return null;
     }
   })();
 
   const shareOf = new Map((shares ?? []).map((s) => [s.userId, s.owedCents]));
-  const perPerson = ((): string | null => {
-    if (!shares) return null;
-    const ways = `${shares.length} ${shares.length === 1 ? 'way' : 'ways'}`;
-    if (method !== 'EQUAL') return `Split ${ways}`;
-    const low = Math.min(...shares.map((s) => s.owedCents));
-    const high = Math.max(...shares.map((s) => s.owedCents));
-    const each = low === high ? fmt(low) : `${fmt(low)}–${fmt(high)}`;
-    return `${each} each · split ${ways}`;
-  })();
+  const caption = expenseShareCaption(method, shares, chosen.length, ownerId, !!editing);
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="entry-form space-y-3.5">
@@ -279,7 +262,7 @@ export function AddExpenseForm({
             </span>
             <input
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => updateAmountInput(e.target.value, setAmount)}
               onBlur={() => setAmount(normalizeAmountInput(amount))}
               placeholder="0.00"
               inputMode="decimal"
@@ -297,8 +280,8 @@ export function AddExpenseForm({
               className="tnum bg-transparent text-center font-display text-5xl font-medium tracking-tight outline-none placeholder:text-faint"
             />
           </div>
-          <p className={`mt-2 text-sm ${perPerson ? 'text-muted' : 'text-faint'}`} aria-live="polite">
-            {perPerson ?? `Split ${selected.size} ${selected.size === 1 ? 'way' : 'ways'}`}
+          <p className={`mt-2 text-sm ${shares ? 'text-muted' : 'text-faint'}`} aria-live="polite">
+            {caption}
           </p>
         </div>
 
@@ -343,7 +326,12 @@ export function AddExpenseForm({
                 <div className="flex items-center gap-1">
                   <input
                     value={values[m.userId] ?? ''}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const update = (value: string) => setValues((prev) => ({ ...prev, [m.userId]: value }));
+                      if (method === 'EXACT') updateAmountInput(raw, update);
+                      else update(raw);
+                    }}
                     placeholder="0"
                     inputMode="decimal"
                     enterKeyHint="next"

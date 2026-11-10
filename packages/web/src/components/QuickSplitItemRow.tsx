@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Money, dollarsToCents } from '@owewell/shared';
 import { QUICK_SPLIT_LIMITS, type SplitMethod } from '@owewell/core';
 import type { DraftItem as Item, DraftPerson as Person } from '../lib/quickSplitDraft';
-import { normalizeAmountInput } from '../lib/format';
+import { normalizeAmountInput, updateAmountInput } from '../lib/format';
 import { SPLIT_METHODS, splitMethodHint, splitMethodUnit } from '../lib/splitMethods';
 import { inputClass } from './FormFields';
 
@@ -102,7 +102,7 @@ export default function QuickSplitItemRow({
         <span>{itemCount === 1 ? 'Bill amount' : `Item ${index + 1} amount`}</span>
         <input
           value={item.amount}
-          onChange={(e) => onUpdate(item.id, { amount: e.target.value })}
+          onChange={(e) => updateAmountInput(e.target.value, (amount) => onUpdate(item.id, { amount }))}
           onBlur={() => onUpdate(item.id, { amount: normalizeAmountInput(item.amount) })}
           placeholder="0.00"
           inputMode="decimal"
@@ -184,7 +184,12 @@ export default function QuickSplitItemRow({
                 <span className="flex-1 truncate text-muted">{p.name.trim()}</span>
                 <input
                   value={item.values[p.id] ?? ''}
-                  onChange={(e) => onUpdateValue(item.id, p.id, e.target.value)}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const update = (value: string) => onUpdateValue(item.id, p.id, value);
+                    if (item.method === 'EXACT') updateAmountInput(raw, update);
+                    else update(raw);
+                  }}
                   placeholder="0"
                   inputMode="decimal"
                   className="w-20 rounded-lg border border-line bg-field px-2 py-1.5 text-right outline-none focus:border-accent"

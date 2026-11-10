@@ -24,7 +24,7 @@ export function GroupActivityShortcut({
         <p className="text-xs font-medium text-muted">Latest expense</p>
         {latest ? (
           <button type="button" onClick={() => onOpen(latest.id)} className="latest-expense">
-            <span className="truncate">{latest.description}</span>
+            <span className="min-w-0 [overflow-wrap:anywhere]">{latest.description}</span>
             <span className="shrink-0 tabular-nums">{fmt(latest.amountCents)}</span>
           </button>
         ) : (

@@ -153,6 +153,17 @@ describe('what a line has to have', () => {
 });
 
 describe('tax and tip', () => {
+  it('previews the signed-in person’s share including tax and tip', async () => {
+    const user = await open({ ownerId: 'b' });
+    await fillLine(user, 1, 'Beer', '20');
+    await user.type(screen.getByLabelText('Tax'), '2');
+    await user.type(screen.getByLabelText('Tip'), '4');
+    expect(screen.getByText('Your share · about $13.00')).toBeVisible();
+
+    await user.click(within(itemBlock(1)).getByRole('checkbox', { name: 'Bob' }));
+    expect(screen.getByText('Your share $0.00')).toBeVisible();
+  });
+
   it('counts blank as nothing rather than refusing', async () => {
     const user = await open();
     await user.type(screen.getByPlaceholderText('What was it for?'), 'Nopa');
@@ -179,7 +190,10 @@ describe('tax and tip', () => {
     const user = await open();
     await user.type(screen.getByPlaceholderText('What was it for?'), 'Nopa');
     await fillLine(user, 1, 'Beer', '20');
-    await user.type(screen.getByLabelText('Tax'), 'about four');
+    const tax = screen.getByLabelText('Tax');
+    await user.type(tax, 'about four');
+    expect(tax).toHaveValue('');
+    await user.type(tax, '.');
     await submit(user);
     expect(screen.getByRole('alert')).toHaveTextContent('Check the tax and tip amounts.');
     expect(createItemized).not.toHaveBeenCalled();

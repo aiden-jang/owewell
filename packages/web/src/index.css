@@ -524,8 +524,9 @@ input[type='checkbox'] {
   outline: none;
 }
 
-/* The programmatically focused skip target is the page container, not an interactive control. */
-main[tabindex='-1']:focus {
+/* Skip targets move focus to a region so the next Tab reaches its controls. */
+main[tabindex='-1']:focus,
+.ledger-activity[tabindex='-1']:focus {
   outline: none;
 }
 
@@ -1142,14 +1143,14 @@ textarea:focus {
   color: var(--color-accent);
   font-size: 13px;
 }
-@media (max-width: 360px) {
+@media (max-width: 480px) {
   .group-activity-shortcut {
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     padding: 16px;
   }
-  .latest-expense {
-    flex-wrap: wrap;
-    gap: 4px;
+  .group-activity-shortcut > .btn-gradient {
+    justify-content: center;
   }
 }
 

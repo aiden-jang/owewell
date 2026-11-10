@@ -164,6 +164,17 @@ describe('the nudge', () => {
 });
 
 describe('the order of the list', () => {
+  it('copies a chat-ready payment plan in the displayed order', async () => {
+    const user = await open([CARA_PAYS, BOB_PAYS]);
+    await user.click(screen.getByRole('button', { name: 'Share settle-up plan' }));
+    expect(await navigator.clipboard.readText()).toBe(
+      'Hey everyone! Here’s what’s left to settle for Tahoe.\n\n' +
+        '• Bob pays Alice $30.00\n• Cara pays Alice $10.00\n\n' +
+        '$40.00 remaining in total. Once you’ve paid, please record it in owewell.',
+    );
+    expect(screen.getByRole('button', { name: 'Settle-up plan copied' })).toBeVisible();
+  });
+
   /*
    * Reading top-down should be a plan, not an arbitrary order. The biggest transfer is not always
    * the best first move, so the list defers to whichever payment clears the most people.

@@ -21,7 +21,7 @@ import { preferredMethod } from '../lib/payLinks';
 import type { GroupMember } from '../lib/groups';
 import type { Balance } from '../lib/groups';
 import { previewPaymentPlan } from '../lib/settlementGuide';
-import { normalizeAmountInput } from '../lib/format';
+import { normalizeAmountInput, updateAmountInput } from '../lib/format';
 import { isOffline, OUTBOX_STORAGE_ERROR } from '../lib/outbox';
 import { FormError } from './FormFields';
 
@@ -241,7 +241,7 @@ export function RecordPaymentForm({
             </span>
             <input
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => updateAmountInput(e.target.value, setAmount)}
               onBlur={() => setAmount(normalizeAmountInput(amount))}
               placeholder="0.00"
               inputMode="decimal"

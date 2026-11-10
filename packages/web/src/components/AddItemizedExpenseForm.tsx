@@ -1,9 +1,10 @@
 import { SelectField } from './SelectField';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { formatMoney as fmt, dollarsToCents } from '@owewell/shared';
 import { expensesApi, type Expense } from '../lib/expenses';
 import type { GroupMember } from '../lib/groups';
-import { normalizeAmountInput } from '../lib/format';
+import { normalizeAmountInput, updateAmountInput } from '../lib/format';
+import { receiptSharePreview } from '../lib/expenseSharePreview';
 import { CategoryPicker } from './CategoryPicker';
 import {
   DateField,
@@ -123,15 +124,7 @@ export function AddItemizedExpenseForm({
     restored,
   );
 
-  // Live receipt total (items + tax + tip) so you can check it against the printed total before
-  // saving. Computed in integer cents to avoid float drift; blank/invalid fields count as 0.
-  const grandTotalCents = useMemo(() => {
-    const toCents = (s: string): number => {
-      const n = Number.parseFloat(s);
-      return Number.isFinite(n) ? Math.round(n * 100) : 0;
-    };
-    return items.reduce((sum, it) => sum + toCents(it.amount), 0) + toCents(tax) + toCents(tip);
-  }, [items, tax, tip]);
+  const { totalCents, caption } = receiptSharePreview(items, tax, tip, memberIds, ownerId, editing?.id);
 
   function clearAfterCreate(): void {
     setDescription('');
@@ -262,9 +255,11 @@ export function AddItemizedExpenseForm({
         {/* The computed total lets someone check their entries against the printed receipt. */}
         <div className="entry-amount">
           <span className="entry-amount-label">Receipt total</span>
-          <p className="tnum font-display text-4xl font-medium tracking-tight">{fmt(grandTotalCents)}</p>
-          <p className="mt-1 text-sm text-muted">
-            {grandTotalCents > 0 ? 'Items, tax and tip' : 'Add the line items below'}
+          <p className="tnum font-display text-4xl font-medium tracking-tight">
+            {totalCents === null ? '—' : fmt(totalCents)}
+          </p>
+          <p className="mt-1 text-sm text-muted" aria-live="polite">
+            {caption ?? (totalCents ? 'Items, tax and tip' : 'Add the line items below')}
           </p>
         </div>
 
@@ -286,7 +281,9 @@ export function AddItemizedExpenseForm({
                 />
                 <input
                   value={item.amount}
-                  onChange={(e) => updateItem(index, { amount: e.target.value })}
+                  onChange={(e) =>
+                    updateAmountInput(e.target.value, (amount) => updateItem(index, { amount }))
+                  }
                   onBlur={() => updateItem(index, { amount: normalizeAmountInput(item.amount) })}
                   placeholder="0.00"
                   inputMode="decimal"
@@ -351,7 +348,7 @@ export function AddItemizedExpenseForm({
         <div className="flex gap-2">
           <input
             value={tax}
-            onChange={(e) => setTax(e.target.value)}
+            onChange={(e) => updateAmountInput(e.target.value, setTax)}
             onBlur={() => setTax(normalizeAmountInput(tax))}
             placeholder="Tax (optional)"
             inputMode="decimal"
@@ -361,7 +358,7 @@ export function AddItemizedExpenseForm({
           />
           <input
             value={tip}
-            onChange={(e) => setTip(e.target.value)}
+            onChange={(e) => updateAmountInput(e.target.value, setTip)}
             onBlur={() => setTip(normalizeAmountInput(tip))}
             placeholder="Tip (optional)"
             inputMode="decimal"
