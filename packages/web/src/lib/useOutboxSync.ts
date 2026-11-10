@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateExpensePayload, CreateItemizedPayload } from '@owewell/core';
-import { Money } from '@owewell/shared';
 import { expensesApi } from './expenses';
 import { settlementsApi } from './settlements';
 import { useConfirm } from '../components/Confirm';
 import { useToast } from '../components/Toast';
 import { useAsyncScope } from './useAsyncScope';
+import { useOutboxConflictReview } from './useOutboxConflictReview';
 import { useQueuedPaymentReview } from './useQueuedPaymentReview';
 import { rememberSyncedDeletion, type UndoableDeletion } from './recentDeletions';
 import { useUndoableDeletions } from './useUndoableDeletions';
@@ -118,6 +118,7 @@ export function useOutboxSync({
 }): OutboxSync {
   const toast = useToast();
   const confirm = useConfirm();
+  const { review, cancelReview } = useOutboxConflictReview();
   const flushing = useRef<(() => boolean) | null>(null);
   const { captureScope } = useAsyncScope(JSON.stringify([groupId, ownerId]));
   const [unassigned, setUnassigned] = useState(() => unassignedWrites(groupId).length);
@@ -140,6 +141,10 @@ export function useOutboxSync({
     setSyncing(true);
     const send = (entry: QueuedWrite) => sendQueuedWrite(entry, ownerId);
     const underLock = async <T>(action: () => Promise<T>): Promise<T> => withOutboxLock(ownerId, action);
+    const handledElsewhere = () => {
+      toast.success('This saved change was handled in another tab.');
+      changed.current();
+    };
     let changedAgain: string | undefined;
     try {
       while (current()) {
@@ -161,53 +166,42 @@ export function useOutboxSync({
         const deleting = isDelete(entry);
         const stillQueued = () => isCurrentOutboxEntry(entry);
 
-        let expense;
-        try {
-          expense = (await expensesApi.list(entry.groupId, ownerId)).find(
-            (row) => row.id === entry.expenseId,
-          );
-        } catch (error) {
-          if (current()) {
-            setPaused(pauseFor(error) ?? 'temporary');
-            toast.error('Couldn’t load the ledger version. Your change is still waiting on this device.');
-          }
+        const decision = await review(entry, ownerId, current, changedAgain === entry.clientId);
+        if (!current()) return;
+        if (decision.status === 'stale') {
+          handledElsewhere();
+          continue;
+        }
+        if (decision.status === 'load-failed') {
+          setPaused(pauseFor(decision.error) ?? 'temporary');
+          toast.error('Couldn’t load the ledger version. Your change is still waiting on this device.');
           return;
         }
-        if (!current()) return;
-        if (!expense || !Number.isSafeInteger(expense.version)) {
-          const kept = await underLock(
-            async () =>
-              current() &&
-              (!stillQueued() ||
-                (!expense && deleting
-                  ? drop(entry.clientId)
-                  : setFailure(entry.clientId, ownerId, 'This expense is no longer available.'))),
-          );
+        if (
+          decision.status === 'missing' ||
+          decision.status === 'unavailable' ||
+          decision.status === 'already-applied'
+        ) {
+          const kept = await underLock(async () => {
+            if (!current()) return false;
+            if (!stillQueued()) return true;
+            if (decision.status === 'already-applied') {
+              if (!drop(entry.clientId)) return false;
+              toast.success('Your edit is already saved.');
+              changed.current();
+              return true;
+            }
+            return decision.status === 'missing' && deleting
+              ? drop(entry.clientId)
+              : setFailure(entry.clientId, ownerId, 'This expense is no longer available.');
+          });
           if (!kept) {
             if (current()) setPaused('storage');
             return;
           }
           continue;
         }
-        const { version, description, amountCents } = expense;
-        let dismissed = false;
-        const keepMine = await confirm({
-          title:
-            changedAgain === entry.clientId
-              ? `“${entry.description}” changed again`
-              : `“${entry.description}” changed while you were offline`,
-          body: deleting
-            ? `The ledger now shows “${description}” for ${Money.fromCents(amountCents).format()}. Review this version before deleting it.`
-            : `The ledger shows “${description}” for ${Money.fromCents(amountCents).format()}. Your edit is “${entry.description}” for ${Money.fromCents(entry.amountCents).format()}. Applying yours replaces the ledger entry, including its split details.`,
-          confirmLabel: deleting ? 'Delete expense' : 'Apply mine',
-          cancelLabel: deleting ? 'Keep expense' : 'Keep theirs',
-          tone: deleting ? 'danger' : 'default',
-          onDismiss: () => {
-            dismissed = true;
-          },
-        });
-        if (!current()) return;
-        if (dismissed) {
+        if (decision.status === 'later') {
           setPaused(deleting ? 'delete-conflict' : 'conflict');
           return;
         }
@@ -215,8 +209,12 @@ export function useOutboxSync({
         // Another tab can sync while the prompt is open. Recheck before acting on the decision.
         const proceed = await underLock(async () => {
           if (!current()) return false;
-          if (!stillQueued()) return true;
-          if (keepMine) {
+          if (!stillQueued()) {
+            handledElsewhere();
+            return true;
+          }
+          if (decision.status === 'apply') {
+            const { version } = decision;
             try {
               const sent = await send(
                 deleting
@@ -227,7 +225,6 @@ export function useOutboxSync({
                 if (current()) setPaused('storage');
                 return false;
               }
-              if (current()) changed.current();
             } catch (error) {
               if (isConflict(error)) {
                 changedAgain = entry.clientId;
@@ -251,7 +248,10 @@ export function useOutboxSync({
             }
           }
           changedAgain = undefined;
-          if (drop(entry.clientId)) return true;
+          if (drop(entry.clientId)) {
+            if (current()) changed.current();
+            return true;
+          }
           if (current()) setPaused('storage');
           return false;
         });
@@ -261,7 +261,7 @@ export function useOutboxSync({
       if (flushing.current === current) flushing.current = null;
       if (current()) setSyncing(false);
     }
-  }, [captureScope, confirm, groupId, ownerId, toast]);
+  }, [captureScope, groupId, ownerId, review, toast]);
 
   const recover = useCallback(async () => {
     if (!ownerId) return;
@@ -357,10 +357,11 @@ export function useOutboxSync({
     window.addEventListener('online', onOnline);
     const unsubscribe = subscribe(refresh);
     return () => {
+      cancelReview();
       window.removeEventListener('online', onOnline);
       unsubscribe();
     };
-  }, [groupId, ownerId, run]);
+  }, [cancelReview, groupId, ownerId, run]);
 
   return {
     paused,

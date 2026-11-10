@@ -13,9 +13,11 @@ import { useDialogFocus } from '../lib/useDialogFocus';
 interface ConfirmOptions {
   title: string;
   body?: string;
+  details?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   onDismiss?: () => void;
+  signal?: AbortSignal;
   /** 'danger' paints the confirm button in the accent color for destructive actions. */
   tone?: 'danger' | 'default';
 }
@@ -26,6 +28,7 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 interface Pending extends ConfirmOptions {
   resolve: (ok: boolean) => void;
+  detach: () => void;
 }
 
 /** A promise-based replacement for window.confirm, themed to match the app. */
@@ -33,24 +36,35 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
   const [pending, setPending] = useState<Pending | null>(null);
   const active = useRef<Pending | null>(null);
 
-  const confirm = useCallback<ConfirmFn>((options) => {
-    if (active.current) {
-      options.onDismiss?.();
-      return Promise.resolve(false);
-    }
-    return new Promise<boolean>((resolve) => {
-      active.current = { ...options, resolve };
-      setPending(active.current);
-    });
-  }, []);
-
   const settle = useCallback((ok: boolean, dismissed = false): void => {
     const current = active.current;
     active.current = null;
+    current?.detach();
     setPending(null);
     if (dismissed) current?.onDismiss?.();
     current?.resolve(ok);
   }, []);
+
+  const confirm = useCallback<ConfirmFn>(
+    (options) => {
+      if (options.signal?.aborted) return Promise.resolve(false);
+      if (active.current) {
+        options.onDismiss?.();
+        return Promise.resolve(false);
+      }
+      return new Promise<boolean>((resolve) => {
+        const abort = () => settle(false);
+        active.current = {
+          ...options,
+          resolve,
+          detach: () => options.signal?.removeEventListener('abort', abort),
+        };
+        options.signal?.addEventListener('abort', abort, { once: true });
+        setPending(active.current);
+      });
+    },
+    [settle],
+  );
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +81,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
       {children}
       {pending && (
         <div
-          className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
+          className={`animate-fade fixed inset-0 flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4 ${pending.details ? 'z-60' : 'z-50'}`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) dismiss();
@@ -83,7 +97,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
             aria-describedby={pending.body ? bodyId : undefined}
             tabIndex={-1}
             /* Fade in without moving the answer while somebody is trying to press it. */
-            className="animate-fade surface max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:max-w-sm sm:rounded-3xl sm:pb-6"
+            className={`animate-fade surface max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl shadow-black/40 sm:rounded-3xl sm:pb-6 ${pending.details ? 'sm:max-w-xl' : 'sm:max-w-sm'}`}
           >
             <h2 className="break-words font-display text-xl font-semibold tracking-tight">{pending.title}</h2>
             {pending.body && (
@@ -91,6 +105,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactNod
                 {pending.body}
               </p>
             )}
+            {pending.details}
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               {pending.onDismiss && (
                 <button
