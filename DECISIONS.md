@@ -14,10 +14,10 @@ shell that reads D1, calls it, and writes back. The rules I most want to be _cor
 furthest from the network, and because the browser imports the same package, the quick-split
 preview and the saved expense cannot disagree.
 
-**The odd cent is assigned deterministically, from a seed both sides can derive.** Largest-remainder
-allocation decides who absorbs the extra penny, and the tie-break normally comes from the expense
-id. Quick split has to show the split _before_ the expense exists, so it passes an explicit seed;
-otherwise the preview shows one arrangement and the save produces another.
+**New equal splits use the group's rounding history.** Leftover cents go to participants whose
+saved equal shares have rounded down the most overall. The group ledger version guards the save so
+concurrent expenses cannot use the same snapshot. Quick split uses a shared seed for each previewed
+item so the allocation can be saved exactly as shown.
 
 **D1 for the ledger, a Durable Object for the live feed.** The data is relational, so D1 + Drizzle
 is the natural home. Realtime is a different shape (a short-lived fan-out to whoever's looking at

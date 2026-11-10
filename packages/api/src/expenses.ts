@@ -1,5 +1,5 @@
 import { insertStatements } from './db/rows.js';
-import { changedFields, computeSplit } from '@owewell/shared';
+import { changedFields, computeEditedSplit } from '@owewell/shared';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { DB } from './db/client.js';
 import { requireMembership } from './groups.js';
@@ -18,6 +18,8 @@ export { getBalances } from './balances.js';
 import { expenseItems, expenseRevisions, expenseSplits, expenses } from './db/schema.js';
 
 import { planExpenseCreate } from './expenseCreate.js';
+import { readEqualRounding, readLedgerVersion } from './equalRounding.js';
+import { groupWriteGuard } from './groupWriteGuard.js';
 import { ExpenseError, type CreateExpenseInput, type ExpenseView } from './expenseContracts.js';
 export { ExpenseError } from './expenseContracts.js';
 export type { CreateExpenseInput, ExpenseView } from './expenseContracts.js';
@@ -28,24 +30,41 @@ export async function createExpense(
   groupId: string,
   input: CreateExpenseInput,
 ): Promise<ExpenseView> {
-  await requireMembership(db, personId, groupId);
-  // Return an existing write before validating against membership that may have changed since it landed.
-  if (input.clientId) {
-    const already = await findByClientId(db, groupId, input.clientId);
-    if (already) return already;
-  }
-  const members = await memberPersonIds(db, groupId);
-  if (!members.has(input.payerId))
-    throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
-  if (input.participants.some((p) => !members.has(p.userId))) {
-    throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
-  }
+  const uneven = input.splitMethod === 'EQUAL' && input.amountCents % input.participants.length > 0;
+  for (let attempt = 0; ; attempt++) {
+    // Capture the version before reading membership or rounding history.
+    const version = uneven ? await readLedgerVersion(db, groupId) : undefined;
+    await requireMembership(db, personId, groupId);
+    if (input.clientId) {
+      const already = await findByClientId(db, groupId, input.clientId);
+      if (already) return already;
+    }
+    const members = await memberPersonIds(db, groupId);
+    if (!members.has(input.payerId))
+      throw new ExpenseError('INVALID_PAYER', 'The payer must be a member of the group.');
+    if (input.participants.some((p) => !members.has(p.userId))) {
+      throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
+    }
 
-  const { row, splitRows, view } = planExpenseCreate(personId, groupId, input);
-  return commitExpenseCreate(db, groupId, input.clientId, view, [
-    db.insert(expenses).values(row),
-    ...insertStatements(db, expenseSplits, splitRows),
-  ]);
+    const rounding = version === undefined ? undefined : await readEqualRounding(db, groupId);
+    const { row, splitRows, view } = planExpenseCreate(personId, groupId, input, rounding);
+    const insert = db.insert(expenses).values(row);
+    const splitInserts = insertStatements(db, expenseSplits, splitRows);
+    try {
+      return await commitExpenseCreate(
+        db,
+        groupId,
+        input.clientId,
+        view,
+        version === undefined
+          ? [insert, ...splitInserts]
+          : [groupWriteGuard(db, groupId, version), insert, ...splitInserts],
+      );
+    } catch (error) {
+      if (version === undefined || version === (await readLedgerVersion(db, groupId))) throw error;
+      if (attempt === 4) throw new ExpenseError('CONFLICT', 'The tab changed while saving. Try again.');
+    }
+  }
 }
 
 /** Replace a simple (non-itemized) expense in place, recomputing its splits. Preserves createdAt. */
@@ -79,10 +98,23 @@ export async function updateExpense(
     throw new ExpenseError('INVALID_PARTICIPANT', 'Every participant must be a member of the group.');
   }
 
+  const splits =
+    input.splitMethod === 'EQUAL' &&
+    existing.splitMethod === 'EQUAL' &&
+    input.amountCents % input.participants.length > 0
+      ? await db
+          .select({ userId: expenseSplits.personId, owedCents: expenseSplits.owedCents })
+          .from(expenseSplits)
+          .where(eq(expenseSplits.expenseId, expenseId))
+          .all()
+      : [];
   let shares;
   try {
-    // Same expense, same seed, so an edit never reshuffles who carries the leftover cent.
-    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, expenseId);
+    shares = computeEditedSplit(input.splitMethod, input.amountCents, input.participants, {
+      id: expenseId,
+      splitMethod: existing.splitMethod,
+      splits,
+    });
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }

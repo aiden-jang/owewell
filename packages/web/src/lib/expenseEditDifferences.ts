@@ -1,5 +1,5 @@
 import { categoryMeta, type Expense, type ExpenseItemInput } from '@owewell/core';
-import { computeItemizedSplit, computeSplit, formatMoney } from '@owewell/shared';
+import { computeEditedSplit, computeItemizedSplit, formatMoney } from '@owewell/shared';
 import type { QueuedEdit } from './outbox';
 import { SPLIT_METHODS } from './splitMethods';
 
@@ -65,7 +65,7 @@ export function expenseEditDifferences(entry: QueuedEdit, expense: Expense): Dif
     const method = receipt ? 'ITEMIZED' : payload.splitMethod;
     const shares = receipt
       ? computeItemizedSplit({ ...payload, seed: expense.id })
-      : computeSplit(payload.splitMethod, payload.amountCents, payload.participants, expense.id);
+      : computeEditedSplit(payload.splitMethod, payload.amountCents, payload.participants, expense);
     const amountCents = receipt
       ? payload.items.reduce((total, item) => total + item.amountCents, payload.taxCents + payload.tipCents)
       : payload.amountCents;

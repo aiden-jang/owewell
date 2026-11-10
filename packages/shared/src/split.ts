@@ -54,6 +54,7 @@ export function computeSplit(
    * group owner owe a cent more per uneven bill.
    */
   seed?: string,
+  roundingBalances?: ReadonlyMap<string, number>,
 ): SplitShare[] {
   if (!Number.isSafeInteger(totalCents) || totalCents < 0) {
     throw new SplitError('Total must be a non-negative integer number of cents');
@@ -67,15 +68,17 @@ export function computeSplit(
   }
 
   switch (method) {
-    case 'EQUAL':
-      return attach(
-        participants,
-        allocateCents(
-          totalCents,
-          participants.map(() => 1),
-          seed,
-        ),
-      );
+    case 'EQUAL': {
+      const weights = participants.map(() => 1);
+      if (!roundingBalances) return attach(participants, allocateCents(totalCents, weights, seed));
+
+      const order = ids.map((_, index) => index);
+      order.sort((a, b) => (roundingBalances.get(ids[a]!) ?? 0) - (roundingBalances.get(ids[b]!) ?? 0));
+      const ranked = allocateCents(totalCents, weights);
+      const cents = weights.map(() => 0);
+      order.forEach((index, rank) => (cents[index] = ranked[rank]!));
+      return attach(participants, cents);
+    }
 
     case 'SHARES': {
       const weights = participants.map((p) => requireValue(p, 'share'));
@@ -112,4 +115,20 @@ export function computeSplit(
       throw new SplitError(`Unknown split method: ${String(never)}`);
     }
   }
+}
+
+/** Keep existing equal-split recipients first when editing a bill for the same people. */
+export function computeEditedSplit(
+  method: SplitMethod,
+  totalCents: number,
+  participants: readonly SplitParticipantInput[],
+  saved: { id: string; splitMethod: string; splits: readonly SplitShare[] },
+): SplitShare[] {
+  const previous = new Map(saved.splits.map((share) => [share.userId, -share.owedCents]));
+  const keepPriority =
+    method === 'EQUAL' &&
+    saved.splitMethod === 'EQUAL' &&
+    previous.size === participants.length &&
+    participants.every(({ userId }) => previous.has(userId));
+  return computeSplit(method, totalCents, participants, saved.id, keepPriority ? previous : undefined);
 }

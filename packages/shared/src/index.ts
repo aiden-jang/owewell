@@ -2,6 +2,7 @@ export { Money, MoneyError, allocateCents, dollarsToCents } from './money.js';
 export { currencySymbol, formatMoney, type MoneyFormatter } from './currency.js';
 export {
   computeSplit,
+  computeEditedSplit,
   quickSplitSeed,
   SplitError,
   SPLIT_METHODS,

@@ -1,11 +1,22 @@
 import { computeSplit } from '@owewell/shared';
 import { ExpenseError, type CreateExpenseInput, type ExpenseView } from './expenseContracts.js';
 
-export function planExpenseCreate(personId: string, groupId: string, input: CreateExpenseInput) {
+export function planExpenseCreate(
+  personId: string,
+  groupId: string,
+  input: CreateExpenseInput,
+  roundingBalances?: ReadonlyMap<string, number>,
+) {
   const id = crypto.randomUUID();
   let shares;
   try {
-    shares = computeSplit(input.splitMethod, input.amountCents, input.participants, input.splitSeed ?? id);
+    shares = computeSplit(
+      input.splitMethod,
+      input.amountCents,
+      input.participants,
+      input.splitSeed ?? id,
+      roundingBalances,
+    );
   } catch (err) {
     throw new ExpenseError('INVALID_SPLIT', err instanceof Error ? err.message : 'Invalid split.');
   }
